@@ -1,0 +1,15 @@
+// Hello World in Script
+fn main() {
+    print("Hello from Script! 📜")
+}
+
+// Variables with optional types
+let language = "Script"
+let version: f32 = 0.1
+
+// Everything is an expression
+let result = if version > 1.0 {
+    "stable"
+} else {
+    "experimental"
+}

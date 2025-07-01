@@ -1,0 +1,33 @@
+[package]
+name = "script-lang"
+version = "0.1.0"
+edition = "2021"
+authors = ["Warren Gates (moikapy)"]
+description = "Script: A simple yet powerful programming language for web applications and games"
+readme = "README.md"
+repository = "https://github.com/moikapy/script-lang"
+license = "MIT"
+keywords = ["programming-language", "compiler", "script"]
+categories = ["compilers", "development-tools"]
+
+[dependencies]
+colored = "2.1"
+unicode-width = "0.2"
+cranelift = "0.110"
+cranelift-module = "0.110"
+cranelift-jit = "0.110"
+cranelift-native = "0.110"
+target-lexicon = "0.12"
+rand = "0.8"
+
+[dev-dependencies]
+criterion = "0.5"
+proptest = "1.0"
+
+[[bench]]
+name = "lexer"
+harness = false
+
+[[bench]]
+name = "parser"
+harness = false

@@ -1,0 +1,7 @@
+// Simple Script program to test compilation
+fn main() {
+    let x = 42
+    let y = 8
+    let result = x + y
+    return result
+}

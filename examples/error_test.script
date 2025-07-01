@@ -1,0 +1,4 @@
+// Test error handling
+let x = "unterminated string
+let y = 42 @ 3.14  // Invalid character
+let z = "escape \x test"  // Invalid escape

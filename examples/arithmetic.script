@@ -1,0 +1,16 @@
+// Arithmetic expressions in Script
+let x = 42
+let y = 3.14
+let z = x + y * 2
+
+// Function example
+fn add(a: i32, b: i32) -> i32 {
+    return a + b
+}
+
+// Complex expression
+let result = (10 + 20) * 3 / 2 - 5
+
+// Boolean operations
+let is_ready = true && !false
+let should_continue = x > 40 || y < 2.0
