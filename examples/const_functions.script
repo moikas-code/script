@@ -1,0 +1,137 @@
+// @const Function Examples - Compile-time Evaluation
+
+// Mathematical constants computed at compile time
+@const
+fn factorial(n: Number) -> Number {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+@const
+fn power(base: Number, exp: Number) -> Number {
+    if exp == 0 {
+        return 1
+    }
+    return base * power(base, exp - 1)
+}
+
+@const
+fn gcd(a: Number, b: Number) -> Number {
+    if b == 0 {
+        return a
+    }
+    return gcd(b, a % b)
+}
+
+@const
+fn lcm(a: Number, b: Number) -> Number {
+    return (a * b) / gcd(a, b)
+}
+
+// Compile-time string operations
+@const
+fn repeat_string(s: String, n: Number) -> String {
+    if n <= 0 {
+        return ""
+    }
+    return s + repeat_string(s, n - 1)
+}
+
+@const
+fn reverse_string(s: String) -> String {
+    if s.length() <= 1 {
+        return s
+    }
+    return s[s.length() - 1] + reverse_string(s.substring(0, s.length() - 1))
+}
+
+// Configuration constants
+@const
+let MAX_RETRIES = 3
+@const
+let TIMEOUT_MS = power(10, 3) * 5  // 5000
+@const
+let API_VERSION = "v" + repeat_string("1", 1) + ".0.0"
+
+// Lookup tables generated at compile time
+@const
+fn generate_squares_table(n: Number) -> Array<Number> {
+    return [i * i for i in 0..n]
+}
+
+@const
+fn generate_fibonacci_table(n: Number) -> Array<Number> {
+    fn fib(x: Number) -> Number {
+        if x <= 1 { return x }
+        return fib(x - 1) + fib(x - 2)
+    }
+    return [fib(i) for i in 0..n]
+}
+
+@const
+let SQUARES_10 = generate_squares_table(10)  // [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+@const
+let FIBONACCI_10 = generate_fibonacci_table(10)  // [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+
+// Complex compile-time computations
+@const
+fn is_prime(n: Number) -> Boolean {
+    if n < 2 { return false }
+    for i in 2..n {
+        if n % i == 0 { return false }
+    }
+    return true
+}
+
+@const
+fn nth_prime(n: Number) -> Number {
+    let count = 0
+    let candidate = 2
+    while count < n {
+        if is_prime(candidate) {
+            count = count + 1
+            if count == n {
+                return candidate
+            }
+        }
+        candidate = candidate + 1
+    }
+    return candidate
+}
+
+@const
+let PRIME_100 = nth_prime(100)  // 541 (the 100th prime number)
+
+// Using const values in regular functions
+fn process_with_retry(data: String) -> Result {
+    for attempt in 1..MAX_RETRIES + 1 {
+        print("Attempt " + attempt + " of " + MAX_RETRIES)
+        let result = try_process(data, TIMEOUT_MS)
+        if result.success {
+            return result
+        }
+    }
+    return { success: false, error: "Max retries exceeded" }
+}
+
+fn main() {
+    // All these values were computed at compile time
+    print("10! = " + factorial(10))  // 3628800
+    print("2^10 = " + power(2, 10))  // 1024
+    print("GCD(48, 18) = " + gcd(48, 18))  // 6
+    print("LCM(12, 15) = " + lcm(12, 15))  // 60
+    
+    print("API Version: " + API_VERSION)  // "v1.0.0"
+    print("Timeout: " + TIMEOUT_MS + "ms")  // "5000ms"
+    
+    print("First 10 squares: " + SQUARES_10)
+    print("First 10 Fibonacci numbers: " + FIBONACCI_10)
+    print("The 100th prime is: " + PRIME_100)
+    
+    // Using compile-time generated lookup tables
+    let n = 7
+    print("Square of " + n + " is " + SQUARES_10[n])  // 49
+    print("Fibonacci(" + n + ") is " + FIBONACCI_10[n])  // 13
+}

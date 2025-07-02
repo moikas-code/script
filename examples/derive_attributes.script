@@ -1,0 +1,148 @@
+// @derive Attribute Examples - Automatic Trait Implementations
+
+// Simple data type with Debug
+@derive(Debug)
+fn Point(x: Number, y: Number) {
+    return { x: x, y: y }
+}
+
+// More complex type with multiple derives
+@derive(Debug, Serialize)
+fn Person(name: String, age: Number, email: String) {
+    return {
+        name: name,
+        age: age,
+        email: email,
+        id: generate_id()
+    }
+}
+
+// Nested types with derives
+@derive(Debug, Serialize)
+fn Address(street: String, city: String, zip: String) {
+    return {
+        street: street,
+        city: city,
+        zip: zip,
+        country: "USA"  // default
+    }
+}
+
+@derive(Debug, Serialize)
+fn Employee(person: Person, address: Address, salary: Number) {
+    return {
+        person: person,
+        address: address,
+        salary: salary,
+        department: "Engineering"  // default
+    }
+}
+
+// Collection type
+@derive(Debug)
+fn TodoList(name: String) {
+    let items = []
+    
+    return {
+        name: name,
+        items: items,
+        add: fn(item: String) {
+            items.push({
+                text: item,
+                completed: false,
+                id: items.length()
+            })
+        },
+        complete: fn(index: Number) {
+            if index < items.length() {
+                items[index].completed = true
+            }
+        },
+        get_pending: fn() -> Array {
+            return [item for item in items if !item.completed]
+        }
+    }
+}
+
+// Enum-like type with derive
+@derive(Debug, Serialize)
+fn Result(success: Boolean, value: Any?, error: String?) {
+    if success && value != null {
+        return { kind: "Ok", value: value }
+    } else if !success && error != null {
+        return { kind: "Err", error: error }
+    } else {
+        return { kind: "Invalid", message: "Invalid Result construction" }
+    }
+}
+
+// Game entity with multiple derives
+@derive(Debug, Serialize)
+fn GameObject(name: String, x: Number, y: Number) {
+    return {
+        id: generate_id(),
+        name: name,
+        position: Point(x, y),
+        velocity: Point(0, 0),
+        health: 100,
+        active: true
+    }
+}
+
+fn generate_id() -> String {
+    // Simple ID generator
+    return "id_" + random() * 10000
+}
+
+fn main() {
+    // Using Debug derive
+    let p1 = Point(3, 4)
+    print(Point_debug(p1))  // "Point{x: 3, y: 4}"
+    
+    let p2 = Point(10, -5)
+    print(Point_debug(p2))  // "Point{x: 10, y: -5}"
+    
+    // Using multiple derives
+    let john = Person("John Doe", 30, "john@example.com")
+    print(Person_debug(john))  // "Person{name: John Doe, age: 30, email: john@example.com, id: id_xxxx}"
+    print(Person_serialize(john))  // JSON representation
+    
+    // Nested structures
+    let addr = Address("123 Main St", "Springfield", "12345")
+    let emp = Employee(john, addr, 75000)
+    print(Employee_debug(emp))  // Detailed debug output
+    let json = Employee_serialize(emp)
+    print("Serialized: " + json)
+    
+    // Working with collections
+    let todos = TodoList("Shopping")
+    todos.add("Buy milk")
+    todos.add("Get bread")
+    todos.add("Pick up eggs")
+    todos.complete(1)
+    
+    print(TodoList_debug(todos))  // Shows full todo list structure
+    print("Pending items: " + todos.get_pending().length())  // 2
+    
+    // Result type usage
+    let ok_result = Result(true, 42, null)
+    let err_result = Result(false, null, "Division by zero")
+    
+    print(Result_debug(ok_result))   // "Result{kind: Ok, value: 42}"
+    print(Result_debug(err_result))  // "Result{kind: Err, error: Division by zero}"
+    
+    // Game objects
+    let player = GameObject("Player", 100, 200)
+    let enemy = GameObject("Enemy", 300, 200)
+    
+    print(GameObject_debug(player))
+    print(GameObject_debug(enemy))
+    
+    // Serialize for save game
+    let save_data = {
+        player: GameObject_serialize(player),
+        enemy: GameObject_serialize(enemy),
+        timestamp: Date.now()
+    }
+    print("Save game data: " + serialize(save_data))
+}

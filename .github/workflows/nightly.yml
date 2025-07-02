@@ -1,0 +1,271 @@
+name: Nightly Build
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force build even if no changes'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-changes:
+    name: Check for Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      short_sha: ${{ steps.check.outputs.short_sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Check for recent changes
+        id: check
+        run: |
+          # Check if there were commits in the last 24 hours
+          LAST_COMMIT=$(git log -1 --format='%ct')
+          CURRENT_TIME=$(date +%s)
+          HOURS_AGO=$((($CURRENT_TIME - $LAST_COMMIT) / 3600))
+          
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          
+          if [ $HOURS_AGO -lt 24 ] || [ "${{ github.event.inputs.force }}" == "true" ]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in the last 24 hours or force build requested"
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "No changes in the last 24 hours, skipping build"
+          fi
+
+  build-nightly:
+    name: Build Nightly
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: script-linux-amd64-nightly
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: script-linux-amd64-musl-nightly
+            
+          # macOS builds
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: script-macos-amd64-nightly
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: script-macos-arm64-nightly
+            
+          # Windows builds
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: script-windows-amd64-nightly
+            
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+          
+      - name: Install cross-compilation tools
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y musl-tools
+          fi
+          
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-nightly-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-nightly-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Build nightly binary
+        run: |
+          # Add nightly version info
+          export SCRIPT_BUILD_VERSION="nightly-${{ needs.check-changes.outputs.short_sha }}"
+          export SCRIPT_BUILD_DATE=$(date -u +"%Y-%m-%d")
+          
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]] && [[ "${{ matrix.target }}" != "x86_64-unknown-linux-gnu" ]]; then
+            cargo install cross
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+        shell: bash
+        
+      - name: Build all binaries
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]] && [[ "${{ matrix.target }}" != "x86_64-unknown-linux-gnu" ]]; then
+            cross build --release --target ${{ matrix.target }} --bin script-lsp
+            cross build --release --target ${{ matrix.target }} --bin manuscript
+          else
+            cargo build --release --target ${{ matrix.target }} --bin script-lsp
+            cargo build --release --target ${{ matrix.target }} --bin manuscript
+          fi
+        shell: bash
+        
+      - name: Prepare nightly artifacts
+        run: |
+          # Create staging directory
+          mkdir -p staging
+          
+          # Copy binaries
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp target/${{ matrix.target }}/release/script.exe staging/
+            cp target/${{ matrix.target }}/release/script-lsp.exe staging/
+            cp target/${{ matrix.target }}/release/manuscript.exe staging/
+          else
+            cp target/${{ matrix.target }}/release/script staging/
+            cp target/${{ matrix.target }}/release/script-lsp staging/
+            cp target/${{ matrix.target }}/release/manuscript staging/
+            chmod +x staging/*
+          fi
+          
+          # Create version info file
+          echo "Nightly Build" > staging/VERSION
+          echo "Commit: ${{ needs.check-changes.outputs.short_sha }}" >> staging/VERSION
+          echo "Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> staging/VERSION
+          echo "Target: ${{ matrix.target }}" >> staging/VERSION
+          
+          # Copy additional files
+          cp README.md LICENSE staging/
+          
+          # Create archive
+          cd staging
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            7z a ../${{ matrix.name }}.zip *
+          else
+            tar czf ../${{ matrix.name }}.tar.gz *
+          fi
+        shell: bash
+        
+      - name: Upload nightly artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            ${{ matrix.name }}.*
+          retention-days: 7
+
+  update-nightly-release:
+    name: Update Nightly Release
+    needs: [check-changes, build-nightly]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+          
+      - name: Create release notes
+        run: |
+          cat > NIGHTLY_NOTES.md << EOF
+          # Nightly Build
+          
+          **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Commit**: ${{ needs.check-changes.outputs.short_sha }}
+          
+          ## ⚠️ Warning
+          
+          This is an automated nightly build of the latest development code.
+          It may be unstable and is not recommended for production use.
+          
+          ## Installation
+          
+          Download the appropriate archive for your platform and extract it.
+          The binaries can be run directly or installed to your PATH.
+          
+          ## Changes
+          
+          Recent commits:
+          $(git log --oneline -10)
+          
+          ---
+          
+          *This release is automatically updated with the latest nightly build.*
+          EOF
+          
+      - name: Update or create nightly release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          body_path: NIGHTLY_NOTES.md
+          prerelease: true
+          files: |
+            artifacts/**/*
+          
+      - name: Clean old nightly artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Keep only the latest nightly release
+          gh release list --limit 100 | grep nightly | tail -n +2 | cut -f1 | xargs -I {} gh release delete {} -y || true
+
+  notify-failure:
+    name: Notify Build Failure
+    needs: [check-changes, build-nightly]
+    if: failure() && needs.check-changes.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Create issue for build failure
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const date = new Date().toISOString().split('T')[0];
+            const title = `Nightly Build Failed - ${date}`;
+            
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'nightly-build-failure'
+            });
+            
+            const existingIssue = issues.data.find(issue => issue.title === title);
+            
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: `The nightly build failed on ${date}.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                labels: ['nightly-build-failure', 'bug']
+              });
+            }

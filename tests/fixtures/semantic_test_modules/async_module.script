@@ -1,0 +1,49 @@
+// Async operations module for semantic analysis testing
+
+async export fn fetch_data(url: string) -> string {
+    // Simulated async operation
+    "data from " + url
+}
+
+async export fn process_data(data: string) -> i32 {
+    let length = len(data);
+    length * 2
+}
+
+async export fn fetch_and_process(url: string) -> i32 {
+    let data = await fetch_data(url);
+    await process_data(data)
+}
+
+// Test async function calling non-async function
+async export fn mixed_operations() -> i32 {
+    let sync_result = calculate_sync(10);
+    let async_result = await fetch_data("test");
+    sync_result + len(async_result)
+}
+
+export fn calculate_sync(n: i32) -> i32 {
+    n * n
+}
+
+// Test invalid await outside async function
+export fn invalid_await_usage() -> i32 {
+    let data = await fetch_data("test");  // Should cause error
+    len(data)
+}
+
+// Test @const async function (should fail)
+@const
+async export fn invalid_const_async() -> i32 {
+    42
+}
+
+// Test async function with memory safety considerations
+async export fn async_array_processing(data: [string]) -> [i32] {
+    let results = [];
+    for item in data {
+        let processed = await process_data(item);
+        results.push(processed);
+    }
+    results
+}

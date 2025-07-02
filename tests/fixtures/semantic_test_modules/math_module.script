@@ -1,0 +1,50 @@
+// Math utilities module for semantic analysis testing
+
+@const
+export fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+@const
+export fn multiply(a: i32, b: i32) -> i32 {
+    a * b
+}
+
+export fn divide(a: f32, b: f32) -> f32 {
+    if b == 0.0 {
+        panic("Division by zero")
+    } else {
+        a / b
+    }
+}
+
+@const
+export let PI: f32 = 3.14159;
+
+@const
+export let E: f32 = 2.71828;
+
+export fn power(base: f32, exponent: i32) -> f32 {
+    let result = 1.0;
+    let i = 0;
+    while i < exponent {
+        result = result * base;
+        i = i + 1;
+    }
+    result
+}
+
+@const
+export fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+// Test const function calling non-const function (should fail)
+@const
+fn invalid_const_function() -> f32 {
+    power(2.0, 3)  // power is not @const
+}

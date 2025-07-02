@@ -1,0 +1,439 @@
+/**
+ * Collections and Data Structures in Script
+ * 
+ * This example demonstrates:
+ * - Working with arrays and vectors
+ * - HashMap usage for key-value storage
+ * - Collection operations and iteration
+ * - Practical data structure examples
+ * - Option and Result types for safe operations
+ */
+
+fn main() {
+    print("=== Script Collections Tutorial ===\n")
+    
+    vector_examples()
+    hashmap_examples()
+    data_processing_examples()
+    real_world_example()
+}
+
+/**
+ * Demonstrates vector operations - dynamic arrays in Script
+ */
+fn vector_examples() {
+    print("--- Vector (Dynamic Array) Examples ---")
+    
+    // Create a new vector
+    let numbers = Vec::new()
+    print("Created empty vector")
+    
+    // Add elements to the vector
+    vec_push(numbers, 10)
+    vec_push(numbers, 20)
+    vec_push(numbers, 30)
+    vec_push(numbers, 40)
+    vec_push(numbers, 50)
+    
+    print("Added numbers: 10, 20, 30, 40, 50")
+    print("Vector length: " + vec_len(numbers))
+    
+    // Access elements safely
+    let first_element = vec_get(numbers, 0)
+    match first_element {
+        Some(value) => print("First element: " + value),
+        None => print("No first element (empty vector)")
+    }
+    
+    let middle_element = vec_get(numbers, 2)
+    match middle_element {
+        Some(value) => print("Middle element (index 2): " + value),
+        None => print("Index 2 is out of bounds")
+    }
+    
+    // Try to access an invalid index
+    let invalid_element = vec_get(numbers, 10)
+    match invalid_element {
+        Some(value) => print("Element at index 10: " + value),
+        None => print("Index 10 is out of bounds (as expected)")
+    }
+    
+    // Remove elements
+    let popped = vec_pop(numbers)
+    match popped {
+        Some(value) => print("Popped element: " + value),
+        None => print("Vector was empty, nothing to pop")
+    }
+    
+    print("Vector length after pop: " + vec_len(numbers))
+    
+    // Iterate through all elements
+    print("All remaining elements:")
+    let length = vec_len(numbers)
+    for i in 0..length {
+        match vec_get(numbers, i) {
+            Some(value) => print("  [" + i + "] = " + value),
+            None => continue
+        }
+    }
+    
+    print("")
+}
+
+/**
+ * Demonstrates HashMap operations - key-value storage
+ */
+fn hashmap_examples() {
+    print("--- HashMap (Key-Value Storage) Examples ---")
+    
+    // Create a new HashMap for storing student grades
+    let grades = HashMap::new()
+    print("Created empty HashMap for student grades")
+    
+    // Insert key-value pairs
+    hashmap_insert(grades, "Alice", 95)
+    hashmap_insert(grades, "Bob", 87)
+    hashmap_insert(grades, "Charlie", 92)
+    hashmap_insert(grades, "Diana", 89)
+    
+    print("Added grades for Alice (95), Bob (87), Charlie (92), Diana (89)")
+    
+    // Retrieve values
+    let alice_grade = hashmap_get(grades, "Alice")
+    match alice_grade {
+        Some(grade) => print("Alice's grade: " + grade),
+        None => print("Alice's grade not found")
+    }
+    
+    let eve_grade = hashmap_get(grades, "Eve")
+    match eve_grade {
+        Some(grade) => print("Eve's grade: " + grade),
+        None => print("Eve's grade not found (as expected)")
+    }
+    
+    // Check if keys exist
+    if hashmap_contains_key(grades, "Bob") {
+        print("Bob's grade is recorded")
+    } else {
+        print("Bob's grade is not recorded")
+    }
+    
+    if hashmap_contains_key(grades, "Frank") {
+        print("Frank's grade is recorded")
+    } else {
+        print("Frank's grade is not recorded (as expected)")
+    }
+    
+    // Update existing values
+    hashmap_insert(grades, "Alice", 98)  // Alice improved her grade!
+    let updated_grade = hashmap_get(grades, "Alice")
+    match updated_grade {
+        Some(grade) => print("Alice's updated grade: " + grade),
+        None => print("Failed to update Alice's grade")
+    }
+    
+    print("")
+}
+
+/**
+ * Shows practical data processing with collections
+ */
+fn data_processing_examples() {
+    print("--- Data Processing Examples ---")
+    
+    // Create a list of test scores
+    let scores = Vec::new()
+    vec_push(scores, 95)
+    vec_push(scores, 87)
+    vec_push(scores, 92)
+    vec_push(scores, 76)
+    vec_push(scores, 89)
+    vec_push(scores, 94)
+    vec_push(scores, 82)
+    
+    print("Test scores: 95, 87, 92, 76, 89, 94, 82")
+    
+    // Calculate statistics
+    let total = calculate_sum(scores)
+    let average = calculate_average(scores)
+    let highest = find_maximum(scores)
+    let lowest = find_minimum(scores)
+    let passing_count = count_passing_scores(scores, 80)
+    
+    print("Statistics:")
+    print("  Total: " + total)
+    print("  Average: " + average)
+    print("  Highest: " + highest)
+    print("  Lowest: " + lowest)
+    print("  Passing (≥80): " + passing_count + " out of " + vec_len(scores))
+    
+    // Filter scores
+    let high_scores = filter_high_scores(scores, 90)
+    print("High scores (≥90):")
+    let high_count = vec_len(high_scores)
+    for i in 0..high_count {
+        match vec_get(high_scores, i) {
+            Some(score) => print("  " + score),
+            None => continue
+        }
+    }
+    
+    print("")
+}
+
+/**
+ * Real-world example: A simple contact management system
+ */
+fn real_world_example() {
+    print("--- Real-World Example: Contact Management ---")
+    
+    // Create contact database using HashMap
+    let contacts = HashMap::new()
+    
+    // Add contacts
+    add_contact(contacts, "Alice Johnson", "alice@email.com")
+    add_contact(contacts, "Bob Smith", "bob@email.com")
+    add_contact(contacts, "Charlie Brown", "charlie@email.com")
+    
+    print("Added 3 contacts to the database")
+    
+    // Look up contacts
+    lookup_contact(contacts, "Alice Johnson")
+    lookup_contact(contacts, "David Wilson")  // Doesn't exist
+    
+    // Create a list of favorite contacts
+    let favorites = Vec::new()
+    vec_push(favorites, "Alice Johnson")
+    vec_push(favorites, "Charlie Brown")
+    
+    print("\nFavorite contacts:")
+    display_favorite_contacts(contacts, favorites)
+    
+    // Simulate contact search
+    let search_results = search_contacts_by_domain(contacts, "email.com")
+    print("\nContacts with 'email.com' domain: " + vec_len(search_results) + " found")
+    
+    print("")
+}
+
+// Helper functions for data processing
+
+/**
+ * Calculate the sum of all numbers in a vector
+ */
+fn calculate_sum(numbers: Vec<i32>) -> i32 {
+    let total = 0
+    let length = vec_len(numbers)
+    
+    for i in 0..length {
+        match vec_get(numbers, i) {
+            Some(num) => total = total + num,
+            None => continue
+        }
+    }
+    
+    total
+}
+
+/**
+ * Calculate the average of all numbers in a vector
+ */
+fn calculate_average(numbers: Vec<i32>) -> f32 {
+    let length = vec_len(numbers)
+    if length == 0 {
+        return 0.0
+    }
+    
+    let total = calculate_sum(numbers)
+    total as f32 / length as f32
+}
+
+/**
+ * Find the maximum value in a vector
+ */
+fn find_maximum(numbers: Vec<i32>) -> i32 {
+    let length = vec_len(numbers)
+    if length == 0 {
+        return 0  // or handle error appropriately
+    }
+    
+    let max = vec_get(numbers, 0).unwrap_or(0)
+    
+    for i in 1..length {
+        match vec_get(numbers, i) {
+            Some(num) => {
+                if num > max {
+                    max = num
+                }
+            },
+            None => continue
+        }
+    }
+    
+    max
+}
+
+/**
+ * Find the minimum value in a vector
+ */
+fn find_minimum(numbers: Vec<i32>) -> i32 {
+    let length = vec_len(numbers)
+    if length == 0 {
+        return 0  // or handle error appropriately
+    }
+    
+    let min = vec_get(numbers, 0).unwrap_or(0)
+    
+    for i in 1..length {
+        match vec_get(numbers, i) {
+            Some(num) => {
+                if num < min {
+                    min = num
+                }
+            },
+            None => continue
+        }
+    }
+    
+    min
+}
+
+/**
+ * Count how many scores are above or equal to the passing threshold
+ */
+fn count_passing_scores(scores: Vec<i32>, threshold: i32) -> i32 {
+    let count = 0
+    let length = vec_len(scores)
+    
+    for i in 0..length {
+        match vec_get(scores, i) {
+            Some(score) => {
+                if score >= threshold {
+                    count = count + 1
+                }
+            },
+            None => continue
+        }
+    }
+    
+    count
+}
+
+/**
+ * Filter scores that are above or equal to the threshold
+ */
+fn filter_high_scores(scores: Vec<i32>, threshold: i32) -> Vec<i32> {
+    let high_scores = Vec::new()
+    let length = vec_len(scores)
+    
+    for i in 0..length {
+        match vec_get(scores, i) {
+            Some(score) => {
+                if score >= threshold {
+                    vec_push(high_scores, score)
+                }
+            },
+            None => continue
+        }
+    }
+    
+    high_scores
+}
+
+// Helper functions for contact management
+
+/**
+ * Add a contact to the database
+ */
+fn add_contact(contacts: HashMap<string, string>, name: string, email: string) {
+    hashmap_insert(contacts, name, email)
+    print("Added contact: " + name + " (" + email + ")")
+}
+
+/**
+ * Look up a contact by name
+ */
+fn lookup_contact(contacts: HashMap<string, string>, name: string) {
+    let email = hashmap_get(contacts, name)
+    match email {
+        Some(email_addr) => print("Found " + name + ": " + email_addr),
+        None => print("Contact '" + name + "' not found")
+    }
+}
+
+/**
+ * Display favorite contacts with their email addresses
+ */
+fn display_favorite_contacts(contacts: HashMap<string, string>, favorites: Vec<string>) {
+    let fav_count = vec_len(favorites)
+    
+    for i in 0..fav_count {
+        match vec_get(favorites, i) {
+            Some(name) => {
+                match hashmap_get(contacts, name) {
+                    Some(email) => print("  ⭐ " + name + " (" + email + ")"),
+                    None => print("  ⭐ " + name + " (email not found)")
+                }
+            },
+            None => continue
+        }
+    }
+}
+
+/**
+ * Search for contacts by email domain
+ */
+fn search_contacts_by_domain(contacts: HashMap<string, string>, domain: string) -> Vec<string> {
+    let results = Vec::new()
+    
+    // Note: In a real implementation, you'd iterate through the HashMap
+    // This is a simplified version showing the concept
+    
+    // For demonstration, we'll manually check known contacts
+    let test_names = Vec::new()
+    vec_push(test_names, "Alice Johnson")
+    vec_push(test_names, "Bob Smith")
+    vec_push(test_names, "Charlie Brown")
+    
+    let name_count = vec_len(test_names)
+    for i in 0..name_count {
+        match vec_get(test_names, i) {
+            Some(name) => {
+                match hashmap_get(contacts, name) {
+                    Some(email) => {
+                        if contains(email, domain) {
+                            vec_push(results, name)
+                        }
+                    },
+                    None => continue
+                }
+            },
+            None => continue
+        }
+    }
+    
+    results
+}
+
+/**
+ * Key Concepts Demonstrated:
+ * 
+ * 1. VECTOR OPERATIONS: Creating, adding, removing, and accessing elements
+ * 2. SAFE ACCESS: Using Option types to handle potential failures
+ * 3. HASHMAP USAGE: Key-value storage for efficient lookups
+ * 4. DATA PROCESSING: Calculating statistics and filtering data
+ * 5. ITERATION PATTERNS: Safe iteration through collections
+ * 6. ERROR HANDLING: Graceful handling of edge cases
+ * 7. REAL-WORLD APPLICATIONS: Practical examples like contact management
+ * 8. HELPER FUNCTIONS: Breaking down complex operations into smaller functions
+ * 
+ * Try This:
+ * - Create a shopping cart system using HashMap and Vec
+ * - Build a simple inventory management system
+ * - Implement a basic grading system for a school
+ * - Create a word frequency counter using HashMap
+ * - Build a simple music playlist manager
+ */
+
+// Run the examples
+main()

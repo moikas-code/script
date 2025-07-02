@@ -1,28 +1,29 @@
 //! Core runtime system for Script
-//! 
+//!
 //! This module provides the main runtime structure that manages:
 //! - Memory allocation and deallocation
 //! - Runtime initialization and configuration
 //! - Integration with the panic handler
 //! - Coordination between subsystems
 
-use std::sync::{Arc, RwLock};
-use std::collections::HashMap;
-use std::any::{Any, TypeId};
 use std::alloc::{GlobalAlloc, Layout};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::any::{Any, TypeId};
+use std::collections::HashMap;
 use std::panic::{self, AssertUnwindSafe};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, RwLock};
 
-use crate::runtime::{RuntimeError, Result};
 use crate::runtime::gc::CollectionStats;
 use crate::runtime::panic::PanicInfo;
+use crate::runtime::{Result, RuntimeError};
 
 /// Global runtime instance
 static RUNTIME: RwLock<Option<Arc<Runtime>>> = RwLock::new(None);
 
 /// Get the global runtime instance
 pub fn runtime() -> Result<Arc<Runtime>> {
-    RUNTIME.read()
+    RUNTIME
+        .read()
         .unwrap()
         .as_ref()
         .cloned()
@@ -137,49 +138,49 @@ impl Runtime {
             }),
         }
     }
-    
+
     /// Initialize the runtime with the given configuration
     pub fn initialize_with_config(config: RuntimeConfig) -> Result<()> {
         let mut runtime_lock = RUNTIME.write().unwrap();
         if runtime_lock.is_some() {
             return Err(RuntimeError::AlreadyInitialized);
         }
-        
+
         let runtime = Arc::new(Runtime::new(config.clone()));
         *runtime_lock = Some(runtime.clone());
-        
+
         // Initialize subsystems based on configuration
         if config.enable_profiling {
             crate::runtime::profiler::initialize();
         }
-        
+
         if config.enable_gc {
             crate::runtime::gc::initialize();
         }
-        
+
         if config.enable_panic_handler {
             runtime.install_panic_handler();
         }
-        
+
         Ok(())
     }
-    
+
     /// Get the memory manager
     pub fn memory(&self) -> &MemoryManager {
         &self.memory
     }
-    
+
     /// Get runtime configuration
     pub fn config(&self) -> &RuntimeConfig {
         &self.config
     }
-    
+
     /// Register a type with the runtime
     pub fn register_type<T: Any>(&self) {
         let mut registry = self.type_registry.write().unwrap();
         registry.register::<T>();
     }
-    
+
     /// Get runtime statistics
     pub fn stats(&self) -> RuntimeStats {
         RuntimeStats {
@@ -188,54 +189,54 @@ impl Runtime {
             uptime: self.uptime(),
         }
     }
-    
+
     /// Get runtime uptime
     pub fn uptime(&self) -> std::time::Duration {
         let metadata = self.metadata.read().unwrap();
         metadata.start_time.elapsed()
     }
-    
+
     /// Set custom metadata
     pub fn set_metadata(&self, key: String, value: String) {
         let mut metadata = self.metadata.write().unwrap();
         metadata.custom.insert(key, value);
     }
-    
+
     /// Get custom metadata
     pub fn get_metadata(&self, key: &str) -> Option<String> {
         let metadata = self.metadata.read().unwrap();
         metadata.custom.get(key).cloned()
     }
-    
+
     /// Install the panic handler
     fn install_panic_handler(&self) {
         let memory = self.memory.clone();
-        
+
         panic::set_hook(Box::new(move |panic_info| {
             // Create panic info
             let info = PanicInfo {
                 message: panic_info.to_string(),
-                location: panic_info.location().map(|loc| {
-                    format!("{}:{}:{}", loc.file(), loc.line(), loc.column())
-                }),
+                location: panic_info
+                    .location()
+                    .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column())),
                 backtrace: std::backtrace::Backtrace::capture().to_string(),
             };
-            
+
             // Log panic
             eprintln!("Script panic: {}", info.message);
             if let Some(loc) = &info.location {
                 eprintln!("  at {}", loc);
             }
-            
+
             // Log memory stats at panic
             let stats = memory.stats();
             eprintln!("Memory at panic: {} bytes used", stats.heap_used);
-            
+
             // Save panic info
             crate::runtime::panic::record_panic(info);
         }));
     }
-    
+
     /// Execute a closure with panic recovery
     pub fn execute_protected<F, R>(&self, f: F) -> Result<R>
     where
@@ -266,24 +267,25 @@ impl MemoryManager {
             config,
         }
     }
-    
+
     /// Allocate memory
     pub fn allocate(&self, layout: Layout) -> Result<*mut u8> {
         let size = layout.size();
-        
+
         // Check heap limit
         if self.config.max_heap_size > 0 {
             let new_used = self.heap_used.fetch_add(size, Ordering::Relaxed) + size;
             if new_used > self.config.max_heap_size {
                 self.heap_used.fetch_sub(size, Ordering::Relaxed);
-                return Err(RuntimeError::AllocationFailed(
-                    format!("Heap limit exceeded: {} bytes", self.config.max_heap_size)
-                ));
+                return Err(RuntimeError::AllocationFailed(format!(
+                    "Heap limit exceeded: {} bytes",
+                    self.config.max_heap_size
+                )));
             }
         } else {
             self.heap_used.fetch_add(size, Ordering::Relaxed);
         }
-        
+
         // Update peak usage
         let current = self.heap_used.load(Ordering::Relaxed);
         let mut peak = self.heap_peak.load(Ordering::Relaxed);
@@ -298,10 +300,10 @@ impl MemoryManager {
                 Err(p) => peak = p,
             }
         }
-        
+
         // Increment allocation count
         self.total_allocations.fetch_add(1, Ordering::Relaxed);
-        
+
         // Allocate memory
         unsafe {
             let ptr = std::alloc::alloc(layout);
@@ -313,17 +315,17 @@ impl MemoryManager {
             }
         }
     }
-    
+
     /// Deallocate memory
     pub fn deallocate(&self, ptr: *mut u8, layout: Layout) {
         unsafe {
             std::alloc::dealloc(ptr, layout);
         }
-        
+
         self.heap_used.fetch_sub(layout.size(), Ordering::Relaxed);
         self.total_deallocations.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Get memory statistics
     pub fn stats(&self) -> MemoryStats {
         MemoryStats {
@@ -342,7 +344,7 @@ impl TypeRegistry {
             types: HashMap::new(),
         }
     }
-    
+
     /// Register a type
     fn register<T: Any>(&mut self) {
         let type_id = TypeId::of::<T>();
@@ -353,7 +355,7 @@ impl TypeRegistry {
         };
         self.types.insert(type_id, info);
     }
-    
+
     /// Get type information
     #[allow(dead_code)]
     fn get_type_info(&self, type_id: TypeId) -> Option<&TypeInfo> {
@@ -386,7 +388,7 @@ pub struct RuntimeStats {
 }
 
 /// Script memory allocator
-/// 
+///
 /// This allocator integrates with the runtime's memory manager
 pub struct ScriptAllocator;
 
@@ -402,7 +404,7 @@ unsafe impl GlobalAlloc for ScriptAllocator {
             std::alloc::alloc(layout)
         }
     }
-    
+
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         if let Ok(runtime) = runtime() {
             runtime.memory().deallocate(ptr, layout);
@@ -416,104 +418,107 @@ unsafe impl GlobalAlloc for ScriptAllocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_runtime_initialization() {
         // Clean up any existing runtime
         let _ = crate::runtime::shutdown();
-        
+
         // Initialize with default config
         let config = RuntimeConfig::default();
         assert!(Runtime::initialize_with_config(config).is_ok());
-        
+
         // Should fail on second initialization
         assert!(Runtime::initialize_with_config(RuntimeConfig::default()).is_err());
-        
+
         // Get runtime instance
         let runtime = runtime().unwrap();
         assert!(runtime.config().enable_gc);
-        
+
         // Cleanup
         crate::runtime::shutdown().unwrap();
     }
-    
+
     #[test]
     fn test_memory_allocation() {
         let _ = crate::runtime::shutdown();
         Runtime::initialize_with_config(RuntimeConfig::default()).unwrap();
-        
+
         let runtime = runtime().unwrap();
         let layout = Layout::new::<i32>();
-        
+
         // Allocate memory
         let ptr = runtime.memory().allocate(layout).unwrap();
         assert!(!ptr.is_null());
-        
+
         // Check stats
         let stats = runtime.memory().stats();
         assert_eq!(stats.heap_used, 4);
         assert_eq!(stats.total_allocations, 1);
-        
+
         // Deallocate
         runtime.memory().deallocate(ptr, layout);
-        
+
         // Check stats again
         let stats = runtime.memory().stats();
         assert_eq!(stats.heap_used, 0);
         assert_eq!(stats.total_deallocations, 1);
-        
+
         crate::runtime::shutdown().unwrap();
     }
-    
+
     #[test]
     fn test_heap_limit() {
         let _ = crate::runtime::shutdown();
-        
+
         let mut config = RuntimeConfig::default();
         config.max_heap_size = 1024; // 1KB limit
         Runtime::initialize_with_config(config).unwrap();
-        
+
         let runtime = runtime().unwrap();
-        
+
         // Try to allocate more than the limit
         let layout = Layout::from_size_align(2048, 8).unwrap();
         assert!(runtime.memory().allocate(layout).is_err());
-        
+
         crate::runtime::shutdown().unwrap();
     }
-    
+
     #[test]
     fn test_protected_execution() {
         let _ = crate::runtime::shutdown();
         Runtime::initialize_with_config(RuntimeConfig::default()).unwrap();
-        
+
         let runtime = runtime().unwrap();
-        
+
         // Successful execution
         let result = runtime.execute_protected(|| 42);
         assert_eq!(result.unwrap(), 42);
-        
+
         // Panicking execution
         let result = runtime.execute_protected(|| {
             panic!("Test panic");
         });
         assert!(result.is_err());
-        
+
         crate::runtime::shutdown().unwrap();
     }
-    
+
     #[test]
     fn test_metadata() {
         let _ = crate::runtime::shutdown();
         Runtime::initialize_with_config(RuntimeConfig::default()).unwrap();
-        
+
         let runtime = runtime().unwrap();
-        
+
         // Set and get metadata
         runtime.set_metadata("test_key".to_string(), "test_value".to_string());
-        assert_eq!(runtime.get_metadata("test_key"), Some("test_value".to_string()));
+        assert_eq!(
+            runtime.get_metadata("test_key"),
+            Some("test_value".to_string())
+        );
         assert_eq!(runtime.get_metadata("missing"), None);
-        
+
         crate::runtime::shutdown().unwrap();
     }
 }

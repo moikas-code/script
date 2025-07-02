@@ -1,0 +1,33 @@
+// math.script - Math utilities
+
+export { min, max, clamp, lerp, random, randomRange, PI, TAU, E }
+
+// Mathematical constants
+let PI: float = 3.14159265359
+let TAU: float = 6.28318530718  // 2 * PI
+let E: float = 2.71828182846
+
+fn min(a: float, b: float) -> float {
+    if a < b { a } else { b }
+}
+
+fn max(a: float, b: float) -> float {
+    if a > b { a } else { b }
+}
+
+fn clamp(value: float, minVal: float, maxVal: float) -> float {
+    max(minVal, min(maxVal, value))
+}
+
+fn lerp(start: float, end: float, t: float) -> float {
+    start + (end - start) * clamp(t, 0.0, 1.0)
+}
+
+fn random() -> float {
+    // Placeholder - would return random value between 0 and 1
+    0.5
+}
+
+fn randomRange(min: float, max: float) -> float {
+    min + random() * (max - min)
+}

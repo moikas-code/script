@@ -1,0 +1,21 @@
+// Memory safety demonstration
+let x: i32 = 42;  // Define and initialize variable
+let y: i32;       // Define without initialization
+
+print(x);         // Valid: using initialized variable
+// print(y);      // Would be invalid: use of uninitialized variable
+
+let arr: [i32] = [1, 2, 3, 4, 5];
+print(arr[0]);    // Valid array access
+// print(arr[-1]); // Would be invalid: negative index (potential buffer overflow)
+
+// More complex example with scope
+{
+    let z: i32 = 100;
+    print(z);     // Valid within scope
+}
+// print(z);     // Would be invalid: use after scope ends (lifetime exceeded)
+
+// Example of potential null dereference
+let nullable_obj = null;
+// nullable_obj.field; // Would be invalid: null dereference

@@ -43,8 +43,8 @@ choco install pkg-config openssl
 
 ```bash
 # Clone the repository
-git clone https://github.com/moikapy/script-lang.git
-cd script-lang
+git clone https://github.com/moikapy/script.git
+cd script
 
 # Debug build (development)
 cargo build
@@ -228,7 +228,7 @@ panic = "abort"
 Configure Script runtime optimizations:
 
 ```rust
-use script_lang::{RuntimeConfig, OptimizationLevel};
+use script::{RuntimeConfig, OptimizationLevel};
 
 let config = RuntimeConfig {
     optimization_level: OptimizationLevel::Aggressive,
@@ -329,26 +329,26 @@ docker run --rm -v $(pwd)/target:/app/target script-cross
 
 ```bash
 # Create deployment package
-mkdir -p deploy/script-lang
-cp target/release/script-lang deploy/script-lang/
-cp -r examples deploy/script-lang/
-cp -r docs deploy/script-lang/
-cp README.md LICENSE deploy/script-lang/
+mkdir -p deploy/script
+cp target/release/script deploy/script/
+cp -r examples deploy/script/
+cp -r docs deploy/script/
+cp README.md LICENSE deploy/script/
 
 # Create installation script
-cat > deploy/script-lang/install.sh << 'EOF'
+cat > deploy/script/install.sh << 'EOF'
 #!/bin/bash
 INSTALL_DIR="${HOME}/.local/bin"
 mkdir -p "${INSTALL_DIR}"
-cp script-lang "${INSTALL_DIR}/"
-echo "Script installed to ${INSTALL_DIR}/script-lang"
+cp script "${INSTALL_DIR}/"
+echo "Script installed to ${INSTALL_DIR}/script"
 echo "Add ${INSTALL_DIR} to your PATH if not already present"
 EOF
 
-chmod +x deploy/script-lang/install.sh
+chmod +x deploy/script/install.sh
 
 # Create archive
-tar -czf script-lang-$(uname -s)-$(uname -m).tar.gz -C deploy script-lang
+tar -czf script-$(uname -s)-$(uname -m).tar.gz -C deploy script
 ```
 
 ### Library Deployment
@@ -358,14 +358,14 @@ For embedding in other applications:
 ```toml
 # Cargo.toml for library distribution
 [lib]
-name = "script_lang"
+name = "script"
 crate-type = ["cdylib", "rlib"]
 
 [package.metadata.capi]
 min_version = "0.9.0"
 
 [package.metadata.capi.header]
-name = "script_lang"
+name = "script"
 subdirectory = "script"
 generation = true
 ```
@@ -380,10 +380,10 @@ cargo install cargo-c
 cargo cinstall --release --prefix=/usr/local
 
 # This creates:
-# - libscript_lang.so (shared library)
-# - libscript_lang.a (static library)
-# - script_lang.h (header file)
-# - script_lang.pc (pkg-config file)
+# - libscript.so (shared library)
+# - libscript.a (static library)
+# - script.h (header file)
+# - script.pc (pkg-config file)
 ```
 
 ### Package Manager Distribution
@@ -393,13 +393,13 @@ cargo cinstall --release --prefix=/usr/local
 ```toml
 # Cargo.toml for crates.io publication
 [package]
-name = "script-lang"
+name = "script"
 version = "0.1.0"
 edition = "2021"
 description = "A simple yet powerful programming language"
-repository = "https://github.com/moikapy/script-lang"
-homepage = "https://script-lang.org"
-documentation = "https://docs.rs/script-lang"
+repository = "https://github.com/moikapy/script"
+homepage = "https://script.org"
+documentation = "https://docs.rs/script"
 license = "MIT"
 keywords = ["programming-language", "interpreter", "compiler"]
 categories = ["development-tools", "parser-implementations"]
@@ -416,11 +416,11 @@ cargo publish
 #### Homebrew (macOS/Linux)
 
 ```ruby
-# script-lang.rb
+# script.rb
 class ScriptLang < Formula
   desc "Simple yet powerful programming language"
-  homepage "https://script-lang.org"
-  url "https://github.com/moikapy/script-lang/archive/v0.1.0.tar.gz"
+  homepage "https://script.org"
+  url "https://github.com/moikapy/script/archive/v0.1.0.tar.gz"
   sha256 "..."
   license "MIT"
 
@@ -432,7 +432,7 @@ class ScriptLang < Formula
 
   test do
     (testpath/"hello.script").write("print(\"Hello, World!\")")
-    assert_match "Hello, World!", shell_output("#{bin}/script-lang hello.script")
+    assert_match "Hello, World!", shell_output("#{bin}/script hello.script")
   end
 end
 ```
@@ -455,9 +455,9 @@ depends = "$auto"
 section = "utility"
 priority = "optional"
 assets = [
-    ["target/release/script-lang", "usr/bin/", "755"],
-    ["README.md", "usr/share/doc/script-lang/", "644"],
-    ["examples/*", "usr/share/doc/script-lang/examples/", "644"],
+    ["target/release/script", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/script/", "644"],
+    ["examples/*", "usr/share/doc/script/examples/", "644"],
 ]
 
 # Build package
@@ -488,7 +488,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/script-lang /usr/local/bin/
+COPY --from=builder /app/target/release/script /usr/local/bin/
 
 # Create non-root user
 RUN useradd -r -s /bin/false script
@@ -498,7 +498,7 @@ WORKDIR /app
 
 EXPOSE 8080
 
-CMD ["script-lang"]
+CMD ["script"]
 ```
 
 #### Multi-stage Build with Alpine
@@ -518,11 +518,11 @@ FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/script-lang /usr/local/bin/
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/script /usr/local/bin/
 
 USER 1000:1000
 
-CMD ["script-lang"]
+CMD ["script"]
 ```
 
 ### Kubernetes Deployment
@@ -532,22 +532,22 @@ CMD ["script-lang"]
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: script-lang
+  name: script
   labels:
-    app: script-lang
+    app: script
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: script-lang
+      app: script
   template:
     metadata:
       labels:
-        app: script-lang
+        app: script
     spec:
       containers:
-      - name: script-lang
-        image: script-lang:0.1.0
+      - name: script
+        image: script:0.1.0
         ports:
         - containerPort: 8080
         resources:
@@ -577,10 +577,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: script-lang-service
+  name: script-service
 spec:
   selector:
-    app: script-lang
+    app: script
   ports:
   - protocol: TCP
     port: 80
@@ -595,7 +595,7 @@ spec:
 version: '3.8'
 
 services:
-  script-lang:
+  script:
     build: .
     ports:
       - "8080:8080"
@@ -621,7 +621,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
-      - script-lang
+      - script
     restart: unless-stopped
 ```
 
@@ -694,8 +694,8 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: script-lang-${{ matrix.os }}
-        path: target/release/script-lang*
+        name: script-${{ matrix.os }}
+        path: target/release/script*
 
   release:
     name: Release
@@ -713,9 +713,9 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          script-lang-ubuntu-latest/script-lang
-          script-lang-windows-latest/script-lang.exe
-          script-lang-macos-latest/script-lang
+          script-ubuntu-latest/script
+          script-windows-latest/script.exe
+          script-macos-latest/script
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -751,7 +751,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v4
       with:
-        images: scriptlang/script-lang
+        images: scriptlang/script
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -779,7 +779,7 @@ jobs:
 export RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data"
 cargo build --release
 # Run representative workload
-./target/release/script-lang benchmark.script
+./target/release/script benchmark.script
 export RUSTFLAGS="-Cprofile-use=/tmp/pgo-data -Cllvm-args=-pgo-warn-missing-function"
 cargo build --release
 
@@ -795,7 +795,7 @@ cargo build --release
 ### Runtime Configuration
 
 ```rust
-use script_lang::{RuntimeConfig, MemoryConfig, JitConfig};
+use script::{RuntimeConfig, MemoryConfig, JitConfig};
 
 let config = RuntimeConfig {
     memory: MemoryConfig {
@@ -825,11 +825,11 @@ let config = RuntimeConfig {
 cargo bench
 
 # Profile with perf (Linux)
-perf record --call-graph dwarf ./target/release/script-lang benchmark.script
+perf record --call-graph dwarf ./target/release/script benchmark.script
 perf report
 
 # Memory profiling with valgrind
-valgrind --tool=massif ./target/release/script-lang benchmark.script
+valgrind --tool=massif ./target/release/script benchmark.script
 
 # CPU profiling with flamegraph
 cargo install flamegraph
@@ -892,20 +892,20 @@ for target in "${TARGETS[@]}"; do
     # Create archive
     case "${target}" in
         *windows*)
-            zip -j "script-lang-v${VERSION}-${target}.zip" \
-                "target/${target}/release/script-lang.exe" \
+            zip -j "script-v${VERSION}-${target}.zip" \
+                "target/${target}/release/script.exe" \
                 README.md LICENSE
             ;;
         *)
-            tar -czf "script-lang-v${VERSION}-${target}.tar.gz" \
-                -C "target/${target}/release" script-lang \
+            tar -czf "script-v${VERSION}-${target}.tar.gz" \
+                -C "target/${target}/release" script \
                 -C ../../.. README.md LICENSE
             ;;
     esac
 done
 
 echo "Release artifacts created:"
-ls -la script-lang-v${VERSION}-*
+ls -la script-v${VERSION}-*
 ```
 
 ## Troubleshooting
@@ -974,7 +974,7 @@ ls -la script-lang-v${VERSION}-*
    cargo build --release
    
    # Use UPX compression
-   upx --best target/release/script-lang
+   upx --best target/release/script
    ```
 
 3. **Runtime Performance**

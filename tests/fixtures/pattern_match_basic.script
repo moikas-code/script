@@ -1,0 +1,48 @@
+// Basic pattern matching test
+let x = 42
+
+// Test 1: Basic literal matching
+let result1 = match x {
+    42 => "found forty-two",
+    0 => "found zero",
+    _ => "found something else"
+}
+
+print("Test 1 result: " + result1)
+
+// Test 2: String pattern matching
+let name = "Alice"
+let greeting = match name {
+    "Alice" => "Hello Alice!",
+    "Bob" => "Hello Bob!",
+    _ => "Hello stranger!"
+}
+
+print("Test 2 result: " + greeting)
+
+// Test 3: Boolean pattern matching
+let flag = true
+let status = match flag {
+    true => "enabled",
+    false => "disabled"
+}
+
+print("Test 3 result: " + status)
+
+// Test 4: Variable binding
+let value = 123
+let doubled = match value {
+    n => n * 2
+}
+
+print("Test 4 result: " + doubled)
+
+// Test 5: Wildcard pattern
+let unknown = 999
+let category = match unknown {
+    1 => "one",
+    2 => "two", 
+    _ => "other"
+}
+
+print("Test 5 result: " + category)

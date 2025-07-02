@@ -1,0 +1,7 @@
+// Configuration module
+export { get_config }
+
+fn get_config() -> i32 {
+    // Return configuration value
+    return 42
+}

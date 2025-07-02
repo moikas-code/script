@@ -1,16 +1,16 @@
+use crate::error::Error;
 use crate::parser::{TypeAnn, TypeKind};
 use crate::types::{Type, TypeEnv};
-use crate::error::Error;
 
 mod constraint;
+mod inference_engine;
 mod substitution;
 mod unification;
-mod inference_engine;
 
 pub use constraint::{Constraint, ConstraintKind};
-pub use substitution::{Substitution, apply_substitution};
-pub use unification::unify;
 pub use inference_engine::{InferenceEngine, InferenceResult};
+pub use substitution::{apply_substitution, Substitution};
+pub use unification::unify;
 
 /// Type inference context that manages type variables and constraints
 #[derive(Debug, Clone)]
@@ -67,23 +67,29 @@ impl InferenceContext {
     pub fn solve_constraints(&mut self) -> Result<(), Error> {
         // Take ownership of constraints to avoid borrowing issues
         let constraints = std::mem::take(&mut self.constraints);
-        
+
         for constraint in constraints {
             match &constraint.kind {
                 ConstraintKind::Equality(t1, t2) => {
                     // Apply current substitution before unifying
                     let t1_subst = self.apply_substitution(t1);
                     let t2_subst = self.apply_substitution(t2);
-                    
+
                     // Unify and get new substitution
                     let new_subst = unify(&t1_subst, &t2_subst, constraint.span)?;
-                    
+
                     // Compose with existing substitution
                     self.substitution.compose(new_subst);
                 }
+                ConstraintKind::TraitBound { .. } => {
+                    // Trait bounds not yet implemented, skip for now
+                }
+                ConstraintKind::GenericBounds { .. } => {
+                    // Generic bounds not yet implemented, skip for now
+                }
             }
         }
-        
+
         Ok(())
     }
 
@@ -118,15 +124,16 @@ pub fn type_ann_to_type(type_ann: &TypeAnn) -> Type {
                 _ => Type::Named(name.clone()),
             }
         }
-        TypeKind::Array(elem_type) => {
-            Type::Array(Box::new(type_ann_to_type(elem_type)))
-        }
-        TypeKind::Function { params, ret } => {
-            Type::Function {
-                params: params.iter().map(type_ann_to_type).collect(),
-                ret: Box::new(type_ann_to_type(ret)),
-            }
-        }
+        TypeKind::Array(elem_type) => Type::Array(Box::new(type_ann_to_type(elem_type))),
+        TypeKind::Function { params, ret } => Type::Function {
+            params: params.iter().map(type_ann_to_type).collect(),
+            ret: Box::new(type_ann_to_type(ret)),
+        },
+        TypeKind::Generic { name, args } => Type::Generic {
+            name: name.clone(),
+            args: args.iter().map(type_ann_to_type).collect(),
+        },
+        TypeKind::TypeParam(name) => Type::TypeParam(name.clone()),
     }
 }
 
@@ -140,11 +147,11 @@ mod unit_tests {
     #[test]
     fn test_fresh_type_vars() {
         let mut ctx = InferenceContext::new();
-        
+
         let t1 = ctx.fresh_type_var();
         let t2 = ctx.fresh_type_var();
         let t3 = ctx.fresh_type_var();
-        
+
         assert_eq!(t1, Type::TypeVar(0));
         assert_eq!(t2, Type::TypeVar(1));
         assert_eq!(t3, Type::TypeVar(2));
@@ -153,15 +160,15 @@ mod unit_tests {
 
     #[test]
     fn test_type_ann_conversion() {
-        use crate::source::{Span, SourceLocation};
-        
+        use crate::source::{SourceLocation, Span};
+
         // Test basic types
         let i32_ann = TypeAnn {
             kind: TypeKind::Named("i32".to_string()),
             span: Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 3, 3)),
         };
         assert_eq!(type_ann_to_type(&i32_ann), Type::I32);
-        
+
         // Test array type
         let array_ann = TypeAnn {
             kind: TypeKind::Array(Box::new(TypeAnn {
@@ -170,8 +177,11 @@ mod unit_tests {
             })),
             span: Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 7, 7)),
         };
-        assert_eq!(type_ann_to_type(&array_ann), Type::Array(Box::new(Type::Bool)));
-        
+        assert_eq!(
+            type_ann_to_type(&array_ann),
+            Type::Array(Box::new(Type::Bool))
+        );
+
         // Test function type
         let fn_ann = TypeAnn {
             kind: TypeKind::Function {
@@ -187,7 +197,10 @@ mod unit_tests {
                 ],
                 ret: Box::new(TypeAnn {
                     kind: TypeKind::Named("string".to_string()),
-                    span: Span::new(SourceLocation::new(1, 15, 14), SourceLocation::new(1, 20, 20)),
+                    span: Span::new(
+                        SourceLocation::new(1, 15, 14),
+                        SourceLocation::new(1, 20, 20),
+                    ),
                 }),
             },
             span: Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 20, 20)),

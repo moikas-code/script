@@ -1,0 +1,37 @@
+// Test array type consistency checking
+
+// Valid: homogeneous arrays
+let int_array = [1, 2, 3, 4, 5]
+let float_array = [1.0, 2.5, 3.14]
+let string_array = ["hello", "world", "script"]
+let bool_array = [true, false, true]
+
+// Valid: empty array
+let empty = []
+
+// Valid: arrays with unknown types (gradual typing)
+let x = 42
+let unknown_array = [x, 1, 2]  // All elements unify to the same type
+
+// Invalid: mixed types
+let mixed1 = [1, "hello", true]  // Error: incompatible types
+let mixed2 = [1, 2, 3.14]        // Error: i32 and f32
+let mixed3 = [true, 1, false]    // Error: bool and i32
+
+// Valid: nested arrays with same element types
+let nested = [[1, 2], [3, 4], [5, 6]]
+
+// Invalid: nested arrays with different element types
+let bad_nested = [[1, 2], ["a", "b"]]  // Error: [i32] and [string]
+
+// Function that expects specific array type
+fn sum(arr: [i32]) -> i32 {
+    // Implementation would go here
+    return 0
+}
+
+// This should work
+let result1 = sum([1, 2, 3])
+
+// This should fail
+// let result2 = sum(["a", "b", "c"])  // Error: type mismatch

@@ -1,0 +1,15 @@
+// Test script for debugger
+let x = 42
+let y = "hello"
+let z = x + 10
+
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        return 1
+    } else {
+        return n * factorial(n - 1)
+    }
+}
+
+let result = factorial(5)
+print(result)

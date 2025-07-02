@@ -1,0 +1,125 @@
+// Script Language Metaprogramming Examples
+// This file demonstrates the metaprogramming features in Script
+
+// 1. @derive Attribute - Automatic trait implementations
+@derive(Debug, Serialize)
+fn Point(x: Number, y: Number) {
+    return { x: x, y: y }
+}
+
+// The @derive attribute automatically generates:
+// - Point_debug(self: Point) -> String
+// - Point_serialize(self: Point) -> String
+
+// 2. @const Functions - Compile-time evaluation
+@const
+fn factorial(n: Number) -> Number {
+    if n <= 1 {
+        return 1
+    } else {
+        return n * factorial(n - 1)
+    }
+}
+
+@const
+fn fibonacci(n: Number) -> Number {
+    if n <= 1 {
+        return n
+    } else {
+        return fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+
+// These can be used in compile-time contexts
+@const
+let FACTORIAL_5 = factorial(5)  // Evaluated at compile time to 120
+@const
+let FIB_10 = fibonacci(10)      // Evaluated at compile time to 55
+
+// 3. List Comprehensions - Concise list transformations
+fn list_comprehension_examples() {
+    let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    
+    // Basic list comprehension
+    let doubled = [x * 2 for x in numbers]
+    // Result: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
+    
+    // With condition
+    let evens = [x for x in numbers if x % 2 == 0]
+    // Result: [2, 4, 6, 8, 10]
+    
+    // Complex transformation
+    let squared_odds = [x * x for x in numbers if x % 2 != 0]
+    // Result: [1, 9, 25, 49, 81]
+    
+    // Nested comprehensions
+    let matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    let flattened = [item for row in matrix for item in row]
+    // Result: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    
+    // String manipulation
+    let words = ["hello", "world", "script", "lang"]
+    let uppercase = [word.upper() for word in words if word.length() > 4]
+    // Result: ["HELLO", "WORLD", "SCRIPT"]
+}
+
+// 4. @generate Attribute - External code generation
+@generate(sql, "users")
+fn UserModel() {
+    // This would generate CRUD operations from database schema:
+    // - create_user(name: String, email: String) -> User
+    // - get_user(id: Number) -> User?
+    // - update_user(id: Number, updates: Object) -> User
+    // - delete_user(id: Number) -> Boolean
+    // - list_users(filter: Object?) -> Array<User>
+}
+
+@generate(api, "openapi.yaml")
+fn ApiClient() {
+    // This would generate client functions from OpenAPI spec:
+    // - get_products(params: Object?) -> Array<Product>
+    // - create_product(product: Product) -> Product
+    // - update_product(id: String, product: Product) -> Product
+    // - delete_product(id: String) -> Boolean
+}
+
+// 5. Combining Features
+@derive(Debug)
+fn Vector(data: Array<Number>) {
+    // Using list comprehension inside a derived type
+    let magnitude = [x * x for x in data].reduce((a, b) => a + b, 0).sqrt()
+    return { data: data, magnitude: magnitude }
+}
+
+@const
+fn create_range(start: Number, end: Number) -> Array<Number> {
+    // This would be evaluated at compile time when used with constants
+    let result = []
+    for i in start..end {
+        result.push(i)
+    }
+    return result
+}
+
+// Usage examples
+fn main() {
+    // Using derived functions
+    let p = Point(3, 4)
+    print(Point_debug(p))        // Output: "Point{x: 3, y: 4}"
+    print(Point_serialize(p))    // Output: "{\"x\":3,\"y\":4}"
+    
+    // Using compile-time constants
+    print("5! = " + FACTORIAL_5)  // Output: "5! = 120"
+    print("Fib(10) = " + FIB_10)  // Output: "Fib(10) = 55"
+    
+    // List comprehensions
+    let nums = [1, 2, 3, 4, 5]
+    let squares = [n * n for n in nums]
+    print("Squares: " + squares)  // Output: "Squares: [1, 4, 9, 16, 25]"
+    
+    // Complex example
+    let data = create_range(1, 10)
+    let processed = [x * 2 for x in data if x % 2 == 0]
+    let v = Vector(processed)
+    print(Vector_debug(v))  // Uses generated debug function
+}

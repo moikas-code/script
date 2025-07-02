@@ -1,0 +1,26 @@
+// Test assignment type checking
+
+// Test 1: Compatible types - should work
+let x: i32 = 42;
+x = 100;
+x = 200 + 50;
+
+// Test 2: Array element assignments
+let arr: [i32] = [1, 2, 3];
+arr[0] = 42;                // OK: same type
+arr[1] = 100 + 200;         // OK: expression evaluates to i32
+
+// Test 3: Type mismatches - these should fail
+let y: i32 = 42;
+y = "hello";                // Error: expected i32, found string
+
+let nums: [i32] = [1, 2, 3];
+nums[0] = "test";           // Error: expected i32, found string
+
+let flag: bool = true;
+flag = 42;                  // Error: expected bool, found i32
+
+// Test 4: String assignments
+let msg: string = "hello";
+msg = "world";              // OK: same type
+msg = 123;                  // Error: expected string, found i32

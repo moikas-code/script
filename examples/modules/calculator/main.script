@@ -1,0 +1,34 @@
+// main.script - Calculator application entry point
+
+import "./operations.script" as Ops
+import "./display.script" as Display
+import "./parser.script" as Parser
+
+fn main() {
+    Display.welcome()
+    
+    let running = true
+    while running {
+        let input = Display.prompt()
+        
+        if input == "exit" || input == "quit" {
+            running = false
+            continue
+        }
+        
+        match Parser.parseExpression(input) {
+            Ok(expr) => {
+                match Ops.evaluate(expr) {
+                    Ok(result) => Display.showResult(result),
+                    Err(error) => Display.showError(error)
+                }
+            },
+            Err(error) => Display.showError(error)
+        }
+    }
+    
+    Display.goodbye()
+}
+
+// Run the calculator
+main()

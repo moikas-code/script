@@ -1,0 +1,70 @@
+// main.script - Simple game engine example
+
+import "./core/engine.script" as Engine
+import "./entities/player.script" as Player
+import "./entities/enemy.script" as Enemy
+import "./systems/physics.script" as Physics
+import "./systems/renderer.script" as Renderer
+import "./utils/math.script" as Math
+
+fn main() {
+    // Initialize the game engine
+    let engine = Engine.create({
+        title: "Script Game Engine Demo",
+        width: 800,
+        height: 600,
+        fps: 60
+    })
+    
+    // Create player
+    let player = Player.create(400.0, 300.0)
+    engine.addEntity(player)
+    
+    // Create some enemies
+    for i in 0..5 {
+        let x = Math.random() * 800.0
+        let y = Math.random() * 600.0
+        let enemy = Enemy.create(x, y)
+        engine.addEntity(enemy)
+    }
+    
+    // Add systems
+    engine.addSystem(Physics.createSystem())
+    engine.addSystem(Renderer.createSystem())
+    
+    // Game loop
+    engine.run(update)
+}
+
+fn update(engine: Engine.Engine, deltaTime: float) {
+    // Handle input
+    if engine.isKeyPressed("W") {
+        engine.getPlayer().moveUp(deltaTime)
+    }
+    if engine.isKeyPressed("S") {
+        engine.getPlayer().moveDown(deltaTime)
+    }
+    if engine.isKeyPressed("A") {
+        engine.getPlayer().moveLeft(deltaTime)
+    }
+    if engine.isKeyPressed("D") {
+        engine.getPlayer().moveRight(deltaTime)
+    }
+    
+    // Check for collisions
+    let player = engine.getPlayer()
+    for enemy in engine.getEnemies() {
+        if Physics.checkCollision(player, enemy) {
+            handleCollision(player, enemy)
+        }
+    }
+}
+
+fn handleCollision(player: Player.Player, enemy: Enemy.Enemy) {
+    // Simple collision response
+    player.takeDamage(10)
+    enemy.destroy()
+}
+
+// Start the game
+main()

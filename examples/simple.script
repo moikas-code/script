@@ -1,7 +1,238 @@
-// Simple Script program to test compilation
-fn main() {
-    let x = 42
-    let y = 8
-    let result = x + y
+/**
+ * Simple Program Structure - Understanding Script Basics
+ * 
+ * This example demonstrates:
+ * - Program entry point (main function)
+ * - Variable declarations and initialization
+ * - Basic arithmetic operations
+ * - Function return values
+ * - Expression-based programming
+ * - Local variables and scope
+ */
+
+/**
+ * The main function is the entry point of every Script program.
+ * When you run a Script file, execution starts here.
+ * 
+ * This function demonstrates basic variable operations and returns a result.
+ * Notice that we explicitly return a value, but this is optional in Script.
+ */
+fn main() -> i32 {
+    print("=== Simple Script Program Demo ===")
+    
+    // Variable declarations with automatic type inference
+    let x = 42    // Script infers this as i32 (32-bit integer)
+    let y = 8     // Script infers this as i32
+    
+    print("First number (x): " + x)
+    print("Second number (y): " + y)
+    
+    // Perform arithmetic operation
+    let result = x + y    // Result is also i32
+    print("Sum (x + y): " + result)
+    
+    // Demonstrate various arithmetic operations
+    demonstrate_operations(x, y)
+    
+    // Demonstrate variable reassignment
+    demonstrate_reassignment()
+    
+    // Demonstrate local scope
+    demonstrate_scope()
+    
+    // Return the result (explicit return)
+    // In Script, you can also just write 'result' as the last line
     return result
 }
+
+/**
+ * This function shows various arithmetic operations with the same numbers
+ */
+fn demonstrate_operations(a: i32, b: i32) {
+    print("\n--- Arithmetic Operations with " + a + " and " + b + " ---")
+    
+    let sum = a + b
+    let difference = a - b
+    let product = a * b
+    let quotient = a / b
+    let remainder = a % b
+    
+    print("Addition: " + a + " + " + b + " = " + sum)
+    print("Subtraction: " + a + " - " + b + " = " + difference)
+    print("Multiplication: " + a + " * " + b + " = " + product)
+    print("Division: " + a + " / " + b + " = " + quotient)
+    print("Remainder: " + a + " % " + b + " = " + remainder)
+}
+
+/**
+ * This function demonstrates that variables can be reassigned to new values
+ */
+fn demonstrate_reassignment() {
+    print("\n--- Variable Reassignment ---")
+    
+    // Variables in Script are mutable by default
+    let counter = 0
+    print("Initial counter value: " + counter)
+    
+    // Reassign to a new value
+    counter = 5
+    print("After assignment: " + counter)
+    
+    // Reassign using arithmetic
+    counter = counter + 10
+    print("After adding 10: " + counter)
+    
+    // Reassign using a different expression
+    counter = counter * 2
+    print("After doubling: " + counter)
+}
+
+/**
+ * This function demonstrates variable scope - how variables exist within blocks
+ */
+fn demonstrate_scope() {
+    print("\n--- Variable Scope ---")
+    
+    let outer_variable = 100
+    print("Outer variable: " + outer_variable)
+    
+    // Block scope - variables inside {} are local to that block
+    {
+        let inner_variable = 200
+        print("Inside block - inner variable: " + inner_variable)
+        print("Inside block - can access outer variable: " + outer_variable)
+        
+        // We can create a new variable with the same name (shadowing)
+        let outer_variable = 300
+        print("Inside block - shadowed outer variable: " + outer_variable)
+    }
+    
+    // Back to outer scope
+    print("Back to outer scope - outer variable: " + outer_variable)
+    // Note: inner_variable is not accessible here - it only existed inside the block
+}
+
+/**
+ * Helper function that demonstrates function calls and return values
+ */
+fn calculate_average(num1: i32, num2: i32) -> f32 {
+    // Convert integers to float for precise division
+    let float_num1 = num1 as f32
+    let float_num2 = num2 as f32
+    
+    // Calculate and return the average
+    (float_num1 + float_num2) / 2.0
+}
+
+/**
+ * Function that demonstrates expressions vs statements
+ */
+fn demonstrate_expressions() {
+    print("\n--- Expressions vs Statements ---")
+    
+    // In Script, almost everything is an expression (returns a value)
+    let condition_result = if 42 > 8 {
+        "42 is indeed greater than 8"
+    } else {
+        "This shouldn't happen"
+    }
+    
+    print("Conditional expression result: " + condition_result)
+    
+    // Block expressions also return values
+    let block_result = {
+        let temp1 = 10
+        let temp2 = 20
+        temp1 + temp2  // This value is returned from the block
+    }
+    
+    print("Block expression result: " + block_result)
+    
+    // Function calls are expressions too
+    let average = calculate_average(42, 8)
+    print("Average of 42 and 8: " + average)
+}
+
+/**
+ * Function that shows different ways to work with the same calculation
+ */
+fn demonstrate_calculation_styles() {
+    print("\n--- Different Calculation Styles ---")
+    
+    let x = 42
+    let y = 8
+    
+    // Style 1: Step by step with intermediate variables
+    let step1 = x * 2
+    let step2 = y + 5
+    let result1 = step1 + step2
+    print("Step-by-step style: " + result1)
+    
+    // Style 2: Single expression
+    let result2 = (x * 2) + (y + 5)
+    print("Single expression style: " + result2)
+    
+    // Style 3: Using a function
+    let result3 = complex_calculation(x, y)
+    print("Function-based style: " + result3)
+    
+    // All three should give the same result!
+    let all_equal = (result1 == result2) && (result2 == result3)
+    print("All results are equal: " + all_equal)
+}
+
+/**
+ * Helper function for the calculation styles demo
+ */
+fn complex_calculation(a: i32, b: i32) -> i32 {
+    (a * 2) + (b + 5)
+}
+
+/**
+ * Extended version of main that shows more features
+ */
+fn main_extended() {
+    print("\n" + "=".repeat(50))
+    print("EXTENDED SIMPLE PROGRAM DEMO")
+    print("=".repeat(50))
+    
+    // Call the original main function and capture its result
+    let main_result = main()
+    print("\nOriginal main() returned: " + main_result)
+    
+    // Show additional concepts
+    demonstrate_expressions()
+    demonstrate_calculation_styles()
+    
+    print("\n" + "=".repeat(50))
+    print("Demo completed successfully!")
+    print("=".repeat(50))
+}
+
+/**
+ * Key Concepts Demonstrated:
+ * 
+ * 1. MAIN FUNCTION: Entry point of Script programs
+ * 2. VARIABLES: Declaration, initialization, and reassignment
+ * 3. TYPE INFERENCE: Automatic type detection by the compiler
+ * 4. ARITHMETIC: Basic mathematical operations
+ * 5. SCOPE: How variables exist within different blocks
+ * 6. EXPRESSIONS: Everything returns a value in Script
+ * 7. FUNCTIONS: Custom functions with parameters and return values
+ * 8. SHADOWING: Creating new variables with the same name in nested scopes
+ * 9. TYPE CONVERSION: Converting between different number types
+ * 10. COMMENTS: Documentation and code explanation
+ * 
+ * Try This:
+ * - Change the values of x and y and see how the results change
+ * - Add more arithmetic operations
+ * - Create your own functions that do different calculations
+ * - Experiment with different variable names and types
+ * - Try creating nested blocks with their own variables
+ */
+
+// Uncomment the line below to run the extended demo instead of the simple main:
+// main_extended()
+
+// Run the simple main function
+main()

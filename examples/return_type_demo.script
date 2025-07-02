@@ -1,0 +1,43 @@
+// Demo of return type checking
+
+// Function with correct return type
+fn add(x: i32, y: i32) -> i32 {
+    return x + y;
+}
+
+// Function with void return (no annotation)
+fn print_message(msg: string) {
+    print(msg);
+    return; // Optional return without value
+}
+
+// Function with implicit return (last expression)
+fn multiply(x: i32, y: i32) -> i32 {
+    x * y // No explicit return needed
+}
+
+// This would cause an error: type mismatch
+// fn get_number() -> i32 {
+//     return "not a number";
+// }
+
+// This would cause an error: missing return value
+// fn broken() -> string {
+//     return;
+// }
+
+// This would cause an error: returning value from void function
+// fn void_func() {
+//     return 42;
+// }
+
+// Main execution
+let result = add(5, 3);
+print("5 + 3 = ");
+print(result);
+
+print_message("Hello from Script!");
+
+let product = multiply(4, 7);
+print("4 * 7 = ");
+print(product);

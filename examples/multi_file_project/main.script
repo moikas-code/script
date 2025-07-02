@@ -1,0 +1,20 @@
+// Main entry point for the multi-file project
+import "math"
+import "utils"
+
+fn main() {
+    let x = 10
+    let y = 20
+    
+    // Use functions from math module
+    let sum = add(x, y)
+    let product = multiply(x, y)
+    
+    // Use function from utils module
+    print_result("Sum", sum)
+    print_result("Product", product)
+    
+    // Calculate factorial using math module
+    let fact = factorial(5)
+    print_result("Factorial of 5", fact)
+}

@@ -105,6 +105,20 @@ print(x)      // prints: 10
 print(x)      // prints: 10
 ```
 
+### Variable Assignment
+
+Variables can be reassigned after declaration:
+
+```script
+let counter = 0
+counter = 1           // Reassign to new value
+counter = counter + 1 // Use current value in assignment
+
+// Array element assignment
+let numbers = [1, 2, 3]
+numbers[0] = 10      // Modify first element
+```
+
 ## Basic Data Types
 
 ### Numbers
@@ -632,6 +646,41 @@ fn complex_algorithm(data: [f32]) -> f32 {
 }
 ```
 
+### Match Expressions
+
+Pattern matching provides powerful control flow:
+
+```script
+let status_code = 404
+
+let message = match status_code {
+    200 => "OK",
+    404 => "Not Found", 
+    500 => "Internal Server Error",
+    _ => "Unknown status"
+}
+
+// Match with guards
+let score = 85
+let grade = match score {
+    s if s >= 90 => "A",
+    s if s >= 80 => "B", 
+    s if s >= 70 => "C",
+    s if s >= 60 => "D",
+    _ => "F"
+}
+
+// Array pattern matching
+let coordinates = [10, 20]
+let description = match coordinates {
+    [] => "No coordinates",
+    [x] => "1D point at " + x,
+    [x, y] => "2D point at (" + x + ", " + y + ")",
+    [x, y, z] => "3D point at (" + x + ", " + y + ", " + z + ")",
+    _ => "Higher dimensional"
+}
+```
+
 ## Common Patterns
 
 ### Validation Pattern
@@ -649,6 +698,17 @@ fn validate_input(input: string) -> bool {
     // Additional validation
     true
 }
+
+// Using pattern matching for validation
+fn validate_age(age: i32) -> string {
+    match age {
+        a if a < 0 => "Age cannot be negative",
+        a if a > 150 => "Age seems unrealistic",
+        a if a < 18 => "Minor",
+        a if a >= 65 => "Senior",
+        _ => "Adult"
+    }
+}
 ```
 
 ### Builder Pattern (Future)
@@ -660,6 +720,295 @@ let config = ConfigBuilder::new()
     .set_port(8080)
     .set_timeout(30)
     .build()
+```
+
+### State Machine Pattern
+
+```script
+// Simple state machine using pattern matching
+fn handle_game_input(state: string, input: string) -> string {
+    match (state, input) {
+        ("menu", "start") => "playing",
+        ("menu", "quit") => "exit",
+        ("playing", "pause") => "paused", 
+        ("playing", "quit") => "menu",
+        ("paused", "resume") => "playing",
+        ("paused", "quit") => "menu",
+        (current, _) => current  // Invalid input, stay in current state
+    }
+}
+
+// Usage
+let game_state = "menu"
+game_state = handle_game_input(game_state, "start")  // "playing"
+game_state = handle_game_input(game_state, "pause")  // "paused"
+```
+
+### Calculator Pattern
+
+```script
+fn calculate(operator: string, a: f32, b: f32) -> f32 {
+    match operator {
+        "+" => a + b,
+        "-" => a - b,
+        "*" => a * b,
+        "/" => {
+            if b == 0.0 {
+                print("Error: Division by zero")
+                0.0
+            } else {
+                a / b
+            }
+        },
+        "%" => a % b,
+        "^" => power(a, b),  // Assume power function exists
+        _ => {
+            print("Unknown operator: " + operator)
+            0.0
+        }
+    }
+}
+
+// Usage
+let result1 = calculate("+", 10.0, 5.0)   // 15.0
+let result2 = calculate("/", 10.0, 3.0)   // 3.333...
+let result3 = calculate("?", 1.0, 2.0)    // 0.0 (unknown operator)
+```
+
+### Array Processing Patterns
+
+```script
+// Sum all elements in array
+fn sum_array(numbers: [i32]) -> i32 {
+    let total = 0
+    for num in numbers {
+        total = total + num
+    }
+    total
+}
+
+// Find maximum element
+fn find_max(numbers: [i32]) -> i32 {
+    match numbers {
+        [] => {
+            print("Error: Empty array")
+            0
+        },
+        [first] => first,
+        [first, ..rest] => {  // Future syntax
+            let max_rest = find_max(rest)
+            if first > max_rest { first } else { max_rest }
+        }
+    }
+}
+
+// Current implementation without rest syntax
+fn find_max_current(numbers: [i32]) -> i32 {
+    if numbers.length == 0 {
+        print("Error: Empty array")
+        return 0
+    }
+    
+    let max = numbers[0]
+    for i in 1..numbers.length {
+        if numbers[i] > max {
+            max = numbers[i]
+        }
+    }
+    max
+}
+
+// Filter even numbers (conceptual - returns count for now)
+fn count_evens(numbers: [i32]) -> i32 {
+    let count = 0
+    for num in numbers {
+        if num % 2 == 0 {
+            count = count + 1
+        }
+    }
+    count
+}
+```
+
+### Configuration Parser Pattern
+
+```script
+fn parse_config_line(line: string) -> string {
+    let parts = split_string(line, "=")  // Assume this function exists
+    
+    match parts {
+        [] => "Error: Empty line",
+        [key] => "Error: No value for key '" + key + "'",
+        [key, value] => {
+            let trimmed_key = trim(key)      // Assume trim function exists
+            let trimmed_value = trim(value)
+            
+            match trimmed_key {
+                "port" => validate_port(trimmed_value),
+                "host" => validate_host(trimmed_value),
+                "debug" => validate_boolean(trimmed_value),
+                "timeout" => validate_timeout(trimmed_value),
+                _ => "Unknown configuration key: " + trimmed_key
+            }
+        },
+        _ => "Error: Invalid configuration format"
+    }
+}
+
+fn validate_port(value: string) -> string {
+    let port = parse_int(value)  // Assume this function exists
+    match port {
+        p if p >= 1 && p <= 65535 => "Port set to " + value,
+        _ => "Error: Port must be between 1 and 65535"
+    }
+}
+
+fn validate_boolean(value: string) -> string {
+    match value {
+        "true" | "yes" | "1" | "on" => "Boolean value: true",
+        "false" | "no" | "0" | "off" => "Boolean value: false",
+        _ => "Error: Boolean must be true/false, yes/no, 1/0, or on/off"
+    }
+}
+```
+
+### Error Handling Patterns
+
+```script
+// Simple error handling with return codes
+fn safe_divide(a: f32, b: f32) -> [f32] {  // Empty array = error, [result] = success
+    if b == 0.0 {
+        print("Error: Division by zero")
+        []
+    } else {
+        [a / b]
+    }
+}
+
+// Using the safe divide function
+fn calculate_average(total: f32, count: f32) -> string {
+    let result = safe_divide(total, count)
+    match result {
+        [] => "Cannot calculate average: invalid input",
+        [avg] => "Average: " + avg,
+        _ => "Unexpected result format"
+    }
+}
+
+// Chaining operations with error handling
+fn complex_calculation(a: f32, b: f32, c: f32) -> string {
+    let step1 = safe_divide(a, b)
+    match step1 {
+        [] => "Error in step 1",
+        [result1] => {
+            let step2 = safe_divide(result1, c)
+            match step2 {
+                [] => "Error in step 2",
+                [final_result] => "Final result: " + final_result,
+                _ => "Unexpected format in step 2"
+            }
+        },
+        _ => "Unexpected format in step 1"
+    }
+}
+```
+
+### Command Line Parser Pattern
+
+```script
+fn parse_args(args: [string]) -> string {
+    match args {
+        [] => "Usage: program <command> [options]",
+        
+        ["help"] => show_help(),
+        ["version"] => "Script Calculator v1.0",
+        
+        ["add", a, b] => {
+            let num_a = parse_float(a)  // Assume this exists
+            let num_b = parse_float(b)
+            "Result: " + (num_a + num_b)
+        },
+        
+        ["multiply", a, b] => {
+            let num_a = parse_float(a)
+            let num_b = parse_float(b)
+            "Result: " + (num_a * num_b)
+        },
+        
+        ["calc", expr] => evaluate_expression(expr),
+        
+        ["config", key, value] => set_config(key, value),
+        ["config", key] => get_config(key),
+        
+        [command] => "Unknown command: " + command + ". Use 'help' for usage.",
+        [command, ..rest] => "Command '" + command + "' called with " + rest.length + " arguments",
+        
+        _ => "Too many arguments. Use 'help' for usage."
+    }
+}
+
+fn show_help() -> string {
+    "Available commands:
+  help                    - Show this help
+  version                 - Show version
+  add <a> <b>            - Add two numbers
+  multiply <a> <b>       - Multiply two numbers  
+  calc <expression>      - Evaluate expression
+  config <key> [value]   - Get or set configuration"
+}
+```
+
+### Game Development Patterns
+
+```script
+// Simple game entity state management
+fn update_player(player_state: string, input: string, dt: f32) -> string {
+    match (player_state, input) {
+        ("idle", "move_left") => "walking_left",
+        ("idle", "move_right") => "walking_right", 
+        ("idle", "jump") => "jumping",
+        ("idle", "attack") => "attacking",
+        
+        ("walking_left", "stop") => "idle",
+        ("walking_left", "jump") => "jumping",
+        ("walking_left", "attack") => "attacking",
+        
+        ("walking_right", "stop") => "idle", 
+        ("walking_right", "jump") => "jumping",
+        ("walking_right", "attack") => "attacking",
+        
+        ("jumping", "land") => "idle",
+        ("attacking", "finish") => "idle",
+        
+        (current, _) => current  // Stay in current state for invalid transitions
+    }
+}
+
+// Simple inventory management
+fn handle_inventory_action(action: string, item: string, inventory: [string]) -> [string] {
+    match action {
+        "add" => add_to_inventory(inventory, item),
+        "remove" => remove_from_inventory(inventory, item),
+        "check" => {
+            if contains_item(inventory, item) {
+                print("You have: " + item)
+            } else {
+                print("You don't have: " + item)
+            }
+            inventory
+        },
+        _ => {
+            print("Unknown inventory action: " + action)
+            inventory
+        }
+    }
+}
+
+fn add_to_inventory(inventory: [string], item: string) -> [string] {
+    // In a real implementation, this would add to the array
+    print("Added " + item + " to inventory")
+    inventory  // Return modified inventory
+}
 ```
 
 ### Option Pattern (Future)

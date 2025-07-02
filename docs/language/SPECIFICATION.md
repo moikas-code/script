@@ -69,8 +69,10 @@ Reserved keywords that cannot be used as identifiers:
 
 ```
 fn      let     if      else    while   for     return
-true    false   match   print   and     or      not
+true    false   match   &&      ||      !
 ```
+
+Note: `print` is a built-in function, not a keyword. The logical operators `and`, `or`, and `not` are represented as `&&`, `||`, and `!` respectively.
 
 ### Literals
 
@@ -249,12 +251,18 @@ fn process(data: [i32]) {  // return type inferred
 
 ### Gradual Typing
 
-Script supports gradual typing with the `unknown` type:
+Script supports gradual typing with the `unknown` type for seamless integration between typed and untyped code:
 
 ```script
 let dynamic = some_external_function()  // type: unknown
 let result = dynamic + 42               // runtime type check
+
+// Type inference with gradual typing
+let mixed_data = process_unknown_data() // inferred as unknown
+let safe_result: i32 = mixed_data       // explicit cast with runtime check
 ```
+
+The type system allows unknown types to be compatible with any other type, with runtime checks inserted automatically when necessary.
 
 ## Expressions
 

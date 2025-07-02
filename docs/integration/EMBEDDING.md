@@ -20,13 +20,13 @@ Add Script to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-script-lang = "0.1.0"
+script = "0.1.0"
 ```
 
 Basic usage:
 
 ```rust
-use script_lang::{Runtime, RuntimeConfig};
+use script::{Runtime, RuntimeConfig};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the Script runtime
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 The `Runtime` is the main interface for embedding Script:
 
 ```rust
-use script_lang::{Runtime, RuntimeConfig, Error};
+use script::{Runtime, RuntimeConfig, Error};
 
 // Default configuration
 let runtime = Runtime::new(RuntimeConfig::default())?;
@@ -91,7 +91,7 @@ let result = runtime.execute_program(&program)?;
 Convert between Rust and Script values:
 
 ```rust
-use script_lang::{Value, ValueType};
+use script::{Value, ValueType};
 
 // Rust to Script
 let rust_number = 42i32;
@@ -116,7 +116,7 @@ let rust_string: String = script_result.try_into()?;
 ### Configuration Options
 
 ```rust
-use script_lang::RuntimeConfig;
+use script::RuntimeConfig;
 
 let config = RuntimeConfig {
     // Memory management
@@ -168,7 +168,7 @@ runtime.register_function("log", |args| {
 ### Error Types
 
 ```rust
-use script_lang::{Error, ErrorKind};
+use script::{Error, ErrorKind};
 
 match runtime.execute_string("invalid syntax") {
     Ok(result) => println!("Success: {}", result),
@@ -260,7 +260,7 @@ if cfg!(debug_assertions) {
 ### Custom Allocators
 
 ```rust
-use script_lang::{Allocator, TrackingAllocator};
+use script::{Allocator, TrackingAllocator};
 
 // Use a tracking allocator for debugging
 let allocator = TrackingAllocator::new();
@@ -279,7 +279,7 @@ let runtime = Runtime::new(config)?;
 Register Rust types with Script:
 
 ```rust
-use script_lang::{TypeRegistry, NativeType};
+use script::{TypeRegistry, NativeType};
 
 #[derive(Debug, Clone)]
 struct Player {
@@ -326,7 +326,7 @@ runtime.execute_string(script)?;
 
 ```rust
 use std::sync::{Arc, Mutex};
-use script_lang::Callback;
+use script::Callback;
 
 // Event system
 let events = Arc::new(Mutex::new(Vec::new()));
@@ -356,7 +356,7 @@ for (event, data) in events.lock().unwrap().iter() {
 
 ```rust
 use tokio;
-use script_lang::AsyncRuntime;
+use script::AsyncRuntime;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -385,7 +385,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use bevy::prelude::*;
-use script_lang::{Runtime, RuntimeConfig, Value};
+use script::{Runtime, RuntimeConfig, Value};
 
 #[derive(Resource)]
 struct ScriptRuntime(Runtime);
@@ -435,7 +435,7 @@ fn run_game_scripts(mut script_runtime: ResMut<ScriptRuntime>) {
 ### Unity-like Component System
 
 ```rust
-use script_lang::{Runtime, Value, Component};
+use script::{Runtime, Value, Component};
 
 struct ScriptComponent {
     runtime: Runtime,
@@ -482,7 +482,7 @@ impl Component for ScriptComponent {
 
 ```rust
 use actix_web::{web, App, HttpServer, HttpResponse, Result};
-use script_lang::{Runtime, RuntimeConfig, Value};
+use script::{Runtime, RuntimeConfig, Value};
 use std::sync::{Arc, Mutex};
 
 type SharedRuntime = Arc<Mutex<Runtime>>;
@@ -531,7 +531,7 @@ async fn main() -> std::io::Result<()> {
 
 ```rust
 use warp::Filter;
-use script_lang::{Runtime, RuntimeConfig};
+use script::{Runtime, RuntimeConfig};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

@@ -1,0 +1,82 @@
+// Module with various error cases for semantic analysis testing
+
+// Undefined variable reference
+export fn undefined_variable_error() -> i32 {
+    undefined_var + 10
+}
+
+// Type mismatch error
+export fn type_mismatch_error() -> i32 {
+    let x: i32 = "string value";  // Type mismatch
+    x
+}
+
+// Function call with wrong number of arguments
+export fn wrong_argument_count() -> i32 {
+    add(1, 2, 3)  // add expects 2 arguments
+}
+
+// Function call with wrong argument types
+export fn wrong_argument_types() -> i32 {
+    add("hello", "world")  // add expects i32, i32
+}
+
+// Return type mismatch
+export fn return_type_mismatch() -> i32 {
+    return "string";  // Should return i32
+}
+
+// Missing return statement
+export fn missing_return() -> i32 {
+    let x = 42;
+    // Missing return statement
+}
+
+// Assignment to immutable variable
+export fn immutable_assignment_error() {
+    let x = 42;  // Immutable by default
+    x = 100;     // Should cause error
+}
+
+// Array type mismatch
+export fn array_type_error() -> [i32] {
+    [1, "string", 3]  // Mixed types
+}
+
+// Index out of bounds (potential)
+export fn index_error() -> i32 {
+    let arr = [1, 2, 3];
+    arr[10]  // Potential index out of bounds
+}
+
+// Invalid member access
+export fn member_access_error() -> i32 {
+    let x = 42;
+    x.property  // i32 doesn't have properties
+}
+
+// Duplicate function definition
+export fn duplicate_function() -> i32 { 42 }
+export fn duplicate_function() -> f32 { 3.14 }  // Duplicate
+
+// Circular function calls (infinite recursion potential)
+export fn circular_a() -> i32 {
+    circular_b()
+}
+
+export fn circular_b() -> i32 {
+    circular_a()
+}
+
+// Invalid operation on non-numeric types
+export fn invalid_operation() -> string {
+    let result = "hello" + 42;  // Invalid string + int
+    result
+}
+
+// Use of variable before declaration
+export fn use_before_declaration() -> i32 {
+    let result = x + 10;  // x not declared yet
+    let x = 42;
+    result
+}

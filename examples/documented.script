@@ -1,0 +1,57 @@
+/// This module demonstrates documentation comments in Script
+/// It shows how to document functions, constants, and other items
+
+/// The value of PI to 5 decimal places
+/// @note This is accurate enough for most calculations
+const PI = 3.14159
+
+/// Calculate the area of a circle
+/// @param radius - The radius of the circle
+/// @returns The area of the circle
+/// @example
+/// ```
+/// let area = circle_area(5.0)
+/// print(area)  // Output: 78.53975
+/// ```
+fn circle_area(radius) {
+    return PI * radius * radius
+}
+
+/// Calculate the circumference of a circle
+/// @param radius - The radius of the circle
+/// @returns The circumference of the circle
+/// @see circle_area
+fn circle_circumference(radius) {
+    return 2 * PI * radius
+}
+
+/**
+ * Calculate the volume of a sphere
+ * 
+ * This function uses the formula V = (4/3) * π * r³
+ * 
+ * @param radius [number] - The radius of the sphere
+ * @returns The volume of the sphere
+ * @example Calculating sphere volume
+ * ```
+ * let volume = sphere_volume(3.0)
+ * print(volume)  // Output: 113.09724
+ * ```
+ */
+fn sphere_volume(radius) {
+    return (4.0 / 3.0) * PI * radius * radius * radius
+}
+
+/// Entry point for the geometry calculations
+/// @example
+/// ```
+/// main()
+/// ```
+fn main() {
+    let r = 5.0
+    
+    print("Circle with radius", r)
+    print("  Area:", circle_area(r))
+    print("  Circumference:", circle_circumference(r))
+    print("  Sphere volume:", sphere_volume(r))
+}

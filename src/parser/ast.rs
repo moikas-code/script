@@ -1,6 +1,28 @@
-use crate::source::Span;
 use crate::lexer::TokenKind;
+use crate::source::Span;
 use std::fmt;
+
+/// Generic type parameter in function or struct definitions
+#[derive(Debug, Clone, PartialEq)]
+pub struct GenericParam {
+    pub name: String,
+    pub bounds: Vec<TraitBound>,
+    pub span: Span,
+}
+
+/// Trait bound on a generic parameter
+#[derive(Debug, Clone, PartialEq)]
+pub struct TraitBound {
+    pub trait_name: String,
+    pub span: Span,
+}
+
+/// Collection of generic parameters
+#[derive(Debug, Clone, PartialEq)]
+pub struct GenericParams {
+    pub params: Vec<GenericParam>,
+    pub span: Span,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
@@ -8,9 +30,17 @@ pub struct Program {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Attribute {
+    pub name: String,
+    pub args: Vec<String>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: Span,
+    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -22,9 +52,11 @@ pub enum StmtKind {
     },
     Function {
         name: String,
+        generic_params: Option<GenericParams>,
         params: Vec<Param>,
         ret_type: Option<TypeAnn>,
         body: Block,
+        is_async: bool,
     },
     Return(Option<Expr>),
     Expression(Expr),
@@ -36,6 +68,13 @@ pub enum StmtKind {
         variable: String,
         iterable: Expr,
         body: Block,
+    },
+    Import {
+        imports: ImportSpec,
+        module: String,
+    },
+    Export {
+        export: ExportSpec,
     },
 }
 
@@ -85,6 +124,20 @@ pub enum ExprKind {
         expr: Box<Expr>,
         arms: Vec<MatchArm>,
     },
+    Await {
+        expr: Box<Expr>,
+    },
+    ListComprehension {
+        element: Box<Expr>,
+        variable: String,
+        iterable: Box<Expr>,
+        condition: Option<Box<Expr>>,
+    },
+    /// Generic constructor expression (e.g., Vec<i32>, HashMap<String, T>)
+    GenericConstructor {
+        name: String,
+        type_args: Vec<TypeAnn>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -108,97 +161,58 @@ pub struct Pattern {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternKind {
-    /// Wildcard pattern `_`
     Wildcard,
-    /// Literal pattern `42`, `"hello"`, `true`
-    Literal(Literal),
-    /// Variable binding pattern `x`
     Identifier(String),
-    /// Array destructuring pattern `[a, b, c]`
+    Literal(Literal),
     Array(Vec<Pattern>),
-    /// Object destructuring pattern `{x, y}`
-    Object(Vec<ObjectPatternField>),
-    /// Or pattern `a | b`
+    Object(Vec<(String, Option<Pattern>)>),
     Or(Vec<Pattern>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ObjectPatternField {
-    pub key: String,
-    pub pattern: Option<Pattern>, // None means shorthand `{x}` equivalent to `{x: x}`
+pub enum ImportSpecifier {
+    /// Default import: import name from "module"
+    Default { name: String },
+    /// Named import: import { name as alias } from "module"
+    Named { name: String, alias: Option<String> },
+    /// Namespace import: import * as name from "module"
+    Namespace { alias: String },
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Literal {
-    Number(f64),
-    String(String),
-    Boolean(bool),
+pub struct ExportSpecifier {
+    pub name: String,
+    pub alias: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum BinaryOp {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-    Equal,
-    NotEqual,
-    Less,
-    Greater,
-    LessEqual,
-    GreaterEqual,
-    And,
-    Or,
+pub enum ExportKind {
+    /// Named exports: export { a, b as c }
+    Named { specifiers: Vec<ExportSpecifier> },
+    /// Function export: export fn foo() {}
+    Function {
+        name: String,
+        params: Vec<Param>,
+        ret_type: Option<TypeAnn>,
+        body: Block,
+        is_async: bool,
+    },
+    /// Variable export: export let x = 1
+    Variable {
+        name: String,
+        type_ann: Option<TypeAnn>,
+        init: Option<Expr>,
+    },
+    /// Default export: export default expr
+    Default { expr: Expr },
+    /// Declaration export: export let x = 1 or export fn foo() {}
+    Declaration(Box<Stmt>),
 }
 
-impl BinaryOp {
-    pub fn from_token(kind: &TokenKind) -> Option<Self> {
-        match kind {
-            TokenKind::Plus => Some(BinaryOp::Add),
-            TokenKind::Minus => Some(BinaryOp::Subtract),
-            TokenKind::Star => Some(BinaryOp::Multiply),
-            TokenKind::Slash => Some(BinaryOp::Divide),
-            TokenKind::Percent => Some(BinaryOp::Modulo),
-            TokenKind::EqualsEquals => Some(BinaryOp::Equal),
-            TokenKind::BangEquals => Some(BinaryOp::NotEqual),
-            TokenKind::Less => Some(BinaryOp::Less),
-            TokenKind::Greater => Some(BinaryOp::Greater),
-            TokenKind::LessEquals => Some(BinaryOp::LessEqual),
-            TokenKind::GreaterEquals => Some(BinaryOp::GreaterEqual),
-            TokenKind::And => Some(BinaryOp::And),
-            TokenKind::Or => Some(BinaryOp::Or),
-            _ => None,
-        }
-    }
-
-    pub fn precedence(&self) -> u8 {
-        match self {
-            BinaryOp::Or => 1,
-            BinaryOp::And => 2,
-            BinaryOp::Equal | BinaryOp::NotEqual => 3,
-            BinaryOp::Less | BinaryOp::Greater | BinaryOp::LessEqual | BinaryOp::GreaterEqual => 4,
-            BinaryOp::Add | BinaryOp::Subtract => 5,
-            BinaryOp::Multiply | BinaryOp::Divide | BinaryOp::Modulo => 6,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum UnaryOp {
-    Not,
-    Negate,
-}
-
-impl UnaryOp {
-    pub fn from_token(kind: &TokenKind) -> Option<Self> {
-        match kind {
-            TokenKind::Bang => Some(UnaryOp::Not),
-            TokenKind::Minus => Some(UnaryOp::Negate),
-            _ => None,
-        }
-    }
-}
+// Type aliases for compatibility
+pub type ImportSpec = Vec<ImportSpecifier>;
+pub type ExportSpec = ExportKind;
+pub type ExportItem = ExportSpecifier;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Param {
@@ -215,14 +229,74 @@ pub struct TypeAnn {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind {
     Named(String),
+    Array(Box<TypeAnn>),
     Function {
         params: Vec<TypeAnn>,
         ret: Box<TypeAnn>,
     },
-    Array(Box<TypeAnn>),
+    /// Generic type with type arguments (e.g., Vec<i32>, Map<string, i32>)
+    Generic {
+        name: String,
+        args: Vec<TypeAnn>,
+    },
+    /// Type parameter in generic context (e.g., T, U, K, V)
+    TypeParam(String),
 }
 
-// Display implementations for pretty printing
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
+    Number(f64),
+    String(String),
+    Boolean(bool),
+    Null,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BinaryOp {
+    // Arithmetic
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+
+    // Comparison
+    Equal,
+    NotEqual,
+    Less,
+    Greater,
+    LessEqual,
+    GreaterEqual,
+
+    // Logical
+    And,
+    Or,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UnaryOp {
+    Not,
+    Minus,
+}
+
+// Display implementations
+impl fmt::Display for Attribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "@{}", self.name)?;
+        if !self.args.is_empty() {
+            write!(f, "(")?;
+            for (i, arg) in self.args.iter().enumerate() {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}", arg)?;
+            }
+            write!(f, ")")?;
+        }
+        Ok(())
+    }
+}
+
 impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, stmt) in self.statements.iter().enumerate() {
@@ -237,8 +311,18 @@ impl fmt::Display for Program {
 
 impl fmt::Display for Stmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Display attributes
+        for attr in &self.attributes {
+            writeln!(f, "{}", attr)?;
+        }
+
+        // Display statement
         match &self.kind {
-            StmtKind::Let { name, type_ann, init } => {
+            StmtKind::Let {
+                name,
+                type_ann,
+                init,
+            } => {
                 write!(f, "let {}", name)?;
                 if let Some(ty) = type_ann {
                     write!(f, ": {}", ty)?;
@@ -248,7 +332,17 @@ impl fmt::Display for Stmt {
                 }
                 Ok(())
             }
-            StmtKind::Function { name, params, ret_type, body } => {
+            StmtKind::Function {
+                name,
+                params,
+                ret_type,
+                body,
+                is_async,
+                generic_params: _,
+            } => {
+                if *is_async {
+                    write!(f, "async ")?;
+                }
                 write!(f, "fn {}(", name)?;
                 for (i, param) in params.iter().enumerate() {
                     if i > 0 {
@@ -273,8 +367,124 @@ impl fmt::Display for Stmt {
             StmtKind::While { condition, body } => {
                 write!(f, "while {} {}", condition, body)
             }
-            StmtKind::For { variable, iterable, body } => {
+            StmtKind::For {
+                variable,
+                iterable,
+                body,
+            } => {
                 write!(f, "for {} in {} {}", variable, iterable, body)
+            }
+            StmtKind::Import { imports, module } => {
+                write!(f, "import ")?;
+
+                // Handle mixed imports (default + named/namespace)
+                let mut has_default = false;
+                let mut named_specs = Vec::new();
+                let mut namespace_spec = None;
+
+                for spec in imports {
+                    match spec {
+                        ImportSpecifier::Default { name } => {
+                            write!(f, "{}", name)?;
+                            has_default = true;
+                        }
+                        ImportSpecifier::Named { name, alias } => {
+                            named_specs.push((name, alias));
+                        }
+                        ImportSpecifier::Namespace { alias } => {
+                            namespace_spec = Some(alias);
+                        }
+                    }
+                }
+
+                // Add comma after default if there are more imports
+                if has_default && (!named_specs.is_empty() || namespace_spec.is_some()) {
+                    write!(f, ", ")?;
+                }
+
+                // Handle named imports
+                if !named_specs.is_empty() {
+                    write!(f, "{{ ")?;
+                    for (i, (name, alias)) in named_specs.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", name)?;
+                        if let Some(a) = alias {
+                            write!(f, " as {}", a)?;
+                        }
+                    }
+                    write!(f, " }}")?;
+
+                    // Add comma if there's also a namespace import
+                    if namespace_spec.is_some() {
+                        write!(f, ", ")?;
+                    }
+                }
+
+                // Handle namespace import
+                if let Some(alias) = namespace_spec {
+                    write!(f, "* as {}", alias)?;
+                }
+
+                write!(f, " from \"{}\"", module)
+            }
+            StmtKind::Export { export } => {
+                write!(f, "export ")?;
+                match export {
+                    ExportKind::Named { specifiers } => {
+                        write!(f, "{{ ")?;
+                        for (i, spec) in specifiers.iter().enumerate() {
+                            if i > 0 {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "{}", spec.name)?;
+                            if let Some(alias) = &spec.alias {
+                                write!(f, " as {}", alias)?;
+                            }
+                        }
+                        write!(f, " }}")
+                    }
+                    ExportKind::Function {
+                        name,
+                        params,
+                        ret_type,
+                        body,
+                        is_async,
+                    } => {
+                        if *is_async {
+                            write!(f, "async ")?;
+                        }
+                        write!(f, "fn {}(", name)?;
+                        for (i, param) in params.iter().enumerate() {
+                            if i > 0 {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "{}: {}", param.name, param.type_ann)?;
+                        }
+                        write!(f, ")")?;
+                        if let Some(ret) = ret_type {
+                            write!(f, " -> {}", ret)?;
+                        }
+                        write!(f, " {}", body)
+                    }
+                    ExportKind::Variable {
+                        name,
+                        type_ann,
+                        init,
+                    } => {
+                        write!(f, "let {}", name)?;
+                        if let Some(ty) = type_ann {
+                            write!(f, ": {}", ty)?;
+                        }
+                        if let Some(expr) = init {
+                            write!(f, " = {}", expr)?;
+                        }
+                        Ok(())
+                    }
+                    ExportKind::Default { expr } => write!(f, "default {}", expr),
+                    ExportKind::Declaration(stmt) => write!(f, "{}", stmt),
+                }
             }
         }
     }
@@ -307,10 +517,14 @@ impl fmt::Display for Expr {
             ExprKind::Member { object, property } => {
                 write!(f, "{}.{}", object, property)
             }
-            ExprKind::If { condition, then_branch, else_branch } => {
+            ExprKind::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 write!(f, "if {} {{ {} }}", condition, then_branch)?;
-                if let Some(else_expr) = else_branch {
-                    write!(f, " else {{ {} }}", else_expr)?;
+                if let Some(else_br) = else_branch {
+                    write!(f, " else {{ {} }}", else_br)?;
                 }
                 Ok(())
             }
@@ -329,11 +543,40 @@ impl fmt::Display for Expr {
                 write!(f, "{} = {}", target, value)
             }
             ExprKind::Match { expr, arms } => {
-                write!(f, "match {} {{", expr)?;
+                write!(f, "match {} {{ ", expr)?;
                 for arm in arms {
-                    write!(f, " {} => {},", arm.pattern, arm.body)?;
+                    write!(f, "{} => {}, ", arm.pattern, arm.body)?;
                 }
-                write!(f, " }}")
+                write!(f, "}}")
+            }
+            ExprKind::Await { expr } => {
+                write!(f, "await {}", expr)
+            }
+            ExprKind::ListComprehension {
+                element,
+                variable,
+                iterable,
+                condition,
+            } => {
+                write!(f, "[{} for {} in {}", element, variable, iterable)?;
+                if let Some(cond) = condition {
+                    write!(f, " if {}", cond)?;
+                }
+                write!(f, "]")
+            }
+            ExprKind::GenericConstructor { name, type_args } => {
+                write!(f, "{}", name)?;
+                if !type_args.is_empty() {
+                    write!(f, "<")?;
+                    for (i, arg) in type_args.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", arg)?;
+                    }
+                    write!(f, ">")?;
+                }
+                Ok(())
             }
         }
     }
@@ -341,52 +584,55 @@ impl fmt::Display for Expr {
 
 impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{{")?;
+        writeln!(f, "{{")?;
         for stmt in &self.statements {
-            write!(f, " {}; ", stmt)?;
+            writeln!(f, "    {}", stmt)?;
         }
         if let Some(expr) = &self.final_expr {
-            write!(f, " {} ", expr)?;
+            writeln!(f, "    {}", expr)?;
         }
         write!(f, "}}")
     }
 }
 
-impl fmt::Display for Literal {
+impl fmt::Display for Pattern {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Literal::Number(n) => write!(f, "{}", n),
-            Literal::String(s) => write!(f, "\"{}\"", s),
-            Literal::Boolean(b) => write!(f, "{}", b),
-        }
-    }
-}
-
-impl fmt::Display for BinaryOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            BinaryOp::Add => write!(f, "+"),
-            BinaryOp::Subtract => write!(f, "-"),
-            BinaryOp::Multiply => write!(f, "*"),
-            BinaryOp::Divide => write!(f, "/"),
-            BinaryOp::Modulo => write!(f, "%"),
-            BinaryOp::Equal => write!(f, "=="),
-            BinaryOp::NotEqual => write!(f, "!="),
-            BinaryOp::Less => write!(f, "<"),
-            BinaryOp::Greater => write!(f, ">"),
-            BinaryOp::LessEqual => write!(f, "<="),
-            BinaryOp::GreaterEqual => write!(f, ">="),
-            BinaryOp::And => write!(f, "&&"),
-            BinaryOp::Or => write!(f, "||"),
-        }
-    }
-}
-
-impl fmt::Display for UnaryOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            UnaryOp::Not => write!(f, "!"),
-            UnaryOp::Negate => write!(f, "-"),
+        match &self.kind {
+            PatternKind::Wildcard => write!(f, "_"),
+            PatternKind::Identifier(name) => write!(f, "{}", name),
+            PatternKind::Literal(lit) => write!(f, "{}", lit),
+            PatternKind::Array(patterns) => {
+                write!(f, "[")?;
+                for (i, p) in patterns.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", p)?;
+                }
+                write!(f, "]")
+            }
+            PatternKind::Object(fields) => {
+                write!(f, "{{")?;
+                for (i, (name, pat)) in fields.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", name)?;
+                    if let Some(p) = pat {
+                        write!(f, ": {}", p)?;
+                    }
+                }
+                write!(f, "}}")
+            }
+            PatternKind::Or(patterns) => {
+                for (i, p) in patterns.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " | ")?;
+                    }
+                    write!(f, "{}", p)?;
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -395,6 +641,7 @@ impl fmt::Display for TypeAnn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.kind {
             TypeKind::Named(name) => write!(f, "{}", name),
+            TypeKind::Array(elem) => write!(f, "[{}]", elem),
             TypeKind::Function { params, ret } => {
                 write!(f, "(")?;
                 for (i, param) in params.iter().enumerate() {
@@ -405,49 +652,169 @@ impl fmt::Display for TypeAnn {
                 }
                 write!(f, ") -> {}", ret)
             }
-            TypeKind::Array(elem_type) => write!(f, "[{}]", elem_type),
+            TypeKind::Generic { name, args } => {
+                write!(f, "{}", name)?;
+                if !args.is_empty() {
+                    write!(f, "<")?;
+                    for (i, arg) in args.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", arg)?;
+                    }
+                    write!(f, ">")?;
+                }
+                Ok(())
+            }
+            TypeKind::TypeParam(name) => write!(f, "{}", name),
         }
     }
 }
 
-impl fmt::Display for Pattern {
+impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.kind {
-            PatternKind::Wildcard => write!(f, "_"),
-            PatternKind::Literal(lit) => write!(f, "{}", lit),
-            PatternKind::Identifier(name) => write!(f, "{}", name),
-            PatternKind::Array(patterns) => {
-                write!(f, "[")?;
-                for (i, pattern) in patterns.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", pattern)?;
-                }
-                write!(f, "]")
-            }
-            PatternKind::Object(fields) => {
-                write!(f, "{{")?;
-                for (i, field) in fields.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", field.key)?;
-                    if let Some(pattern) = &field.pattern {
-                        write!(f, ": {}", pattern)?;
-                    }
-                }
-                write!(f, "}}")
-            }
-            PatternKind::Or(patterns) => {
-                for (i, pattern) in patterns.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, " | ")?;
-                    }
-                    write!(f, "{}", pattern)?;
+        match self {
+            Literal::Number(n) => write!(f, "{}", n),
+            Literal::String(s) => write!(f, "\"{}\"", s),
+            Literal::Boolean(b) => write!(f, "{}", b),
+            Literal::Null => write!(f, "null"),
+        }
+    }
+}
+
+impl fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let op = match self {
+            BinaryOp::Add => "+",
+            BinaryOp::Sub => "-",
+            BinaryOp::Mul => "*",
+            BinaryOp::Div => "/",
+            BinaryOp::Mod => "%",
+            BinaryOp::Equal => "==",
+            BinaryOp::NotEqual => "!=",
+            BinaryOp::Less => "<",
+            BinaryOp::Greater => ">",
+            BinaryOp::LessEqual => "<=",
+            BinaryOp::GreaterEqual => ">=",
+            BinaryOp::And => "&&",
+            BinaryOp::Or => "||",
+        };
+        write!(f, "{}", op)
+    }
+}
+
+impl fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let op = match self {
+            UnaryOp::Not => "!",
+            UnaryOp::Minus => "-",
+        };
+        write!(f, "{}", op)
+    }
+}
+
+impl BinaryOp {
+    pub fn from_token(token: &TokenKind) -> Option<Self> {
+        match token {
+            TokenKind::Plus => Some(BinaryOp::Add),
+            TokenKind::Minus => Some(BinaryOp::Sub),
+            TokenKind::Star => Some(BinaryOp::Mul),
+            TokenKind::Slash => Some(BinaryOp::Div),
+            TokenKind::Percent => Some(BinaryOp::Mod),
+            TokenKind::EqualsEquals => Some(BinaryOp::Equal),
+            TokenKind::BangEquals => Some(BinaryOp::NotEqual),
+            TokenKind::Less => Some(BinaryOp::Less),
+            TokenKind::Greater => Some(BinaryOp::Greater),
+            TokenKind::LessEquals => Some(BinaryOp::LessEqual),
+            TokenKind::GreaterEquals => Some(BinaryOp::GreaterEqual),
+            TokenKind::And => Some(BinaryOp::And),
+            TokenKind::Or => Some(BinaryOp::Or),
+            _ => None,
+        }
+    }
+}
+
+impl UnaryOp {
+    pub fn from_token(token: &TokenKind) -> Option<Self> {
+        match token {
+            TokenKind::Bang => Some(UnaryOp::Not),
+            TokenKind::Minus => Some(UnaryOp::Minus),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for ImportSpecifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ImportSpecifier::Named { name, alias } => {
+                write!(f, "{}", name)?;
+                if let Some(alias) = alias {
+                    write!(f, " as {}", alias)?;
                 }
                 Ok(())
             }
+            ImportSpecifier::Namespace { alias } => write!(f, "* as {}", alias),
+            ImportSpecifier::Default { name } => write!(f, "{}", name),
+        }
+    }
+}
+
+impl fmt::Display for ExportKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ExportKind::Named { specifiers } => {
+                write!(f, "{{ ")?;
+                for (i, item) in specifiers.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", item.name)?;
+                    if let Some(alias) = &item.alias {
+                        write!(f, " as {}", alias)?;
+                    }
+                }
+                write!(f, " }}")
+            }
+            ExportKind::Function {
+                name,
+                params,
+                ret_type,
+                body,
+                is_async,
+            } => {
+                if *is_async {
+                    write!(f, "async ")?;
+                }
+                write!(f, "fn {}(", name)?;
+                for (i, param) in params.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", param.name, param.type_ann)?;
+                }
+                write!(f, ")")?;
+                if let Some(ret) = ret_type {
+                    write!(f, " -> {}", ret)?;
+                }
+                write!(f, " {}", body)
+            }
+            ExportKind::Variable {
+                name,
+                type_ann,
+                init,
+            } => {
+                write!(f, "let {}", name)?;
+                if let Some(ty) = type_ann {
+                    write!(f, ": {}", ty)?;
+                }
+                if let Some(expr) = init {
+                    write!(f, " = {}", expr)?;
+                }
+                Ok(())
+            }
+            ExportKind::Default { expr } => write!(f, "default {}", expr),
+            ExportKind::Declaration(stmt) => write!(f, "{}", stmt),
         }
     }
 }

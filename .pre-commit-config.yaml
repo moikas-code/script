@@ -1,0 +1,101 @@
+# Pre-commit configuration for Script Language
+# See https://pre-commit.com for more information
+# Install with: pip install pre-commit && pre-commit install
+
+repos:
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Rust-specific hooks
+  - repo: local
+    hooks:
+      # Cargo fmt (code formatting)
+      - id: cargo-fmt
+        name: Cargo Format
+        entry: cargo fmt
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      # Cargo clippy (linting)
+      - id: cargo-clippy
+        name: Cargo Clippy
+        entry: cargo clippy
+        language: system
+        args: ['--all-targets', '--all-features', '--', '-D', 'warnings']
+        types: [rust]
+        pass_filenames: false
+
+      # Cargo check (compilation check)
+      - id: cargo-check
+        name: Cargo Check
+        entry: cargo check
+        language: system
+        args: ['--all-targets', '--all-features']
+        types: [rust]
+        pass_filenames: false
+
+      # Cargo test (run tests)
+      - id: cargo-test
+        name: Cargo Test
+        entry: cargo test
+        language: system
+        args: ['--all-features']
+        types: [rust]
+        pass_filenames: false
+
+      # Benchmark compilation check
+      - id: cargo-bench-check
+        name: Cargo Bench Check
+        entry: cargo check
+        language: system
+        args: ['--benches']
+        types: [rust]
+        pass_filenames: false
+
+      # Documentation check
+      - id: cargo-doc
+        name: Cargo Doc Check
+        entry: cargo doc
+        language: system
+        args: ['--no-deps', '--all-features']
+        types: [rust]
+        pass_filenames: false
+
+      # File organization enforcement
+      - id: prevent-root-test-files
+        name: Prevent Root Test Files
+        entry: bash -c 'if ls test_*.script test_* debug_*.script temp_*.script 2>/dev/null | grep -v /; then echo "❌ Test files found in root directory. Move to tests/fixtures/ or examples/"; exit 1; else echo "✅ No root test files found"; fi'
+        language: system
+        pass_filenames: false
+        
+      - id: check-script-file-location
+        name: Validate Script File Locations
+        entry: bash -c 'find . -name "*.script" -not -path "./examples/*" -not -path "./tests/*" -not -path "./benches/fixtures/*" | if grep -q .; then echo "❌ .script files found outside examples/ or tests/"; exit 1; else echo "✅ All .script files properly located"; fi'
+        language: system
+        pass_filenames: false
+
+  # Security audit (optional but recommended)
+  - repo: https://github.com/trailofbits/audit-action
+    rev: v1.3.0
+    hooks:
+      - id: cargo-audit
+        name: Cargo Audit
+        entry: cargo audit
+        language: system
+        pass_filenames: false
+        stages: [push]  # Only run on push, not every commit
+
+# Configuration
+default_stages: [commit]
+fail_fast: true

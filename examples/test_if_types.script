@@ -1,0 +1,31 @@
+// Test If expression type checking
+
+// Valid: boolean condition with compatible types
+let x = if true { 42 } else { 100 };
+print("x =");
+print(x);
+
+// Valid: if without else returns unit
+if false { 
+    print("This won't print"); 
+}
+
+// Invalid: non-boolean condition (should error)
+// let y = if 42 { 1 } else { 2 };
+
+// Invalid: mismatched branch types (should error)  
+// let z = if true { 42 } else { "hello" };
+
+// Valid: nested if with consistent types
+let result = if true {
+    if false { 10 } else { 20 }
+} else {
+    30
+};
+print("result =");
+print(result);
+
+// Valid: logical operators produce boolean
+let valid = if true && false || true { 100 } else { 200 };
+print("valid =");
+print(valid);

@@ -1,0 +1,9 @@
+// Application entry point
+import "config"
+import "core"
+
+fn main() {
+    let settings = get_config()
+    let result = process_data(settings)
+    return result
+}

@@ -1,0 +1,127 @@
+// Basic test examples for the Script language testing framework
+
+// Simple test that passes
+@test
+fn test_addition() {
+    let result = 2 + 2
+    assert_eq(result, 4)
+}
+
+// Test with custom message
+@test
+fn test_string_concatenation() {
+    let hello = "Hello"
+    let world = "World"
+    let message = hello + " " + world
+    assert_eq(message, "Hello World")
+}
+
+// Test that checks boolean conditions
+@test
+fn test_comparisons() {
+    assert_true(5 > 3)
+    assert_false(2 > 10)
+    assert_ne(1, 2)
+}
+
+// Test with skip annotation
+@test(skip = "Not implemented yet")
+fn test_advanced_feature() {
+    // This test will be skipped
+    assert_true(false)
+}
+
+// Test that expects a panic
+@test(should_panic)
+fn test_division_by_zero() {
+    let x = 10
+    let y = 0
+    let result = x / y  // This should panic
+}
+
+// Test with timeout
+@test(timeout = 1000)
+fn test_with_timeout() {
+    // This test has a 1 second timeout
+    let sum = 0
+    for i in 0..1000 {
+        sum = sum + i
+    }
+    assert_gt(sum, 0)
+}
+
+// Test with tags for filtering
+@test(tag = "math")
+fn test_math_operations() {
+    assert_eq(2 * 3, 6)
+    assert_eq(10 / 2, 5)
+    assert_eq(7 % 3, 1)
+}
+
+// Test arrays and collections
+@test
+fn test_arrays() {
+    let numbers = [1, 2, 3, 4, 5]
+    assert_len(numbers, 5)
+    assert_eq(numbers[0], 1)
+    assert_eq(numbers[4], 5)
+}
+
+// Test string operations
+@test
+fn test_strings() {
+    let text = "Hello, Script!"
+    assert_contains(text, "Script")
+    assert_true(text.starts_with("Hello"))
+    assert_true(text.ends_with("!"))
+}
+
+// Test floating point comparisons
+@test
+fn test_float_comparison() {
+    let pi = 3.14159
+    let approx_pi = 3.14160
+    assert_approx_eq(pi, approx_pi, 0.001)
+}
+
+// Test with setup and teardown (when supported)
+@setup
+fn setup_test_data() {
+    // This runs before each test
+    print("Setting up test environment")
+}
+
+@teardown
+fn cleanup_test_data() {
+    // This runs after each test
+    print("Cleaning up test environment")
+}
+
+// Test that uses external assertions
+@test
+fn test_custom_assertions() {
+    let value = 42
+    assert(value == 42, "Value should be 42")
+    assert_ge(value, 40)
+    assert_le(value, 50)
+}
+
+// Test empty collections
+@test
+fn test_empty_array() {
+    let empty = []
+    assert_empty(empty)
+    assert_len(empty, 0)
+}
+
+// Test pattern matching (when implemented)
+@test(skip = "Pattern matching not yet implemented")
+fn test_pattern_matching() {
+    let value = 42
+    let result = match value {
+        0 => "zero",
+        42 => "the answer",
+        _ => "other"
+    }
+    assert_eq(result, "the answer")
+}

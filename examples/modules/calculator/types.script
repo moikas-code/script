@@ -1,0 +1,50 @@
+// types.script - Type definitions for the calculator
+
+export { Expression, BinaryOp, UnaryOp, Token, TokenType }
+
+// Expression tree nodes
+enum Expression {
+    Number(float),
+    Binary { left: Expression, op: BinaryOp, right: Expression },
+    Unary { op: UnaryOp, expr: Expression },
+    Function { name: string, args: [Expression] }
+}
+
+// Binary operators
+enum BinaryOp {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Power
+}
+
+// Unary operators
+enum UnaryOp {
+    Negate,
+    Factorial
+}
+
+// Token types for parsing
+enum TokenType {
+    Number,
+    Operator,
+    LeftParen,
+    RightParen,
+    Identifier,
+    Comma,
+    EOF
+}
+
+// Token structure
+struct Token {
+    type: TokenType,
+    value: string,
+    position: int
+}
+
+impl Token {
+    fn new(type: TokenType, value: string, position: int) -> Token {
+        Token { type: type, value: value, position: position }
+    }
+}

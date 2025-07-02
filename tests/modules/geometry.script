@@ -1,0 +1,52 @@
+// geometry.script - Geometric calculations with module dependencies
+
+import math_utils.{ PI, multiply }
+import "./point.script" as Point
+
+export { Circle, Rectangle, calculateArea, calculatePerimeter }
+
+// Circle type and functions
+struct Circle {
+    center: Point.Point2D,
+    radius: float
+}
+
+fn Circle(x: float, y: float, radius: float) -> Circle {
+    Circle {
+        center: Point.Point2D(x, y),
+        radius: radius
+    }
+}
+
+// Rectangle type and functions
+struct Rectangle {
+    topLeft: Point.Point2D,
+    width: float,
+    height: float
+}
+
+fn Rectangle(x: float, y: float, width: float, height: float) -> Rectangle {
+    Rectangle {
+        topLeft: Point.Point2D(x, y),
+        width: width,
+        height: height
+    }
+}
+
+// Calculate area for different shapes
+fn calculateArea(shape: any) -> float {
+    match shape {
+        Circle { radius, ... } => multiply(PI, radius * radius),
+        Rectangle { width, height, ... } => multiply(width, height),
+        _ => 0.0
+    }
+}
+
+// Calculate perimeter for different shapes
+fn calculatePerimeter(shape: any) -> float {
+    match shape {
+        Circle { radius, ... } => multiply(2.0, multiply(PI, radius)),
+        Rectangle { width, height, ... } => multiply(2.0, width + height),
+        _ => 0.0
+    }
+}

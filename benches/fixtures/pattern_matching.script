@@ -1,0 +1,180 @@
+// Pattern matching benchmark program
+enum Shape {
+    Circle { radius: f64 },
+    Rectangle { width: f64, height: f64 },
+    Triangle { base: f64, height: f64 },
+    Polygon { sides: [Point] }
+}
+
+struct Point {
+    x: f64,
+    y: f64
+}
+
+// Complex pattern matching with guards
+fn calculate_area(shape: Shape) -> f64 {
+    return match shape {
+        Shape::Circle { radius } if radius > 0.0 => 3.14159 * radius * radius,
+        Shape::Circle { .. } => 0.0,
+        Shape::Rectangle { width, height } if width > 0.0 && height > 0.0 => width * height,
+        Shape::Rectangle { .. } => 0.0,
+        Shape::Triangle { base, height } => 0.5 * base * height,
+        Shape::Polygon { sides } if sides.len() >= 3 => {
+            // Calculate polygon area using shoelace formula
+            let mut area = 0.0
+            let n = sides.len()
+            
+            for i in 0..n {
+                let j = (i + 1) % n
+                area = area + sides[i].x * sides[j].y
+                area = area - sides[j].x * sides[i].y
+            }
+            
+            return area.abs() / 2.0
+        },
+        _ => 0.0
+    }
+}
+
+// Nested pattern matching
+enum Tree<T> {
+    Leaf(T),
+    Node { left: Box<Tree<T>>, right: Box<Tree<T>>, value: T }
+}
+
+fn sum_tree(tree: Tree<i32>) -> i32 {
+    return match tree {
+        Tree::Leaf(value) => value,
+        Tree::Node { left, right, value } => {
+            value + sum_tree(*left) + sum_tree(*right)
+        }
+    }
+}
+
+// Pattern matching with tuples and arrays
+fn process_data(data: (string, [i32], bool)) -> string {
+    return match data {
+        ("sum", nums, true) => {
+            let sum = nums.fold(0, |acc, x| acc + x)
+            "Sum: " + sum
+        },
+        ("product", nums, true) => {
+            let product = nums.fold(1, |acc, x| acc * x)
+            "Product: " + product
+        },
+        ("count", nums, _) => {
+            "Count: " + nums.len()
+        },
+        (op, _, false) => {
+            "Operation " + op + " disabled"
+        },
+        _ => "Unknown operation"
+    }
+}
+
+// Destructuring in function parameters
+fn distance({ x: x1, y: y1 }: Point, { x: x2, y: y2 }: Point) -> f64 {
+    let dx = x2 - x1
+    let dy = y2 - y1
+    return (dx * dx + dy * dy).sqrt()
+}
+
+// Pattern matching with custom extractors
+struct Email(string)
+
+impl Email {
+    fn extract(s: string) -> Option<Email> {
+        if s.contains("@") {
+            return Some(Email(s))
+        }
+        return None
+    }
+}
+
+fn validate_contact(contact: string) -> string {
+    return match Email::extract(contact) {
+        Some(Email(addr)) => "Valid email: " + addr,
+        None => match contact {
+            s if s.starts_with("+") && s.len() > 10 => "Valid phone: " + s,
+            s if s.len() == 10 && s.chars().all(|c| c.is_digit()) => "Valid local phone: " + s,
+            _ => "Invalid contact"
+        }
+    }
+}
+
+// Main benchmark
+fn main() {
+    // Create many shapes
+    let shapes = []
+    for i in 0..100 {
+        let shape = match i % 4 {
+            0 => Shape::Circle { radius: i as f64 },
+            1 => Shape::Rectangle { width: i as f64, height: (i + 1) as f64 },
+            2 => Shape::Triangle { base: i as f64, height: (i * 2) as f64 },
+            _ => {
+                let points = []
+                for j in 0..5 {
+                    points.push(Point { x: j as f64, y: (j * i) as f64 })
+                }
+                Shape::Polygon { sides: points }
+            }
+        }
+        shapes.push(shape)
+    }
+    
+    // Calculate areas
+    let total_area = 0.0
+    for shape in shapes {
+        total_area = total_area + calculate_area(shape)
+    }
+    
+    // Build trees
+    let trees = []
+    for i in 0..20 {
+        let tree = Tree::Node {
+            left: Box::new(Tree::Node {
+                left: Box::new(Tree::Leaf(i)),
+                right: Box::new(Tree::Leaf(i + 1)),
+                value: i * 2
+            }),
+            right: Box::new(Tree::Leaf(i * 3)),
+            value: i * 4
+        }
+        trees.push(tree)
+    }
+    
+    // Sum trees
+    let tree_sum = 0
+    for tree in trees {
+        tree_sum = tree_sum + sum_tree(tree)
+    }
+    
+    // Process various data
+    let data_samples = [
+        ("sum", [1, 2, 3, 4, 5], true),
+        ("product", [2, 3, 4], true),
+        ("count", [1, 2, 3, 4, 5, 6, 7], false),
+        ("unknown", [1], true)
+    ]
+    
+    let results = []
+    for sample in data_samples {
+        results.push(process_data(sample))
+    }
+    
+    // Validate contacts
+    let contacts = [
+        "user@example.com",
+        "+1234567890",
+        "5551234567",
+        "invalid"
+    ]
+    
+    for contact in contacts {
+        validate_contact(contact)
+    }
+    
+    print("Pattern matching complete!")
+}
+
+main()

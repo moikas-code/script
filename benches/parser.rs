@@ -1,9 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use script_lang::{Lexer, Parser};
+use script::{Lexer, Parser};
 
 fn benchmark_parse_expression(c: &mut Criterion) {
     let source = "1 + 2 * 3 - 4 / 5 + (6 * 7) - 8";
-    
+
     c.bench_function("parser_expression", |b| {
         b.iter(|| {
             let lexer = Lexer::new(black_box(source));
@@ -39,7 +39,7 @@ fn benchmark_parse_program(c: &mut Criterion) {
             sum = sum + val
         }
     "#;
-    
+
     c.bench_function("parser_program", |b| {
         b.iter(|| {
             let lexer = Lexer::new(black_box(source));
@@ -60,7 +60,7 @@ fn benchmark_parse_deeply_nested(c: &mut Criterion) {
     for _ in 0..20 {
         source.push_str(" } else { 0 }");
     }
-    
+
     c.bench_function("parser_deeply_nested", |b| {
         b.iter(|| {
             let lexer = Lexer::new(black_box(&source));
@@ -76,7 +76,7 @@ fn benchmark_parse_many_statements(c: &mut Criterion) {
     for i in 0..100 {
         source.push_str(&format!("let var{} = {} + {} * {}\n", i, i, i + 1, i + 2));
     }
-    
+
     c.bench_function("parser_many_statements", |b| {
         b.iter(|| {
             let lexer = Lexer::new(black_box(&source));

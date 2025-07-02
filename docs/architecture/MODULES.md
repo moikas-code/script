@@ -382,7 +382,7 @@ trait PackageRegistry {
 
 // Default registry configuration
 struct RegistryConfig {
-    default_registry: Url,      // https://packages.script-lang.org
+    default_registry: Url,      // https://packages.script.org
     alternative_registries: Vec<Registry>,
     local_cache: PathBuf,       // ~/.script/registry
     auth_tokens: HashMap<String, String>,

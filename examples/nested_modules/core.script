@@ -1,0 +1,9 @@
+// Core processing module
+import "helpers"
+
+export { process_data }
+
+fn process_data(input: i32) -> i32 {
+    let normalized = normalize_value(input)
+    return normalized * 2
+}

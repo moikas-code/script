@@ -1,0 +1,650 @@
+/**
+ * Advanced Functions in Script
+ * 
+ * This example demonstrates:
+ * - Function parameters and return types
+ * - Function overloading
+ * - Higher-order functions (functions as parameters)
+ * - Recursive functions
+ * - Closures and function composition
+ * - Error handling in functions
+ * - Performance considerations
+ */
+
+fn main() {
+    print("=== Advanced Functions in Script ===\n")
+    
+    basic_function_concepts()
+    function_overloading_examples()
+    higher_order_functions()
+    recursion_examples()
+    error_handling_functions()
+    function_composition_examples()
+    performance_considerations()
+}
+
+/**
+ * Review of basic function concepts with advanced examples
+ */
+fn basic_function_concepts() {
+    print("--- Basic Function Concepts ---")
+    
+    // Functions with different parameter types
+    let int_result = add_integers(10, 20)
+    let float_result = add_floats(3.14, 2.86)
+    let string_result = concatenate_strings("Hello", "World")
+    
+    print("Integer addition: " + int_result)
+    print("Float addition: " + float_result)
+    print("String concatenation: " + string_result)
+    
+    // Functions with multiple return types
+    let (quotient, remainder) = divide_with_remainder(17, 5)
+    print("17 ÷ 5 = " + quotient + " remainder " + remainder)
+    
+    // Functions with optional parameters (using Option types)
+    let default_greeting = create_greeting_optional(Option::some("Alice"), Option::none())
+    let custom_greeting = create_greeting_optional(Option::some("Bob"), Option::some("Good morning"))
+    
+    print("Default greeting: " + default_greeting)
+    print("Custom greeting: " + custom_greeting)
+    
+    print("")
+}
+
+/**
+ * Demonstrates function overloading (same name, different parameters)
+ */
+fn function_overloading_examples() {
+    print("--- Function Overloading Examples ---")
+    
+    // Different number of parameters
+    let area_circle = calculate_area(5.0)  // Circle with radius
+    let area_rectangle = calculate_area(4.0, 6.0)  // Rectangle with width, height
+    let area_triangle = calculate_area(3.0, 4.0, 5.0)  // Triangle with three sides
+    
+    print("Circle area (radius=5): " + area_circle)
+    print("Rectangle area (4×6): " + area_rectangle)
+    print("Triangle area (sides 3,4,5): " + area_triangle)
+    
+    // Different parameter types
+    let int_max = find_maximum(10, 20)
+    let float_max = find_maximum(3.14, 2.71)
+    let string_max = find_maximum("apple", "banana")  // Lexicographic comparison
+    
+    print("Maximum integer: " + int_max)
+    print("Maximum float: " + float_max)
+    print("Maximum string: " + string_max)
+    
+    print("")
+}
+
+/**
+ * Demonstrates higher-order functions (functions that take other functions as parameters)
+ */
+fn higher_order_functions() {
+    print("--- Higher-Order Functions ---")
+    
+    // Functions as parameters
+    let numbers = Vec::new()
+    vec_push(numbers, 1)
+    vec_push(numbers, 2)
+    vec_push(numbers, 3)
+    vec_push(numbers, 4)
+    vec_push(numbers, 5)
+    
+    print("Original numbers: 1, 2, 3, 4, 5")
+    
+    // Apply different operations to the same data
+    let doubled = apply_to_all(numbers, double_number)
+    let squared = apply_to_all(numbers, square_number)
+    let cubed = apply_to_all(numbers, cube_number)
+    
+    print("Doubled: " + format_vector(doubled))
+    print("Squared: " + format_vector(squared))
+    print("Cubed: " + format_vector(cubed))
+    
+    // Filter with custom conditions
+    let even_numbers = filter_numbers(numbers, is_even)
+    let odd_numbers = filter_numbers(numbers, is_odd)
+    let greater_than_three = filter_numbers(numbers, greater_than_three_fn)
+    
+    print("Even numbers: " + format_vector(even_numbers))
+    print("Odd numbers: " + format_vector(odd_numbers))
+    print("Greater than 3: " + format_vector(greater_than_three))
+    
+    // Reduce operations
+    let sum = reduce_numbers(numbers, add_numbers)
+    let product = reduce_numbers(numbers, multiply_numbers)
+    
+    print("Sum of all numbers: " + sum)
+    print("Product of all numbers: " + product)
+    
+    print("")
+}
+
+/**
+ * Demonstrates recursive functions
+ */
+fn recursion_examples() {
+    print("--- Recursion Examples ---")
+    
+    // Classic recursion examples
+    print("Factorial calculations:")
+    for i in 0..6 {
+        let fact = factorial(i)
+        print("  " + i + "! = " + fact)
+    }
+    
+    print("\nFibonacci sequence:")
+    for i in 0..10 {
+        let fib = fibonacci(i)
+        print("  F(" + i + ") = " + fib)
+    }
+    
+    // Tree traversal simulation
+    print("\nBinary tree traversal (simulated):")
+    let tree_values = traverse_binary_tree(7, 0)  // Tree with depth 3
+    print("Tree values: " + format_vector(tree_values))
+    
+    // String manipulation with recursion
+    let original = "hello"
+    let reversed = reverse_string(original)
+    print("\nString reversal:")
+    print("  Original: " + original)
+    print("  Reversed: " + reversed)
+    
+    // Mathematical recursion - greatest common divisor
+    let gcd_result = greatest_common_divisor(48, 18)
+    print("\nGCD(48, 18) = " + gcd_result)
+    
+    print("")
+}
+
+/**
+ * Demonstrates error handling in functions
+ */
+fn error_handling_functions() {
+    print("--- Error Handling in Functions ---")
+    
+    // Safe division function
+    let division_results = Vec::new()
+    vec_push(division_results, safe_divide(10.0, 2.0))
+    vec_push(division_results, safe_divide(10.0, 0.0))
+    vec_push(division_results, safe_divide(-15.0, 3.0))
+    
+    print("Division results:")
+    let result_count = vec_len(division_results)
+    for i in 0..result_count {
+        match vec_get(division_results, i) {
+            Some(result) => {
+                match result {
+                    Ok(value) => print("  Success: " + value),
+                    Err(error) => print("  Error: " + error)
+                }
+            },
+            None => continue
+        }
+    }
+    
+    // Safe array access
+    let test_array = Vec::new()
+    vec_push(test_array, 10)
+    vec_push(test_array, 20)
+    vec_push(test_array, 30)
+    
+    print("\nSafe array access:")
+    let indices = Vec::new()
+    vec_push(indices, 0)
+    vec_push(indices, 1)
+    vec_push(indices, 5)  // Out of bounds
+    
+    let index_count = vec_len(indices)
+    for i in 0..index_count {
+        match vec_get(indices, i) {
+            Some(index) => {
+                let access_result = safe_array_access(test_array, index)
+                match access_result {
+                    Some(value) => print("  Index " + index + ": " + value),
+                    None => print("  Index " + index + ": out of bounds")
+                }
+            },
+            None => continue
+        }
+    }
+    
+    // Input validation
+    print("\nInput validation:")
+    let test_emails = Vec::new()
+    vec_push(test_emails, "user@example.com")
+    vec_push(test_emails, "invalid-email")
+    vec_push(test_emails, "another@test.org")
+    
+    let email_count = vec_len(test_emails)
+    for i in 0..email_count {
+        match vec_get(test_emails, i) {
+            Some(email) => {
+                let validation_result = validate_email(email)
+                match validation_result {
+                    Ok(clean_email) => print("  Valid: " + clean_email),
+                    Err(error) => print("  Invalid: " + email + " (" + error + ")")
+                }
+            },
+            None => continue
+        }
+    }
+    
+    print("")
+}
+
+/**
+ * Demonstrates function composition and advanced patterns
+ */
+fn function_composition_examples() {
+    print("--- Function Composition Examples ---")
+    
+    // Chaining mathematical operations
+    let start_value = 5
+    let result = compose_math_operations(start_value)
+    print("Math composition starting with " + start_value + ": " + result)
+    
+    // String processing pipeline
+    let input_text = "  Hello, World!  "
+    let processed = process_text_pipeline(input_text)
+    print("Text processing:")
+    print("  Input: \"" + input_text + "\"")
+    print("  Output: \"" + processed + "\"")
+    
+    // Data transformation pipeline
+    let raw_scores = Vec::new()
+    vec_push(raw_scores, 85)
+    vec_push(raw_scores, 92)
+    vec_push(raw_scores, 78)
+    vec_push(raw_scores, 96)
+    vec_push(raw_scores, 88)
+    
+    let grade_report = generate_grade_report(raw_scores)
+    print("\nGrade report generation:")
+    print(grade_report)
+    
+    print("")
+}
+
+/**
+ * Discusses performance considerations for functions
+ */
+fn performance_considerations() {
+    print("--- Performance Considerations ---")
+    
+    // Demonstrate tail recursion vs iteration
+    print("Comparing recursive vs iterative approaches:")
+    
+    let n = 10
+    let recursive_result = factorial(n)
+    let iterative_result = factorial_iterative(n)
+    
+    print("Factorial of " + n + ":")
+    print("  Recursive: " + recursive_result)
+    print("  Iterative: " + iterative_result)
+    print("  Results match: " + (recursive_result == iterative_result))
+    
+    // Function inlining considerations
+    print("\nFunction call overhead example:")
+    let iterations = 5
+    let start_value = 1000
+    
+    print("Performing " + iterations + " operations on " + start_value + ":")
+    let final_value = start_value
+    for i in 0..iterations {
+        final_value = expensive_operation(final_value)
+    }
+    print("  Final result: " + final_value)
+    
+    print("")
+}
+
+// Helper functions for basic concepts
+
+fn add_integers(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn add_floats(a: f32, b: f32) -> f32 {
+    a + b
+}
+
+fn concatenate_strings(a: string, b: string) -> string {
+    a + " " + b
+}
+
+fn divide_with_remainder(dividend: i32, divisor: i32) -> (i32, i32) {
+    let quotient = dividend / divisor
+    let remainder = dividend % divisor
+    (quotient, remainder)
+}
+
+fn create_greeting_optional(name: Option<string>, greeting: Option<string>) -> string {
+    let actual_name = match name {
+        Some(n) => n,
+        None => "Guest"
+    }
+    
+    let actual_greeting = match greeting {
+        Some(g) => g,
+        None => "Hello"
+    }
+    
+    actual_greeting + ", " + actual_name + "!"
+}
+
+// Function overloading examples
+
+fn calculate_area(radius: f32) -> f32 {
+    3.14159 * radius * radius
+}
+
+fn calculate_area(width: f32, height: f32) -> f32 {
+    width * height
+}
+
+fn calculate_area(a: f32, b: f32, c: f32) -> f32 {
+    // Heron's formula for triangle area
+    let s = (a + b + c) / 2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+}
+
+fn find_maximum(a: i32, b: i32) -> i32 {
+    if a > b { a } else { b }
+}
+
+fn find_maximum(a: f32, b: f32) -> f32 {
+    if a > b { a } else { b }
+}
+
+fn find_maximum(a: string, b: string) -> string {
+    // Lexicographic comparison
+    if a > b { a } else { b }
+}
+
+// Higher-order function helpers
+
+fn apply_to_all(numbers: Vec<i32>, operation: fn(i32) -> i32) -> Vec<i32> {
+    let result = Vec::new()
+    let count = vec_len(numbers)
+    
+    for i in 0..count {
+        match vec_get(numbers, i) {
+            Some(num) => {
+                let transformed = operation(num)
+                vec_push(result, transformed)
+            },
+            None => continue
+        }
+    }
+    
+    result
+}
+
+fn filter_numbers(numbers: Vec<i32>, predicate: fn(i32) -> bool) -> Vec<i32> {
+    let result = Vec::new()
+    let count = vec_len(numbers)
+    
+    for i in 0..count {
+        match vec_get(numbers, i) {
+            Some(num) => {
+                if predicate(num) {
+                    vec_push(result, num)
+                }
+            },
+            None => continue
+        }
+    }
+    
+    result
+}
+
+fn reduce_numbers(numbers: Vec<i32>, operation: fn(i32, i32) -> i32) -> i32 {
+    let count = vec_len(numbers)
+    if count == 0 {
+        return 0
+    }
+    
+    let result = vec_get(numbers, 0).unwrap_or(0)
+    
+    for i in 1..count {
+        match vec_get(numbers, i) {
+            Some(num) => result = operation(result, num),
+            None => continue
+        }
+    }
+    
+    result
+}
+
+// Operation functions
+fn double_number(n: i32) -> i32 { n * 2 }
+fn square_number(n: i32) -> i32 { n * n }
+fn cube_number(n: i32) -> i32 { n * n * n }
+
+// Predicate functions
+fn is_even(n: i32) -> bool { n % 2 == 0 }
+fn is_odd(n: i32) -> bool { n % 2 != 0 }
+fn greater_than_three_fn(n: i32) -> bool { n > 3 }
+
+// Arithmetic functions
+fn add_numbers(a: i32, b: i32) -> i32 { a + b }
+fn multiply_numbers(a: i32, b: i32) -> i32 { a * b }
+
+// Recursive function examples
+
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+fn fibonacci(n: i32) -> i32 {
+    if n <= 1 {
+        n
+    } else {
+        fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+
+fn traverse_binary_tree(value: i32, depth: i32) -> Vec<i32> {
+    let values = Vec::new()
+    vec_push(values, value)
+    
+    if depth < 3 {  // Limit depth to prevent infinite recursion
+        let left_values = traverse_binary_tree(value * 2, depth + 1)
+        let right_values = traverse_binary_tree(value * 2 + 1, depth + 1)
+        
+        // Combine all values
+        let left_count = vec_len(left_values)
+        for i in 0..left_count {
+            match vec_get(left_values, i) {
+                Some(val) => vec_push(values, val),
+                None => continue
+            }
+        }
+        
+        let right_count = vec_len(right_values)
+        for i in 0..right_count {
+            match vec_get(right_values, i) {
+                Some(val) => vec_push(values, val),
+                None => continue
+            }
+        }
+    }
+    
+    values
+}
+
+fn reverse_string(s: string) -> string {
+    let length = string_len(s)
+    if length <= 1 {
+        s
+    } else {
+        let last_char = substring(s, length - 1, 1)
+        let rest = substring(s, 0, length - 1)
+        last_char + reverse_string(rest)
+    }
+}
+
+fn greatest_common_divisor(a: i32, b: i32) -> i32 {
+    if b == 0 {
+        a
+    } else {
+        greatest_common_divisor(b, a % b)
+    }
+}
+
+// Error handling functions
+
+fn safe_divide(a: f32, b: f32) -> Result<f32, string> {
+    if b == 0.0 {
+        Result::err("Division by zero")
+    } else {
+        Result::ok(a / b)
+    }
+}
+
+fn safe_array_access(arr: Vec<i32>, index: i32) -> Option<i32> {
+    if index < 0 || index >= vec_len(arr) {
+        Option::none()
+    } else {
+        vec_get(arr, index)
+    }
+}
+
+fn validate_email(email: string) -> Result<string, string> {
+    if !contains(email, "@") {
+        Result::err("Missing @ symbol")
+    } else if !contains(email, ".") {
+        Result::err("Missing domain extension")
+    } else if string_len(email) < 5 {
+        Result::err("Email too short")
+    } else {
+        Result::ok(trim(email))
+    }
+}
+
+// Function composition examples
+
+fn compose_math_operations(x: i32) -> i32 {
+    // Chain: add 10, multiply by 2, subtract 5
+    let step1 = x + 10
+    let step2 = step1 * 2
+    let step3 = step2 - 5
+    step3
+}
+
+fn process_text_pipeline(text: string) -> string {
+    // Chain: trim, lowercase, remove extra spaces
+    let trimmed = trim(text)
+    let lowercased = to_lowercase(trimmed)
+    let cleaned = replace(lowercased, "  ", " ")
+    cleaned
+}
+
+fn generate_grade_report(scores: Vec<i32>) -> string {
+    let total = calculate_sum_scores(scores)
+    let count = vec_len(scores)
+    let average = if count > 0 { total as f32 / count as f32 } else { 0.0 }
+    let letter_grade = calculate_letter_grade(average)
+    
+    "Total: " + total + ", Average: " + average + ", Grade: " + letter_grade
+}
+
+// Performance comparison functions
+
+fn factorial_iterative(n: i32) -> i32 {
+    let result = 1
+    for i in 1..(n + 1) {
+        result = result * i
+    }
+    result
+}
+
+fn expensive_operation(x: i32) -> i32 {
+    // Simulate some complex calculation
+    let result = x
+    for i in 0..100 {
+        result = result + i * 2 - 1
+    }
+    result / 100
+}
+
+// Utility functions
+
+fn format_vector(vec: Vec<i32>) -> string {
+    let result = "["
+    let count = vec_len(vec)
+    
+    for i in 0..count {
+        match vec_get(vec, i) {
+            Some(value) => {
+                if i > 0 {
+                    result = result + ", "
+                }
+                result = result + value
+            },
+            None => continue
+        }
+    }
+    
+    result + "]"
+}
+
+fn calculate_sum_scores(scores: Vec<i32>) -> i32 {
+    let total = 0
+    let count = vec_len(scores)
+    
+    for i in 0..count {
+        match vec_get(scores, i) {
+            Some(score) => total = total + score,
+            None => continue
+        }
+    }
+    
+    total
+}
+
+fn calculate_letter_grade(average: f32) -> string {
+    if average >= 90.0 {
+        "A"
+    } else if average >= 80.0 {
+        "B"
+    } else if average >= 70.0 {
+        "C"
+    } else if average >= 60.0 {
+        "D"
+    } else {
+        "F"
+    }
+}
+
+/**
+ * Key Concepts Demonstrated:
+ * 
+ * 1. FUNCTION OVERLOADING: Same name, different parameters
+ * 2. HIGHER-ORDER FUNCTIONS: Functions as parameters and return values
+ * 3. RECURSION: Functions calling themselves with base cases
+ * 4. ERROR HANDLING: Using Result and Option types for safe operations
+ * 5. FUNCTION COMPOSITION: Chaining operations for complex transformations
+ * 6. PERFORMANCE: Considering efficiency in function design
+ * 7. UTILITY FUNCTIONS: Creating reusable helper functions
+ * 8. FUNCTIONAL PATTERNS: Map, filter, reduce operations
+ * 
+ * Try This:
+ * - Create a function that sorts an array using different algorithms
+ * - Build a calculator using function composition
+ * - Implement memoization for expensive recursive functions
+ * - Create a validation framework using higher-order functions
+ * - Build a data transformation pipeline for processing CSV-like data
+ */
+
+// Run all examples
+main()

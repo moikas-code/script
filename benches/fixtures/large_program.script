@@ -1,0 +1,150 @@
+// Large program with many functions and variables for stress testing
+module math_utils {
+    export fn add(a: f64, b: f64) -> f64 { return a + b }
+    export fn subtract(a: f64, b: f64) -> f64 { return a - b }
+    export fn multiply(a: f64, b: f64) -> f64 { return a * b }
+    export fn divide(a: f64, b: f64) -> f64 { return a / b }
+    
+    export fn power(base: f64, exp: i32) -> f64 {
+        let result = 1.0
+        for i in 0..exp {
+            result = result * base
+        }
+        return result
+    }
+    
+    export fn factorial(n: i32) -> i32 {
+        if n <= 1 { return 1 }
+        return n * factorial(n - 1)
+    }
+}
+
+// Data structures
+struct Point {
+    x: f64,
+    y: f64,
+    z: f64
+}
+
+struct Vector {
+    data: [f64],
+    size: i32
+}
+
+impl Point {
+    fn new(x: f64, y: f64, z: f64) -> Point {
+        return Point { x, y, z }
+    }
+    
+    fn distance(&self, other: &Point) -> f64 {
+        let dx = self.x - other.x
+        let dy = self.y - other.y
+        let dz = self.z - other.z
+        return math_utils::power(dx * dx + dy * dy + dz * dz, 0.5)
+    }
+}
+
+// Complex calculations
+fn matrix_multiply(a: [[f64]], b: [[f64]]) -> [[f64]] {
+    let rows_a = a.len()
+    let cols_a = a[0].len()
+    let cols_b = b[0].len()
+    
+    let mut result = [[0.0; cols_b]; rows_a]
+    
+    for i in 0..rows_a {
+        for j in 0..cols_b {
+            for k in 0..cols_a {
+                result[i][j] = result[i][j] + a[i][k] * b[k][j]
+            }
+        }
+    }
+    
+    return result
+}
+
+// String manipulation
+fn process_text(text: string) -> string {
+    let words = text.split(" ")
+    let mut result = ""
+    
+    for word in words {
+        if word.len() > 3 {
+            result = result + word.to_upper() + " "
+        } else {
+            result = result + word + " "
+        }
+    }
+    
+    return result.trim()
+}
+
+// Pattern matching
+fn classify_number(n: i32) -> string {
+    return match n {
+        0 => "zero",
+        1..10 => "small",
+        10..100 => "medium",
+        100..1000 => "large",
+        _ => "huge"
+    }
+}
+
+// Async operations
+async fn fetch_data(url: string) -> string {
+    // Simulate async operation
+    await sleep(100)
+    return "Data from " + url
+}
+
+async fn process_urls(urls: [string]) -> [string] {
+    let mut results = []
+    
+    for url in urls {
+        let data = await fetch_data(url)
+        results.push(data)
+    }
+    
+    return results
+}
+
+// Main program
+fn main() {
+    // Test math operations
+    let sum = 0.0
+    for i in 0..100 {
+        sum = sum + math_utils::multiply(i as f64, 2.5)
+    }
+    
+    // Test data structures
+    let points = []
+    for i in 0..50 {
+        let p = Point::new(i as f64, i as f64 * 2.0, i as f64 * 3.0)
+        points.push(p)
+    }
+    
+    // Calculate distances
+    let total_distance = 0.0
+    for i in 1..points.len() {
+        total_distance = total_distance + points[i-1].distance(&points[i])
+    }
+    
+    // Test string processing
+    let text = "The quick brown fox jumps over the lazy dog"
+    let processed = process_text(text)
+    
+    // Test pattern matching
+    let classifications = []
+    for i in 0..200 {
+        classifications.push(classify_number(i))
+    }
+    
+    // Test matrix operations
+    let matrix_a = [[1.0, 2.0], [3.0, 4.0]]
+    let matrix_b = [[5.0, 6.0], [7.0, 8.0]]
+    let result = matrix_multiply(matrix_a, matrix_b)
+    
+    print("Calculations complete!")
+}
+
+main()

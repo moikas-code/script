@@ -1,0 +1,250 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+          # Generate basic changelog (in real implementation, use git log or conventional commits)
+          echo "## What's Changed" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### Features" >> RELEASE_NOTES.md
+          echo "- Script language compiler and runtime" >> RELEASE_NOTES.md
+          echo "- LSP server for IDE support" >> RELEASE_NOTES.md
+          echo "- Package manager (manuscript)" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### Installation" >> RELEASE_NOTES.md
+          echo '```bash' >> RELEASE_NOTES.md
+          echo '# Unix/macOS' >> RELEASE_NOTES.md
+          echo 'curl -fsSL https://github.com/moikapy/script/releases/download/'$VERSION'/install.sh | sh' >> RELEASE_NOTES.md
+          echo '' >> RELEASE_NOTES.md
+          echo '# Windows' >> RELEASE_NOTES.md
+          echo 'iwr -useb https://github.com/moikapy/script/releases/download/'$VERSION'/install.ps1 | iex' >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+          
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Script Language ${{ env.VERSION }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
+
+  build-release:
+    name: Build Release
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: script-linux-amd64
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: script-linux-amd64-musl
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: script-linux-arm64
+            
+          # macOS builds
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: script-macos-amd64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: script-macos-arm64
+            
+          # Windows builds
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: script-windows-amd64
+            
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          
+      - name: Install cross-compilation tools
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y musl-tools
+          elif [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+          
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Build release binary
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]] && [[ "${{ matrix.target }}" != "x86_64-unknown-linux-gnu" ]]; then
+            cargo install cross
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+        shell: bash
+        
+      - name: Build all binaries
+        run: |
+          # Build script-lsp
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]] && [[ "${{ matrix.target }}" != "x86_64-unknown-linux-gnu" ]]; then
+            cross build --release --target ${{ matrix.target }} --bin script-lsp
+            cross build --release --target ${{ matrix.target }} --bin manuscript
+          else
+            cargo build --release --target ${{ matrix.target }} --bin script-lsp
+            cargo build --release --target ${{ matrix.target }} --bin manuscript
+          fi
+        shell: bash
+        
+      - name: Prepare release assets
+        run: |
+          # Create staging directory
+          mkdir -p staging
+          
+          # Copy binaries
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp target/${{ matrix.target }}/release/script.exe staging/
+            cp target/${{ matrix.target }}/release/script-lsp.exe staging/
+            cp target/${{ matrix.target }}/release/manuscript.exe staging/
+          else
+            cp target/${{ matrix.target }}/release/script staging/
+            cp target/${{ matrix.target }}/release/script-lsp staging/
+            cp target/${{ matrix.target }}/release/manuscript staging/
+            chmod +x staging/*
+          fi
+          
+          # Copy additional files
+          cp README.md LICENSE staging/
+          
+          # Create archive
+          cd staging
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            7z a ../${{ matrix.name }}.zip *
+            cd ..
+            echo "ASSET=${{ matrix.name }}.zip" >> $GITHUB_ENV
+          else
+            tar czf ../${{ matrix.name }}.tar.gz *
+            cd ..
+            echo "ASSET=${{ matrix.name }}.tar.gz" >> $GITHUB_ENV
+          fi
+        shell: bash
+        
+      - name: Generate checksum
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            certUtil -hashfile ${{ env.ASSET }} SHA256 > ${{ env.ASSET }}.sha256
+          else
+            shasum -a 256 ${{ env.ASSET }} > ${{ env.ASSET }}.sha256
+          fi
+        shell: bash
+        
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
+          
+      - name: Upload checksum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET }}.sha256
+          asset_name: ${{ env.ASSET }}.sha256
+          asset_content_type: text/plain
+
+  upload-install-scripts:
+    name: Upload Install Scripts
+    needs: [create-release, build-release]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Create install scripts
+        run: |
+          # We'll create these scripts in the next steps
+          mkdir -p scripts
+          
+      - name: Upload Unix installer
+        if: hashFiles('install.sh') != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./install.sh
+          asset_name: install.sh
+          asset_content_type: text/plain
+          
+      - name: Upload Windows installer
+        if: hashFiles('install.ps1') != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./install.ps1
+          asset_name: install.ps1
+          asset_content_type: text/plain

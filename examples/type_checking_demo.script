@@ -1,0 +1,282 @@
+// Type Checking Demonstration for Script Language
+// This file demonstrates various type checking features including:
+// - Binary operations type checking
+// - Assignment type checking with gradual typing
+// - Return type checking
+// - Array element type consistency
+// - Function call argument type checking
+// - If/else branch type compatibility
+
+// ============================================
+// 1. Binary Operations Type Checking
+// ============================================
+
+// Arithmetic operations - require numeric operands
+let x: i32 = 10;
+let y: f32 = 3.14;
+let z = x + 5;              // i32 + i32 = i32
+let w = y * 2.0;            // float + float = float
+let mixed = x + y;          // i32 + float = float (type coercion)
+
+// These would produce type errors:
+// let bad_add = "hello" + 5;        // Error: Cannot add string and i32
+// let bad_mul = true * false;       // Error: Cannot multiply booleans
+// let bad_sub = [1, 2, 3] - 1;     // Error: Cannot subtract from array
+
+// Comparison operations - require same types
+let cmp1 = x > 5;           // i32 > i32 = bool
+let cmp2 = y < 4.0;         // float < float = bool
+let cmp3 = x >= y;          // i32 >= float = bool (with coercion)
+
+// These would produce type errors:
+// let bad_cmp1 = "abc" > 123;      // Error: Cannot compare string and i32
+// let bad_cmp2 = true < false;     // Error: Cannot compare booleans with < operator
+
+// Logical operations - require boolean operands
+let a = true;
+let b = false;
+let logic1 = a && b;        // bool && bool = bool
+let logic2 = !a;            // !bool = bool
+let logic3 = a || b;        // bool || bool = bool
+
+// These would produce type errors:
+// let bad_logic1 = 1 && 2;         // Error: && requires boolean operands
+// let bad_logic2 = !"hello";       // Error: ! requires boolean operand
+// let bad_logic3 = 3.14 || true;   // Error: || requires boolean operands
+
+// Equality operations - work with any types but require same types
+let eq1 = x == 10;          // i32 == i32 = bool
+let eq2 = y != 3.14;        // float != float = bool
+let eq3 = a == true;        // bool == bool = bool
+let eq4 = "hello" == "world"; // string == string = bool
+
+// These would produce type errors:
+// let bad_eq1 = 5 == "5";          // Error: Cannot compare i32 and string
+// let bad_eq2 = true != 1;         // Error: Cannot compare bool and i32
+
+// ============================================
+// 2. Assignment Type Checking
+// ============================================
+
+// Typed variables
+let typed_i32: i32 = 42;
+let typed_float: f32 = 3.14159;
+let typed_bool: bool = true;
+let typed_string: string = "Script";
+
+// These would produce type errors:
+// typed_i32 = 3.14;                // Error: Cannot assign float to i32 variable
+// typed_bool = "true";             // Error: Cannot assign string to bool variable
+// typed_string = 123;              // Error: Cannot assign i32 to string variable
+
+// Gradual typing - untyped variables
+let untyped = 10;           // Inferred as i32
+untyped = 20;               // OK - same type
+// untyped = "string";      // Would error: Cannot change type after inference
+
+// Type coercion in assignments
+typed_float = 10;           // OK - i32 coerces to float
+let coerced: f32 = x;     // OK - i32 variable coerces to float
+
+// Array assignments
+let i32_array: [i32] = [1, 2, 3, 4, 5];
+let mixed_array = [1, 2.5, 3]; // Inferred as [f32] due to mixed numeric types
+
+// These would produce type errors:
+// i32_array[0] = 3.14;             // Error: Cannot assign float to i32 array element
+// i32_array = [1, "two", 3];       // Error: Cannot assign mixed-type array to i32 array
+
+// ============================================
+// 3. Return Type Checking
+// ============================================
+
+// Function with explicit return type
+fn add_i32s(a: i32, b: i32) -> i32 {
+    return a + b;           // Returns i32 - matches declaration
+}
+
+// Function with inferred return type
+fn multiply(x: f32, y: f32) {
+    return x * y;           // Return type inferred as float
+}
+
+// Void function (no return)
+fn print_message(msg: string) {
+    // No return statement - void function
+    let temp = msg;         // Just to use the parameter
+}
+
+// Function with conditional returns
+fn absolute_value(n: f32) -> f32 {
+    if n < 0.0 {
+        return -n;          // Returns float
+    } else {
+        return n;           // Returns float - branches match
+    }
+}
+
+// These would produce type errors:
+// fn bad_return1() -> i32 {
+//     return "not an i32";         // Error: Return type mismatch
+// }
+//
+// fn bad_return2() -> bool {
+//     if true {
+//         return true;             // Returns bool
+//     } else {
+//         return 1;                // Error: Returns i32, expected bool
+//     }
+// }
+//
+// fn bad_return3() -> f32 {
+//     // Error: Non-void function must return a value
+// }
+
+// ============================================
+// 4. Array Element Type Consistency
+// ============================================
+
+// Homogeneous arrays
+let i32s: [i32] = [1, 2, 3, 4, 5];
+let floats: [f32] = [1.0, 2.0, 3.0];
+let strings: [string] = ["a", "b", "c"];
+let bools: [bool] = [true, false, true];
+
+// Array with type coercion
+let coerced_array: [f32] = [1, 2.5, 3, 4.7]; // All coerced to float
+
+// Array element access and assignment
+let first_i32 = i32s[0];    // Type: i32
+floats[1] = 2.5;            // OK - assigning float to float array
+// i32s[0] = 1.5;           // Would error: Cannot assign float to i32 array
+
+// These would produce type errors:
+// let bad_array1: [i32] = [1, "two", 3];      // Error: Mixed types
+// let bad_array2: [bool] = [true, 1, false];  // Error: i32 in bool array
+// strings[0] = 42;                            // Error: Cannot assign i32 to string array
+
+// ============================================
+// 5. Function Call Argument Type Checking
+// ============================================
+
+// Function definitions for testing
+fn process_i32(x: i32) -> i32 {
+    return x * 2;
+}
+
+fn process_float(x: f32) -> f32 {
+    return x * 2.0;
+}
+
+fn combine_strings(a: string, b: string) -> string {
+    return a;  // Just return first for demo
+}
+
+fn complex_function(i: i32, f: f32, s: string, b: bool) -> i32 {
+    if b {
+        return i;
+    } else {
+        return 0;
+    }
+}
+
+// Valid function calls
+let result1 = process_i32(5);              // i32 argument
+let result2 = process_float(3.14);         // float argument
+let result3 = combine_strings("hello", "world"); // string arguments
+let result4 = complex_function(10, 2.5, "test", true); // All correct types
+
+// Function calls with type coercion
+let result5 = process_float(10);           // i32 coerces to float
+
+// These would produce type errors:
+// let bad_call1 = process_i32(3.14);      // Error: f32 argument to i32 parameter
+// let bad_call2 = process_i32("5");       // Error: string argument to i32 parameter
+// let bad_call3 = combine_strings("a", 1); // Error: i32 argument to string parameter
+// let bad_call4 = complex_function(1, 2, 3, 4); // Error: wrong types for last 2 args
+
+// Wrong number of arguments
+// let bad_arity1 = process_i32();         // Error: Too few arguments
+// let bad_arity2 = process_i32(1, 2);     // Error: Too many arguments
+
+// ============================================
+// 6. If/Else Branch Type Compatibility
+// ============================================
+
+// If expression with compatible branches
+let cond = true;
+let if_result1 = if cond { 10 } else { 20 };        // Both branches return i32
+let if_result2 = if x > 5 { 1.0 } else { 2.0 };     // Both branches return float
+let if_result3 = if cond { "yes" } else { "no" };   // Both branches return string
+
+// If expression with type coercion
+let if_result4 = if cond { 10 } else { 20.5 };      // i32 and float -> result is float
+
+// Nested if expressions
+let nested = if x > 0 {
+    if y > 0.0 {
+        1
+    } else {
+        2
+    }
+} else {
+    3
+}; // All paths return i32
+
+// If without else (returns void)
+if cond {
+    let temp = 42;
+}
+
+// These would produce type errors:
+// let bad_if1 = if cond { 10 } else { "ten" };    // Error: Incompatible branch types
+// let bad_if2 = if cond { true } else { 1 };      // Error: bool vs i32 branches
+// let bad_if3 = if cond {
+//     return 5;                                    // Error: Cannot return from if branch
+// } else {
+//     10
+// };
+
+// ============================================
+// 7. Complex Type Checking Scenarios
+// ============================================
+
+// Function returning different types based on condition
+fn get_value(use_i32: bool) -> f32 {
+    if use_i32 {
+        return 42;          // i32 coerces to float
+    } else {
+        return 3.14;        // float
+    }
+}
+
+// Test complex type checking scenarios
+fn test_complex_scenarios() {
+    // Array of function results
+    let results = [process_i32(1), process_i32(2), process_i32(3)];  // Type: [i32]
+
+    // Chained operations with type inference
+    let x = 10;
+    let y = 5.0;
+    let chain1 = 10 + 20 * 30;              // All i32s
+    let chain2 = 1.5 * 2.0 + 3.5;           // All floats  
+    let chain3 = x > 5 && y < 10.0;         // Comparisons return bool, && on bools
+    let chain4 = (x + 5) * (y - 1.0);       // Mixed numeric types -> f32
+
+    // Complex expressions with proper typing
+    let complex = if x > 0 && y > 0.0 {
+        let temp = x * 2;
+        temp + 10
+    } else {
+        0
+    };  // Result type: i32
+}
+
+// ============================================
+// Main function to demonstrate the type system
+// ============================================
+fn main() {
+    // All the above code demonstrates compile-time type checking
+    // This function just needs to exist for completeness
+    let demo_complete = true;
+}

@@ -51,11 +51,19 @@ impl Span {
     pub fn new(start: SourceLocation, end: SourceLocation) -> Self {
         Self { start, end }
     }
-    
+
     pub fn single(location: SourceLocation) -> Self {
         Self {
             start: location,
             end: location,
+        }
+    }
+
+    /// Create a dummy span for generated code
+    pub fn dummy() -> Self {
+        Self {
+            start: SourceLocation::initial(),
+            end: SourceLocation::initial(),
         }
     }
 }

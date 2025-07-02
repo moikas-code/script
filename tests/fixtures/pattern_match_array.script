@@ -1,0 +1,17 @@
+// Test array destructuring patterns
+let arr1 = [1, 2, 3]
+let result1 = match arr1 {
+    [x, y, z] => x + y + z,
+    _ => 0
+}
+
+let arr2 = [10, 20]
+let result2 = match arr2 {
+    [first, second] => first * second,
+    [single] => single,
+    [] => 0,
+    _ => -1
+}
+
+print("Array test 1: " + result1)
+print("Array test 2: " + result2)

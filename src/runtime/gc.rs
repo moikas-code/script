@@ -1,17 +1,17 @@
 //! Cycle detection and garbage collection for Script
-//! 
+//!
 //! This module implements a mark-and-sweep algorithm to detect and collect
 //! reference cycles in Script programs. It works in conjunction with the
 //! reference counting system to provide complete automatic memory management.
 
-use std::sync::{Arc, Mutex, RwLock};
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::runtime::rc::ScriptRc;
 use crate::runtime::profiler;
+use crate::runtime::rc::ScriptRc;
 
 /// Global cycle collector instance
 static CYCLE_COLLECTOR: RwLock<Option<Arc<CycleCollector>>> = RwLock::new(None);
@@ -20,7 +20,7 @@ static CYCLE_COLLECTOR: RwLock<Option<Arc<CycleCollector>>> = RwLock::new(None);
 pub fn initialize() {
     let mut collector = CYCLE_COLLECTOR.write().unwrap();
     *collector = Some(Arc::new(CycleCollector::new()));
-    
+
     // Start the background GC thread
     let collector_ref = collector.as_ref().unwrap().clone();
     thread::spawn(move || {
@@ -119,12 +119,12 @@ impl CycleCollector {
             stats: Mutex::new(CollectionStats::default()),
         }
     }
-    
+
     /// Register a ScriptRc with the collector
     fn register(&self, address: usize) {
         let mut registered = self.registered.lock().unwrap();
         registered.insert(address);
-        
+
         // Increment allocation count and check if we should collect
         let count = self.allocation_count.fetch_add(1, Ordering::Relaxed);
         if count >= self.collection_threshold.load(Ordering::Relaxed) {
@@ -132,52 +132,52 @@ impl CycleCollector {
             self.mark_suspect(address);
         }
     }
-    
+
     /// Unregister a ScriptRc from the collector
     fn unregister(&self, address: usize) {
         let mut registered = self.registered.lock().unwrap();
         registered.remove(&address);
-        
+
         let mut suspects = self.suspects.lock().unwrap();
         suspects.remove(&address);
     }
-    
+
     /// Mark an object as a potential cycle participant
     fn mark_suspect(&self, address: usize) {
         let mut suspects = self.suspects.lock().unwrap();
         suspects.insert(address);
     }
-    
+
     /// Perform cycle collection
     fn collect(&self) {
         let start = Instant::now();
-        
+
         // Take a snapshot of suspects
         let suspects: Vec<usize> = {
             let suspects = self.suspects.lock().unwrap();
             suspects.iter().cloned().collect()
         };
-        
+
         if suspects.is_empty() {
             return;
         }
-        
+
         // Build object graph for suspects
         let mut graph = self.build_object_graph(&suspects);
-        
+
         // Mark reachable objects
         self.mark_reachable(&mut graph);
-        
+
         // Collect unmarked objects (potential cycles)
         let collected = self.sweep(&graph);
-        
+
         // Update statistics
         let mut stats = self.stats.lock().unwrap();
         stats.collections += 1;
         stats.objects_collected += collected;
         stats.total_time += start.elapsed();
         stats.last_collection = Some(Instant::now());
-        
+
         // Clear suspects that were collected
         let mut suspects_lock = self.suspects.lock().unwrap();
         for node in &graph {
@@ -185,29 +185,29 @@ impl CycleCollector {
                 suspects_lock.remove(&node.address);
             }
         }
-        
+
         // Log collection results
         profiler::record_gc_collection(collected, start.elapsed());
     }
-    
+
     /// Build object graph from suspects
     fn build_object_graph(&self, suspects: &[usize]) -> Vec<GraphNode> {
         let mut graph = Vec::new();
-        
+
         for &address in suspects {
             // For now, we create a simple node
             // In a real implementation, we'd need to traverse the object's references
             graph.push(GraphNode {
                 address,
                 marked: false,
-                strong_count: 1, // Placeholder
+                strong_count: 1,        // Placeholder
                 references: Vec::new(), // Would be filled by traversing object
             });
         }
-        
+
         graph
     }
-    
+
     /// Mark objects reachable from roots
     fn mark_reachable(&self, graph: &mut [GraphNode]) {
         // In a real implementation, we'd start from root objects
@@ -218,15 +218,15 @@ impl CycleCollector {
             }
         }
     }
-    
+
     /// Recursively mark reachable objects
     fn mark_recursive(&self, node_idx: usize, graph: &mut [GraphNode]) {
         if graph[node_idx].marked {
             return;
         }
-        
+
         graph[node_idx].marked = true;
-        
+
         // Mark all referenced objects
         let references = graph[node_idx].references.clone();
         for ref_addr in references {
@@ -235,11 +235,11 @@ impl CycleCollector {
             }
         }
     }
-    
+
     /// Sweep unmarked objects
     fn sweep(&self, graph: &[GraphNode]) -> usize {
         let mut collected = 0;
-        
+
         for node in graph {
             if !node.marked {
                 // In a real implementation, we'd decrease reference counts here
@@ -247,40 +247,41 @@ impl CycleCollector {
                 collected += 1;
             }
         }
-        
+
         collected
     }
-    
+
     /// Background collector thread
     fn background_collector(&self) {
         while !self.shutdown.load(Ordering::Relaxed) {
             thread::sleep(Duration::from_millis(100));
-            
+
             // Check if we should run collection
             let should_collect = {
                 let suspects = self.suspects.lock().unwrap();
                 suspects.len() > 100 // Collect if many suspects
             };
-            
+
             if should_collect {
                 self.collect();
             }
         }
     }
-    
+
     /// Shutdown the collector
     fn shutdown(&self) {
         self.shutdown.store(true, Ordering::Relaxed);
     }
-    
+
     /// Get collection statistics
     pub fn stats(&self) -> CollectionStats {
         self.stats.lock().unwrap().clone()
     }
-    
+
     /// Set collection threshold
     pub fn set_threshold(&self, threshold: usize) {
-        self.collection_threshold.store(threshold, Ordering::Relaxed);
+        self.collection_threshold
+            .store(threshold, Ordering::Relaxed);
     }
 }
 
@@ -308,46 +309,46 @@ pub fn get_stats() -> Option<CollectionStats> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_cycle_collector_lifecycle() {
         // Initialize collector
         initialize();
-        
+
         // Register some addresses
         register_rc(&ScriptRc::new(42));
         register_rc(&ScriptRc::new("test"));
-        
+
         // Force collection
         collect_cycles();
-        
+
         // Get stats
         let stats = get_stats().unwrap();
         assert!(stats.collections > 0);
-        
+
         // Shutdown
         shutdown();
     }
-    
+
     #[test]
     fn test_collection_threshold() {
         initialize();
-        
+
         if let Ok(collector) = CYCLE_COLLECTOR.read() {
             if let Some(c) = collector.as_ref() {
                 c.set_threshold(10);
-                
+
                 // Register many objects to trigger collection
                 for i in 0..20 {
                     register_rc(&ScriptRc::new(i));
                 }
-                
+
                 // Should have triggered collection
                 let stats = c.stats();
                 assert!(stats.collections > 0);
             }
         }
-        
+
         shutdown();
     }
 }

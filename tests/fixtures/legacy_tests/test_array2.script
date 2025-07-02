@@ -1,0 +1,11 @@
+fn process_int(n: i32) -> i32 {
+    return n * 2;
+}
+
+fn test() {
+    let results = [
+        process_int(1),
+        process_int(2),
+        process_int(3)
+    ];
+}

@@ -23,8 +23,8 @@ We are committed to providing a welcoming and inclusive environment for all cont
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/your-username/script-lang.git
-   cd script-lang
+   git clone https://github.com/your-username/script.git
+   cd script
    ```
 3. **Set up your development environment** (see [SETUP.md](SETUP.md))
 4. **Create a feature branch**:
@@ -176,7 +176,7 @@ All public functions, structs, and modules must have documentation:
 /// # Examples
 ///
 /// ```rust
-/// use script_lang::{Parser, Lexer};
+/// use script::{Parser, Lexer};
 /// 
 /// let source = "let x = 42";
 /// let lexer = Lexer::new(source);

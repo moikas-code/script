@@ -1,0 +1,31 @@
+// simple_math.script - Basic math functions without import/export
+
+// Basic arithmetic operations
+fn add(a: float, b: float) -> float {
+    a + b
+}
+
+fn subtract(a: float, b: float) -> float {
+    a - b
+}
+
+fn multiply(a: float, b: float) -> float {
+    a * b
+}
+
+fn divide(a: float, b: float) -> float {
+    a / b
+}
+
+// Test the functions
+fn test_math() {
+    let sum = add(10.0, 5.0)
+    let diff = subtract(10.0, 5.0)
+    let prod = multiply(10.0, 5.0)
+    let quot = divide(10.0, 5.0)
+    
+    print("Sum: " + sum)
+    print("Difference: " + diff)
+    print("Product: " + prod)
+    print("Quotient: " + quot)
+}

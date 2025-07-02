@@ -1,0 +1,38 @@
+// math_utils.script - Basic math utility functions
+
+export { add, subtract, multiply, divide, PI, E }
+
+// Mathematical constants
+let PI: float = 3.14159265359
+let E: float = 2.71828182846
+
+// Basic arithmetic operations
+fn add(a: float, b: float) -> float {
+    a + b
+}
+
+fn subtract(a: float, b: float) -> float {
+    a - b
+}
+
+fn multiply(a: float, b: float) -> float {
+    a * b
+}
+
+fn divide(a: float, b: float) -> float {
+    if b == 0 {
+        // Handle division by zero
+        return 0.0
+    }
+    a / b
+}
+
+// Private helper function (not exported)
+fn square(x: float) -> float {
+    x * x
+}
+
+// Another private function
+fn cube(x: float) -> float {
+    x * x * x
+}

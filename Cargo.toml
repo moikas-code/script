@@ -1,11 +1,11 @@
 [package]
-name = "script-lang"
+name = "script"
 version = "0.1.0"
 edition = "2021"
 authors = ["Warren Gates (moikapy)"]
 description = "Script: A simple yet powerful programming language for web applications and games"
 readme = "README.md"
-repository = "https://github.com/moikapy/script-lang"
+repository = "https://github.com/moikapy/script"
 license = "MIT"
 keywords = ["programming-language", "compiler", "script"]
 categories = ["compilers", "development-tools"]
@@ -17,12 +17,39 @@ cranelift = "0.110"
 cranelift-module = "0.110"
 cranelift-jit = "0.110"
 cranelift-native = "0.110"
+# Debug symbol support
+gimli = { version = "0.31", features = ["write"] }
 target-lexicon = "0.12"
 rand = "0.8"
+toml = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+semver = "1.0"
+walkdir = "2.0"
+sha2 = "0.10"
+thiserror = "1.0"
+dirs = "5.0"
+serde_json = "1.0"
+num_cpus = "1.0"
+crossbeam = "0.8"
+# LSP dependencies
+tokio = { version = "1.40", features = ["full"] }
+tower-lsp = "0.20"
+dashmap = "6.1"
+env_logger = "0.11"
+url = "2.5"
+# Package manager dependencies
+clap = { version = "4.5", features = ["derive", "env"] }
+dialoguer = "0.11"
+indicatif = "0.17"
+tempfile = "3.0"
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+# Self-update functionality
+self_update = { version = "0.40", features = ["archive-tar", "archive-zip", "compression-flate2"] }
 
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.0"
+tempfile = "3.0"
 
 [[bench]]
 name = "lexer"
@@ -31,3 +58,31 @@ harness = false
 [[bench]]
 name = "parser"
 harness = false
+
+[[bench]]
+name = "compilation"
+harness = false
+
+[[bench]]
+name = "features"
+harness = false
+
+[[bench]]
+name = "scenarios"
+harness = false
+
+[[bench]]
+name = "memory"
+harness = false
+
+[[bench]]
+name = "tooling"
+harness = false
+
+[[bin]]
+name = "script-lsp"
+path = "src/lsp/bin/main.rs"
+
+[[bin]]
+name = "manuscript"
+path = "src/manuscript/main.rs"

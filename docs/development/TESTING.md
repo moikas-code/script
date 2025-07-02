@@ -344,7 +344,7 @@ Create files in `tests/` directory:
 
 ```rust
 // tests/parser_integration.rs
-use script_lang::{Lexer, Parser, Program};
+use script::{Lexer, Parser, Program};
 
 #[test]
 fn test_full_parsing_pipeline() {
@@ -508,7 +508,7 @@ tests/
 ```rust
 // benches/lexer.rs
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use script_lang::Lexer;
+use script::Lexer;
 
 fn benchmark_lexer_performance(c: &mut Criterion) {
     let inputs = vec![
@@ -600,7 +600,7 @@ cargo tarpaulin --out lcov
 cargo tarpaulin --exclude-files "src/main.rs" --exclude-files "*/tests.rs"
 
 # Run coverage for specific package
-cargo tarpaulin --package script-lang
+cargo tarpaulin --package script
 
 # Generate coverage with test output
 cargo tarpaulin --out html -- --nocapture
@@ -644,7 +644,7 @@ RUST_BACKTRACE=full cargo test
 
 # Debug test with GDB/LLDB
 cargo test --no-run  # Compile but don't run
-gdb target/debug/deps/script_lang-<hash>
+gdb target/debug/deps/script-<hash>
 # Set breakpoints and run specific test
 ```
 

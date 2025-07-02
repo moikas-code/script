@@ -1,0 +1,18 @@
+// Test guard expressions
+let number = 15
+let result1 = match number {
+    x if x > 10 => "greater than ten",
+    x if x < 0 => "negative",
+    x => "between zero and ten"
+}
+
+let value = 5
+let result2 = match value {
+    0 => "zero",
+    n if n % 2 == 0 => "even",
+    n if n % 2 == 1 => "odd",
+    _ => "unexpected"
+}
+
+print("Guard test 1: " + result1)
+print("Guard test 2: " + result2)

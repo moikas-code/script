@@ -1,0 +1,72 @@
+// Data structures module for semantic analysis testing
+
+export struct Point {
+    x: f32,
+    y: f32
+}
+
+export struct Rectangle {
+    top_left: Point,
+    width: f32,
+    height: f32
+}
+
+export enum Option {
+    Some(value),
+    None
+}
+
+export enum Result {
+    Ok(value),
+    Err(error)
+}
+
+export fn create_point(x: f32, y: f32) -> Point {
+    Point { x: x, y: y }
+}
+
+export fn distance(p1: Point, p2: Point) -> f32 {
+    let dx = p2.x - p1.x;
+    let dy = p2.y - p1.y;
+    sqrt(dx * dx + dy * dy)
+}
+
+export fn create_rectangle(x: f32, y: f32, width: f32, height: f32) -> Rectangle {
+    Rectangle {
+        top_left: create_point(x, y),
+        width: width,
+        height: height
+    }
+}
+
+export fn area(rect: Rectangle) -> f32 {
+    rect.width * rect.height
+}
+
+export fn unwrap_or(opt: Option, default: any) -> any {
+    match opt {
+        Some(value) => value,
+        None => default
+    }
+}
+
+export fn map_option(opt: Option, func: fn(any) -> any) -> Option {
+    match opt {
+        Some(value) => Some(func(value)),
+        None => None
+    }
+}
+
+// Test memory safety with array operations
+export fn safe_array_access(arr: [i32], index: i32) -> Option {
+    if index >= 0 && index < len(arr) {
+        Some(arr[index])
+    } else {
+        None
+    }
+}
+
+// Test potential memory safety violation
+export fn unsafe_array_access(arr: [i32], index: i32) -> i32 {
+    arr[index]  // Could cause buffer overflow
+}

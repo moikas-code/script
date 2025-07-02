@@ -1,0 +1,25 @@
+// Generic types demonstration
+
+// Basic generic type usage
+let numbers: Vec<i32> = Vec<i32>()
+let strings: Vec<String> = Vec<String>()
+
+// Nested generic types
+let optional_numbers: Vec<Option<i32>> = Vec<Option<i32>>()
+let result_map: HashMap<String, Result<i32, String>> = HashMap<String, Result<i32, String>>()
+
+// Type parameters in type annotations
+let generic_var: T = value
+let key_value: HashMap<K, V> = HashMap<K, V>()
+
+// Functions with generic type parameters in signatures
+fn process_vector(items: Vec<i32>) -> Vec<String> {
+    Vec<String>()
+}
+
+fn create_result() -> Result<T, E> {
+    Ok(value)
+}
+
+// Complex nested generic types
+let complex: Result<Vec<Option<HashMap<String, T>>>, Error<E>> = Ok(Vec<Option<HashMap<String, T>>>())

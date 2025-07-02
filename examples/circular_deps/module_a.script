@@ -1,0 +1,8 @@
+// Module A - depends on Module B
+import "module_b"
+
+export { func_a }
+
+fn func_a() -> i32 {
+    return func_b() + 1
+}

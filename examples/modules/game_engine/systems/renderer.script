@@ -1,0 +1,83 @@
+// renderer.script - Rendering system
+
+import "../core/system.script" as System
+import "../entities/entity.script" as Entity
+
+export { RenderSystem, createSystem }
+
+struct RenderSystem {
+    backgroundColor: Color
+}
+
+struct Color {
+    r: float,
+    g: float,
+    b: float,
+    a: float
+}
+
+fn createSystem() -> RenderSystem {
+    RenderSystem {
+        backgroundColor: Color { r: 0.1, g: 0.1, b: 0.2, a: 1.0 }
+    }
+}
+
+impl System.System for RenderSystem {
+    fn initialize(self, engine: any) {
+        // Initialize rendering context
+        initGraphics(engine.config.width, engine.config.height, engine.config.title)
+    }
+    
+    fn update(self, engine: any, deltaTime: float) {
+        // Clear screen
+        clearScreen(self.backgroundColor)
+        
+        // Render all entities
+        for entity in engine.entities {
+            if entity.active {
+                self.renderEntity(entity)
+            }
+        }
+        
+        // Present frame
+        present()
+    }
+    
+    fn cleanup(self, engine: any) {
+        // Cleanup graphics resources
+        shutdownGraphics()
+    }
+    
+    fn getName(self) -> string {
+        "RenderSystem"
+    }
+}
+
+impl RenderSystem {
+    fn renderEntity(self, entity: Entity.Entity) {
+        match entity.type {
+            "player" => {
+                // Render player as blue circle
+                drawCircle(entity.position.x, entity.position.y, 16.0, 
+                          Color { r: 0.2, g: 0.5, b: 1.0, a: 1.0 })
+            },
+            "enemy" => {
+                // Render enemy as red circle
+                drawCircle(entity.position.x, entity.position.y, 16.0,
+                          Color { r: 1.0, g: 0.2, b: 0.2, a: 1.0 })
+            },
+            _ => {
+                // Default rendering
+                drawCircle(entity.position.x, entity.position.y, 8.0,
+                          Color { r: 0.5, g: 0.5, b: 0.5, a: 1.0 })
+            }
+        }
+    }
+}
+
+// Placeholder graphics functions
+fn initGraphics(width: int, height: int, title: string) { }
+fn clearScreen(color: Color) { }
+fn drawCircle(x: float, y: float, radius: float, color: Color) { }
+fn present() { }
+fn shutdownGraphics() { }

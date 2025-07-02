@@ -1,0 +1,506 @@
+/**
+ * Control Flow in Script - Conditional Logic and Loops
+ * 
+ * This example demonstrates:
+ * - If/else expressions and conditional logic
+ * - While loops for repetitive tasks
+ * - For loops and iteration
+ * - Break and continue statements
+ * - Nested control structures
+ * - Practical control flow patterns
+ */
+
+fn main() {
+    print("=== Script Control Flow Tutorial ===\n")
+    
+    conditional_examples()
+    while_loop_examples()
+    for_loop_examples()
+    nested_control_examples()
+    practical_examples()
+}
+
+/**
+ * Demonstrates conditional logic with if/else expressions
+ */
+fn conditional_examples() {
+    print("--- Conditional Logic Examples ---")
+    
+    // Basic if/else
+    let temperature = 75
+    let weather_advice = if temperature > 80 {
+        "It's hot! Wear light clothing."
+    } else if temperature > 60 {
+        "Nice weather! Perfect for a walk."
+    } else if temperature > 40 {
+        "A bit cool. Maybe bring a jacket."
+    } else {
+        "It's cold! Bundle up!"
+    }
+    
+    print("Temperature: " + temperature + "°F")
+    print("Advice: " + weather_advice)
+    
+    // Boolean conditions
+    let age = 25
+    let has_license = true
+    let has_car = false
+    
+    if age >= 16 && has_license {
+        print("You can drive!")
+        
+        if has_car {
+            print("  And you have a car to drive!")
+        } else {
+            print("  But you'll need to borrow or rent a car.")
+        }
+    } else {
+        print("You can't drive yet.")
+        
+        if age < 16 {
+            print("  You're too young.")
+        }
+        
+        if !has_license {
+            print("  You need to get a license.")
+        }
+    }
+    
+    // Complex boolean logic
+    let score = 85
+    let attendance = 90
+    let participation = 80
+    
+    let can_pass = (score >= 70 && attendance >= 80) || (score >= 85 && participation >= 75)
+    
+    print("\nGrade evaluation:")
+    print("Score: " + score + ", Attendance: " + attendance + "%, Participation: " + participation + "%")
+    
+    if can_pass {
+        print("Result: PASS")
+        
+        if score >= 90 {
+            print("Grade: A")
+        } else if score >= 80 {
+            print("Grade: B")
+        } else {
+            print("Grade: C")
+        }
+    } else {
+        print("Result: FAIL")
+    }
+    
+    print("")
+}
+
+/**
+ * Demonstrates while loops for repetitive tasks
+ */
+fn while_loop_examples() {
+    print("--- While Loop Examples ---")
+    
+    // Basic counting loop
+    print("Counting from 1 to 5:")
+    let counter = 1
+    while counter <= 5 {
+        print("  Count: " + counter)
+        counter = counter + 1
+    }
+    
+    // Countdown loop
+    print("\nCountdown from 5:")
+    let countdown = 5
+    while countdown > 0 {
+        print("  " + countdown + "...")
+        countdown = countdown - 1
+    }
+    print("  Blast off! 🚀")
+    
+    // Loop with break condition
+    print("\nFinding first even number greater than 10:")
+    let number = 11
+    while true {
+        print("  Checking: " + number)
+        
+        if number % 2 == 0 {
+            print("  Found it! " + number + " is even.")
+            break
+        }
+        
+        number = number + 1
+        
+        // Safety check to avoid infinite loop
+        if number > 20 {
+            print("  Stopped searching at 20")
+            break
+        }
+    }
+    
+    // Loop with continue
+    print("\nPrinting odd numbers from 1 to 10:")
+    let num = 1
+    while num <= 10 {
+        if num % 2 == 0 {
+            num = num + 1
+            continue  // Skip even numbers
+        }
+        
+        print("  " + num)
+        num = num + 1
+    }
+    
+    print("")
+}
+
+/**
+ * Demonstrates for loops and iteration patterns
+ */
+fn for_loop_examples() {
+    print("--- For Loop Examples ---")
+    
+    // Basic range iteration
+    print("Numbers from 0 to 4:")
+    for i in 0..5 {
+        print("  " + i)
+    }
+    
+    // Range with different bounds
+    print("\nNumbers from 10 to 15:")
+    for i in 10..16 {
+        print("  " + i)
+    }
+    
+    // Using loop variable in calculations
+    print("\nSquares of numbers 1 to 5:")
+    for i in 1..6 {
+        let square = i * i
+        print("  " + i + "² = " + square)
+    }
+    
+    // Iterating with vectors
+    let fruits = Vec::new()
+    vec_push(fruits, "Apple")
+    vec_push(fruits, "Banana")
+    vec_push(fruits, "Cherry")
+    vec_push(fruits, "Date")
+    
+    print("\nFruit list:")
+    let fruit_count = vec_len(fruits)
+    for i in 0..fruit_count {
+        match vec_get(fruits, i) {
+            Some(fruit) => print("  " + (i + 1) + ". " + fruit),
+            None => continue
+        }
+    }
+    
+    // Creating patterns with loops
+    print("\nTriangle pattern:")
+    for row in 1..6 {
+        let line = ""
+        for col in 1..(row + 1) {
+            line = line + "* "
+        }
+        print("  " + line)
+    }
+    
+    print("")
+}
+
+/**
+ * Demonstrates nested control structures
+ */
+fn nested_control_examples() {
+    print("--- Nested Control Structures ---")
+    
+    // Nested loops for multiplication table
+    print("Multiplication table (1-5):")
+    print("    ", end="")
+    for i in 1..6 {
+        print(i + "   ", end="")
+    }
+    print()
+    
+    for row in 1..6 {
+        print(row + " | ", end="")
+        for col in 1..6 {
+            let product = row * col
+            if product < 10 {
+                print(product + "   ", end="")
+            } else {
+                print(product + "  ", end="")
+            }
+        }
+        print()
+    }
+    
+    // Nested conditions in loops
+    print("\nChecking numbers 1-20 for special properties:")
+    for num in 1..21 {
+        let description = ""
+        
+        if num % 15 == 0 {
+            description = "FizzBuzz (divisible by both 3 and 5)"
+        } else if num % 3 == 0 {
+            description = "Fizz (divisible by 3)"
+        } else if num % 5 == 0 {
+            description = "Buzz (divisible by 5)"
+        } else if is_prime(num) {
+            description = "Prime number"
+        } else if is_perfect_square(num) {
+            description = "Perfect square"
+        } else {
+            description = "Regular number"
+        }
+        
+        print("  " + num + ": " + description)
+    }
+    
+    print("")
+}
+
+/**
+ * Practical examples using control flow
+ */
+fn practical_examples() {
+    print("--- Practical Control Flow Examples ---")
+    
+    // Simple menu system
+    simulate_menu_system()
+    
+    // Data validation
+    validate_user_input()
+    
+    // Game simulation
+    simulate_simple_game()
+}
+
+/**
+ * Simulates a simple menu system
+ */
+fn simulate_menu_system() {
+    print("Menu System Simulation:")
+    
+    let menu_choice = 2  // Simulate user choice
+    let running = true
+    let iteration = 0
+    
+    while running && iteration < 3 {  // Limit iterations for demo
+        print("\n=== Main Menu ===")
+        print("1. View Profile")
+        print("2. Settings")
+        print("3. Help")
+        print("4. Exit")
+        print("Choice: " + menu_choice)
+        
+        if menu_choice == 1 {
+            print("Displaying user profile...")
+        } else if menu_choice == 2 {
+            print("Opening settings...")
+            
+            // Nested menu
+            let settings_choice = 1
+            print("\n--- Settings Menu ---")
+            print("1. Change Password")
+            print("2. Notifications")
+            print("3. Back to Main Menu")
+            print("Choice: " + settings_choice)
+            
+            if settings_choice == 1 {
+                print("Opening password change dialog...")
+            } else if settings_choice == 2 {
+                print("Opening notification settings...")
+            } else {
+                print("Returning to main menu...")
+            }
+        } else if menu_choice == 3 {
+            print("Displaying help information...")
+        } else if menu_choice == 4 {
+            print("Goodbye!")
+            running = false
+        } else {
+            print("Invalid choice. Please try again.")
+        }
+        
+        iteration = iteration + 1
+        menu_choice = menu_choice + 1  // Simulate different choices
+    }
+}
+
+/**
+ * Demonstrates data validation patterns
+ */
+fn validate_user_input() {
+    print("\nData Validation Examples:")
+    
+    // Validate age input
+    let ages = Vec::new()
+    vec_push(ages, 25)
+    vec_push(ages, -5)
+    vec_push(ages, 150)
+    vec_push(ages, 30)
+    
+    print("Validating ages:")
+    let age_count = vec_len(ages)
+    for i in 0..age_count {
+        match vec_get(ages, i) {
+            Some(age) => {
+                let validation_result = ""
+                
+                if age < 0 {
+                    validation_result = "Invalid: Age cannot be negative"
+                } else if age > 120 {
+                    validation_result = "Invalid: Age seems unrealistic"
+                } else if age < 13 {
+                    validation_result = "Valid: Child"
+                } else if age < 18 {
+                    validation_result = "Valid: Teenager"
+                } else if age < 65 {
+                    validation_result = "Valid: Adult"
+                } else {
+                    validation_result = "Valid: Senior"
+                }
+                
+                print("  Age " + age + ": " + validation_result)
+            },
+            None => continue
+        }
+    }
+    
+    // Validate email format (simplified)
+    let emails = Vec::new()
+    vec_push(emails, "user@example.com")
+    vec_push(emails, "invalid-email")
+    vec_push(emails, "another@test.org")
+    vec_push(emails, "@missing-user.com")
+    
+    print("\nValidating email addresses:")
+    let email_count = vec_len(emails)
+    for i in 0..email_count {
+        match vec_get(emails, i) {
+            Some(email) => {
+                let is_valid = contains(email, "@") && contains(email, ".")
+                let result = if is_valid { "Valid" } else { "Invalid" }
+                print("  " + email + ": " + result)
+            },
+            None => continue
+        }
+    }
+}
+
+/**
+ * Simulates a simple number guessing game
+ */
+fn simulate_simple_game() {
+    print("\nNumber Guessing Game Simulation:")
+    
+    let secret_number = 7  // In a real game, this would be random
+    let guesses = Vec::new()
+    vec_push(guesses, 5)
+    vec_push(guesses, 9)
+    vec_push(guesses, 7)
+    
+    let max_guesses = 3
+    let game_won = false
+    
+    print("Secret number: " + secret_number + " (you can't see this in a real game!)")
+    print("You have " + max_guesses + " guesses.")
+    
+    let guess_count = vec_len(guesses)
+    for attempt in 0..guess_count {
+        match vec_get(guesses, attempt) {
+            Some(guess) => {
+                print("\nAttempt " + (attempt + 1) + ": Guess = " + guess)
+                
+                if guess == secret_number {
+                    print("🎉 Congratulations! You guessed it!")
+                    game_won = true
+                    break
+                } else if guess < secret_number {
+                    print("Too low! Try a higher number.")
+                } else {
+                    print("Too high! Try a lower number.")
+                }
+                
+                let remaining = max_guesses - (attempt + 1)
+                if remaining > 0 {
+                    print("You have " + remaining + " guess(es) left.")
+                }
+            },
+            None => continue
+        }
+    }
+    
+    if !game_won {
+        print("\n😞 Game over! The secret number was " + secret_number)
+    }
+}
+
+// Helper functions
+
+/**
+ * Check if a number is prime
+ */
+fn is_prime(n: i32) -> bool {
+    if n < 2 {
+        return false
+    }
+    
+    for i in 2..(n / 2 + 1) {
+        if n % i == 0 {
+            return false
+        }
+    }
+    
+    true
+}
+
+/**
+ * Check if a number is a perfect square
+ */
+fn is_perfect_square(n: i32) -> bool {
+    if n < 0 {
+        return false
+    }
+    
+    let sqrt_n = integer_sqrt(n)
+    sqrt_n * sqrt_n == n
+}
+
+/**
+ * Calculate integer square root
+ */
+fn integer_sqrt(n: i32) -> i32 {
+    if n < 2 {
+        return n
+    }
+    
+    let guess = n / 2
+    while guess * guess > n {
+        guess = (guess + n / guess) / 2
+    }
+    
+    guess
+}
+
+/**
+ * Key Concepts Demonstrated:
+ * 
+ * 1. IF/ELSE EXPRESSIONS: Conditional logic that returns values
+ * 2. BOOLEAN OPERATORS: &&, ||, ! for complex conditions
+ * 3. WHILE LOOPS: Repetition with dynamic conditions
+ * 4. FOR LOOPS: Iteration over ranges and collections
+ * 5. BREAK/CONTINUE: Flow control within loops
+ * 6. NESTED STRUCTURES: Loops within loops, conditions within loops
+ * 7. PRACTICAL PATTERNS: Menu systems, validation, games
+ * 8. HELPER FUNCTIONS: Breaking complex logic into manageable pieces
+ * 
+ * Try This:
+ * - Build a calculator with menu-driven interface
+ * - Create a password strength checker
+ * - Implement a simple text-based adventure game
+ * - Build a grade calculator with multiple assignment categories
+ * - Create a simple inventory management system
+ */
+
+// Run all examples
+main()

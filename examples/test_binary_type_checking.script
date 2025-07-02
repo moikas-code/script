@@ -1,0 +1,51 @@
+// Test binary type checking
+
+// Valid arithmetic operations
+let i1: i32 = 10;
+let i2: i32 = 5;
+let sum = i1 + i2;      // OK: i32 + i32
+let diff = i1 - i2;     // OK: i32 - i32
+let prod = i1 * i2;     // OK: i32 * i32
+let quot = i1 / i2;     // OK: i32 / i32
+let rem = i1 % i2;      // OK: i32 % i32
+
+// Valid float arithmetic
+let f1: f32 = 3.14;
+let f2: f32 = 2.71;
+let fsum = f1 + f2;     // OK: f32 + f32
+
+// ERROR: Mixed numeric types
+// let mixed = i1 + f1;  // ERROR: i32 + f32
+
+// ERROR: Non-numeric arithmetic
+// let b: bool = true;
+// let bad_add = b + i1;  // ERROR: bool + i32
+
+// Valid comparisons
+let less = i1 < i2;         // OK: returns bool
+let greater = i1 > i2;      // OK: returns bool
+let less_eq = i1 <= i2;     // OK: returns bool
+let greater_eq = i1 >= i2;  // OK: returns bool
+
+// Valid equality comparisons
+let eq_i = i1 == i2;        // OK: same types
+let neq_i = i1 != i2;       // OK: same types
+
+let s1: string = "hello";
+let s2: string = "world";
+let eq_s = s1 == s2;        // OK: same types
+
+// ERROR: Comparing different types
+// let bad_eq = i1 == s1;   // ERROR: i32 == string
+
+// Valid logical operations
+let b1: bool = true;
+let b2: bool = false;
+let and_result = b1 && b2;  // OK: bool && bool
+let or_result = b1 || b2;   // OK: bool || bool
+
+// ERROR: Logical ops on non-bool
+// let bad_and = i1 && i2;  // ERROR: i32 && i32
+// let bad_or = s1 || s2;   // ERROR: string || string
+
+print("Type checking test complete!");

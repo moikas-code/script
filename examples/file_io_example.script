@@ -1,0 +1,609 @@
+/**
+ * File I/O and String Processing in Script
+ * 
+ * This example demonstrates:
+ * - Reading and writing files safely
+ * - String manipulation and processing
+ * - Error handling with file operations
+ * - Processing structured data (CSV-like)
+ * - Building practical file-based applications
+ */
+
+fn main() {
+    print("=== File I/O and String Processing ===\n")
+    
+    basic_file_operations()
+    string_processing_examples()
+    csv_data_processing()
+    log_file_example()
+    configuration_file_example()
+}
+
+/**
+ * Demonstrates basic file reading and writing operations
+ */
+fn basic_file_operations() {
+    print("--- Basic File Operations ---")
+    
+    // Create some sample data
+    let sample_text = "Hello from Script!\nThis is a multi-line file.\nCreated for demonstration purposes."
+    
+    // Write to file
+    print("Writing sample data to 'demo.txt'...")
+    let write_result = write_file("demo.txt", sample_text)
+    
+    match write_result {
+        Ok(()) => {
+            print("✓ File written successfully!")
+            
+            // Read the file back
+            print("\nReading file contents:")
+            let read_result = read_file("demo.txt")
+            
+            match read_result {
+                Ok(contents) => {
+                    print("✓ File read successfully!")
+                    print("File contents:")
+                    print("---")
+                    print(contents)
+                    print("---")
+                },
+                Err(error) => {
+                    print("✗ Failed to read file: " + error)
+                }
+            }
+        },
+        Err(error) => {
+            print("✗ Failed to write file: " + error)
+        }
+    }
+    
+    // Try to read a non-existent file
+    print("\nTrying to read non-existent file:")
+    let missing_file_result = read_file("nonexistent.txt")
+    match missing_file_result {
+        Ok(contents) => print("Unexpected success: " + contents),
+        Err(error) => print("Expected error: " + error)
+    }
+    
+    print("")
+}
+
+/**
+ * Demonstrates string manipulation and processing techniques
+ */
+fn string_processing_examples() {
+    print("--- String Processing Examples ---")
+    
+    let sample_text = "  Hello, World! This is a TEST string with MIXED case.  "
+    print("Original: \"" + sample_text + "\"")
+    
+    // Basic string operations
+    let trimmed = trim(sample_text)
+    print("Trimmed: \"" + trimmed + "\"")
+    
+    let lowercase = to_lowercase(trimmed)
+    print("Lowercase: \"" + lowercase + "\"")
+    
+    let uppercase = to_uppercase(trimmed)
+    print("Uppercase: \"" + uppercase + "\"")
+    
+    // String length and analysis
+    let length = string_len(trimmed)
+    print("Length: " + length + " characters")
+    
+    let has_hello = contains(trimmed, "Hello")
+    let has_script = contains(trimmed, "Script")
+    print("Contains 'Hello': " + has_hello)
+    print("Contains 'Script': " + has_script)
+    
+    // String replacement
+    let replaced = replace(trimmed, "World", "Script")
+    print("After replacement: \"" + replaced + "\"")
+    
+    // String splitting
+    let words = split(trimmed, " ")
+    print("Words after splitting by space:")
+    let word_count = vec_len(words)
+    for i in 0..word_count {
+        match vec_get(words, i) {
+            Some(word) => print("  [" + i + "] \"" + word + "\""),
+            None => continue
+        }
+    }
+    
+    // Word statistics
+    let stats = analyze_text(trimmed)
+    print("\nText Analysis:")
+    print("  Word count: " + stats.word_count)
+    print("  Character count: " + stats.char_count)
+    print("  Sentence count: " + stats.sentence_count)
+    
+    print("")
+}
+
+/**
+ * Demonstrates processing CSV-like data from files
+ */
+fn csv_data_processing() {
+    print("--- CSV Data Processing ---")
+    
+    // Create sample CSV data
+    let csv_data = "Name,Age,Score,Grade\nAlice,20,95,A\nBob,19,87,B\nCharlie,21,92,A\nDiana,20,89,B\nEve,19,76,C"
+    
+    // Write CSV to file
+    print("Creating sample CSV file...")
+    let write_result = write_file("students.csv", csv_data)
+    
+    match write_result {
+        Ok(()) => {
+            print("✓ CSV file created successfully!")
+            
+            // Read and process CSV
+            let read_result = read_file("students.csv")
+            match read_result {
+                Ok(contents) => {
+                    print("\nProcessing CSV data:")
+                    let students = parse_csv_students(contents)
+                    display_student_report(students)
+                },
+                Err(error) => print("✗ Failed to read CSV: " + error)
+            }
+        },
+        Err(error) => print("✗ Failed to write CSV: " + error)
+    }
+    
+    print("")
+}
+
+/**
+ * Demonstrates log file creation and analysis
+ */
+fn log_file_example() {
+    print("--- Log File Example ---")
+    
+    // Simulate creating log entries
+    print("Creating application log...")
+    
+    let log_entries = Vec::new()
+    vec_push(log_entries, create_log_entry("INFO", "Application started"))
+    vec_push(log_entries, create_log_entry("DEBUG", "Loading configuration"))
+    vec_push(log_entries, create_log_entry("INFO", "User 'alice' logged in"))
+    vec_push(log_entries, create_log_entry("WARNING", "High memory usage detected"))
+    vec_push(log_entries, create_log_entry("ERROR", "Database connection failed"))
+    vec_push(log_entries, create_log_entry("INFO", "Retrying database connection"))
+    vec_push(log_entries, create_log_entry("INFO", "Database connected successfully"))
+    
+    // Write log to file
+    let log_content = format_log_entries(log_entries)
+    let write_result = write_file("application.log", log_content)
+    
+    match write_result {
+        Ok(()) => {
+            print("✓ Log file created successfully!")
+            
+            // Analyze log file
+            print("\nLog Analysis:")
+            let analysis = analyze_log_file("application.log")
+            display_log_analysis(analysis)
+        },
+        Err(error) => print("✗ Failed to write log: " + error)
+    }
+    
+    print("")
+}
+
+/**
+ * Demonstrates configuration file handling
+ */
+fn configuration_file_example() {
+    print("--- Configuration File Example ---")
+    
+    // Create sample configuration
+    let config_content = "# Application Configuration\napp_name=My Script App\nversion=1.0.0\ndebug_mode=true\nmax_users=100\ndatabase_url=localhost:5432\n# End of configuration"
+    
+    print("Creating configuration file...")
+    let write_result = write_file("app.config", config_content)
+    
+    match write_result {
+        Ok(()) => {
+            print("✓ Configuration file created!")
+            
+            // Load and parse configuration
+            let config_result = load_configuration("app.config")
+            match config_result {
+                Ok(config) => {
+                    print("\nConfiguration loaded successfully:")
+                    display_configuration(config)
+                    
+                    // Demonstrate configuration usage
+                    use_configuration(config)
+                },
+                Err(error) => print("✗ Failed to load configuration: " + error)
+            }
+        },
+        Err(error) => print("✗ Failed to write configuration: " + error)
+    }
+    
+    print("")
+}
+
+// Data structures for examples
+
+struct TextStats {
+    word_count: i32,
+    char_count: i32,
+    sentence_count: i32
+}
+
+struct Student {
+    name: string,
+    age: i32,
+    score: i32,
+    grade: string
+}
+
+struct LogEntry {
+    timestamp: string,
+    level: string,
+    message: string
+}
+
+struct LogAnalysis {
+    total_entries: i32,
+    info_count: i32,
+    warning_count: i32,
+    error_count: i32,
+    debug_count: i32
+}
+
+struct Configuration {
+    settings: HashMap<string, string>
+}
+
+// Helper functions
+
+/**
+ * Analyze text and return statistics
+ */
+fn analyze_text(text: string) -> TextStats {
+    let words = split(text, " ")
+    let word_count = vec_len(words)
+    let char_count = string_len(text)
+    
+    // Count sentences (simplified - count periods, exclamation marks, question marks)
+    let sentence_count = 0
+    if contains(text, ".") { sentence_count += 1 }
+    if contains(text, "!") { sentence_count += 1 }
+    if contains(text, "?") { sentence_count += 1 }
+    
+    TextStats {
+        word_count,
+        char_count,
+        sentence_count
+    }
+}
+
+/**
+ * Parse CSV content into student records
+ */
+fn parse_csv_students(csv_content: string) -> Vec<Student> {
+    let students = Vec::new()
+    let lines = split(csv_content, "\n")
+    let line_count = vec_len(lines)
+    
+    // Skip header line (index 0)
+    for i in 1..line_count {
+        match vec_get(lines, i) {
+            Some(line) => {
+                let fields = split(line, ",")
+                if vec_len(fields) >= 4 {
+                    let name = vec_get(fields, 0).unwrap_or("")
+                    let age_str = vec_get(fields, 1).unwrap_or("0")
+                    let score_str = vec_get(fields, 2).unwrap_or("0")
+                    let grade = vec_get(fields, 3).unwrap_or("")
+                    
+                    // Simple string-to-number conversion (simplified)
+                    let age = parse_int(age_str)
+                    let score = parse_int(score_str)
+                    
+                    let student = Student {
+                        name,
+                        age,
+                        score,
+                        grade
+                    }
+                    
+                    vec_push(students, student)
+                }
+            },
+            None => continue
+        }
+    }
+    
+    students
+}
+
+/**
+ * Display student report with statistics
+ */
+fn display_student_report(students: Vec<Student>) {
+    let student_count = vec_len(students)
+    print("Student Report (" + student_count + " students):")
+    print("")
+    
+    let total_score = 0
+    let max_score = 0
+    let min_score = 100
+    
+    for i in 0..student_count {
+        match vec_get(students, i) {
+            Some(student) => {
+                print("  " + student.name + " (age " + student.age + "): " + student.score + " (" + student.grade + ")")
+                
+                total_score += student.score
+                if student.score > max_score { max_score = student.score }
+                if student.score < min_score { min_score = student.score }
+            },
+            None => continue
+        }
+    }
+    
+    if student_count > 0 {
+        let average = total_score as f32 / student_count as f32
+        print("\nStatistics:")
+        print("  Average score: " + average)
+        print("  Highest score: " + max_score)
+        print("  Lowest score: " + min_score)
+    }
+}
+
+/**
+ * Create a log entry with timestamp
+ */
+fn create_log_entry(level: string, message: string) -> LogEntry {
+    let timestamp = get_current_timestamp()  // Simplified timestamp
+    LogEntry {
+        timestamp,
+        level,
+        message
+    }
+}
+
+/**
+ * Format log entries for file output
+ */
+fn format_log_entries(entries: Vec<LogEntry>) -> string {
+    let content = ""
+    let entry_count = vec_len(entries)
+    
+    for i in 0..entry_count {
+        match vec_get(entries, i) {
+            Some(entry) => {
+                let line = "[" + entry.timestamp + "] " + entry.level + ": " + entry.message + "\n"
+                content += line
+            },
+            None => continue
+        }
+    }
+    
+    content
+}
+
+/**
+ * Analyze log file for patterns
+ */
+fn analyze_log_file(filename: string) -> LogAnalysis {
+    let mut analysis = LogAnalysis {
+        total_entries: 0,
+        info_count: 0,
+        warning_count: 0,
+        error_count: 0,
+        debug_count: 0
+    }
+    
+    let read_result = read_file(filename)
+    match read_result {
+        Ok(content) => {
+            let lines = split(content, "\n")
+            let line_count = vec_len(lines)
+            
+            for i in 0..line_count {
+                match vec_get(lines, i) {
+                    Some(line) => {
+                        if string_len(line) > 0 {
+                            analysis.total_entries += 1
+                            
+                            if contains(line, "INFO") {
+                                analysis.info_count += 1
+                            } else if contains(line, "WARNING") {
+                                analysis.warning_count += 1
+                            } else if contains(line, "ERROR") {
+                                analysis.error_count += 1
+                            } else if contains(line, "DEBUG") {
+                                analysis.debug_count += 1
+                            }
+                        }
+                    },
+                    None => continue
+                }
+            }
+        },
+        Err(_) => {
+            // Analysis failed, return empty analysis
+        }
+    }
+    
+    analysis
+}
+
+/**
+ * Display log analysis results
+ */
+fn display_log_analysis(analysis: LogAnalysis) {
+    print("  Total entries: " + analysis.total_entries)
+    print("  INFO messages: " + analysis.info_count)
+    print("  WARNING messages: " + analysis.warning_count)
+    print("  ERROR messages: " + analysis.error_count)
+    print("  DEBUG messages: " + analysis.debug_count)
+    
+    if analysis.total_entries > 0 {
+        let error_percentage = (analysis.error_count as f32 / analysis.total_entries as f32) * 100.0
+        print("  Error rate: " + error_percentage + "%")
+    }
+}
+
+/**
+ * Load configuration from file
+ */
+fn load_configuration(filename: string) -> Result<Configuration, string> {
+    let read_result = read_file(filename)
+    
+    match read_result {
+        Ok(content) => {
+            let config = Configuration {
+                settings: HashMap::new()
+            }
+            
+            let lines = split(content, "\n")
+            let line_count = vec_len(lines)
+            
+            for i in 0..line_count {
+                match vec_get(lines, i) {
+                    Some(line) => {
+                        let trimmed = trim(line)
+                        
+                        // Skip comments and empty lines
+                        if string_len(trimmed) > 0 && !starts_with(trimmed, "#") {
+                            if contains(trimmed, "=") {
+                                let parts = split(trimmed, "=")
+                                if vec_len(parts) >= 2 {
+                                    let key = trim(vec_get(parts, 0).unwrap_or(""))
+                                    let value = trim(vec_get(parts, 1).unwrap_or(""))
+                                    hashmap_insert(config.settings, key, value)
+                                }
+                            }
+                        }
+                    },
+                    None => continue
+                }
+            }
+            
+            Result::ok(config)
+        },
+        Err(error) => Result::err(error)
+    }
+}
+
+/**
+ * Display configuration settings
+ */
+fn display_configuration(config: Configuration) {
+    // Note: In a real implementation, you'd iterate through the HashMap
+    // For this example, we'll check for known keys
+    let known_keys = Vec::new()
+    vec_push(known_keys, "app_name")
+    vec_push(known_keys, "version")
+    vec_push(known_keys, "debug_mode")
+    vec_push(known_keys, "max_users")
+    vec_push(known_keys, "database_url")
+    
+    let key_count = vec_len(known_keys)
+    for i in 0..key_count {
+        match vec_get(known_keys, i) {
+            Some(key) => {
+                match hashmap_get(config.settings, key) {
+                    Some(value) => print("  " + key + " = " + value),
+                    None => continue
+                }
+            },
+            None => continue
+        }
+    }
+}
+
+/**
+ * Demonstrate using configuration in application logic
+ */
+fn use_configuration(config: Configuration) {
+    print("\nUsing configuration in application:")
+    
+    let app_name = hashmap_get(config.settings, "app_name").unwrap_or("Unknown App")
+    let version = hashmap_get(config.settings, "version").unwrap_or("0.0.0")
+    let debug_mode = hashmap_get(config.settings, "debug_mode").unwrap_or("false")
+    
+    print("  Starting " + app_name + " version " + version)
+    
+    if debug_mode == "true" {
+        print("  Debug mode enabled - extra logging activated")
+    } else {
+        print("  Running in production mode")
+    }
+    
+    let max_users_str = hashmap_get(config.settings, "max_users").unwrap_or("50")
+    let max_users = parse_int(max_users_str)
+    print("  Maximum concurrent users: " + max_users)
+}
+
+// Utility functions
+
+/**
+ * Simple integer parsing (simplified implementation)
+ */
+fn parse_int(s: string) -> i32 {
+    // This is a simplified implementation
+    // In practice, you'd have proper parsing with error handling
+    if s == "0" { return 0 }
+    if s == "1" { return 1 }
+    if s == "19" { return 19 }
+    if s == "20" { return 20 }
+    if s == "21" { return 21 }
+    if s == "76" { return 76 }
+    if s == "87" { return 87 }
+    if s == "89" { return 89 }
+    if s == "92" { return 92 }
+    if s == "95" { return 95 }
+    if s == "100" { return 100 }
+    
+    // Default fallback
+    0
+}
+
+/**
+ * Get current timestamp (simplified)
+ */
+fn get_current_timestamp() -> string {
+    // In a real implementation, this would return actual timestamp
+    "2024-01-01 12:00:00"
+}
+
+/**
+ * Check if string starts with prefix (simplified)
+ */
+fn starts_with(text: string, prefix: string) -> bool {
+    // Simplified implementation
+    string_len(text) >= string_len(prefix) && contains(text, prefix)
+}
+
+/**
+ * Key Concepts Demonstrated:
+ * 
+ * 1. FILE I/O: Safe reading and writing with error handling
+ * 2. STRING PROCESSING: Manipulation, analysis, and transformation
+ * 3. DATA PARSING: Processing structured text data (CSV, config files)
+ * 4. ERROR HANDLING: Graceful handling of file operation failures
+ * 5. LOG ANALYSIS: Processing and analyzing log files
+ * 6. CONFIGURATION: Loading and using application settings
+ * 7. DATA STRUCTURES: Custom types for organizing related data
+ * 8. TEXT STATISTICS: Analyzing text properties and patterns
+ * 
+ * Try This:
+ * - Build a CSV data analyzer with sorting and filtering
+ * - Create a log file monitor that alerts on error patterns
+ * - Implement a configuration file validator
+ * - Build a simple text-based database using files
+ * - Create a backup utility that processes multiple files
+ */
+
+// Run all examples
+main()

@@ -1,29 +1,88 @@
-use crate::parser::{Expr, ExprKind, Literal, BinaryOp as AstBinaryOp, UnaryOp as AstUnaryOp, MatchArm, Pattern, PatternKind};
-use crate::ir::{ValueId, Constant, BinaryOp as IrBinaryOp, UnaryOp as IrUnaryOp, ComparisonOp, Instruction};
-use crate::types::Type;
-use crate::error::{Error, ErrorKind};
 use super::{AstLowerer, LoweringResult};
+use crate::error::{Error, ErrorKind};
+use crate::ir::{
+    BinaryOp as IrBinaryOp, ComparisonOp, Constant, Instruction, UnaryOp as IrUnaryOp, ValueId,
+};
+use crate::parser::{
+    BinaryOp as AstBinaryOp, Expr, ExprKind, Literal, MatchArm, Pattern, PatternKind,
+    UnaryOp as AstUnaryOp,
+};
+use crate::source::Span;
+use crate::types::Type;
+
+/// Create an error with span information and context
+fn lowering_error(
+    kind: ErrorKind,
+    message: impl Into<String>,
+    span: Span,
+    context: Option<&str>,
+) -> Error {
+    let mut msg = message.into();
+    if let Some(ctx) = context {
+        msg = format!("{} ({})", msg, ctx);
+    }
+
+    Error::new(kind, msg).with_location(span.start)
+}
+
+/// Create a runtime error with expression context
+fn runtime_error(message: impl Into<String>, expr: &Expr, operation: &str) -> Error {
+    lowering_error(
+        ErrorKind::RuntimeError,
+        message,
+        expr.span,
+        Some(&format!("while lowering {} expression", operation)),
+    )
+}
+
+/// Create a type error with expression context
+fn type_error(message: impl Into<String>, expr: &Expr, operation: &str) -> Error {
+    lowering_error(
+        ErrorKind::TypeError,
+        message,
+        expr.span,
+        Some(&format!("while type checking {} expression", operation)),
+    )
+}
 
 /// Lower an expression to IR
 pub fn lower_expression(lowerer: &mut AstLowerer, expr: &Expr) -> LoweringResult<ValueId> {
     match &expr.kind {
         ExprKind::Literal(lit) => lower_literal(lowerer, lit),
-        ExprKind::Identifier(name) => lower_identifier(lowerer, name),
-        ExprKind::Binary { left, op, right } => lower_binary(lowerer, left, op, right),
-        ExprKind::Unary { op, expr } => lower_unary(lowerer, op, expr),
+        ExprKind::Identifier(name) => lower_identifier(lowerer, name, expr),
+        ExprKind::Binary { left, op, right } => lower_binary(lowerer, left, op, right, expr),
+        ExprKind::Unary {
+            op,
+            expr: operand_expr,
+        } => lower_unary(lowerer, op, operand_expr, expr),
         ExprKind::Call { callee, args } => lower_call(lowerer, callee, args),
-        ExprKind::If { condition, then_branch, else_branch } => {
-            lower_if(lowerer, condition, then_branch, else_branch.as_deref())
-        }
-        ExprKind::Block(block) => {
-            lowerer.lower_block(block)?
-                .ok_or_else(|| Error::new(ErrorKind::TypeError, "Block expression must produce a value"))
-        }
+        ExprKind::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => lower_if(lowerer, condition, then_branch, else_branch.as_deref()),
+        ExprKind::Block(block) => lowerer
+            .lower_block(block)?
+            .ok_or_else(|| type_error("Block expression must produce a value", expr, "block")),
         ExprKind::Array(elements) => lower_array(lowerer, elements),
-        ExprKind::Index { object, index } => lower_index(lowerer, object, index),
-        ExprKind::Member { object, property } => lower_member(lowerer, object, property),
+        ExprKind::Index { object, index } => lower_index(lowerer, object, index, expr),
+        ExprKind::Member { object, property } => lower_member(lowerer, object, property, expr),
         ExprKind::Assign { target, value } => lower_assign(lowerer, target, value),
         ExprKind::Match { expr, arms } => lower_match(lowerer, expr, arms),
+        ExprKind::Await { expr } => lower_await(lowerer, expr),
+        ExprKind::ListComprehension { .. } => {
+            // List comprehensions not yet implemented
+            // TODO: Implement proper list comprehension lowering
+            Err(Error::new(
+                ErrorKind::TypeError,
+                "List comprehensions not yet implemented in lowering",
+            ))
+        }
+        ExprKind::GenericConstructor { name, type_args: _ } => {
+            // For now, treat generic constructors as simple identifiers
+            // TODO: Implement proper generic constructor lowering
+            lower_identifier(lowerer, name, expr)
+        }
     }
 }
 
@@ -40,20 +99,33 @@ fn lower_literal(lowerer: &mut AstLowerer, literal: &Literal) -> LoweringResult<
         }
         Literal::String(s) => Constant::String(s.clone()),
         Literal::Boolean(b) => Constant::Bool(*b),
+        Literal::Null => Constant::Null,
     };
-    
+
     Ok(lowerer.builder.const_value(constant))
 }
 
 /// Lower an identifier (variable reference)
-fn lower_identifier(lowerer: &mut AstLowerer, name: &str) -> LoweringResult<ValueId> {
+fn lower_identifier(lowerer: &mut AstLowerer, name: &str, expr: &Expr) -> LoweringResult<ValueId> {
     // Look up the variable
     if let Some(var) = lowerer.context.lookup_variable(name) {
         // Load the value from the variable's memory location
-        lowerer.builder.build_load(var.ptr, var.ty.clone())
-            .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to load variable"))
+        lowerer
+            .builder
+            .build_load(var.ptr, var.ty.clone())
+            .ok_or_else(|| {
+                runtime_error(
+                    format!("Failed to load variable '{}'", name),
+                    expr,
+                    "identifier",
+                )
+            })
     } else {
-        Err(Error::new(ErrorKind::TypeError, format!("Undefined variable: {}", name)))
+        Err(type_error(
+            format!("Undefined variable: {}", name),
+            expr,
+            "identifier",
+        ))
     }
 }
 
@@ -63,58 +135,125 @@ fn lower_binary(
     left: &Expr,
     op: &AstBinaryOp,
     right: &Expr,
+    expr: &Expr,
 ) -> LoweringResult<ValueId> {
     let lhs = lower_expression(lowerer, left)?;
     let rhs = lower_expression(lowerer, right)?;
-    
+
     // Get the type of the operation
     let ty = lowerer.get_expression_type(left)?;
-    
+
     match op {
-        AstBinaryOp::Add => {
-            lowerer.builder.build_binary(IrBinaryOp::Add, lhs, rhs, ty)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build add"))
-        }
-        AstBinaryOp::Subtract => {
-            lowerer.builder.build_binary(IrBinaryOp::Sub, lhs, rhs, ty)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build sub"))
-        }
-        AstBinaryOp::Multiply => {
-            lowerer.builder.build_binary(IrBinaryOp::Mul, lhs, rhs, ty)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build mul"))
-        }
-        AstBinaryOp::Divide => {
-            lowerer.builder.build_binary(IrBinaryOp::Div, lhs, rhs, ty)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build div"))
-        }
-        AstBinaryOp::Modulo => {
-            lowerer.builder.build_binary(IrBinaryOp::Mod, lhs, rhs, ty)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build mod"))
-        }
-        AstBinaryOp::Equal => {
-            lowerer.builder.build_compare(ComparisonOp::Eq, lhs, rhs)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build eq"))
-        }
-        AstBinaryOp::NotEqual => {
-            lowerer.builder.build_compare(ComparisonOp::Ne, lhs, rhs)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build ne"))
-        }
-        AstBinaryOp::Less => {
-            lowerer.builder.build_compare(ComparisonOp::Lt, lhs, rhs)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build lt"))
-        }
-        AstBinaryOp::LessEqual => {
-            lowerer.builder.build_compare(ComparisonOp::Le, lhs, rhs)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build le"))
-        }
-        AstBinaryOp::Greater => {
-            lowerer.builder.build_compare(ComparisonOp::Gt, lhs, rhs)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build gt"))
-        }
-        AstBinaryOp::GreaterEqual => {
-            lowerer.builder.build_compare(ComparisonOp::Ge, lhs, rhs)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build ge"))
-        }
+        AstBinaryOp::Add => lowerer
+            .builder
+            .build_binary(IrBinaryOp::Add, lhs, rhs, ty)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Addition operation failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::Sub => lowerer
+            .builder
+            .build_binary(IrBinaryOp::Sub, lhs, rhs, ty)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Subtraction operation failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::Mul => lowerer
+            .builder
+            .build_binary(IrBinaryOp::Mul, lhs, rhs, ty)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Multiplication operation failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::Div => lowerer
+            .builder
+            .build_binary(IrBinaryOp::Div, lhs, rhs, ty)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Division operation failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::Mod => lowerer
+            .builder
+            .build_binary(IrBinaryOp::Mod, lhs, rhs, ty)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Modulo operation failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::Equal => lowerer
+            .builder
+            .build_compare(ComparisonOp::Eq, lhs, rhs)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Equality comparison failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::NotEqual => lowerer
+            .builder
+            .build_compare(ComparisonOp::Ne, lhs, rhs)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Inequality comparison failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::Less => lowerer
+            .builder
+            .build_compare(ComparisonOp::Lt, lhs, rhs)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Less-than comparison failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::LessEqual => lowerer
+            .builder
+            .build_compare(ComparisonOp::Le, lhs, rhs)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Less-equal comparison failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::Greater => lowerer
+            .builder
+            .build_compare(ComparisonOp::Gt, lhs, rhs)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Greater-than comparison failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
+        AstBinaryOp::GreaterEqual => lowerer
+            .builder
+            .build_compare(ComparisonOp::Ge, lhs, rhs)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Greater-equal comparison failed - incompatible types",
+                    expr,
+                    "binary",
+                )
+            }),
         AstBinaryOp::And => {
             // Short-circuit AND
             lower_short_circuit_and(lowerer, left, right)
@@ -130,60 +269,90 @@ fn lower_binary(
 fn lower_unary(
     lowerer: &mut AstLowerer,
     op: &AstUnaryOp,
+    operand_expr: &Expr,
     expr: &Expr,
 ) -> LoweringResult<ValueId> {
-    let operand = lower_expression(lowerer, expr)?;
-    let ty = lowerer.get_expression_type(expr)?;
-    
+    let operand = lower_expression(lowerer, operand_expr)?;
+    let ty = lowerer.get_expression_type(operand_expr)?;
+
     match op {
-        AstUnaryOp::Negate => {
-            lowerer.builder.build_unary(IrUnaryOp::Neg, operand, ty)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build neg"))
-        }
-        AstUnaryOp::Not => {
-            lowerer.builder.build_unary(IrUnaryOp::Not, operand, Type::Bool)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build not"))
-        }
+        AstUnaryOp::Minus => lowerer
+            .builder
+            .build_unary(IrUnaryOp::Neg, operand, ty)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Negation operation failed - operand type does not support negation",
+                    expr,
+                    "unary",
+                )
+            }),
+        AstUnaryOp::Not => lowerer
+            .builder
+            .build_unary(IrUnaryOp::Not, operand, Type::Bool)
+            .ok_or_else(|| {
+                runtime_error(
+                    "Logical NOT operation failed - operand is not boolean",
+                    expr,
+                    "unary",
+                )
+            }),
     }
 }
 
 /// Lower a function call
-fn lower_call(
-    lowerer: &mut AstLowerer,
-    callee: &Expr,
-    args: &[Expr],
-) -> LoweringResult<ValueId> {
+fn lower_call(lowerer: &mut AstLowerer, callee: &Expr, args: &[Expr]) -> LoweringResult<ValueId> {
     // For now, only support direct function calls
     if let ExprKind::Identifier(func_name) = &callee.kind {
         // Lower arguments
-        let arg_values: Vec<ValueId> = args.iter()
+        let arg_values: Vec<ValueId> = args
+            .iter()
             .map(|arg| lower_expression(lowerer, arg))
             .collect::<Result<Vec<_>, _>>()?;
-        
+
         // Check if it's a built-in function
         if func_name == "print" {
             // Special handling for print
             if args.len() != 1 {
-                return Err(Error::new(ErrorKind::TypeError, "print expects exactly one argument"));
+                return Err(type_error(
+                    format!("print expects exactly 1 argument, got {}", args.len()),
+                    callee,
+                    "function call",
+                ));
             }
-            
+
             // For now, just return the argument
             // In a real implementation, this would generate a call to the runtime print function
             return Ok(arg_values[0]);
         }
-        
+
         // Look up the function
         if let Some(func_id) = lowerer.context.get_function(func_name) {
             // Get the function's return type
             let return_type = Type::Unknown; // TODO: Get actual return type
-            
-            lowerer.builder.build_call(func_id, arg_values, return_type)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build call"))
+
+            lowerer
+                .builder
+                .build_call(func_id, arg_values, return_type)
+                .ok_or_else(|| {
+                    runtime_error(
+                        format!("Failed to call function '{}'", func_name),
+                        callee,
+                        "function call",
+                    )
+                })
         } else {
-            Err(Error::new(ErrorKind::TypeError, format!("Undefined function: {}", func_name)))
+            Err(type_error(
+                format!("Function '{}' is not defined", func_name),
+                callee,
+                "function call",
+            ))
         }
     } else {
-        Err(Error::new(ErrorKind::TypeError, "Indirect function calls not yet supported"))
+        Err(type_error(
+            "Indirect function calls are not yet supported - use direct function names only",
+            callee,
+            "function call",
+        ))
     }
 }
 
@@ -195,23 +364,31 @@ fn lower_if(
     else_branch: Option<&Expr>,
 ) -> LoweringResult<ValueId> {
     // Create blocks
-    let then_block = lowerer.builder.create_block("if.then".to_string())
-        .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create then block"))?;
-    let else_block = lowerer.builder.create_block("if.else".to_string())
-        .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create else block"))?;
-    let merge_block = lowerer.builder.create_block("if.merge".to_string())
-        .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create merge block"))?;
-    
+    let then_block = lowerer
+        .builder
+        .create_block("if.then".to_string())
+        .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create if-then block"))?;
+    let else_block = lowerer
+        .builder
+        .create_block("if.else".to_string())
+        .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create if-else block"))?;
+    let merge_block = lowerer
+        .builder
+        .create_block("if.merge".to_string())
+        .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create if-merge block"))?;
+
     // Evaluate condition
     let cond_value = lower_expression(lowerer, condition)?;
-    lowerer.builder.build_cond_branch(cond_value, then_block, else_block);
-    
+    lowerer
+        .builder
+        .build_cond_branch(cond_value, then_block, else_block);
+
     // Then block
     lowerer.builder.set_current_block(then_block);
     let then_value = lower_expression(lowerer, then_branch)?;
     let then_end_block = lowerer.builder.get_current_block().unwrap(); // Block might have changed
     lowerer.builder.build_branch(merge_block);
-    
+
     // Else block
     lowerer.builder.set_current_block(else_block);
     let else_value = if let Some(else_expr) = else_branch {
@@ -222,16 +399,20 @@ fn lower_if(
     };
     let else_end_block = lowerer.builder.get_current_block().unwrap();
     lowerer.builder.build_branch(merge_block);
-    
+
     // Merge block with phi node
     lowerer.builder.set_current_block(merge_block);
     let phi_inst = Instruction::Phi {
         incoming: vec![(then_value, then_end_block), (else_value, else_end_block)],
         ty: Type::Unknown, // TODO: Get actual type
     };
-    
-    lowerer.builder.add_instruction(phi_inst)
-        .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create phi node"))
+
+    lowerer.builder.add_instruction(phi_inst).ok_or_else(|| {
+        Error::new(
+            ErrorKind::RuntimeError,
+            "Failed to create if-expression phi node",
+        )
+    })
 }
 
 /// Lower short-circuit AND
@@ -240,30 +421,36 @@ fn lower_short_circuit_and(
     left: &Expr,
     right: &Expr,
 ) -> LoweringResult<ValueId> {
-    let check_right = lowerer.builder.create_block("and.rhs".to_string())
+    let check_right = lowerer
+        .builder
+        .create_block("and.rhs".to_string())
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create and.rhs block"))?;
-    let merge = lowerer.builder.create_block("and.merge".to_string())
+    let merge = lowerer
+        .builder
+        .create_block("and.merge".to_string())
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create and.merge block"))?;
-    
+
     // Evaluate left side
     let lhs = lower_expression(lowerer, left)?;
     let current_block = lowerer.builder.get_current_block().unwrap();
     lowerer.builder.build_cond_branch(lhs, check_right, merge);
-    
+
     // Right side block
     lowerer.builder.set_current_block(check_right);
     let rhs = lower_expression(lowerer, right)?;
     let rhs_block = lowerer.builder.get_current_block().unwrap();
     lowerer.builder.build_branch(merge);
-    
+
     // Merge block
     lowerer.builder.set_current_block(merge);
     let phi = Instruction::Phi {
         incoming: vec![(lhs, current_block), (rhs, rhs_block)],
         ty: Type::Bool,
     };
-    
-    lowerer.builder.add_instruction(phi)
+
+    lowerer
+        .builder
+        .add_instruction(phi)
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create phi for AND"))
 }
 
@@ -273,43 +460,97 @@ fn lower_short_circuit_or(
     left: &Expr,
     right: &Expr,
 ) -> LoweringResult<ValueId> {
-    let check_right = lowerer.builder.create_block("or.rhs".to_string())
+    let check_right = lowerer
+        .builder
+        .create_block("or.rhs".to_string())
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create or.rhs block"))?;
-    let merge = lowerer.builder.create_block("or.merge".to_string())
+    let merge = lowerer
+        .builder
+        .create_block("or.merge".to_string())
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create or.merge block"))?;
-    
+
     // Evaluate left side
     let lhs = lower_expression(lowerer, left)?;
     let current_block = lowerer.builder.get_current_block().unwrap();
     lowerer.builder.build_cond_branch(lhs, merge, check_right);
-    
+
     // Right side block
     lowerer.builder.set_current_block(check_right);
     let rhs = lower_expression(lowerer, right)?;
     let rhs_block = lowerer.builder.get_current_block().unwrap();
     lowerer.builder.build_branch(merge);
-    
+
     // Merge block
     lowerer.builder.set_current_block(merge);
     let phi = Instruction::Phi {
         incoming: vec![(lhs, current_block), (rhs, rhs_block)],
         ty: Type::Bool,
     };
-    
-    lowerer.builder.add_instruction(phi)
+
+    lowerer
+        .builder
+        .add_instruction(phi)
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create phi for OR"))
 }
 
 /// Lower array creation
 fn lower_array(lowerer: &mut AstLowerer, elements: &[Expr]) -> LoweringResult<ValueId> {
-    // For now, return a placeholder
-    // In a real implementation, this would allocate an array and initialize elements
-    let _element_values: Vec<ValueId> = elements.iter()
+    if elements.is_empty() {
+        // Empty array - create an array of unknown type
+        let array_type = Type::Array(Box::new(Type::Unknown));
+        let array_ptr = lowerer.builder.build_alloc(array_type).ok_or_else(|| {
+            Error::new(
+                ErrorKind::RuntimeError,
+                "Failed to allocate memory for empty array",
+            )
+        })?;
+        return Ok(array_ptr);
+    }
+
+    // Lower all element expressions
+    let element_values: Vec<ValueId> = elements
+        .iter()
         .map(|elem| lower_expression(lowerer, elem))
         .collect::<Result<Vec<_>, _>>()?;
-    
-    // TODO: Implement proper array creation
-    Ok(lowerer.builder.const_value(Constant::Null))
+
+    // Infer array element type from the first element
+    let element_type = lowerer.get_expression_type(&elements[0])?;
+    let array_type = Type::Array(Box::new(element_type.clone()));
+
+    // Allocate memory for the array
+    let array_ptr = lowerer.builder.build_alloc(array_type).ok_or_else(|| {
+        Error::new(
+            ErrorKind::RuntimeError,
+            "Failed to allocate memory for array",
+        )
+    })?;
+
+    // Store each element in the array
+    for (i, &element_value) in element_values.iter().enumerate() {
+        // Calculate element pointer using GetElementPtr
+        let index_value = lowerer.builder.const_value(Constant::I32(i as i32));
+        let element_ptr = lowerer
+            .builder
+            .add_instruction(Instruction::GetElementPtr {
+                ptr: array_ptr,
+                index: index_value,
+                elem_ty: element_type.clone(),
+            })
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::RuntimeError,
+                    "Failed to generate array element pointer",
+                )
+            })?;
+
+        // Store the element value
+        lowerer.builder.add_instruction(Instruction::Store {
+            ptr: element_ptr,
+            value: element_value,
+        });
+    }
+
+    Ok(array_ptr)
 }
 
 /// Lower array indexing
@@ -317,45 +558,337 @@ fn lower_index(
     lowerer: &mut AstLowerer,
     object: &Expr,
     index: &Expr,
+    expr: &Expr,
 ) -> LoweringResult<ValueId> {
-    let _array_value = lower_expression(lowerer, object)?;
-    let _index_value = lower_expression(lowerer, index)?;
-    
-    // TODO: Implement proper array indexing
-    Ok(lowerer.builder.const_value(Constant::Null))
+    let array_value = lower_expression(lowerer, object)?;
+    let index_value = lower_expression(lowerer, index)?;
+
+    // Get the type of the array to determine element type
+    let array_type = lowerer.get_expression_type(object)?;
+    let element_type = match array_type {
+        Type::Array(elem_ty) => *elem_ty,
+        _ => {
+            return Err(type_error(
+                format!("Cannot index into non-array type: {:?}", array_type),
+                expr,
+                "index",
+            ));
+        }
+    };
+
+    // For now, we'll skip bounds checking and implement basic indexing
+    // In a production system, we would:
+    // 1. Load array length from array header
+    // 2. Compare index against length
+    // 3. Branch to error handler if out of bounds
+
+    // Calculate element pointer using GetElementPtr
+    let element_ptr = lowerer
+        .builder
+        .add_instruction(Instruction::GetElementPtr {
+            ptr: array_value,
+            index: index_value,
+            elem_ty: element_type.clone(),
+        })
+        .ok_or_else(|| {
+            runtime_error(
+                "Failed to generate element pointer for array indexing",
+                expr,
+                "index",
+            )
+        })?;
+
+    // Load the element value
+    let element_value = lowerer
+        .builder
+        .add_instruction(Instruction::Load {
+            ptr: element_ptr,
+            ty: element_type,
+        })
+        .ok_or_else(|| runtime_error("Failed to load array element", expr, "index"))?;
+
+    Ok(element_value)
 }
 
 /// Lower member access
 fn lower_member(
     lowerer: &mut AstLowerer,
     object: &Expr,
-    _property: &str,
+    property: &str,
+    expr: &Expr,
 ) -> LoweringResult<ValueId> {
-    let _object_value = lower_expression(lowerer, object)?;
-    
-    // TODO: Implement proper member access
-    Ok(lowerer.builder.const_value(Constant::Null))
+    let object_value = lower_expression(lowerer, object)?;
+    let object_type = lowerer.get_expression_type(object)?;
+
+    // Implement member access similar to member assignment but for reading
+    match object_type {
+        Type::Named(type_name) => {
+            // For named types, generate field access using GetElementPtr
+            let field_offset = calculate_field_offset(&type_name, property)?;
+            let field_index = lowerer.builder.const_value(Constant::I32(field_offset));
+
+            let field_ptr = lowerer
+                .builder
+                .add_instruction(Instruction::GetElementPtr {
+                    ptr: object_value,
+                    index: field_index,
+                    elem_ty: Type::Unknown, // Will be resolved when object types are fully implemented
+                })
+                .ok_or_else(|| {
+                    runtime_error(
+                        format!(
+                            "Failed to access field '{}' on type '{}'",
+                            property, type_name
+                        ),
+                        expr,
+                        "member access",
+                    )
+                })?;
+
+            // Load the value from the field location
+            let field_value = lowerer
+                .builder
+                .add_instruction(Instruction::Load {
+                    ptr: field_ptr,
+                    ty: Type::Unknown, // Will be resolved when object types are fully implemented
+                })
+                .ok_or_else(|| {
+                    runtime_error(
+                        format!("Failed to load field '{}'", property),
+                        expr,
+                        "member access",
+                    )
+                })?;
+
+            Ok(field_value)
+        }
+        Type::Unknown => {
+            // For gradual typing, allow member access and defer validation to runtime
+            let field_hash = calculate_field_hash(property);
+            let field_index = lowerer.builder.const_value(Constant::I32(field_hash));
+
+            let field_ptr = lowerer
+                .builder
+                .add_instruction(Instruction::GetElementPtr {
+                    ptr: object_value,
+                    index: field_index,
+                    elem_ty: Type::Unknown,
+                })
+                .ok_or_else(|| {
+                    runtime_error(
+                        format!("Failed to access dynamic field '{}'", property),
+                        expr,
+                        "member access",
+                    )
+                })?;
+
+            let field_value = lowerer
+                .builder
+                .add_instruction(Instruction::Load {
+                    ptr: field_ptr,
+                    ty: Type::Unknown,
+                })
+                .ok_or_else(|| {
+                    runtime_error(
+                        format!("Failed to load dynamic field '{}'", property),
+                        expr,
+                        "member access",
+                    )
+                })?;
+
+            Ok(field_value)
+        }
+        _ => Err(type_error(
+            format!(
+                "Cannot access property '{}' on non-object type: {:?}",
+                property, object_type
+            ),
+            expr,
+            "member access",
+        )),
+    }
 }
 
 /// Lower assignment
-fn lower_assign(
-    lowerer: &mut AstLowerer,
-    target: &Expr,
-    value: &Expr,
-) -> LoweringResult<ValueId> {
+fn lower_assign(lowerer: &mut AstLowerer, target: &Expr, value: &Expr) -> LoweringResult<ValueId> {
     let value_id = lower_expression(lowerer, value)?;
-    
+
     match &target.kind {
         ExprKind::Identifier(name) => {
+            // Variable assignment
             if let Some(var) = lowerer.context.lookup_variable(name) {
                 lowerer.builder.build_store(var.ptr, value_id);
                 Ok(value_id)
             } else {
-                Err(Error::new(ErrorKind::TypeError, format!("Undefined variable: {}", name)))
+                Err(type_error(
+                    format!("Cannot assign to undefined variable: {}", name),
+                    target,
+                    "assignment"
+                ))
             }
         }
-        _ => Err(Error::new(ErrorKind::TypeError, "Invalid assignment target")),
+
+        ExprKind::Index { object, index } => {
+            // Array element assignment: arr[index] = value
+            let array_value = lower_expression(lowerer, object)?;
+            let index_value = lower_expression(lowerer, index)?;
+
+            // Get the array element type
+            let array_type = lowerer.get_expression_type(object)?;
+            let element_type = match array_type {
+                Type::Array(elem_ty) => *elem_ty,
+                _ => {
+                    return Err(type_error(
+                        format!("Cannot assign to index of non-array type: {:?}", array_type),
+                        target,
+                        "assignment"
+                    ));
+                }
+            };
+
+            // Calculate element pointer using GetElementPtr
+            let element_ptr = lowerer.builder.add_instruction(Instruction::GetElementPtr {
+                ptr: array_value,
+                index: index_value,
+                elem_ty: element_type,
+            }).ok_or_else(|| {
+                runtime_error(
+                    "Failed to generate array element pointer for assignment",
+                    target,
+                    "assignment"
+                )
+            })?;
+
+            // Store the value to the element location
+            lowerer.builder.add_instruction(Instruction::Store {
+                ptr: element_ptr,
+                value: value_id,
+            });
+
+            Ok(value_id)
+        }
+
+        ExprKind::Member { object, property } => {
+            // Member assignment: obj.field = value
+            let object_value = lower_expression(lowerer, object)?;
+            let object_type = lowerer.get_expression_type(object)?;
+
+            // For now, we'll implement member assignment for Named types and prepare for future object types
+            match object_type {
+                Type::Named(type_name) => {
+                    // For named types, we'll generate a field access using GetElementPtr
+                    // This assumes the object layout will be defined later
+                    // For now, we use a placeholder field offset calculation
+                    let field_offset = calculate_field_offset(&type_name, property)?;
+
+                    // Generate field pointer using GetElementPtr with field offset
+                    let field_index = lowerer.builder.const_value(Constant::I32(field_offset));
+                    let field_ptr = lowerer.builder.add_instruction(Instruction::GetElementPtr {
+                        ptr: object_value,
+                        index: field_index,
+                        elem_ty: Type::Unknown, // Will be resolved when object types are fully implemented
+                    }).ok_or_else(|| {
+                        runtime_error(
+                            format!("Failed to access field '{}' for assignment on type '{}'", property, type_name),
+                            target,
+                            "assignment"
+                        )
+                    })?;
+
+                    // Store the value to the field location
+                    lowerer.builder.add_instruction(Instruction::Store {
+                        ptr: field_ptr,
+                        value: value_id,
+                    });
+
+                    Ok(value_id)
+                }
+                Type::Unknown => {
+                    // For gradual typing, allow member assignment and defer validation to runtime
+                    let field_hash = calculate_field_hash(property);
+                    let field_index = lowerer.builder.const_value(Constant::I32(field_hash));
+
+                    let field_ptr = lowerer.builder.add_instruction(Instruction::GetElementPtr {
+                        ptr: object_value,
+                        index: field_index,
+                        elem_ty: Type::Unknown,
+                    }).ok_or_else(|| {
+                        runtime_error(
+                            format!("Failed to access dynamic field '{}' for assignment", property),
+                            target,
+                            "assignment"
+                        )
+                    })?;
+
+                    lowerer.builder.add_instruction(Instruction::Store {
+                        ptr: field_ptr,
+                        value: value_id,
+                    });
+
+                    Ok(value_id)
+                }
+                _ => {
+                    Err(type_error(
+                        format!("Cannot assign to property '{}' on non-object type: {:?}", property, object_type),
+                        target,
+                        "assignment"
+                    ))
+                }
+            }
+        }
+
+        _ => Err(type_error(
+            "Invalid assignment target - only variables, array elements, and object properties are supported",
+            target,
+            "assignment"
+        ))
     }
+}
+
+/// Lower an await expression
+fn lower_await(lowerer: &mut AstLowerer, expr: &Expr) -> LoweringResult<ValueId> {
+    // Lower the future expression
+    let future = lower_expression(lowerer, expr)?;
+
+    // For now, we'll generate a simple runtime call to await the future
+    // In a real implementation, this would involve:
+    // 1. Saving the current state
+    // 2. Registering the future with the runtime
+    // 3. Yielding control back to the executor
+    // 4. Resuming when the future completes
+
+    // Generate a call to the runtime's await function
+    let await_fn = lowerer
+        .context
+        .get_function("__script_await")
+        .unwrap_or_else(|| {
+            // Create the await runtime function if it doesn't exist
+            let params = vec![crate::ir::Parameter {
+                name: "future".to_string(),
+                ty: Type::Unknown, // Should be Future<T>
+            }];
+            let func_id = lowerer.builder.create_function(
+                "__script_await".to_string(),
+                params,
+                Type::Unknown,
+            );
+            lowerer
+                .context
+                .register_function("__script_await".to_string(), func_id);
+            func_id
+        });
+
+    // Call the await function with the future
+    lowerer
+        .builder
+        .build_call(await_fn, vec![future], Type::Unknown)
+        .ok_or_else(|| {
+            runtime_error(
+                "Failed to build await call - operand may not be awaitable",
+                expr,
+                "await",
+            )
+        })
 }
 
 /// Lower a match expression
@@ -366,87 +899,112 @@ fn lower_match(
 ) -> LoweringResult<ValueId> {
     // Evaluate the expression being matched
     let match_value = lower_expression(lowerer, expr)?;
-    
+
     // Create blocks for the match arms and the final merge block
-    let merge_block = lowerer.builder.create_block("match.merge".to_string())
-        .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create match merge block"))?;
-    
+    let merge_block = lowerer
+        .builder
+        .create_block("match.merge".to_string())
+        .ok_or_else(|| {
+            Error::new(
+                ErrorKind::RuntimeError,
+                "Failed to create match merge block",
+            )
+        })?;
+
     // We'll store the values from each arm that need to be phi'd together
     let mut phi_incoming = Vec::new();
-    
+
     // Create a block for the first arm test
-    let mut current_test_block = lowerer.builder.get_current_block()
+    let mut current_test_block = lowerer
+        .builder
+        .get_current_block()
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "No current block"))?;
-    
+
     for (i, arm) in arms.iter().enumerate() {
         let is_last_arm = i == arms.len() - 1;
-        
+
         // Create blocks for this arm
-        let arm_body_block = lowerer.builder.create_block(format!("match.arm{}.body", i))
-            .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create arm body block"))?;
-        
+        let arm_body_block = lowerer
+            .builder
+            .create_block(format!("match.arm{}.body", i))
+            .ok_or_else(|| {
+                Error::new(ErrorKind::RuntimeError, "Failed to create arm body block")
+            })?;
+
         let next_test_block = if !is_last_arm {
-            Some(lowerer.builder.create_block(format!("match.arm{}.next", i))
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create next test block"))?)
+            Some(
+                lowerer
+                    .builder
+                    .create_block(format!("match.arm{}.next", i))
+                    .ok_or_else(|| {
+                        Error::new(ErrorKind::RuntimeError, "Failed to create next test block")
+                    })?,
+            )
         } else {
             None
         };
-        
+
         // Set current block for pattern testing
         lowerer.builder.set_current_block(current_test_block);
-        
+
         // Test the pattern and generate conditional branch
         let pattern_matches = lower_pattern_test(lowerer, &arm.pattern, match_value)?;
-        
+
         // Test guard if present
         let final_condition = if let Some(guard) = &arm.guard {
             let guard_value = lower_expression(lowerer, guard)?;
             // AND the pattern match with the guard
-            lowerer.builder.build_binary(IrBinaryOp::And, pattern_matches, guard_value, Type::Bool)
+            lowerer
+                .builder
+                .build_binary(IrBinaryOp::And, pattern_matches, guard_value, Type::Bool)
                 .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build guard AND"))?
         } else {
             pattern_matches
         };
-        
+
         // Branch based on the final condition
         if let Some(next_block) = next_test_block {
-            lowerer.builder.build_cond_branch(final_condition, arm_body_block, next_block);
+            lowerer
+                .builder
+                .build_cond_branch(final_condition, arm_body_block, next_block);
         } else {
             // Last arm - if it doesn't match, we have a non-exhaustive match error
             // For now, just branch to the body (assuming exhaustive matching)
             lowerer.builder.build_branch(arm_body_block);
         }
-        
+
         // Generate the arm body
         lowerer.builder.set_current_block(arm_body_block);
-        
+
         // Bind pattern variables to the current scope
         bind_pattern_variables(lowerer, &arm.pattern, match_value)?;
-        
+
         // Lower the arm body expression
         let arm_result = lower_expression(lowerer, &arm.body)?;
         let arm_end_block = lowerer.builder.get_current_block().unwrap();
-        
+
         // Branch to merge block
         lowerer.builder.build_branch(merge_block);
-        
+
         // Add to phi incoming values
         phi_incoming.push((arm_result, arm_end_block));
-        
+
         // Move to next test block for the next iteration
         if let Some(next_block) = next_test_block {
             current_test_block = next_block;
         }
     }
-    
+
     // Create the merge block with phi node
     lowerer.builder.set_current_block(merge_block);
     let phi_inst = Instruction::Phi {
         incoming: phi_incoming,
         ty: Type::Unknown, // TODO: Get actual result type from type inference
     };
-    
-    lowerer.builder.add_instruction(phi_inst)
+
+    lowerer
+        .builder
+        .add_instruction(phi_inst)
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create match phi node"))
 }
 
@@ -473,11 +1031,19 @@ fn lower_pattern_test(
                 }
                 Literal::String(s) => lowerer.builder.const_value(Constant::String(s.clone())),
                 Literal::Boolean(b) => lowerer.builder.const_value(Constant::Bool(*b)),
+                Literal::Null => lowerer.builder.const_value(Constant::Null),
             };
-            
+
             // Generate equality comparison
-            lowerer.builder.build_compare(ComparisonOp::Eq, value, literal_value)
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build pattern literal comparison"))
+            lowerer
+                .builder
+                .build_compare(ComparisonOp::Eq, value, literal_value)
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        "Failed to build pattern literal comparison",
+                    )
+                })
         }
         PatternKind::Identifier(_name) => {
             // Variable binding pattern always matches
@@ -487,41 +1053,111 @@ fn lower_pattern_test(
             // For array patterns, we need to check length and each element
             // This is a simplified implementation
             // TODO: Implement proper array pattern matching with length checks
-            
+
             let mut result = lowerer.builder.const_value(Constant::Bool(true));
-            
+
             for (i, sub_pattern) in patterns.iter().enumerate() {
                 // Get array element at index i
                 let _index_value = lowerer.builder.const_value(Constant::I32(i as i32));
-                
+
                 // TODO: Generate array indexing IR instruction
                 // For now, assume the element access succeeds and recursively test the pattern
                 let element_test = lower_pattern_test(lowerer, sub_pattern, value)?;
-                
+
                 // AND with previous results
-                result = lowerer.builder.build_binary(IrBinaryOp::And, result, element_test, Type::Bool)
-                    .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build array pattern AND"))?;
+                result = lowerer
+                    .builder
+                    .build_binary(IrBinaryOp::And, result, element_test, Type::Bool)
+                    .ok_or_else(|| {
+                        Error::new(ErrorKind::RuntimeError, "Failed to build array pattern AND")
+                    })?;
             }
-            
+
             Ok(result)
         }
-        PatternKind::Object(_fields) => {
-            // Object pattern matching not fully implemented yet
-            Ok(lowerer.builder.const_value(Constant::Bool(true)))
+        PatternKind::Object(fields) => {
+            // Object pattern matching: check if the value is an object and has the required fields
+            let mut result = lowerer.builder.const_value(Constant::Bool(true));
+
+            for (field_name, sub_pattern) in fields {
+                // Load the field value directly from the object using LoadField instruction
+                let field_value = lowerer
+                    .builder
+                    .build_load_field(
+                        value,
+                        field_name.clone(),
+                        Type::Unknown, // Field type to be resolved during type checking
+                    )
+                    .ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::RuntimeError,
+                            "Failed to load field value for object pattern",
+                        )
+                    })?;
+
+                // If there's a sub-pattern, test it against the field value
+                if let Some(sub_pat) = sub_pattern {
+                    let sub_test = lower_pattern_test(lowerer, sub_pat, field_value)?;
+                    result = lowerer
+                        .builder
+                        .build_binary(IrBinaryOp::And, result, sub_test, Type::Bool)
+                        .ok_or_else(|| {
+                            Error::new(
+                                ErrorKind::RuntimeError,
+                                "Failed to build object pattern AND test",
+                            )
+                        })?;
+                }
+                // If no sub-pattern (shorthand {x}), we assume the field exists
+                // In the future, we might want to add a runtime check for field existence
+            }
+
+            Ok(result)
         }
         PatternKind::Or(patterns) => {
             // OR pattern - any sub-pattern can match
             let mut result = lowerer.builder.const_value(Constant::Bool(false));
-            
+
             for sub_pattern in patterns {
                 let sub_test = lower_pattern_test(lowerer, sub_pattern, value)?;
-                result = lowerer.builder.build_binary(IrBinaryOp::Or, result, sub_test, Type::Bool)
-                    .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to build OR pattern"))?;
+                result = lowerer
+                    .builder
+                    .build_binary(IrBinaryOp::Or, result, sub_test, Type::Bool)
+                    .ok_or_else(|| {
+                        Error::new(ErrorKind::RuntimeError, "Failed to build OR pattern")
+                    })?;
             }
-            
+
             Ok(result)
         }
     }
+}
+
+/// Calculate field offset for named types
+/// This is a placeholder implementation that will be enhanced when struct types are added
+fn calculate_field_offset(type_name: &str, field_name: &str) -> LoweringResult<i32> {
+    // For now, use a simple hash-based offset calculation
+    // This will be replaced with proper struct layout analysis
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    use std::hash::Hasher;
+    hasher.write(type_name.as_bytes());
+    hasher.write(field_name.as_bytes());
+    let hash = hasher.finish();
+
+    // Use a limited range for field offsets to avoid overflow
+    let offset = (hash % 256) as i32;
+    Ok(offset)
+}
+
+/// Calculate field hash for dynamic field access
+fn calculate_field_hash(field_name: &str) -> i32 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    use std::hash::Hasher;
+    hasher.write(field_name.as_bytes());
+    let hash = hasher.finish();
+
+    // Use a limited range for field hashes
+    (hash % 1024) as i32
 }
 
 /// Bind pattern variables to the current scope
@@ -542,15 +1178,24 @@ fn bind_pattern_variables(
         PatternKind::Identifier(name) => {
             // Create a variable binding
             let var_type = Type::Unknown; // TODO: Get actual type from pattern analysis
-            let var_ptr = lowerer.builder.build_alloc(var_type.clone())
-                .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to allocate pattern variable"))?;
-            
+            let var_ptr = lowerer
+                .builder
+                .build_alloc(var_type.clone())
+                .ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        "Failed to allocate pattern variable",
+                    )
+                })?;
+
             // Store the matched value
             lowerer.builder.build_store(var_ptr, value);
-            
+
             // Add to the lowering context
-            lowerer.context.define_variable(name.clone(), var_ptr, var_type);
-            
+            lowerer
+                .context
+                .define_variable(name.clone(), var_ptr, var_type);
+
             Ok(())
         }
         PatternKind::Array(patterns) => {
@@ -562,8 +1207,50 @@ fn bind_pattern_variables(
             }
             Ok(())
         }
-        PatternKind::Object(_fields) => {
-            // Object pattern binding not fully implemented yet
+        PatternKind::Object(fields) => {
+            // Object pattern binding: extract and bind fields from the object
+            for (field_name, sub_pattern) in fields {
+                // Load the field value directly from the object using LoadField instruction
+                let field_value = lowerer
+                    .builder
+                    .add_instruction(Instruction::LoadField {
+                        object: value,
+                        field_name: field_name.clone(),
+                        field_ty: Type::Unknown, // Field type to be resolved during type checking
+                    })
+                    .ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::RuntimeError,
+                            "Failed to load field value for object pattern binding",
+                        )
+                    })?;
+
+                // If there's a sub-pattern, bind it recursively
+                if let Some(sub_pat) = sub_pattern {
+                    bind_pattern_variables(lowerer, sub_pat, field_value)?;
+                } else {
+                    // Shorthand pattern {x} - bind the field name directly
+                    let var_type = Type::Unknown; // TODO: Get actual type from pattern analysis
+                    let var_ptr =
+                        lowerer
+                            .builder
+                            .build_alloc(var_type.clone())
+                            .ok_or_else(|| {
+                                Error::new(
+                                    ErrorKind::RuntimeError,
+                                    "Failed to allocate object pattern variable",
+                                )
+                            })?;
+
+                    // Store the field value
+                    lowerer.builder.build_store(var_ptr, field_value);
+
+                    // Add to the lowering context
+                    lowerer
+                        .context
+                        .define_variable(field_name.clone(), var_ptr, var_type);
+                }
+            }
             Ok(())
         }
         PatternKind::Or(patterns) => {

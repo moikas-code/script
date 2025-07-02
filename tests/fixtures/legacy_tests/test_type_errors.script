@@ -1,0 +1,23 @@
+fn test_type_errors() {
+    // Binary operation type error
+    let bad_add = "hello" + 5;  // Error: Cannot add string and i32
+    
+    // Assignment type error
+    let x: i32 = 10;
+    x = "not a number";  // Error: Cannot assign string to i32
+    
+    // Return type error
+    fn returns_i32() -> i32 {
+        return "oops";  // Error: Return type mismatch
+    }
+    
+    // Array type error
+    let int_array: [i32] = [1, "two", 3];  // Error: Mixed types
+    
+    // Function call type error
+    fn expects_bool(b: bool) { }
+    expects_bool(42);  // Error: i32 argument to bool parameter
+    
+    // If/else branch type error
+    let bad_if = if true { 10 } else { "ten" };  // Error: Incompatible branches
+}

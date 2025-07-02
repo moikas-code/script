@@ -1,0 +1,66 @@
+// entity.script - Base entity definition
+
+import "../utils/vector.script" as Vector
+
+export { Entity, Component }
+
+struct Entity {
+    id: int,
+    type: string,
+    position: Vector.Vec2,
+    velocity: Vector.Vec2,
+    components: [Component],
+    active: bool
+}
+
+trait Component {
+    fn update(self, entity: Entity, deltaTime: float)
+    fn getName(self) -> string
+}
+
+impl Entity {
+    fn new(type: string, x: float, y: float) -> Entity {
+        static mut nextId = 0
+        nextId += 1
+        
+        Entity {
+            id: nextId,
+            type: type,
+            position: Vector.Vec2::new(x, y),
+            velocity: Vector.Vec2::zero(),
+            components: [],
+            active: true
+        }
+    }
+    
+    fn addComponent(mut self, component: Component) {
+        self.components.push(component)
+    }
+    
+    fn getComponent(self, name: string) -> Component? {
+        for comp in self.components {
+            if comp.getName() == name {
+                return Some(comp)
+            }
+        }
+        None
+    }
+    
+    fn update(mut self, deltaTime: float) {
+        if !self.active {
+            return
+        }
+        
+        // Update position based on velocity
+        self.position = self.position.add(self.velocity.scale(deltaTime))
+        
+        // Update all components
+        for component in self.components {
+            component.update(self, deltaTime)
+        }
+    }
+    
+    fn destroy(mut self) {
+        self.active = false
+    }
+}

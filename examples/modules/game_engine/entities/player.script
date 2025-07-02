@@ -1,0 +1,65 @@
+// player.script - Player entity
+
+import "./entity.script" as Entity
+import "../utils/vector.script" as Vector
+
+export { Player, create }
+
+struct Player {
+    entity: Entity.Entity,
+    health: int,
+    maxHealth: int,
+    speed: float
+}
+
+fn create(x: float, y: float) -> Player {
+    let entity = Entity.Entity::new("player", x, y)
+    
+    Player {
+        entity: entity,
+        health: 100,
+        maxHealth: 100,
+        speed: 200.0
+    }
+}
+
+impl Player {
+    fn moveUp(mut self, deltaTime: float) {
+        self.entity.velocity.y = -self.speed
+    }
+    
+    fn moveDown(mut self, deltaTime: float) {
+        self.entity.velocity.y = self.speed
+    }
+    
+    fn moveLeft(mut self, deltaTime: float) {
+        self.entity.velocity.x = -self.speed
+    }
+    
+    fn moveRight(mut self, deltaTime: float) {
+        self.entity.velocity.x = self.speed
+    }
+    
+    fn stopMoving(mut self) {
+        self.entity.velocity = Vector.Vec2::zero()
+    }
+    
+    fn takeDamage(mut self, amount: int) {
+        self.health -= amount
+        if self.health <= 0 {
+            self.health = 0
+            self.entity.destroy()
+        }
+    }
+    
+    fn heal(mut self, amount: int) {
+        self.health += amount
+        if self.health > self.maxHealth {
+            self.health = self.maxHealth
+        }
+    }
+    
+    fn getHealthPercentage(self) -> float {
+        self.health as float / self.maxHealth as float
+    }
+}

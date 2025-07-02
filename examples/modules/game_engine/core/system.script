@@ -1,0 +1,11 @@
+// system.script - Base system interface
+
+export { System }
+
+// Base system trait/interface
+trait System {
+    fn initialize(self, engine: any)
+    fn update(self, engine: any, deltaTime: float)
+    fn cleanup(self, engine: any)
+    fn getName(self) -> string
+}

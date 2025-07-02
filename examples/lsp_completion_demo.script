@@ -1,0 +1,32 @@
+// This file demonstrates LSP completion features
+
+// Keywords completion: Type 'le' and get 'let' suggestion
+let x = 42;
+
+// Function completions: Type 'pr' to get 'print', 'println' suggestions
+println("Hello, Script!");
+
+// Type completions: After typing ':' you'll get type suggestions
+let y: i32 = 100;
+let name: string = "Script";
+
+// Built-in function completions: Type 'sq' to get 'sqrt' suggestion
+let root = sqrt(16.0);
+
+// Member access completions: Type '.' after a string to see methods
+let upper = "hello".to_uppercase();
+
+// Multiple completions available here
+let result = abs(-5.0);  // Also try: min, max, sin, cos, etc.
+
+// Variable completions: Type 'x' or 'y' to see variables in scope
+let sum = x + y;
+
+// Function definition
+fn calculate(a: f32, b: f32) -> f32 {
+    // Parameter completions: 'a' and 'b' are available here
+    return a * b + sqrt(a);
+}
+
+// Using the function - type 'calc' for completion
+let answer = calculate(4.0, 5.0);

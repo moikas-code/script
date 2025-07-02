@@ -1,0 +1,228 @@
+/**
+ * Module System Example in Script
+ * 
+ * This example demonstrates:
+ * - Importing modules and specific functions
+ * - Using module aliases
+ * - Organizing code with modules
+ * - Working with standard library modules
+ */
+
+// Import specific functions from math utilities
+import math_utils.{ add, multiply, PI }
+
+// Import all exports from string utilities
+import string_utils.*
+
+// Import with alias for cleaner code
+import geometry as Geo
+
+// Import from standard library (when available)
+import std.io as IO
+import std.collections.vec as Vector
+
+fn main() {
+    print("=== Script Module System Example ===\n")
+    
+    using_math_module()
+    using_string_module()
+    using_geometry_module()
+    using_std_modules()
+    demonstrating_module_patterns()
+}
+
+/**
+ * Using imported math functions
+ */
+fn using_math_module() {
+    print("--- Using Math Module ---")
+    
+    // Using imported functions directly
+    let sum = add(10.5, 20.3)
+    let product = multiply(5.0, 7.0)
+    
+    print("Sum: 10.5 + 20.3 = " + sum)
+    print("Product: 5.0 × 7.0 = " + product)
+    
+    // Using imported constant
+    let circle_area = multiply(PI, multiply(5.0, 5.0))
+    print("Area of circle with radius 5: " + circle_area)
+    
+    print("")
+}
+
+/**
+ * Using string utility functions
+ */
+fn using_string_module() {
+    print("--- Using String Module ---")
+    
+    // Since we imported with *, we can use all exported functions
+    let greeting = concat("Hello, ", "World!")
+    print("Concatenated: " + greeting)
+    
+    let shouting = uppercase("hello script!")
+    print("Uppercase: " + shouting)
+    
+    let whisper = lowercase("HELLO SCRIPT!")
+    print("Lowercase: " + whisper)
+    
+    let clean = trim("  spaces everywhere  ")
+    print("Trimmed: '" + clean + "'")
+    
+    let parts = split("one,two,three", ",")
+    print("Split result: " + format_array(parts))
+    
+    print("")
+}
+
+/**
+ * Using geometry module with alias
+ */
+fn using_geometry_module() {
+    print("--- Using Geometry Module ---")
+    
+    // Create shapes using the aliased module
+    let circle = Geo.Circle(0.0, 0.0, 10.0)
+    let rectangle = Geo.Rectangle(0.0, 0.0, 20.0, 15.0)
+    
+    // Calculate areas
+    let circle_area = Geo.calculateArea(circle)
+    let rect_area = Geo.calculateArea(rectangle)
+    
+    print("Circle area (radius 10): " + circle_area)
+    print("Rectangle area (20×15): " + rect_area)
+    
+    // Calculate perimeters
+    let circle_perimeter = Geo.calculatePerimeter(circle)
+    let rect_perimeter = Geo.calculatePerimeter(rectangle)
+    
+    print("Circle perimeter: " + circle_perimeter)
+    print("Rectangle perimeter: " + rect_perimeter)
+    
+    print("")
+}
+
+/**
+ * Using standard library modules (simulated)
+ */
+fn using_std_modules() {
+    print("--- Using Standard Library Modules ---")
+    
+    // File I/O example
+    let content = IO.readFile("example.txt")
+    match content {
+        Ok(text) => print("File content: " + text),
+        Err(error) => print("Could not read file: " + error)
+    }
+    
+    // Vector operations
+    let numbers = Vector.new()
+    Vector.push(numbers, 1)
+    Vector.push(numbers, 2)
+    Vector.push(numbers, 3)
+    
+    let doubled = Vector.map(numbers, fn(x) => x * 2)
+    print("Doubled vector: " + Vector.toString(doubled))
+    
+    print("")
+}
+
+/**
+ * Demonstrating common module patterns
+ */
+fn demonstrating_module_patterns() {
+    print("--- Module Patterns ---")
+    
+    // Pattern 1: Factory functions from modules
+    let config = create_default_config()
+    print("Default config created")
+    
+    // Pattern 2: Module-level state (be careful with this)
+    let counter = get_global_counter()
+    increment_global_counter()
+    let new_counter = get_global_counter()
+    print("Counter before: " + counter + ", after: " + new_counter)
+    
+    // Pattern 3: Namespace organization
+    use_namespaced_functions()
+    
+    print("")
+}
+
+// Helper functions
+
+fn format_array(arr: [string]) -> string {
+    let result = "["
+    for i in 0..arr.length() {
+        if i > 0 {
+            result += ", "
+        }
+        result += "'" + arr[i] + "'"
+    }
+    result + "]"
+}
+
+fn create_default_config() -> Config {
+    // Imagine this comes from a config module
+    Config {
+        debug: false,
+        timeout: 30,
+        retries: 3
+    }
+}
+
+struct Config {
+    debug: bool,
+    timeout: int,
+    retries: int
+}
+
+// Simulating module-level state
+let mut global_counter = 0
+
+fn get_global_counter() -> int {
+    global_counter
+}
+
+fn increment_global_counter() {
+    global_counter += 1
+}
+
+fn use_namespaced_functions() {
+    // Example of how modules create namespaces
+    print("Using namespaced module functions")
+    
+    // Instead of having global function names like:
+    // - math_add, math_multiply, math_sin
+    // - string_concat, string_trim, string_split
+    // 
+    // We have clean namespaces:
+    // - math.add, math.multiply, math.sin
+    // - string.concat, string.trim, string.split
+}
+
+/**
+ * Module System Benefits:
+ * 
+ * 1. ORGANIZATION: Keep related code together
+ * 2. REUSABILITY: Share code across projects
+ * 3. NAMESPACE: Avoid naming conflicts
+ * 4. ENCAPSULATION: Hide implementation details
+ * 5. DEPENDENCIES: Clear dependency management
+ * 
+ * Best Practices:
+ * - One module per file
+ * - Export only what's needed
+ * - Use meaningful module names
+ * - Avoid circular dependencies
+ * - Document module interfaces
+ * 
+ * Module Resolution:
+ * - Relative paths: "./module.script", "../utils/helper.script"
+ * - Absolute paths: "math_utils", "std.collections"
+ * - Standard library: "std.io", "std.net", "std.json"
+ */
+
+// Run the example
+main()

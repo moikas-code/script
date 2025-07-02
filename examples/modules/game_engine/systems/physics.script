@@ -1,0 +1,74 @@
+// physics.script - Physics system
+
+import "../core/system.script" as System
+import "../entities/entity.script" as Entity
+
+export { PhysicsSystem, createSystem, checkCollision }
+
+struct PhysicsSystem {
+    gravity: float,
+    friction: float
+}
+
+fn createSystem() -> PhysicsSystem {
+    PhysicsSystem {
+        gravity: 0.0,  // Top-down game, no gravity
+        friction: 0.9
+    }
+}
+
+impl System.System for PhysicsSystem {
+    fn initialize(self, engine: any) {
+        // Physics initialization
+    }
+    
+    fn update(self, engine: any, deltaTime: float) {
+        // Update all entity positions
+        for entity in engine.entities {
+            if entity.active {
+                entity.update(deltaTime)
+                
+                // Apply friction
+                entity.velocity = entity.velocity.scale(self.friction)
+                
+                // Keep entities within bounds
+                self.constrainToBounds(entity, engine.config.width, engine.config.height)
+            }
+        }
+    }
+    
+    fn cleanup(self, engine: any) {
+        // Physics cleanup
+    }
+    
+    fn getName(self) -> string {
+        "PhysicsSystem"
+    }
+}
+
+impl PhysicsSystem {
+    fn constrainToBounds(self, entity: Entity.Entity, width: int, height: int) {
+        if entity.position.x < 0.0 {
+            entity.position.x = 0.0
+            entity.velocity.x = 0.0
+        } else if entity.position.x > width as float {
+            entity.position.x = width as float
+            entity.velocity.x = 0.0
+        }
+        
+        if entity.position.y < 0.0 {
+            entity.position.y = 0.0
+            entity.velocity.y = 0.0
+        } else if entity.position.y > height as float {
+            entity.position.y = height as float
+            entity.velocity.y = 0.0
+        }
+    }
+}
+
+// Simple circle collision detection
+fn checkCollision(a: Entity.Entity, b: Entity.Entity) -> bool {
+    let distance = a.position.distance(b.position)
+    let radius = 32.0  // Assume fixed radius for now
+    distance < radius * 2.0
+}

@@ -1,16 +1,307 @@
-// Arithmetic expressions in Script
-let x = 42
-let y = 3.14
-let z = x + y * 2
+/**
+ * Arithmetic and Mathematical Operations in Script
+ * 
+ * This example demonstrates:
+ * - Basic arithmetic operations (+, -, *, /, %)
+ * - Operator precedence and parentheses
+ * - Type mixing (integers and floats)
+ * - Boolean operations and comparisons
+ * - Mathematical functions
+ * - Function definitions with parameters
+ */
 
-// Function example
-fn add(a: i32, b: i32) -> i32 {
-    return a + b
+fn main() {
+    print("=== Script Arithmetic Examples ===\n")
+    
+    basic_arithmetic()
+    operator_precedence_examples()
+    type_mixing_examples()
+    boolean_operations()
+    mathematical_functions()
+    comparison_operations()
 }
 
-// Complex expression
-let result = (10 + 20) * 3 / 2 - 5
+/**
+ * Demonstrates basic arithmetic operations with different number types
+ */
+fn basic_arithmetic() {
+    print("--- Basic Arithmetic Operations ---")
+    
+    // Integer arithmetic
+    let a = 42        // i32 (32-bit integer)
+    let b = 8         // i32
+    
+    print("Integer arithmetic with a = " + a + ", b = " + b)
+    print("a + b = " + (a + b))     // Addition: 50
+    print("a - b = " + (a - b))     // Subtraction: 34
+    print("a * b = " + (a * b))     // Multiplication: 336
+    print("a / b = " + (a / b))     // Integer division: 5 (truncated)
+    print("a % b = " + (a % b))     // Modulo (remainder): 2
+    
+    // Floating-point arithmetic
+    let x = 3.14      // f32 (32-bit float)
+    let y = 2.71      // f32
+    
+    print("\nFloating-point arithmetic with x = " + x + ", y = " + y)
+    print("x + y = " + (x + y))     // Addition: 5.85
+    print("x - y = " + (x - y))     // Subtraction: 0.43
+    print("x * y = " + (x * y))     // Multiplication: 8.5194
+    print("x / y = " + (x / y))     // Division: 1.1587...
+    
+    // Unary operations
+    print("\nUnary operations:")
+    print("-a = " + (-a))           // Negation: -42
+    print("-x = " + (-x))           // Negation: -3.14
+    
+    print("")
+}
 
-// Boolean operations
-let is_ready = true && !false
-let should_continue = x > 40 || y < 2.0
+/**
+ * Demonstrates operator precedence and the use of parentheses
+ */
+fn operator_precedence_examples() {
+    print("--- Operator Precedence Examples ---")
+    
+    // Standard mathematical precedence: *, / before +, -
+    let result1 = 10 + 20 * 3       // 10 + (20 * 3) = 70
+    let result2 = (10 + 20) * 3     // (10 + 20) * 3 = 90
+    
+    print("10 + 20 * 3 = " + result1 + " (multiplication first)")
+    print("(10 + 20) * 3 = " + result2 + " (parentheses override precedence)")
+    
+    // Complex expression with multiple operations
+    let complex = (10 + 20) * 3 / 2 - 5    // ((10 + 20) * 3) / 2 - 5 = 40
+    print("(10 + 20) * 3 / 2 - 5 = " + complex)
+    
+    // Modulo has same precedence as multiplication and division
+    let modulo_example = 15 + 10 % 3 * 2   // 15 + ((10 % 3) * 2) = 15 + (1 * 2) = 17
+    print("15 + 10 % 3 * 2 = " + modulo_example)
+    
+    print("")
+}
+
+/**
+ * Demonstrates mixing integers and floating-point numbers
+ */
+fn type_mixing_examples() {
+    print("--- Type Mixing Examples ---")
+    
+    let integer_value = 42        // i32
+    let float_value = 3.14        // f32
+    
+    // When mixing types, Script promotes to the more precise type
+    let mixed_result = integer_value + float_value * 2    // Result is f32
+    print("42 + 3.14 * 2 = " + mixed_result + " (result is floating-point)")
+    
+    // Explicit type conversion if needed
+    let precise_calculation: f64 = integer_value as f64 / 3.0
+    print("42 / 3 with high precision = " + precise_calculation)
+    
+    // Integer division vs floating-point division
+    print("Integer division: 42 / 8 = " + (42 / 8))        // 5 (truncated)
+    print("Float division: 42.0 / 8.0 = " + (42.0 / 8.0))  // 5.25
+    
+    print("")
+}
+
+/**
+ * Demonstrates boolean operations and logical operators
+ */
+fn boolean_operations() {
+    print("--- Boolean Operations ---")
+    
+    let is_ready = true
+    let is_connected = false
+    let has_permission = true
+    
+    // Logical AND (&&)
+    let can_proceed = is_ready && is_connected
+    print("ready && connected = " + can_proceed)
+    
+    // Logical OR (||)
+    let should_continue = is_ready || has_permission
+    print("ready || has_permission = " + should_continue)
+    
+    // Logical NOT (!)
+    let is_offline = !is_connected
+    print("!connected = " + is_offline)
+    
+    // Complex boolean expressions
+    let complex_condition = (is_ready && has_permission) || (!is_connected && is_ready)
+    print("Complex condition = " + complex_condition)
+    
+    print("")
+}
+
+/**
+ * Demonstrates comparison operations
+ */
+fn comparison_operations() {
+    print("--- Comparison Operations ---")
+    
+    let score1 = 85
+    let score2 = 92
+    let threshold = 80.0
+    
+    // Numeric comparisons
+    print("score1 (" + score1 + ") > score2 (" + score2 + ") = " + (score1 > score2))
+    print("score1 (" + score1 + ") < score2 (" + score2 + ") = " + (score1 < score2))
+    print("score1 (" + score1 + ") >= threshold (" + threshold + ") = " + (score1 >= threshold))
+    print("score1 (" + score1 + ") <= threshold (" + threshold + ") = " + (score1 <= threshold))
+    print("score1 (" + score1 + ") == score2 (" + score2 + ") = " + (score1 == score2))
+    print("score1 (" + score1 + ") != score2 (" + score2 + ") = " + (score1 != score2))
+    
+    // String comparisons
+    let name1 = "Alice"
+    let name2 = "Bob"
+    print("\"" + name1 + "\" == \"" + name2 + "\" = " + (name1 == name2))
+    print("\"" + name1 + "\" != \"" + name2 + "\" = " + (name1 != name2))
+    
+    print("")
+}
+
+/**
+ * Demonstrates mathematical functions and calculations
+ */
+fn mathematical_functions() {
+    print("--- Mathematical Functions ---")
+    
+    // Custom mathematical functions
+    let base = 5
+    let exponent = 3
+    let power_result = power(base, exponent)
+    print(base + " to the power of " + exponent + " = " + power_result)
+    
+    let number = 16
+    let sqrt_result = integer_square_root(number)
+    print("Square root of " + number + " ≈ " + sqrt_result)
+    
+    let angle = 45
+    let factorial_result = factorial(5)
+    print("5! (factorial) = " + factorial_result)
+    
+    // Demonstrate function overloading with different parameter types
+    let int_sum = add_numbers(10, 20)
+    let float_sum = add_numbers(3.14, 2.86)
+    print("Integer addition: " + int_sum)
+    print("Float addition: " + float_sum)
+    
+    print("")
+}
+
+/**
+ * Function to calculate integer power (base^exponent)
+ */
+fn power(base: i32, exponent: i32) -> i32 {
+    if exponent == 0 {
+        return 1
+    }
+    
+    let result = 1
+    for i in 0..exponent {
+        result = result * base
+    }
+    result
+}
+
+/**
+ * Function to calculate integer square root using Newton's method
+ */
+fn integer_square_root(n: i32) -> i32 {
+    if n < 2 {
+        return n
+    }
+    
+    let guess = n / 2
+    while guess * guess > n {
+        guess = (guess + n / guess) / 2
+    }
+    guess
+}
+
+/**
+ * Function to calculate factorial recursively
+ */
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+/**
+ * Function overloading example - same name, different parameter types
+ */
+fn add_numbers(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn add_numbers(a: f32, b: f32) -> f32 {
+    a + b
+}
+
+/**
+ * Advanced mathematical calculations
+ */
+fn advanced_math_examples() {
+    print("--- Advanced Mathematical Examples ---")
+    
+    // Calculate circle area and circumference
+    let radius = 5.0
+    let pi = 3.14159265359
+    let area = pi * radius * radius
+    let circumference = 2.0 * pi * radius
+    
+    print("Circle with radius " + radius + ":")
+    print("  Area = " + area)
+    print("  Circumference = " + circumference)
+    
+    // Calculate compound interest
+    let principal = 1000.0    // Initial amount
+    let rate = 0.05          // 5% annual interest rate
+    let time = 10.0          // 10 years
+    let compound_amount = principal * power_float(1.0 + rate, time)
+    
+    print("\nCompound Interest Calculation:")
+    print("  Principal: $" + principal)
+    print("  Rate: " + (rate * 100.0) + "%")
+    print("  Time: " + time + " years")
+    print("  Final Amount: $" + compound_amount)
+}
+
+/**
+ * Helper function for floating-point exponentiation
+ */
+fn power_float(base: f32, exponent: f32) -> f32 {
+    // Simplified implementation - in practice, use built-in math functions
+    let result = 1.0
+    let int_exp = exponent as i32
+    
+    for i in 0..int_exp {
+        result = result * base
+    }
+    result
+}
+
+/**
+ * Key Concepts Demonstrated:
+ * 
+ * 1. ARITHMETIC OPERATORS: +, -, *, /, % with proper precedence
+ * 2. TYPE SYSTEM: Automatic type promotion when mixing int and float
+ * 3. BOOLEAN LOGIC: &&, ||, ! operators for logical operations
+ * 4. COMPARISONS: ==, !=, <, >, <=, >= for comparing values
+ * 5. FUNCTIONS: Custom mathematical functions with parameters and return values
+ * 6. CONTROL FLOW: Conditional logic and loops for calculations
+ * 7. RECURSION: Functions that call themselves (like factorial)
+ * 8. TYPE CONVERSION: Converting between number types when needed
+ * 
+ * Try This:
+ * - Create your own mathematical functions (e.g., distance between points)
+ * - Experiment with different number types (i64, f64 for higher precision)
+ * - Build a simple calculator that takes user input
+ * - Implement more complex mathematical algorithms
+ */
+
+// Run all the examples
+main()

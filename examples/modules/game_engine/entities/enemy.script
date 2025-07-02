@@ -1,0 +1,84 @@
+// enemy.script - Enemy entity
+
+import "./entity.script" as Entity
+import "../utils/vector.script" as Vector
+
+export { Enemy, create }
+
+struct Enemy {
+    entity: Entity.Entity,
+    health: int,
+    damage: int,
+    speed: float,
+    aiType: AIType
+}
+
+enum AIType {
+    Patrol,
+    Chase,
+    Guard
+}
+
+fn create(x: float, y: float) -> Enemy {
+    let entity = Entity.Entity::new("enemy", x, y)
+    
+    Enemy {
+        entity: entity,
+        health: 50,
+        damage: 10,
+        speed: 100.0,
+        aiType: AIType::Patrol
+    }
+}
+
+impl Enemy {
+    fn update(mut self, player: Entity.Entity, deltaTime: float) {
+        match self.aiType {
+            AIType::Patrol => self.patrol(deltaTime),
+            AIType::Chase => self.chasePlayer(player, deltaTime),
+            AIType::Guard => self.guard(deltaTime)
+        }
+        
+        self.entity.update(deltaTime)
+    }
+    
+    fn patrol(mut self, deltaTime: float) {
+        // Simple patrol behavior
+        static mut patrolTimer = 0.0
+        patrolTimer += deltaTime
+        
+        if patrolTimer > 2.0 {
+            // Change direction
+            self.entity.velocity = Vector.Vec2::new(
+                (random() - 0.5) * 2.0 * self.speed,
+                (random() - 0.5) * 2.0 * self.speed
+            )
+            patrolTimer = 0.0
+        }
+    }
+    
+    fn chasePlayer(mut self, player: Entity.Entity, deltaTime: float) {
+        // Chase the player
+        let direction = player.position.subtract(self.entity.position).normalize()
+        self.entity.velocity = direction.scale(self.speed)
+    }
+    
+    fn guard(mut self, deltaTime: float) {
+        // Stand still
+        self.entity.velocity = Vector.Vec2::zero()
+    }
+    
+    fn takeDamage(mut self, amount: int) {
+        self.health -= amount
+        if self.health <= 0 {
+            self.destroy()
+        }
+    }
+    
+    fn destroy(mut self) {
+        self.entity.destroy()
+    }
+}
+
+// Placeholder
+fn random() -> float { 0.5 }

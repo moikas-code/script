@@ -1,0 +1,13 @@
+// Test object destructuring patterns
+// Note: Object literals might not be fully implemented yet
+// but we can test the pattern parsing
+
+let point = {x: 10, y: 20}
+let result1 = match point {
+    {x, y} => x + y,
+    {x: a, y: b} => a * b,
+    {x} => x,
+    _ => 0
+}
+
+print("Object test 1: " + result1)

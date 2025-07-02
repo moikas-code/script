@@ -1,0 +1,31 @@
+// string_utils.script - String manipulation utilities
+
+export { concat, uppercase, lowercase, trim, split }
+
+fn concat(a: string, b: string) -> string {
+    a + b
+}
+
+fn uppercase(s: string) -> string {
+    // Placeholder implementation
+    // In real implementation, this would convert to uppercase
+    s
+}
+
+fn lowercase(s: string) -> string {
+    // Placeholder implementation
+    // In real implementation, this would convert to lowercase
+    s
+}
+
+fn trim(s: string) -> string {
+    // Placeholder implementation
+    // In real implementation, this would remove whitespace
+    s
+}
+
+fn split(s: string, delimiter: string) -> [string] {
+    // Placeholder implementation
+    // In real implementation, this would split the string
+    [s]
+}

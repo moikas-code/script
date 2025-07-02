@@ -1,0 +1,51 @@
+// display.script - User interface for the calculator
+
+export { welcome, goodbye, prompt, showResult, showError }
+
+fn welcome() {
+    println("====================================")
+    println("   Script Calculator v1.0")
+    println("====================================")
+    println("Enter mathematical expressions or 'exit' to quit")
+    println("Supported operations: +, -, *, /, ^, !")
+    println("Supported functions: sin, cos, sqrt, max")
+    println("")
+}
+
+fn goodbye() {
+    println("")
+    println("Thank you for using Script Calculator!")
+}
+
+fn prompt() -> string {
+    print("calc> ")
+    readLine()
+}
+
+fn showResult(result: float) {
+    println("= " + formatNumber(result))
+}
+
+fn showError(error: string) {
+    println("Error: " + error)
+}
+
+// Format a number for display
+fn formatNumber(n: float) -> string {
+    // Placeholder - would format with appropriate precision
+    n.toString()
+}
+
+// Placeholder I/O functions
+fn println(s: string) {
+    // Placeholder - would print with newline
+}
+
+fn print(s: string) {
+    // Placeholder - would print without newline
+}
+
+fn readLine() -> string {
+    // Placeholder - would read user input
+    ""
+}

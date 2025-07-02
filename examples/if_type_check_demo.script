@@ -1,0 +1,38 @@
+// Demonstration of If Expression Type Checking
+
+// 1. Valid: Boolean condition with matching numeric types
+let a = if true { 42 } else { 99 };
+print("a = ");
+print(a);
+
+// 2. Valid: If without else returns unit type
+if 5 > 3 {
+    print("5 is greater than 3");
+}
+
+// 3. Valid: Nested if expressions with consistent types
+let b = if 10 > 5 {
+    if true { 100 } else { 200 }
+} else {
+    300
+};
+print("b = ");
+print(b);
+
+// 4. Valid: Using comparison operators for boolean conditions
+let x = 10;
+let y = 20;
+let max = if x > y { x } else { y };
+print("max = ");
+print(max);
+
+// 5. Valid: Using logical operators
+let condition = true && (5 > 3);
+let result = if condition { "yes" } else { "no" };
+print("result = ");
+print(result);
+
+// The following would cause type errors if uncommented:
+// - Non-boolean condition: if 42 { 1 } else { 2 }
+// - Mismatched branches: if true { 42 } else { "hello" }
+// - String condition: if "not bool" { 1 } else { 2 }

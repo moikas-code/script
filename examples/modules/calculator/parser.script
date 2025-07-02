@@ -1,0 +1,197 @@
+// parser.script - Expression parser for the calculator
+
+import "./types.script" as Types
+import "./lexer.script" as Lexer
+
+export { parseExpression }
+
+// Parse a string into an expression tree
+fn parseExpression(input: string) -> Result<Types.Expression, string> {
+    let tokens = Lexer.tokenize(input)?
+    let mut parser = Parser::new(tokens)
+    parser.parse()
+}
+
+// Parser state
+struct Parser {
+    tokens: [Types.Token],
+    current: int
+}
+
+impl Parser {
+    fn new(tokens: [Types.Token]) -> Parser {
+        Parser { tokens: tokens, current: 0 }
+    }
+    
+    fn parse(mut self) -> Result<Types.Expression, string> {
+        let expr = self.parseAdditive()?
+        
+        if !self.isAtEnd() {
+            Err("Unexpected token after expression")
+        } else {
+            Ok(expr)
+        }
+    }
+    
+    // Parse addition and subtraction (lowest precedence)
+    fn parseAdditive(mut self) -> Result<Types.Expression, string> {
+        let mut left = self.parseMultiplicative()?
+        
+        while self.match(["+", "-"]) {
+            let op = if self.previous().value == "+" {
+                Types.BinaryOp::Add
+            } else {
+                Types.BinaryOp::Subtract
+            }
+            let right = self.parseMultiplicative()?
+            left = Types.Expression::Binary { left: left, op: op, right: right }
+        }
+        
+        Ok(left)
+    }
+    
+    // Parse multiplication and division
+    fn parseMultiplicative(mut self) -> Result<Types.Expression, string> {
+        let mut left = self.parsePower()?
+        
+        while self.match(["*", "/"]) {
+            let op = if self.previous().value == "*" {
+                Types.BinaryOp::Multiply
+            } else {
+                Types.BinaryOp::Divide
+            }
+            let right = self.parsePower()?
+            left = Types.Expression::Binary { left: left, op: op, right: right }
+        }
+        
+        Ok(left)
+    }
+    
+    // Parse exponentiation (right-associative)
+    fn parsePower(mut self) -> Result<Types.Expression, string> {
+        let mut left = self.parseUnary()?
+        
+        if self.match(["^"]) {
+            let right = self.parsePower()? // Right-associative
+            left = Types.Expression::Binary { left: left, op: Types.BinaryOp::Power, right: right }
+        }
+        
+        Ok(left)
+    }
+    
+    // Parse unary operators
+    fn parseUnary(mut self) -> Result<Types.Expression, string> {
+        if self.match(["-"]) {
+            let expr = self.parseUnary()?
+            Ok(Types.Expression::Unary { op: Types.UnaryOp::Negate, expr: expr })
+        } else {
+            self.parsePostfix()
+        }
+    }
+    
+    // Parse postfix operators (factorial)
+    fn parsePostfix(mut self) -> Result<Types.Expression, string> {
+        let mut expr = self.parsePrimary()?
+        
+        while self.match(["!"]) {
+            expr = Types.Expression::Unary { op: Types.UnaryOp::Factorial, expr: expr }
+        }
+        
+        Ok(expr)
+    }
+    
+    // Parse primary expressions (numbers, functions, parentheses)
+    fn parsePrimary(mut self) -> Result<Types.Expression, string> {
+        if self.check(Types.TokenType::Number) {
+            let token = self.advance()
+            match token.value.parse::<float>() {
+                Ok(n) => Ok(Types.Expression::Number(n)),
+                Err(_) => Err("Invalid number: " + token.value)
+            }
+        } else if self.check(Types.TokenType::Identifier) {
+            let name = self.advance().value
+            
+            // Check if it's a function call
+            if self.match(["("]) {
+                let args = self.parseArguments()?
+                self.consume(")", "Expected ')' after function arguments")?
+                Ok(Types.Expression::Function { name: name, args: args })
+            } else {
+                // Variable or constant (not implemented yet)
+                Err("Variables not yet supported")
+            }
+        } else if self.match(["("]) {
+            let expr = self.parseAdditive()?
+            self.consume(")", "Expected ')' after expression")?
+            Ok(expr)
+        } else {
+            Err("Expected expression")
+        }
+    }
+    
+    // Parse function arguments
+    fn parseArguments(mut self) -> Result<[Types.Expression], string> {
+        let mut args = []
+        
+        if !self.check(")") {
+            loop {
+                args.push(self.parseAdditive()?)
+                if !self.match([","]) {
+                    break
+                }
+            }
+        }
+        
+        Ok(args)
+    }
+    
+    // Helper methods
+    fn match(mut self, types: [string]) -> bool {
+        for t in types {
+            if self.check(t) {
+                self.advance()
+                return true
+            }
+        }
+        false
+    }
+    
+    fn check(self, expected: any) -> bool {
+        if self.isAtEnd() {
+            false
+        } else {
+            match expected {
+                s: string => self.peek().value == s,
+                t: Types.TokenType => self.peek().type == t,
+                _ => false
+            }
+        }
+    }
+    
+    fn advance(mut self) -> Types.Token {
+        if !self.isAtEnd() {
+            self.current += 1
+        }
+        self.previous()
+    }
+    
+    fn isAtEnd(self) -> bool {
+        self.peek().type == Types.TokenType::EOF
+    }
+    
+    fn peek(self) -> Types.Token {
+        self.tokens[self.current]
+    }
+    
+    fn previous(self) -> Types.Token {
+        self.tokens[self.current - 1]
+    }
+    
+    fn consume(mut self, expected: string, message: string) -> Result<Types.Token, string> {
+        if self.check(expected) {
+            Ok(self.advance())
+        } else {
+            Err(message)
+        }
+    }
+}

@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::types::Type;
+use std::collections::HashMap;
 
 /// A substitution maps type variables to types
 #[derive(Debug, Clone, PartialEq)]
@@ -40,14 +40,14 @@ impl Substitution {
         for (var_id, ty) in other.mapping {
             new_mapping.insert(var_id, apply_substitution(self, &ty));
         }
-        
+
         // Add mappings from self that aren't in other
         for (var_id, ty) in &self.mapping {
             if !new_mapping.contains_key(var_id) {
                 new_mapping.insert(*var_id, ty.clone());
             }
         }
-        
+
         self.mapping = new_mapping;
     }
 
@@ -79,24 +79,39 @@ pub fn apply_substitution(subst: &Substitution, ty: &Type) -> Type {
                 ty.clone()
             }
         }
-        Type::Array(elem_ty) => {
-            Type::Array(Box::new(apply_substitution(subst, elem_ty)))
-        }
-        Type::Function { params, ret } => {
-            Type::Function {
-                params: params.iter().map(|p| apply_substitution(subst, p)).collect(),
-                ret: Box::new(apply_substitution(subst, ret)),
-            }
-        }
-        Type::Result { ok, err } => {
-            Type::Result {
-                ok: Box::new(apply_substitution(subst, ok)),
-                err: Box::new(apply_substitution(subst, err)),
-            }
-        }
+        Type::Array(elem_ty) => Type::Array(Box::new(apply_substitution(subst, elem_ty))),
+        Type::Function { params, ret } => Type::Function {
+            params: params
+                .iter()
+                .map(|p| apply_substitution(subst, p))
+                .collect(),
+            ret: Box::new(apply_substitution(subst, ret)),
+        },
+        Type::Result { ok, err } => Type::Result {
+            ok: Box::new(apply_substitution(subst, ok)),
+            err: Box::new(apply_substitution(subst, err)),
+        },
+        Type::Future(inner_ty) => Type::Future(Box::new(apply_substitution(subst, inner_ty))),
+        Type::Option(inner_ty) => Type::Option(Box::new(apply_substitution(subst, inner_ty))),
         // Basic types and named types are not affected by substitution
-        Type::I32 | Type::F32 | Type::Bool | Type::String | 
-        Type::Unknown | Type::Named(_) => ty.clone(),
+        Type::I32
+        | Type::F32
+        | Type::Bool
+        | Type::String
+        | Type::Unknown
+        | Type::Named(_)
+        | Type::Never => ty.clone(),
+        Type::Generic { name, args } => {
+            let substituted_args = args
+                .iter()
+                .map(|arg| apply_substitution(subst, arg))
+                .collect();
+            Type::Generic {
+                name: name.clone(),
+                args: substituted_args,
+            }
+        }
+        Type::TypeParam(name) => ty.clone(), // Type parameters are not substituted
     }
 }
 
@@ -108,9 +123,9 @@ pub fn occurs_check(var_id: u32, ty: &Type) -> bool {
         Type::Function { params, ret } => {
             params.iter().any(|p| occurs_check(var_id, p)) || occurs_check(var_id, ret)
         }
-        Type::Result { ok, err } => {
-            occurs_check(var_id, ok) || occurs_check(var_id, err)
-        }
+        Type::Result { ok, err } => occurs_check(var_id, ok) || occurs_check(var_id, err),
+        Type::Future(inner_ty) => occurs_check(var_id, inner_ty),
+        Type::Option(inner_ty) => occurs_check(var_id, inner_ty),
         _ => false,
     }
 }
@@ -123,10 +138,10 @@ mod tests {
     fn test_substitution_basic() {
         let mut subst = Substitution::new();
         assert!(subst.is_empty());
-        
+
         subst.insert(0, Type::I32);
         subst.insert(1, Type::String);
-        
+
         assert_eq!(subst.get(0), Some(&Type::I32));
         assert_eq!(subst.get(1), Some(&Type::String));
         assert_eq!(subst.get(2), None);
@@ -138,12 +153,15 @@ mod tests {
         let mut subst = Substitution::new();
         subst.insert(0, Type::I32);
         subst.insert(1, Type::Bool);
-        
+
         // Apply to type variables
         assert_eq!(apply_substitution(&subst, &Type::TypeVar(0)), Type::I32);
         assert_eq!(apply_substitution(&subst, &Type::TypeVar(1)), Type::Bool);
-        assert_eq!(apply_substitution(&subst, &Type::TypeVar(2)), Type::TypeVar(2));
-        
+        assert_eq!(
+            apply_substitution(&subst, &Type::TypeVar(2)),
+            Type::TypeVar(2)
+        );
+
         // Apply to basic types (no change)
         assert_eq!(apply_substitution(&subst, &Type::String), Type::String);
     }
@@ -153,14 +171,14 @@ mod tests {
         let mut subst = Substitution::new();
         subst.insert(0, Type::I32);
         subst.insert(1, Type::String);
-        
+
         // Apply to array type
         let array_ty = Type::Array(Box::new(Type::TypeVar(0)));
         assert_eq!(
             apply_substitution(&subst, &array_ty),
             Type::Array(Box::new(Type::I32))
         );
-        
+
         // Apply to function type
         let fn_ty = Type::Function {
             params: vec![Type::TypeVar(0), Type::TypeVar(1)],
@@ -181,15 +199,15 @@ mod tests {
         let mut s1 = Substitution::new();
         s1.insert(0, Type::I32);
         s1.insert(1, Type::Bool);
-        
+
         // s2: {2 -> T0, 3 -> String}
         let mut s2 = Substitution::new();
         s2.insert(2, Type::TypeVar(0));
         s2.insert(3, Type::String);
-        
+
         // s1.compose(s2) should give {0 -> I32, 1 -> Bool, 2 -> I32, 3 -> String}
         s1.compose(s2);
-        
+
         assert_eq!(s1.get(0), Some(&Type::I32));
         assert_eq!(s1.get(1), Some(&Type::Bool));
         assert_eq!(s1.get(2), Some(&Type::I32)); // T0 was substituted to I32
@@ -202,12 +220,12 @@ mod tests {
         assert!(occurs_check(0, &Type::TypeVar(0)));
         assert!(!occurs_check(0, &Type::TypeVar(1)));
         assert!(!occurs_check(0, &Type::I32));
-        
+
         // Array type
         let array_ty = Type::Array(Box::new(Type::TypeVar(0)));
         assert!(occurs_check(0, &array_ty));
         assert!(!occurs_check(1, &array_ty));
-        
+
         // Function type
         let fn_ty = Type::Function {
             params: vec![Type::I32, Type::TypeVar(1)],

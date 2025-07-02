@@ -129,7 +129,7 @@ lib.free_point(point2)
 ```c
 // main.c
 #include <stdio.h>
-#include <script_lang/script.h>
+#include <script/script.h>
 
 // Callback function that C will call
 void log_message(const char* message) {
@@ -190,11 +190,11 @@ int main() {
 
 ```bash
 # Compile Script as a shared library
-cd script-lang
+cd script
 cargo build --release --features c-api
 
 # Compile and link the C application
-gcc -o main main.c -L./target/release -lscript_lang -ldl -lpthread -lm
+gcc -o main main.c -L./target/release -lscript -ldl -lpthread -lm
 ```
 
 ## Rust Integration
@@ -312,7 +312,7 @@ rust_lib.rust_free_point(point2)
 For tighter integration, you can use Script's native Rust API:
 
 ```rust
-use script_lang::{Runtime, RuntimeConfig, Value, NativeFunction};
+use script::{Runtime, RuntimeConfig, Value, NativeFunction};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut runtime = Runtime::new(RuntimeConfig::default())?;
@@ -403,7 +403,7 @@ let value_union = ffi.union({
 
 ```rust
 // Custom type converter
-use script_lang::{Value, TypeConverter, ConversionError};
+use script::{Value, TypeConverter, ConversionError};
 
 struct ColorConverter;
 

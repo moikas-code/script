@@ -110,15 +110,15 @@ source $HOME/.cargo/env
 
 ```bash
 # Clone the main repository
-git clone https://github.com/moikapy/script-lang.git
-cd script-lang
+git clone https://github.com/moikapy/script.git
+cd script
 
 # Or clone your fork
-git clone https://github.com/your-username/script-lang.git
-cd script-lang
+git clone https://github.com/your-username/script.git
+cd script
 
 # Add upstream remote (if using a fork)
-git remote add upstream https://github.com/moikapy/script-lang.git
+git remote add upstream https://github.com/moikapy/script.git
 ```
 
 ### 2. Rust Configuration
@@ -278,7 +278,7 @@ Create `.vscode/launch.json` for debugging:
             "cargo": {
                 "args": ["build"],
                 "filter": {
-                    "name": "script-lang",
+                    "name": "script",
                     "kind": "bin"
                 }
             },
@@ -292,7 +292,7 @@ Create `.vscode/launch.json` for debugging:
             "cargo": {
                 "args": ["build"],
                 "filter": {
-                    "name": "script-lang",
+                    "name": "script",
                     "kind": "bin"
                 }
             },
@@ -499,7 +499,7 @@ rustup component add rust-analyzer
 
 If you encounter issues not covered here:
 
-1. **Check the issue tracker**: https://github.com/moikapy/script-lang/issues
+1. **Check the issue tracker**: https://github.com/moikapy/script/issues
 2. **Search existing discussions**: Look for similar problems
 3. **Create a new issue**: Include:
    - Operating system and version

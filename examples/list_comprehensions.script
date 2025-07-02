@@ -1,0 +1,73 @@
+// List Comprehension Examples in Script
+
+fn main() {
+    // Basic transformations
+    let numbers = [1, 2, 3, 4, 5]
+    let doubled = [x * 2 for x in numbers]
+    print("Doubled: " + doubled)  // [2, 4, 6, 8, 10]
+    
+    // Filtering with conditions
+    let all_nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    let evens = [x for x in all_nums if x % 2 == 0]
+    print("Evens: " + evens)  // [2, 4, 6, 8, 10]
+    
+    // Complex transformations
+    let words = ["hello", "world", "script", "programming", "language"]
+    let long_words_upper = [w.upper() for w in words if w.length() > 5]
+    print("Long words uppercase: " + long_words_upper)  // ["SCRIPT", "PROGRAMMING", "LANGUAGE"]
+    
+    // Working with nested structures
+    let matrix = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+    ]
+    
+    // Flatten a matrix
+    let flattened = [item for row in matrix for item in row]
+    print("Flattened: " + flattened)  // [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    
+    // Get diagonal elements
+    let diagonal = [matrix[i][i] for i in [0, 1, 2]]
+    print("Diagonal: " + diagonal)  // [1, 5, 9]
+    
+    // Cartesian product
+    let colors = ["red", "green", "blue"]
+    let sizes = ["S", "M", "L"]
+    let products = [{color: c, size: s} for c in colors for s in sizes]
+    print("Product combinations: " + products.length())  // 9 combinations
+    
+    // Prime number filter (simple version)
+    fn is_prime(n: Number) -> Boolean {
+        if n < 2 { return false }
+        for i in 2..n {
+            if n % i == 0 { return false }
+        }
+        return true
+    }
+    
+    let primes = [n for n in 2..20 if is_prime(n)]
+    print("Primes under 20: " + primes)  // [2, 3, 5, 7, 11, 13, 17, 19]
+    
+    // String processing
+    let sentence = "the quick brown fox jumps over the lazy dog"
+    let words_list = sentence.split(" ")
+    let word_lengths = [{word: w, length: w.length()} for w in words_list]
+    let short_words = [w for w in words_list if w.length() <= 3]
+    print("Short words: " + short_words)  // ["the", "fox", "the", "dog"]
+    
+    // Mathematical sequences
+    let fibonacci_like = [a + b for (a, b) in zip([1, 1, 2, 3, 5], [1, 2, 3, 5, 8])]
+    print("Fibonacci sums: " + fibonacci_like)  // [2, 3, 5, 8, 13]
+    
+    // Conditional mapping
+    let scores = [85, 92, 78, 95, 88, 70, 60]
+    let grades = [
+        if s >= 90 { "A" } 
+        else if s >= 80 { "B" } 
+        else if s >= 70 { "C" } 
+        else { "F" }
+        for s in scores
+    ]
+    print("Grades: " + grades)  // ["B", "A", "C", "A", "B", "C", "F"]
+}

@@ -1,0 +1,7 @@
+fn double(x: i32) -> i32 {
+    return x * 2;
+}
+
+fn test() {
+    let arr = [double(1), double(2), double(3)];
+}

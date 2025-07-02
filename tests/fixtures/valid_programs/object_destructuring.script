@@ -1,0 +1,27 @@
+// Test script for object destructuring patterns
+let person = { name: "Alice", age: 30, city: "New York" }
+
+// Test basic object destructuring
+let result1 = match person {
+    { name, age } => name + " is " + age + " years old"
+}
+
+// Test object destructuring with renaming
+let result2 = match person {
+    { name: person_name, age: person_age } => person_name + " (age: " + person_age + ")"
+}
+
+// Test mixed object destructuring
+let result3 = match person {
+    { name, age: person_age, city } => name + " from " + city + " is " + person_age
+}
+
+// Test single field extraction
+let result4 = match person {
+    { name } => "Hello " + name
+}
+
+print(result1)
+print(result2)
+print(result3)
+print(result4)

@@ -1,4 +1,4 @@
-use script_lang::{Lexer, Parser, SemanticAnalyzer};
+use script::{Lexer, Parser, SemanticAnalyzer};
 
 fn main() {
     let source = r#"
@@ -43,7 +43,7 @@ fn main() {
     // Tokenize
     let lexer = Lexer::new(source);
     let (tokens, lex_errors) = lexer.scan_tokens();
-    
+
     if !lex_errors.is_empty() {
         println!("Lexer errors:");
         for err in lex_errors {
@@ -67,14 +67,18 @@ fn main() {
     match analyzer.analyze_program(&program) {
         Ok(()) => {
             println!("✓ Semantic analysis passed!");
-            
+
             // Show symbol table information
             println!("\n=== Symbol Table ===");
-            
+
             // Get all symbols in global scope
             let symbols = analyzer.symbol_table().get_current_scope_symbols();
             for symbol in symbols {
-                println!("  {} - {}", symbol, if symbol.is_used { "used" } else { "unused" });
+                println!(
+                    "  {} - {}",
+                    symbol,
+                    if symbol.is_used { "used" } else { "unused" }
+                );
             }
         }
         Err(err) => {

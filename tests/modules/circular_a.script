@@ -1,0 +1,11 @@
+// circular_a.script - First module in circular dependency chain
+
+import "./circular_b.script" as B
+
+export { funcA, valueA }
+
+let valueA = 42
+
+fn funcA() -> int {
+    B.funcB() + 1
+}

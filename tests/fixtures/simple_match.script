@@ -1,0 +1,4 @@
+let x = 42
+let result = match x {
+    42 => "found"
+}

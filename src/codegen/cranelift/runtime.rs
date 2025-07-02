@@ -8,11 +8,11 @@ pub struct RuntimeSupport;
 pub fn register_runtime_functions(builder: &mut JITBuilder) {
     // Register print function
     builder.symbol("script_print", script_print as *const u8);
-    
+
     // Register memory management functions
     builder.symbol("script_alloc", script_alloc as *const u8);
     builder.symbol("script_free", script_free as *const u8);
-    
+
     // Register panic handler
     builder.symbol("script_panic", script_panic as *const u8);
 }
@@ -36,10 +36,10 @@ pub extern "C" fn script_alloc(size: usize) -> *mut u8 {
     if size == 0 {
         return std::ptr::null_mut();
     }
-    
+
     let layout = std::alloc::Layout::from_size_align(size, 8)
         .unwrap_or_else(|_| script_panic(b"Invalid allocation size\0".as_ptr()));
-    
+
     unsafe {
         let ptr = std::alloc::alloc(layout);
         if ptr.is_null() {
@@ -55,7 +55,7 @@ pub extern "C" fn script_free(ptr: *mut u8, size: usize) {
     if !ptr.is_null() && size > 0 {
         let layout = std::alloc::Layout::from_size_align(size, 8)
             .unwrap_or_else(|_| script_panic(b"Invalid deallocation size\0".as_ptr()));
-        
+
         unsafe {
             std::alloc::dealloc(ptr, layout);
         }
@@ -76,23 +76,23 @@ pub extern "C" fn script_panic(msg: *const u8) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_script_alloc_free() {
         let size = 1024;
         let ptr = script_alloc(size);
         assert!(!ptr.is_null());
-        
+
         // Write some data
         unsafe {
             for i in 0..size {
                 *ptr.add(i) = (i % 256) as u8;
             }
         }
-        
+
         script_free(ptr, size);
     }
-    
+
     #[test]
     fn test_script_alloc_zero() {
         let ptr = script_alloc(0);

@@ -37,17 +37,29 @@ pub enum TokenKind {
     False,
     Print,
     Match,
+    Async,
+    Await,
+
+    // Module system keywords
+    Import,
+    Export,
+    From,
+    As,
+
+    // Metaprogramming keywords
+    In, // for list comprehensions
 
     // Operators
+    At, // @ symbol for attributes
     Plus,
     Minus,
     Star,
     Slash,
     Percent,
-    
+
     // Assignment
     Equals,
-    
+
     // Comparison
     EqualsEquals,
     BangEquals,
@@ -55,7 +67,7 @@ pub enum TokenKind {
     Greater,
     LessEquals,
     GreaterEquals,
-    
+
     // Logical
     And,
     Or,
@@ -78,6 +90,7 @@ pub enum TokenKind {
     Underscore,
 
     // Special
+    DocComment(String), // Documentation comments (/// or /** */)
     Newline,
     Eof,
 }
@@ -95,6 +108,13 @@ impl TokenKind {
             "true" => Some(TokenKind::True),
             "false" => Some(TokenKind::False),
             "match" => Some(TokenKind::Match),
+            "async" => Some(TokenKind::Async),
+            "await" => Some(TokenKind::Await),
+            "import" => Some(TokenKind::Import),
+            "export" => Some(TokenKind::Export),
+            "from" => Some(TokenKind::From),
+            "as" => Some(TokenKind::As),
+            "in" => Some(TokenKind::In),
             // "print" => Some(TokenKind::Print), // print is a built-in function, not a keyword
             _ => None,
         }
@@ -107,7 +127,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Number(n) => write!(f, "Number({})", n),
             TokenKind::String(s) => write!(f, "String(\"{}\")", s),
             TokenKind::Identifier(id) => write!(f, "Identifier({})", id),
-            
+
             TokenKind::Fn => write!(f, "fn"),
             TokenKind::Let => write!(f, "let"),
             TokenKind::If => write!(f, "if"),
@@ -119,13 +139,22 @@ impl fmt::Display for TokenKind {
             TokenKind::False => write!(f, "false"),
             TokenKind::Print => write!(f, "print"),
             TokenKind::Match => write!(f, "match"),
-            
+            TokenKind::Async => write!(f, "async"),
+            TokenKind::Await => write!(f, "await"),
+
+            TokenKind::Import => write!(f, "import"),
+            TokenKind::Export => write!(f, "export"),
+            TokenKind::From => write!(f, "from"),
+            TokenKind::As => write!(f, "as"),
+            TokenKind::In => write!(f, "in"),
+
+            TokenKind::At => write!(f, "@"),
             TokenKind::Plus => write!(f, "+"),
             TokenKind::Minus => write!(f, "-"),
             TokenKind::Star => write!(f, "*"),
             TokenKind::Slash => write!(f, "/"),
             TokenKind::Percent => write!(f, "%"),
-            
+
             TokenKind::Equals => write!(f, "="),
             TokenKind::EqualsEquals => write!(f, "=="),
             TokenKind::BangEquals => write!(f, "!="),
@@ -133,11 +162,11 @@ impl fmt::Display for TokenKind {
             TokenKind::Greater => write!(f, ">"),
             TokenKind::LessEquals => write!(f, "<="),
             TokenKind::GreaterEquals => write!(f, ">="),
-            
+
             TokenKind::And => write!(f, "&&"),
             TokenKind::Or => write!(f, "||"),
             TokenKind::Bang => write!(f, "!"),
-            
+
             TokenKind::LeftParen => write!(f, "("),
             TokenKind::RightParen => write!(f, ")"),
             TokenKind::LeftBrace => write!(f, "{{"),
@@ -152,7 +181,8 @@ impl fmt::Display for TokenKind {
             TokenKind::DoubleArrow => write!(f, "=>"),
             TokenKind::DotDot => write!(f, ".."),
             TokenKind::Underscore => write!(f, "_"),
-            
+
+            TokenKind::DocComment(s) => write!(f, "DocComment(\"{}\")", s),
             TokenKind::Newline => write!(f, "\\n"),
             TokenKind::Eof => write!(f, "EOF"),
         }

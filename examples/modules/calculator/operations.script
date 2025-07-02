@@ -1,0 +1,136 @@
+// operations.script - Calculator operations
+
+import "./types.script" as Types
+
+export { evaluate, add, subtract, multiply, divide, power, factorial }
+
+// Evaluate an expression tree
+fn evaluate(expr: Types.Expression) -> Result<float, string> {
+    match expr {
+        Types.Expression::Number(n) => Ok(n),
+        Types.Expression::Binary { left, op, right } => {
+            let leftVal = evaluate(left)?
+            let rightVal = evaluate(right)?
+            
+            match op {
+                Types.BinaryOp::Add => Ok(add(leftVal, rightVal)),
+                Types.BinaryOp::Subtract => Ok(subtract(leftVal, rightVal)),
+                Types.BinaryOp::Multiply => Ok(multiply(leftVal, rightVal)),
+                Types.BinaryOp::Divide => divide(leftVal, rightVal),
+                Types.BinaryOp::Power => Ok(power(leftVal, rightVal))
+            }
+        },
+        Types.Expression::Unary { op, expr } => {
+            let val = evaluate(expr)?
+            
+            match op {
+                Types.UnaryOp::Negate => Ok(-val),
+                Types.UnaryOp::Factorial => factorial(val)
+            }
+        },
+        Types.Expression::Function { name, args } => {
+            evaluateFunction(name, args)
+        }
+    }
+}
+
+// Basic arithmetic operations
+fn add(a: float, b: float) -> float {
+    a + b
+}
+
+fn subtract(a: float, b: float) -> float {
+    a - b
+}
+
+fn multiply(a: float, b: float) -> float {
+    a * b
+}
+
+fn divide(a: float, b: float) -> Result<float, string> {
+    if b == 0.0 {
+        Err("Division by zero")
+    } else {
+        Ok(a / b)
+    }
+}
+
+fn power(base: float, exp: float) -> float {
+    // Placeholder implementation
+    // In real implementation, would calculate base^exp
+    base * exp
+}
+
+fn factorial(n: float) -> Result<float, string> {
+    if n < 0.0 {
+        Err("Factorial of negative number")
+    } else if n != floor(n) {
+        Err("Factorial requires integer input")
+    } else {
+        Ok(factorialHelper(n as int))
+    }
+}
+
+// Helper function for factorial
+fn factorialHelper(n: int) -> float {
+    if n <= 1 {
+        1.0
+    } else {
+        n as float * factorialHelper(n - 1)
+    }
+}
+
+// Evaluate built-in functions
+fn evaluateFunction(name: string, args: [Types.Expression]) -> Result<float, string> {
+    match name {
+        "sin" => {
+            if args.length() != 1 {
+                Err("sin() requires exactly 1 argument")
+            } else {
+                let arg = evaluate(args[0])?
+                Ok(sin(arg))
+            }
+        },
+        "cos" => {
+            if args.length() != 1 {
+                Err("cos() requires exactly 1 argument")
+            } else {
+                let arg = evaluate(args[0])?
+                Ok(cos(arg))
+            }
+        },
+        "sqrt" => {
+            if args.length() != 1 {
+                Err("sqrt() requires exactly 1 argument")
+            } else {
+                let arg = evaluate(args[0])?
+                if arg < 0.0 {
+                    Err("Square root of negative number")
+                } else {
+                    Ok(sqrt(arg))
+                }
+            }
+        },
+        "max" => {
+            if args.length() < 2 {
+                Err("max() requires at least 2 arguments")
+            } else {
+                let mut result = evaluate(args[0])?
+                for i in 1..args.length() {
+                    let val = evaluate(args[i])?
+                    if val > result {
+                        result = val
+                    }
+                }
+                Ok(result)
+            }
+        },
+        _ => Err("Unknown function: " + name)
+    }
+}
+
+// Placeholder math functions
+fn floor(x: float) -> float { x }
+fn sin(x: float) -> float { x }
+fn cos(x: float) -> float { x }
+fn sqrt(x: float) -> float { x }

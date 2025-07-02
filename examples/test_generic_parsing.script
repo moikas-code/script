@@ -1,0 +1,32 @@
+// Test file for generic function parsing
+// This file tests the minimal generic functionality needed
+
+// 1. Simple identity function with one type parameter
+fn identity<T>(x: T) -> T {
+    x
+}
+
+// 2. Function with trait bounds
+fn min<T: Ord>(a: T, b: T) -> T {
+    if a < b { a } else { b }
+}
+
+// 3. Multiple type parameters
+fn pair<T, U>(first: T, second: U) -> (T, U) {
+    (first, second)
+}
+
+// 4. Multiple bounds on single parameter
+fn clone_and_compare<T: Clone + Ord>(x: T, y: T) -> bool {
+    x < y
+}
+
+// 5. Generic function calls (type inference)
+let x = identity(42)
+let y = identity("hello")
+let z = min(3, 5)
+
+// 6. Generic type annotations
+let vec_int: Vec<i32> = Vec<i32>()
+let map: HashMap<String, i32> = HashMap<String, i32>()
+let result: Result<i32, String> = Ok(42)

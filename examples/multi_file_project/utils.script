@@ -1,0 +1,8 @@
+// Utility functions for output
+export { print_result }
+
+fn print_result(label: string, value: i32) {
+    // For now, we'll just use a placeholder
+    // In a real implementation, this would use the stdlib print function
+    return 0
+}

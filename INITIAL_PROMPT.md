@@ -32,7 +32,7 @@ Like a well-written script guides actors through a performance, Script will guid
 
 ### Phase 1: Foundation (Weeks 1-2)
 - [ ] **Project Setup**
-  - Initialize Rust workspace with "script-lang" as the project name
+  - Initialize Rust workspace with "script" as the project name
   - Set up testing framework and CI pipeline
   - Create basic error reporting infrastructure
   - Design Script logo and branding elements
@@ -151,7 +151,7 @@ Like a well-written script guides actors through a performance, Script will guid
 ## Initial Code Structure
 
 ```
-script-lang/
+script/
 ├── src/
 │   ├── lexer/       # Tokenization
 │   ├── parser/      # AST construction
@@ -209,7 +209,7 @@ fn update_player(player: Player, dt: f32) -> Player {
 ## First Session Goals
 
 Begin with the lexer - the foundation upon which all else rests. Focus on:
-1. Setting up the Rust project structure for "script-lang"
+1. Setting up the Rust project structure for "script"
 2. Implementing basic token types
 3. Creating a simple scanner that can tokenize arithmetic expressions
 4. Writing tests for edge cases

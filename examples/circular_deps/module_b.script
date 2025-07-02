@@ -1,0 +1,8 @@
+// Module B - depends on Module A (creating a circular dependency)
+import "module_a"
+
+export { func_b }
+
+fn func_b() -> i32 {
+    return func_a() + 2
+}

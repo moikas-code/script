@@ -1,0 +1,26 @@
+fn test_errors() {
+    // Variable initialization type error
+    let x: i32 = "hello";
+    
+    // Binary operation type error  
+    let bad_add = "world" + 5;
+    
+    // Assignment type error
+    let y: i32 = 10;
+    y = "string";
+    
+    // Return type error
+    fn bad_return() -> i32 {
+        return "not a number";
+    }
+    
+    // Array type consistency error
+    let bad_array: [i32] = [1, "two", 3];
+    
+    // Function call type error
+    fn expects_bool(b: bool) -> bool { return b; }
+    let result = expects_bool(42);
+    
+    // If/else type compatibility error
+    let bad_if = if true { 10 } else { "ten" };
+}

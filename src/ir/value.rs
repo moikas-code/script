@@ -3,7 +3,7 @@ use std::fmt;
 pub use super::instruction::Constant;
 
 /// Value identifier in the IR
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ValueId(pub u32);
 
 /// Value in the IR
@@ -36,21 +36,21 @@ impl fmt::Display for Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_value_id_display() {
         let id = ValueId(42);
         assert_eq!(id.to_string(), "%42");
     }
-    
+
     #[test]
     fn test_value_display() {
         let inst_val = Value::Instruction(ValueId(10));
         assert_eq!(inst_val.to_string(), "%10");
-        
+
         let param_val = Value::Parameter(2);
         assert_eq!(param_val.to_string(), "%arg2");
-        
+
         let const_val = Value::Constant(Constant::I32(100));
         assert_eq!(const_val.to_string(), "100i32");
     }

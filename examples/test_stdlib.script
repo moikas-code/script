@@ -1,0 +1,236 @@
+// Testing Script standard library functions
+
+import * as assert from "std::testing::assertions"
+import { readFile, writeFile } from "std::fs"
+import { get, post } from "std::http"
+import { spawn, exec } from "std::process"
+
+// Test file system operations
+@test
+fn test_file_operations() {
+    let filename = "test_temp.txt"
+    let content = "Hello, Script!"
+    
+    // Write to file
+    writeFile(filename, content)
+    
+    // Read from file
+    let read_content = readFile(filename)
+    assert.eq(read_content, content)
+    
+    // Clean up
+    fs.remove(filename)
+}
+
+// Test async file operations
+@test
+async fn test_async_file_operations() {
+    let filename = "test_async.txt"
+    let content = "Async content"
+    
+    await writeFile(filename, content)
+    let result = await readFile(filename)
+    
+    assert.eq(result, content)
+    
+    await fs.remove(filename)
+}
+
+// Test HTTP client (mock server required)
+@test(skip = "Requires mock HTTP server")
+async fn test_http_client() {
+    let response = await get("https://api.example.com/users")
+    assert.eq(response.status, 200)
+    assert.true(response.headers.contains("content-type"))
+    
+    let users = response.json()
+    assert.gt(users.length, 0)
+}
+
+// Test process execution
+@test
+fn test_process_execution() {
+    let result = exec("echo", ["Hello, World!"])
+    assert.eq(result.stdout.trim(), "Hello, World!")
+    assert.eq(result.exitCode, 0)
+}
+
+// Test collection utilities
+@test
+fn test_array_methods() {
+    let numbers = [1, 2, 3, 4, 5]
+    
+    // Map
+    let doubled = numbers.map(|n| n * 2)
+    assert.eq(doubled, [2, 4, 6, 8, 10])
+    
+    // Filter
+    let evens = numbers.filter(|n| n % 2 == 0)
+    assert.eq(evens, [2, 4])
+    
+    // Reduce
+    let sum = numbers.reduce(0, |acc, n| acc + n)
+    assert.eq(sum, 15)
+}
+
+// Test string utilities
+@test
+fn test_string_methods() {
+    let text = "  Hello, Script!  "
+    
+    assert.eq(text.trim(), "Hello, Script!")
+    assert.eq(text.lower(), "  hello, script!  ")
+    assert.eq(text.upper(), "  HELLO, SCRIPT!  ")
+    
+    let words = text.trim().split(",")
+    assert.eq(words.length, 2)
+    assert.eq(words[0], "Hello")
+    assert.eq(words[1].trim(), "Script!")
+}
+
+// Test date/time operations
+@test
+fn test_datetime() {
+    let now = Date.now()
+    let future = now.addDays(7)
+    
+    assert.gt(future, now)
+    assert.eq(future.daysBetween(now), 7)
+}
+
+// Test JSON parsing
+@test
+fn test_json_operations() {
+    let data = {
+        name: "Script",
+        version: "1.0.0",
+        features: ["testing", "async", "modules"]
+    }
+    
+    let json_str = JSON.stringify(data)
+    let parsed = JSON.parse(json_str)
+    
+    assert.eq(parsed.name, "Script")
+    assert.eq(parsed.version, "1.0.0")
+    assert.eq(parsed.features.length, 3)
+}
+
+// Test error handling
+@test
+fn test_error_handling() {
+    fn divide(a: Int, b: Int) -> Result<Int, String> {
+        if b == 0 {
+            return Err("Division by zero")
+        }
+        Ok(a / b)
+    }
+    
+    let result1 = divide(10, 2)
+    assert.true(result1.isOk())
+    assert.eq(result1.unwrap(), 5)
+    
+    let result2 = divide(10, 0)
+    assert.true(result2.isErr())
+    assert.eq(result2.unwrapErr(), "Division by zero")
+}
+
+// Test async/await with promises
+@test
+async fn test_promises() {
+    fn delay(ms: Int) -> Promise<Null> {
+        return Promise.new(|resolve| {
+            setTimeout(resolve, ms)
+        })
+    }
+    
+    let start = Date.now()
+    await delay(100)
+    let elapsed = Date.now() - start
+    
+    assert.ge(elapsed, 100)
+    assert.lt(elapsed, 200)
+}
+
+// Test regular expressions
+@test
+fn test_regex() {
+    let email_pattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    
+    assert.true(email_pattern.test("user@example.com"))
+    assert.false(email_pattern.test("invalid-email"))
+    
+    let text = "Contact: john@example.com or jane@test.org"
+    let emails = text.matchAll(/\b[\w._%+-]+@[\w.-]+\.[A-Z|a-z]{2,}\b/g)
+    
+    assert.eq(emails.length, 2)
+    assert.eq(emails[0], "john@example.com")
+    assert.eq(emails[1], "jane@test.org")
+}
+
+// Test environment variables
+@test
+fn test_environment() {
+    // Set a test variable
+    env.set("TEST_VAR", "test_value")
+    
+    assert.eq(env.get("TEST_VAR"), "test_value")
+    assert.true(env.has("TEST_VAR"))
+    
+    // Clean up
+    env.remove("TEST_VAR")
+    assert.false(env.has("TEST_VAR"))
+}
+
+// Test concurrent operations
+@test
+async fn test_concurrent_execution() {
+    fn asyncTask(id: Int, delay: Int) -> Promise<Int> {
+        return Promise.new(|resolve| {
+            setTimeout(|| resolve(id), delay)
+        })
+    }
+    
+    let tasks = [
+        asyncTask(1, 100),
+        asyncTask(2, 50),
+        asyncTask(3, 150)
+    ]
+    
+    let results = await Promise.all(tasks)
+    assert.eq(results, [1, 2, 3])
+    
+    let fastest = await Promise.race(tasks)
+    assert.eq(fastest, 2)  // Task 2 completes first
+}
+
+// Test custom assertions with matchers
+@test
+fn test_custom_matchers() {
+    fn isEven(n: Int) -> Bool {
+        return n % 2 == 0
+    }
+    
+    fn isPositive(n: Int) -> Bool {
+        return n > 0
+    }
+    
+    let number = 42
+    assert.true(isEven(number))
+    assert.true(isPositive(number))
+    
+    // Custom assertion message
+    assert(number > 40 && number < 45, "Number should be between 40 and 45")
+}
+
+// Test with mocking (when supported)
+@test(skip = "Mocking not yet implemented")
+fn test_with_mocks() {
+    let mockDb = Mock.create({
+        findUser: Mock.fn().returns({ id: 1, name: "Test User" })
+    })
+    
+    let user = mockDb.findUser(1)
+    assert.eq(user.name, "Test User")
+    assert.true(mockDb.findUser.wasCalled())
+    assert.eq(mockDb.findUser.callCount(), 1)
+}

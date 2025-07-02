@@ -1,0 +1,109 @@
+// engine.script - Core game engine functionality
+
+import "../entities/entity.script" as Entity
+import "./system.script" as System
+
+export { Engine, create }
+
+struct Engine {
+    config: EngineConfig,
+    entities: [Entity.Entity],
+    systems: [System.System],
+    running: bool,
+    deltaTime: float
+}
+
+struct EngineConfig {
+    title: string,
+    width: int,
+    height: int,
+    fps: int
+}
+
+fn create(config: EngineConfig) -> Engine {
+    Engine {
+        config: config,
+        entities: [],
+        systems: [],
+        running: false,
+        deltaTime: 0.0
+    }
+}
+
+impl Engine {
+    fn addEntity(mut self, entity: Entity.Entity) {
+        self.entities.push(entity)
+    }
+    
+    fn removeEntity(mut self, entity: Entity.Entity) {
+        self.entities = self.entities.filter(|e| e.id != entity.id)
+    }
+    
+    fn addSystem(mut self, system: System.System) {
+        self.systems.push(system)
+    }
+    
+    fn run(mut self, updateCallback: fn(Engine, float)) {
+        self.running = true
+        
+        // Initialize systems
+        for system in self.systems {
+            system.initialize(self)
+        }
+        
+        // Main game loop
+        let lastTime = getCurrentTime()
+        while self.running {
+            let currentTime = getCurrentTime()
+            self.deltaTime = currentTime - lastTime
+            lastTime = currentTime
+            
+            // Update callback
+            updateCallback(self, self.deltaTime)
+            
+            // Update systems
+            for system in self.systems {
+                system.update(self, self.deltaTime)
+            }
+            
+            // Cap frame rate
+            let frameTime = 1.0 / self.config.fps as float
+            if self.deltaTime < frameTime {
+                sleep(frameTime - self.deltaTime)
+            }
+        }
+        
+        // Cleanup
+        for system in self.systems {
+            system.cleanup(self)
+        }
+    }
+    
+    fn stop(mut self) {
+        self.running = false
+    }
+    
+    fn getPlayer(self) -> Entity.Entity {
+        // Find and return the player entity
+        for entity in self.entities {
+            if entity.type == "player" {
+                return entity
+            }
+        }
+        panic("No player entity found")
+    }
+    
+    fn getEnemies(self) -> [Entity.Entity] {
+        self.entities.filter(|e| e.type == "enemy")
+    }
+    
+    fn isKeyPressed(self, key: string) -> bool {
+        // Placeholder - would check actual input
+        false
+    }
+}
+
+// Placeholder functions
+fn getCurrentTime() -> float { 0.0 }
+fn sleep(seconds: float) { }
+fn panic(message: string) { }

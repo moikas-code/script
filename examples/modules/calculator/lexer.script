@@ -1,0 +1,140 @@
+// lexer.script - Tokenizer for calculator expressions
+
+import "./types.script" as Types
+
+export { tokenize }
+
+// Tokenize an input string
+fn tokenize(input: string) -> Result<[Types.Token], string> {
+    let mut lexer = Lexer::new(input)
+    lexer.scanTokens()
+}
+
+struct Lexer {
+    input: string,
+    position: int,
+    tokens: [Types.Token]
+}
+
+impl Lexer {
+    fn new(input: string) -> Lexer {
+        Lexer {
+            input: input,
+            position: 0,
+            tokens: []
+        }
+    }
+    
+    fn scanTokens(mut self) -> Result<[Types.Token], string> {
+        while !self.isAtEnd() {
+            self.skipWhitespace()
+            if self.isAtEnd() {
+                break
+            }
+            
+            let start = self.position
+            let ch = self.advance()
+            
+            match ch {
+                "+" | "-" | "*" | "/" | "^" | "!" => {
+                    self.addToken(Types.TokenType::Operator, ch, start)
+                },
+                "(" => self.addToken(Types.TokenType::LeftParen, ch, start),
+                ")" => self.addToken(Types.TokenType::RightParen, ch, start),
+                "," => self.addToken(Types.TokenType::Comma, ch, start),
+                _ => {
+                    if isDigit(ch) {
+                        self.scanNumber(start)?
+                    } else if isAlpha(ch) {
+                        self.scanIdentifier(start)
+                    } else {
+                        return Err("Unexpected character: " + ch)
+                    }
+                }
+            }
+        }
+        
+        self.addToken(Types.TokenType::EOF, "", self.position)
+        Ok(self.tokens)
+    }
+    
+    fn scanNumber(mut self, start: int) -> Result<(), string> {
+        while !self.isAtEnd() && isDigit(self.peek()) {
+            self.advance()
+        }
+        
+        // Look for decimal point
+        if !self.isAtEnd() && self.peek() == "." && isDigit(self.peekNext()) {
+            self.advance() // Consume the '.'
+            
+            while !self.isAtEnd() && isDigit(self.peek()) {
+                self.advance()
+            }
+        }
+        
+        let value = self.input.substring(start, self.position)
+        self.addToken(Types.TokenType::Number, value, start)
+        Ok(())
+    }
+    
+    fn scanIdentifier(mut self, start: int) {
+        while !self.isAtEnd() && isAlphaNumeric(self.peek()) {
+            self.advance()
+        }
+        
+        let value = self.input.substring(start, self.position)
+        self.addToken(Types.TokenType::Identifier, value, start)
+    }
+    
+    fn skipWhitespace(mut self) {
+        while !self.isAtEnd() {
+            match self.peek() {
+                " " | "\t" | "\n" | "\r" => self.advance(),
+                _ => break
+            }
+        }
+    }
+    
+    fn addToken(mut self, type: Types.TokenType, value: string, position: int) {
+        self.tokens.push(Types.Token::new(type, value, position))
+    }
+    
+    fn advance(mut self) -> string {
+        let ch = self.input.charAt(self.position)
+        self.position += 1
+        ch
+    }
+    
+    fn peek(self) -> string {
+        if self.isAtEnd() {
+            "\0"
+        } else {
+            self.input.charAt(self.position)
+        }
+    }
+    
+    fn peekNext(self) -> string {
+        if self.position + 1 >= self.input.length() {
+            "\0"
+        } else {
+            self.input.charAt(self.position + 1)
+        }
+    }
+    
+    fn isAtEnd(self) -> bool {
+        self.position >= self.input.length()
+    }
+}
+
+// Helper functions
+fn isDigit(ch: string) -> bool {
+    ch >= "0" && ch <= "9"
+}
+
+fn isAlpha(ch: string) -> bool {
+    (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || ch == "_"
+}
+
+fn isAlphaNumeric(ch: string) -> bool {
+    isAlpha(ch) || isDigit(ch)
+}

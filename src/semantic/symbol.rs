@@ -191,10 +191,7 @@ mod tests {
     use crate::source::{SourceLocation, Span};
 
     fn make_span() -> Span {
-        Span::new(
-            SourceLocation::new(1, 1, 0),
-            SourceLocation::new(1, 5, 5),
-        )
+        Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 5, 5))
     }
 
     #[test]
@@ -234,7 +231,7 @@ mod tests {
 
         assert!(func_symbol.is_function());
         assert_eq!(func_symbol.function_signature(), Some(&sig));
-        
+
         let expected_type = Type::Function {
             params: vec![Type::I32, Type::I32],
             ret: Box::new(Type::I32),
@@ -276,7 +273,7 @@ mod tests {
         let sig4 = FunctionSignature {
             params: vec![("y".to_string(), Type::I32)],
             return_type: Type::F32, // Different return type doesn't matter
-            is_const: true, // Different const doesn't matter
+            is_const: true,         // Different const doesn't matter
             is_async: false,
         };
 

@@ -1,0 +1,347 @@
+// Generic Types and Constraints Demo
+// This example demonstrates the Script language's generic type system
+
+// Basic generic function with single type parameter
+fn identity<T>(value: T) -> T {
+    value
+}
+
+// Generic function with multiple type parameters
+fn pair<T, U>(first: T, second: U) -> (T, U) {
+    (first, second)
+}
+
+// Generic function with trait constraints
+fn max<T: Ord>(a: T, b: T) -> T {
+    if a > b { a } else { b }
+}
+
+// Generic function with multiple constraints
+fn debug_max<T: Ord + Display>(a: T, b: T) -> T {
+    let result = if a > b { a } else { b }
+    print("Max of " + a.to_string() + " and " + b.to_string() + " is " + result.to_string())
+    result
+}
+
+// Generic function using where clause for complex constraints
+fn process_data<T, U>(items: [T]) -> [U] 
+where 
+    T: Clone + Display,
+    U: Default + FromStr<T>
+{
+    let result: [U] = []
+    for item in items {
+        print("Processing: " + item.to_string())
+        let converted = U::from_str(item)
+        result.push(converted)
+    }
+    result
+}
+
+// Generic struct definition
+struct Container<T> {
+    value: T
+}
+
+impl<T> Container<T> {
+    fn new(value: T) -> Container<T> {
+        Container { value }
+    }
+    
+    fn get(self) -> T {
+        self.value
+    }
+    
+    fn set(mut self, value: T) {
+        self.value = value
+    }
+    
+    // Method with additional type parameter
+    fn map<U>(self, f: (T) -> U) -> Container<U> {
+        Container { value: f(self.value) }
+    }
+}
+
+// Generic struct with constraints
+struct SortableList<T: Ord + Clone> {
+    items: [T]
+}
+
+impl<T: Ord + Clone> SortableList<T> {
+    fn new() -> SortableList<T> {
+        SortableList { items: [] }
+    }
+    
+    fn add(mut self, item: T) {
+        self.items.push(item)
+        self.sort()
+    }
+    
+    fn sort(mut self) {
+        // Simple bubble sort for demonstration
+        let n = self.items.len()
+        for i in 0..n {
+            for j in 0..(n - i - 1) {
+                if self.items[j] > self.items[j + 1] {
+                    let temp = self.items[j].clone()
+                    self.items[j] = self.items[j + 1].clone()
+                    self.items[j + 1] = temp
+                }
+            }
+        }
+    }
+    
+    fn get_sorted(self) -> [T] {
+        self.items
+    }
+}
+
+// Generic enum
+enum Result<T, E> {
+    Ok(T),
+    Err(E)
+}
+
+impl<T, E> Result<T, E> {
+    fn is_ok(self) -> bool {
+        match self {
+            Ok(_) => true,
+            Err(_) => false
+        }
+    }
+    
+    fn is_err(self) -> bool {
+        !self.is_ok()
+    }
+    
+    fn map<U>(self, f: (T) -> U) -> Result<U, E> {
+        match self {
+            Ok(value) => Ok(f(value)),
+            Err(e) => Err(e)
+        }
+    }
+    
+    fn unwrap(self) -> T {
+        match self {
+            Ok(value) => value,
+            Err(_) => panic("called unwrap on an Err value")
+        }
+    }
+}
+
+// Generic map/dictionary
+struct Map<K: Eq, V> {
+    keys: [K],
+    values: [V]
+}
+
+impl<K: Eq, V> Map<K, V> {
+    fn new() -> Map<K, V> {
+        Map { keys: [], values: [] }
+    }
+    
+    fn insert(mut self, key: K, value: V) {
+        // Check if key already exists
+        for i in 0..self.keys.len() {
+            if self.keys[i] == key {
+                self.values[i] = value
+                return
+            }
+        }
+        
+        // Add new key-value pair
+        self.keys.push(key)
+        self.values.push(value)
+    }
+    
+    fn get(self, key: K) -> Option<V> {
+        for i in 0..self.keys.len() {
+            if self.keys[i] == key {
+                return Some(self.values[i])
+            }
+        }
+        None
+    }
+    
+    fn contains_key(self, key: K) -> bool {
+        for k in self.keys {
+            if k == key {
+                return true
+            }
+        }
+        false
+    }
+}
+
+// Usage examples
+fn main() {
+    // Basic generic function usage
+    let x = identity(42)          // T inferred as i32
+    let y = identity("hello")     // T inferred as string
+    let z = identity(true)        // T inferred as bool
+    
+    print("Identity results: " + x.to_string() + ", " + y + ", " + z.to_string())
+    
+    // Multi-parameter generics
+    let p1 = pair(42, "hello")    // T=i32, U=string
+    let p2 = pair(3.14, true)     // T=f32, U=bool
+    
+    // Constrained generics
+    let max_int = max(10, 20)     // T inferred as i32 (implements Ord)
+    let max_float = max(3.14, 2.71)  // T inferred as f32 (implements Ord)
+    
+    print("Max results: " + max_int.to_string() + ", " + max_float.to_string())
+    
+    // Generic containers
+    let container1 = Container::new(42)
+    let container2 = Container::new("hello")
+    
+    let mapped = container1.map(|x| x * 2)  // Container<i32> -> Container<i32>
+    print("Mapped container value: " + mapped.get().to_string())
+    
+    // Generic collections
+    let mut sortable: SortableList<i32> = SortableList::new()
+    sortable.add(30)
+    sortable.add(10)
+    sortable.add(20)
+    
+    let sorted = sortable.get_sorted()
+    print("Sorted list: " + sorted.to_string())
+    
+    // Generic error handling
+    let success: Result<i32, string> = Ok(42)
+    let failure: Result<i32, string> = Err("something went wrong")
+    
+    match success {
+        Ok(value) => print("Success: " + value.to_string()),
+        Err(error) => print("Error: " + error)
+    }
+    
+    // Transform result
+    let doubled = success.map(|x| x * 2)
+    match doubled {
+        Ok(value) => print("Doubled: " + value.to_string()),
+        Err(error) => print("Error: " + error)
+    }
+    
+    // Generic map
+    let mut scores: Map<string, i32> = Map::new()
+    scores.insert("Alice", 95)
+    scores.insert("Bob", 87)
+    scores.insert("Charlie", 92)
+    
+    match scores.get("Alice") {
+        Some(score) => print("Alice's score: " + score.to_string()),
+        None => print("Alice not found")
+    }
+    
+    // Mixed type map
+    let mut mixed: Map<i32, string> = Map::new()
+    mixed.insert(1, "one")
+    mixed.insert(2, "two")
+    mixed.insert(3, "three")
+    
+    if mixed.contains_key(2) {
+        print("Found key 2")
+    }
+}
+
+// Advanced generic patterns
+
+// Higher-order function that works with any comparable type
+fn find_max_by<T, F>(items: [T], key_fn: F) -> Option<T>
+where
+    T: Clone,
+    F: (T) -> i32
+{
+    if items.len() == 0 {
+        return None
+    }
+    
+    let mut max_item = items[0].clone()
+    let mut max_key = key_fn(max_item.clone())
+    
+    for item in items {
+        let key = key_fn(item.clone())
+        if key > max_key {
+            max_item = item
+            max_key = key
+        }
+    }
+    
+    Some(max_item)
+}
+
+// Generic algorithm: binary search
+fn binary_search<T: Ord>(arr: [T], target: T) -> Option<i32> {
+    let mut left = 0
+    let mut right = arr.len() - 1
+    
+    while left <= right {
+        let mid = (left + right) / 2
+        let mid_val = arr[mid]
+        
+        if mid_val == target {
+            return Some(mid)
+        } else if mid_val < target {
+            left = mid + 1
+        } else {
+            right = mid - 1
+        }
+    }
+    
+    None
+}
+
+// Generic functional programming utilities
+fn map<T, U>(arr: [T], f: (T) -> U) -> [U] {
+    let result: [U] = []
+    for item in arr {
+        result.push(f(item))
+    }
+    result
+}
+
+fn filter<T>(arr: [T], predicate: (T) -> bool) -> [T] {
+    let result: [T] = []
+    for item in arr {
+        if predicate(item) {
+            result.push(item)
+        }
+    }
+    result
+}
+
+fn reduce<T, U>(arr: [T], initial: U, f: (U, T) -> U) -> U {
+    let acc = initial
+    for item in arr {
+        acc = f(acc, item)
+    }
+    acc
+}
+
+// Usage of advanced patterns
+fn demo_advanced() {
+    // Find string with maximum length
+    let words = ["hello", "world", "script", "language"]
+    let longest = find_max_by(words, |s| s.length)
+    match longest {
+        Some(word) => print("Longest word: " + word),
+        None => print("No words found")
+    }
+    
+    // Binary search on sorted array
+    let numbers = [1, 3, 5, 7, 9, 11, 13, 15]
+    match binary_search(numbers, 7) {
+        Some(index) => print("Found 7 at index: " + index.to_string()),
+        None => print("7 not found")
+    }
+    
+    // Functional programming with generics
+    let numbers = [1, 2, 3, 4, 5]
+    let doubled = map(numbers, |x| x * 2)
+    let even_doubled = filter(doubled, |x| x % 2 == 0)
+    let sum = reduce(even_doubled, 0, |acc, x| acc + x)
+    
+    print("Sum of doubled even numbers: " + sum.to_string())
+}

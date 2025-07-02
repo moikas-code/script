@@ -1,0 +1,359 @@
+// Game simulation benchmark - tests real-time performance
+import std::math::*
+import std::random::*
+
+struct Vec2 {
+    x: f64,
+    y: f64
+}
+
+impl Vec2 {
+    fn new(x: f64, y: f64) -> Vec2 {
+        return Vec2 { x, y }
+    }
+    
+    fn add(&self, other: &Vec2) -> Vec2 {
+        return Vec2::new(self.x + other.x, self.y + other.y)
+    }
+    
+    fn scale(&self, factor: f64) -> Vec2 {
+        return Vec2::new(self.x * factor, self.y * factor)
+    }
+    
+    fn magnitude(&self) -> f64 {
+        return sqrt(self.x * self.x + self.y * self.y)
+    }
+    
+    fn normalize(&self) -> Vec2 {
+        let mag = self.magnitude()
+        if mag > 0.0 {
+            return self.scale(1.0 / mag)
+        }
+        return Vec2::new(0.0, 0.0)
+    }
+}
+
+// Game entity system
+trait Entity {
+    fn update(&mut self, dt: f64)
+    fn get_position(&self) -> Vec2
+    fn set_position(&mut self, pos: Vec2)
+    fn is_alive(&self) -> bool
+}
+
+struct Player {
+    position: Vec2,
+    velocity: Vec2,
+    health: i32,
+    score: i32
+}
+
+impl Entity for Player {
+    fn update(&mut self, dt: f64) {
+        self.position = self.position.add(&self.velocity.scale(dt))
+        
+        // Apply friction
+        self.velocity = self.velocity.scale(0.95)
+    }
+    
+    fn get_position(&self) -> Vec2 {
+        return self.position
+    }
+    
+    fn set_position(&mut self, pos: Vec2) {
+        self.position = pos
+    }
+    
+    fn is_alive(&self) -> bool {
+        return self.health > 0
+    }
+}
+
+struct Enemy {
+    position: Vec2,
+    velocity: Vec2,
+    health: i32,
+    target: Option<Vec2>,
+    speed: f64
+}
+
+impl Entity for Enemy {
+    fn update(&mut self, dt: f64) {
+        // Move towards target
+        if let Some(target) = self.target {
+            let direction = Vec2::new(
+                target.x - self.position.x,
+                target.y - self.position.y
+            ).normalize()
+            
+            self.velocity = direction.scale(self.speed)
+        }
+        
+        self.position = self.position.add(&self.velocity.scale(dt))
+    }
+    
+    fn get_position(&self) -> Vec2 {
+        return self.position
+    }
+    
+    fn set_position(&mut self, pos: Vec2) {
+        self.position = pos
+    }
+    
+    fn is_alive(&self) -> bool {
+        return self.health > 0
+    }
+}
+
+struct Particle {
+    position: Vec2,
+    velocity: Vec2,
+    lifetime: f64,
+    color: (f64, f64, f64)
+}
+
+impl Entity for Particle {
+    fn update(&mut self, dt: f64) {
+        self.position = self.position.add(&self.velocity.scale(dt))
+        self.lifetime = self.lifetime - dt
+        
+        // Apply gravity
+        self.velocity.y = self.velocity.y + 9.8 * dt
+    }
+    
+    fn get_position(&self) -> Vec2 {
+        return self.position
+    }
+    
+    fn set_position(&mut self, pos: Vec2) {
+        self.position = pos
+    }
+    
+    fn is_alive(&self) -> bool {
+        return self.lifetime > 0.0
+    }
+}
+
+// Collision detection
+struct CollisionSystem {
+    cell_size: f64,
+    grid: HashMap<(i32, i32), [Box<dyn Entity>]>
+}
+
+impl CollisionSystem {
+    fn new(cell_size: f64) -> CollisionSystem {
+        return CollisionSystem {
+            cell_size,
+            grid: HashMap::new()
+        }
+    }
+    
+    fn get_cell(&self, pos: Vec2) -> (i32, i32) {
+        return (
+            (pos.x / self.cell_size) as i32,
+            (pos.y / self.cell_size) as i32
+        )
+    }
+    
+    fn update_grid(&mut self, entities: &[Box<dyn Entity>]) {
+        self.grid.clear()
+        
+        for entity in entities {
+            let cell = self.get_cell(entity.get_position())
+            self.grid.entry(cell).or_insert([]).push(entity)
+        }
+    }
+    
+    fn check_collisions(&self, pos: Vec2, radius: f64) -> [Box<dyn Entity>] {
+        let mut collisions = []
+        let cell = self.get_cell(pos)
+        
+        // Check neighboring cells
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                let check_cell = (cell.0 + dx, cell.1 + dy)
+                if let Some(entities) = self.grid.get(&check_cell) {
+                    for entity in entities {
+                        let dist = pos.add(&entity.get_position().scale(-1.0)).magnitude()
+                        if dist < radius {
+                            collisions.push(entity)
+                        }
+                    }
+                }
+            }
+        }
+        
+        return collisions
+    }
+}
+
+// Game world
+struct GameWorld {
+    player: Player,
+    enemies: [Enemy],
+    particles: [Particle],
+    collision_system: CollisionSystem,
+    spawn_timer: f64,
+    frame_count: i32
+}
+
+impl GameWorld {
+    fn new() -> GameWorld {
+        return GameWorld {
+            player: Player {
+                position: Vec2::new(400.0, 300.0),
+                velocity: Vec2::new(0.0, 0.0),
+                health: 100,
+                score: 0
+            },
+            enemies: [],
+            particles: [],
+            collision_system: CollisionSystem::new(50.0),
+            spawn_timer: 0.0,
+            frame_count: 0
+        }
+    }
+    
+    fn spawn_enemy(&mut self) {
+        let angle = random() * 2.0 * PI
+        let distance = 500.0 + random() * 200.0
+        
+        let enemy = Enemy {
+            position: Vec2::new(
+                400.0 + cos(angle) * distance,
+                300.0 + sin(angle) * distance
+            ),
+            velocity: Vec2::new(0.0, 0.0),
+            health: 10,
+            target: Some(self.player.position),
+            speed: 50.0 + random() * 30.0
+        }
+        
+        self.enemies.push(enemy)
+    }
+    
+    fn spawn_particles(&mut self, pos: Vec2, count: i32) {
+        for i in 0..count {
+            let angle = random() * 2.0 * PI
+            let speed = 100.0 + random() * 200.0
+            
+            let particle = Particle {
+                position: pos,
+                velocity: Vec2::new(
+                    cos(angle) * speed,
+                    sin(angle) * speed - 100.0
+                ),
+                lifetime: 1.0 + random() * 2.0,
+                color: (random(), random(), random())
+            }
+            
+            self.particles.push(particle)
+        }
+    }
+    
+    fn update(&mut self, dt: f64) {
+        self.frame_count = self.frame_count + 1
+        
+        // Update player
+        self.player.update(dt)
+        
+        // Update enemies
+        for enemy in &mut self.enemies {
+            enemy.target = Some(self.player.position)
+            enemy.update(dt)
+        }
+        
+        // Update particles
+        for particle in &mut self.particles {
+            particle.update(dt)
+        }
+        
+        // Remove dead entities
+        self.enemies.retain(|e| e.is_alive())
+        self.particles.retain(|p| p.is_alive())
+        
+        // Spawn new enemies
+        self.spawn_timer = self.spawn_timer + dt
+        if self.spawn_timer > 2.0 {
+            self.spawn_timer = 0.0
+            self.spawn_enemy()
+        }
+        
+        // Check collisions
+        let all_entities = []
+        all_entities.push(Box::new(self.player))
+        for enemy in &self.enemies {
+            all_entities.push(Box::new(*enemy))
+        }
+        
+        self.collision_system.update_grid(&all_entities)
+        
+        // Player-enemy collisions
+        let player_collisions = self.collision_system.check_collisions(
+            self.player.position,
+            30.0
+        )
+        
+        for collision in player_collisions {
+            if collision.is::<Enemy>() {
+                self.player.health = self.player.health - 1
+                self.spawn_particles(collision.get_position(), 10)
+            }
+        }
+        
+        // Simulate projectile hits (random)
+        if random() > 0.95 && self.enemies.len() > 0 {
+            let idx = (random() * self.enemies.len() as f64) as usize
+            self.enemies[idx].health = self.enemies[idx].health - 5
+            if self.enemies[idx].health <= 0 {
+                self.spawn_particles(self.enemies[idx].position, 20)
+                self.player.score = self.player.score + 100
+            }
+        }
+    }
+    
+    fn render(&self) {
+        // Simulate rendering (just calculations)
+        let mut vertex_count = 0
+        
+        // Player
+        vertex_count = vertex_count + 4
+        
+        // Enemies
+        vertex_count = vertex_count + self.enemies.len() * 6
+        
+        // Particles
+        vertex_count = vertex_count + self.particles.len() * 4
+        
+        // UI elements
+        vertex_count = vertex_count + 20
+    }
+}
+
+// Main game loop
+fn main() {
+    let mut world = GameWorld::new()
+    let dt = 1.0 / 60.0  // 60 FPS
+    let total_frames = 600  // 10 seconds at 60 FPS
+    
+    // Spawn initial enemies
+    for i in 0..10 {
+        world.spawn_enemy()
+    }
+    
+    // Game loop
+    for frame in 0..total_frames {
+        world.update(dt)
+        world.render()
+        
+        // Simulate frame timing
+        if frame % 60 == 0 {
+            print("Frame: " + frame + ", Entities: " + (world.enemies.len() + world.particles.len()))
+        }
+    }
+    
+    print("Game simulation complete!")
+    print("Final score: " + world.player.score)
+}
+
+main()

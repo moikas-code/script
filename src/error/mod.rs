@@ -24,6 +24,11 @@ pub enum ErrorKind {
     TypeError,
     RuntimeError,
     IoError,
+    PackageError,
+    ModuleError,
+    CompilationError,
+    FileError,
+    SemanticError,
 }
 
 impl Error {
@@ -39,6 +44,42 @@ impl Error {
 
     pub fn lexer(message: impl Into<String>) -> Self {
         Self::new(ErrorKind::LexerError, message)
+    }
+
+    pub fn parse(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::ParseError, message)
+    }
+
+    pub fn type_error(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::TypeError, message)
+    }
+
+    pub fn runtime(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::RuntimeError, message)
+    }
+
+    pub fn io(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::IoError, message)
+    }
+
+    pub fn package(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::PackageError, message)
+    }
+
+    pub fn module(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::ModuleError, message)
+    }
+
+    pub fn compilation(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::CompilationError, message)
+    }
+
+    pub fn file(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::FileError, message)
+    }
+
+    pub fn semantic(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::SemanticError, message)
     }
 
     pub fn with_location(mut self, location: SourceLocation) -> Self {
@@ -65,6 +106,11 @@ impl fmt::Display for Error {
             ErrorKind::TypeError => "Type Error",
             ErrorKind::RuntimeError => "Runtime Error",
             ErrorKind::IoError => "IO Error",
+            ErrorKind::PackageError => "Package Error",
+            ErrorKind::ModuleError => "Module Error",
+            ErrorKind::CompilationError => "Compilation Error",
+            ErrorKind::FileError => "File Error",
+            ErrorKind::SemanticError => "Semantic Error",
         };
 
         write!(f, "{}: {}", error_type.red().bold(), self.message)?;
@@ -87,3 +133,9 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::io(err.to_string())
+    }
+}

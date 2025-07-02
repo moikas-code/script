@@ -1,15 +1,117 @@
-// Hello World in Script
+/**
+ * Hello World Example - Your First Script Program
+ * 
+ * This example demonstrates the fundamental concepts of Script programming:
+ * - Function definitions
+ * - Variable declarations with type inference
+ * - Optional type annotations
+ * - Expression-oriented programming
+ * - String literals and Unicode support
+ */
+
+// The main function is the entry point of every Script program
+// Functions are defined with the 'fn' keyword followed by the name and parameters
 fn main() {
+    // The print function outputs text to the console
+    // Script has built-in Unicode support, so emojis work perfectly! 📜
     print("Hello from Script! 📜")
+    
+    // We can also call other functions we define
+    demonstrate_variables()
+    demonstrate_expressions()
 }
 
-// Variables with optional types
-let language = "Script"
-let version: f32 = 0.1
-
-// Everything is an expression
-let result = if version > 1.0 {
-    "stable"
-} else {
-    "experimental"
+/**
+ * This function demonstrates Script's variable system
+ */
+fn demonstrate_variables() {
+    print("\n=== Variable Examples ===")
+    
+    // Variables with type inference - Script automatically determines the type
+    let language = "Script"              // Inferred as 'string'
+    let major_version = 0               // Inferred as 'i32' (32-bit integer)
+    let minor_version = 1               // Inferred as 'i32'
+    let is_stable = false               // Inferred as 'bool'
+    
+    // Variables with explicit type annotations
+    // You can specify types for clarity or when inference isn't possible
+    let version: f32 = 0.1              // Explicitly declared as 'f32' (32-bit float)
+    let precise_version: f64 = 0.1234567890123456  // 64-bit float for higher precision
+    
+    // Printing variables
+    print("Language: " + language)
+    print("Version: " + version)
+    print("Is Stable: " + is_stable)
+    
+    // String concatenation and conversion
+    let version_string = major_version + "." + minor_version
+    print("Version String: " + version_string)
 }
+
+/**
+ * This function demonstrates that everything in Script is an expression
+ * Expressions return values, unlike statements in many other languages
+ */
+fn demonstrate_expressions() {
+    print("\n=== Expression Examples ===")
+    
+    let version: f32 = 0.1
+    
+    // The 'if' construct is an expression that returns a value
+    // This means you can assign the result of an if expression to a variable
+    let stability_status = if version >= 1.0 {
+        "stable"           // This value is returned if condition is true
+    } else if version >= 0.5 {
+        "beta"            // This value is returned if this condition is true
+    } else {
+        "experimental"    // This value is returned if all conditions are false
+    }
+    
+    print("Current status: " + stability_status)
+    
+    // Block expressions also return values
+    let calculation_result = {
+        let base = 10
+        let multiplier = 5
+        let addition = 3
+        
+        // The last expression in a block is automatically returned
+        base * multiplier + addition  // Returns 53
+    }
+    
+    print("Calculation result: " + calculation_result)
+    
+    // Function calls are expressions too
+    let greeting = create_greeting("World")
+    print(greeting)
+}
+
+/**
+ * A simple function that demonstrates parameters and return values
+ * This function takes a string parameter and returns a formatted greeting
+ */
+fn create_greeting(name: string) -> string {
+    // The return keyword is optional - the last expression is automatically returned
+    "Hello, " + name + "! Welcome to Script programming!"
+}
+
+/**
+ * Key Concepts Demonstrated:
+ * 
+ * 1. FUNCTIONS: Defined with 'fn' keyword, can have parameters and return types
+ * 2. TYPE INFERENCE: Script automatically determines variable types when possible
+ * 3. TYPE ANNOTATIONS: You can explicitly specify types using the colon syntax
+ * 4. EXPRESSIONS: Almost everything returns a value (if, blocks, function calls)
+ * 5. STRING OPERATIONS: Concatenation with +, automatic type conversion
+ * 6. UNICODE SUPPORT: Full support for international characters and emojis
+ * 7. COMMENTS: Single-line (//) and multi-line (/* */) comments supported
+ * 
+ * Try This:
+ * - Modify the version number and see how the stability status changes
+ * - Add your own functions and call them from main()
+ * - Experiment with different data types (i32, i64, f32, f64, bool, string)
+ * - Try creating more complex expressions and see what values they return
+ */
+
+// Call the main function to run the program
+main()

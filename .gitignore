@@ -27,3 +27,30 @@ Thumbs.db
 
 # Documentation
 /target/doc
+
+# Test file pollution prevention
+/test_*.script
+/test_*
+!/test_*/*
+/debug_*.script
+/temp_*.script
+/tmp_*.script
+/*_test.script
+/*_debug.script
+/*_test_*.script
+/*_types.script
+/type_*.script
+/*test*.script
+/all_*.script
+
+# Temporary development files
+/scratch.*
+/playground.*
+/experiment.*
+/demo_*.script
+
+# Additional temporary files
+*.tmp
+*.temp
+*.bak
+*.backup

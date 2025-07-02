@@ -1,0 +1,115 @@
+// Async-heavy program for benchmarking concurrent operations
+import std::time::sleep
+import std::random::random
+
+// Simulated async database operations
+async fn db_query(table: string, id: i32) -> string {
+    let delay = random() * 100.0
+    await sleep(delay as i32)
+    return table + ": record " + id
+}
+
+async fn db_insert(table: string, data: string) -> bool {
+    let delay = random() * 50.0
+    await sleep(delay as i32)
+    return true
+}
+
+// Parallel data processing
+async fn process_batch(items: [i32]) -> [string] {
+    let mut results = []
+    
+    // Process items in parallel
+    let futures = []
+    for item in items {
+        futures.push(async {
+            let data = await db_query("users", item)
+            return "Processed: " + data
+        })
+    }
+    
+    // Wait for all futures
+    for future in futures {
+        results.push(await future)
+    }
+    
+    return results
+}
+
+// Complex async workflow
+async fn complex_workflow(user_ids: [i32]) -> i32 {
+    // Fetch user data in parallel
+    let user_futures = []
+    for id in user_ids {
+        user_futures.push(db_query("users", id))
+    }
+    
+    let users = []
+    for future in user_futures {
+        users.push(await future)
+    }
+    
+    // Process transactions for each user
+    let transaction_count = 0
+    for i in 0..users.len() {
+        let transaction_futures = []
+        
+        // Simulate multiple transactions per user
+        for j in 0..5 {
+            transaction_futures.push(async {
+                let tx_data = await db_query("transactions", i * 10 + j)
+                await db_insert("processed_tx", tx_data)
+                return 1
+            })
+        }
+        
+        // Count successful transactions
+        for future in transaction_futures {
+            transaction_count = transaction_count + await future
+        }
+    }
+    
+    return transaction_count
+}
+
+// Async generator pattern
+async fn* generate_data(count: i32) {
+    for i in 0..count {
+        await sleep(10)
+        yield "Data item " + i
+    }
+}
+
+// Main async entry point
+async fn main() {
+    // Test parallel batch processing
+    let batch1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    let batch2 = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    
+    // Process batches concurrently
+    let future1 = process_batch(batch1)
+    let future2 = process_batch(batch2)
+    
+    let results1 = await future1
+    let results2 = await future2
+    
+    // Test complex workflow
+    let user_ids = []
+    for i in 0..20 {
+        user_ids.push(i)
+    }
+    
+    let tx_count = await complex_workflow(user_ids)
+    
+    // Test async generator
+    let mut generated_count = 0
+    async for item in generate_data(10) {
+        generated_count = generated_count + 1
+    }
+    
+    print("Async operations complete!")
+    print("Transactions: " + tx_count)
+    print("Generated items: " + generated_count)
+}
+
+await main()

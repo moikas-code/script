@@ -1,0 +1,27 @@
+// Math utility functions
+export { add, multiply, factorial }
+
+fn add(a: i32, b: i32) -> i32 {
+    return a + b
+}
+
+fn multiply(a: i32, b: i32) -> i32 {
+    return a * b
+}
+
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        return 1
+    } else {
+        return n * factorial(n - 1)
+    }
+}
+
+// Private helper function (not exported)
+fn abs(x: i32) -> i32 {
+    if x < 0 {
+        return -x
+    } else {
+        return x
+    }
+}
