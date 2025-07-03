@@ -1,0 +1,137 @@
+// Simple pattern matching exhaustiveness tests using only implemented features
+
+// Test 1: Boolean exhaustive - should compile without errors
+fn test_bool_exhaustive(x: bool) -> i32 {
+    match x {
+        true => 1,
+        false => 2
+    }
+}
+
+// Test 2: Boolean non-exhaustive - should error
+fn test_bool_missing_false(x: bool) -> i32 {
+    match x {
+        true => 1
+        // Missing false case
+    }
+}
+
+// Test 3: Boolean non-exhaustive - should error
+fn test_bool_missing_true(x: bool) -> i32 {
+    match x {
+        false => 2
+        // Missing true case
+    }
+}
+
+// Test 4: Integer with wildcard - should compile
+fn test_int_with_wildcard(x: i32) -> i32 {
+    match x {
+        0 => 100,
+        1 => 200,
+        _ => 999
+    }
+}
+
+// Test 5: Integer without wildcard - should error
+fn test_int_no_wildcard(x: i32) -> i32 {
+    match x {
+        0 => 100,
+        1 => 200
+        // Missing default case
+    }
+}
+
+// Test 6: Or-patterns - should compile
+fn test_or_patterns(x: i32) -> i32 {
+    match x {
+        1 | 2 | 3 => 100,
+        4 | 5 => 200,
+        _ => 999
+    }
+}
+
+// Test 7: Guards don't make exhaustive - should error
+fn test_guard_not_exhaustive(x: bool) -> i32 {
+    match x {
+        true if x => 1,  // Guard doesn't guarantee exhaustiveness
+        false => 2
+        // true when guard fails is not covered
+    }
+}
+
+// Test 8: Wildcard with guard not exhaustive - should error
+fn test_wildcard_guard(x: i32) -> i32 {
+    match x {
+        _ if x > 0 => x  // Doesn't cover x <= 0
+    }
+}
+
+// Test 9: Redundant pattern after wildcard - should warn
+fn test_redundant_after_wildcard(x: i32) -> i32 {
+    match x {
+        _ => 1,     // Catches everything
+        1 => 2,     // Unreachable
+        2 => 3      // Unreachable
+    }
+}
+
+// Test 10: Identifier pattern is exhaustive - should compile
+fn test_identifier_exhaustive(x: i32) -> i32 {
+    match x {
+        y => y * 2  // Binds to any value
+    }
+}
+
+// Test 11: String needs wildcard - should error
+fn test_string_no_wildcard(s: string) -> i32 {
+    match s {
+        "hello" => 1,
+        "world" => 2
+        // Infinite string values not covered
+    }
+}
+
+// Test 12: Empty match - should error
+fn test_empty_match(x: bool) -> i32 {
+    match x {
+        // No arms at all
+    }
+}
+
+// Test 13: Redundant or-pattern - should warn
+fn test_redundant_or(x: i32) -> i32 {
+    match x {
+        1 | 2 | 3 => 100,
+        2 => 200,  // 2 already matched above
+        _ => 999
+    }
+}
+
+// Test 14: Array patterns
+fn test_array_patterns(arr: [i32]) -> i32 {
+    match arr {
+        [0] => 1,
+        [1, 2] => 2,
+        _ => 3
+    }
+}
+
+fn main() {
+    // Test the functions that should compile
+    println("Testing pattern exhaustiveness...");
+    
+    let x1 = test_bool_exhaustive(true);
+    println("Bool exhaustive (true): ", x1);
+    
+    let x2 = test_int_with_wildcard(5);
+    println("Int with wildcard (5): ", x2);
+    
+    let x3 = test_or_patterns(2);
+    println("Or patterns (2): ", x3);
+    
+    let x4 = test_identifier_exhaustive(42);
+    println("Identifier pattern (42): ", x4);
+    
+    println("Tests completed!");
+}

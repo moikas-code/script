@@ -1,0 +1,85 @@
+// Test file for pattern exhaustiveness checking
+
+// Test 1: Non-exhaustive boolean match (should error)
+fn test_bool_non_exhaustive(x: bool) -> string {
+    match x {
+        true => "yes"
+        // Missing false case - should error!
+    }
+}
+
+// Test 2: Exhaustive boolean match (should pass)
+fn test_bool_exhaustive(x: bool) -> string {
+    match x {
+        true => "yes",
+        false => "no"
+    }
+}
+
+// Test 3: Wildcard makes it exhaustive (should pass)
+fn test_wildcard_exhaustive(x: i32) -> string {
+    match x {
+        1 => "one",
+        2 => "two",
+        _ => "other"
+    }
+}
+
+// Test 4: Identifier pattern makes it exhaustive (should pass)
+fn test_identifier_exhaustive(x: i32) -> string {
+    match x {
+        1 => "one",
+        2 => "two",
+        n => "number: " + n
+    }
+}
+
+// Test 5: Redundant pattern after wildcard (should warn)
+fn test_redundant_after_wildcard(x: i32) -> string {
+    match x {
+        1 => "one",
+        _ => "other",
+        2 => "two"  // This is unreachable!
+    }
+}
+
+// Test 6: Non-exhaustive integer match (should error)
+fn test_int_non_exhaustive(x: i32) -> string {
+    match x {
+        1 => "one",
+        2 => "two",
+        3 => "three"
+        // Missing default case for other integers
+    }
+}
+
+// Test 7: Array pattern exhaustiveness (should require wildcard)
+fn test_array_non_exhaustive(arr: [i32]) -> string {
+    match arr {
+        [] => "empty",
+        [1] => "single one",
+        [1, 2] => "one and two"
+        // Missing pattern for other arrays
+    }
+}
+
+// Test 8: Nested match expressions
+fn test_nested_match(x: bool, y: i32) -> string {
+    match x {
+        true => match y {
+            1 => "true and one",
+            2 => "true and two",
+            _ => "true and other"
+        },
+        false => "false"
+    }
+}
+
+// Main function to test
+fn main() {
+    // These should work at runtime if exhaustiveness checking is disabled
+    // But with our implementation, compilation should fail for non-exhaustive matches
+    
+    print(test_bool_exhaustive(true))
+    print(test_wildcard_exhaustive(42))
+}

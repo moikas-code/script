@@ -1,0 +1,192 @@
+// Comprehensive test file for pattern matching exhaustiveness checking
+
+// Test 1: Boolean exhaustiveness - should pass
+fn test_bool_exhaustive(x: bool) -> i32 {
+    match x {
+        true => 1,
+        false => 2
+    }
+}
+
+// Test 2: Boolean non-exhaustive - should fail
+fn test_bool_non_exhaustive(x: bool) -> i32 {
+    match x {
+        true => 1
+        // Missing false case
+    }
+}
+
+// Test 3: Integer with wildcard - should pass
+fn test_int_with_wildcard(x: i32) -> i32 {
+    match x {
+        0 => 100,
+        1 => 200,
+        _ => 999
+    }
+}
+
+// Test 4: Integer without wildcard - should fail
+fn test_int_non_exhaustive(x: i32) -> i32 {
+    match x {
+        0 => 100,
+        1 => 200
+        // Missing catch-all
+    }
+}
+
+// Test 5: Or-patterns - should pass
+fn test_or_patterns(x: i32) -> i32 {
+    match x {
+        1 | 2 | 3 => 100,
+        4 | 5 => 200,
+        _ => 999
+    }
+}
+
+// Test 6: Guard doesn't make exhaustive - should fail
+fn test_guard_not_exhaustive(x: bool) -> i32 {
+    match x {
+        true if x => 1,  // Guard doesn't guarantee exhaustiveness
+        false => 2
+        // Still need to handle true when guard fails
+    }
+}
+
+// Test 7: Wildcard with guard is not exhaustive - should fail
+fn test_wildcard_with_guard(x: i32) -> i32 {
+    match x {
+        _ if x > 0 => x  // This doesn't cover all cases due to guard
+    }
+}
+
+// Test 8: Redundant patterns - should warn
+fn test_redundant_patterns(x: i32) -> i32 {
+    match x {
+        _ => 1,      // This catches everything
+        1 => 2,      // Redundant - unreachable
+        2 => 3       // Redundant - unreachable
+    }
+}
+
+// Test 9: Array patterns - should pass
+fn test_array_exhaustive(arr: [i32]) -> i32 {
+    match arr {
+        [0, 0] => 1,
+        [0, _] => 2,
+        [_, 0] => 3,
+        [_, _] => 4
+    }
+}
+
+// Test 10: Array non-exhaustive - should fail
+fn test_array_non_exhaustive(arr: [i32]) -> i32 {
+    match arr {
+        [0, 0] => 1,
+        [1, 1] => 2
+        // Missing many cases
+    }
+}
+
+// Test 11: Nested or-patterns - should pass
+fn test_nested_or_patterns(x: i32, y: bool) -> i32 {
+    match (x, y) {
+        (1 | 2, true) => 100,
+        (1 | 2, false) => 200,
+        (_, _) => 999
+    }
+}
+
+// Test 12: String patterns need wildcard - should fail
+fn test_string_non_exhaustive(s: string) -> i32 {
+    match s {
+        "hello" => 1,
+        "world" => 2
+        // Strings have infinite values, need wildcard
+    }
+}
+
+// Test 13: Identifier pattern is exhaustive - should pass
+fn test_identifier_pattern(x: i32) -> i32 {
+    match x {
+        y => y * 2  // Identifier binds to any value
+    }
+}
+
+// Test 14: Mixed patterns with guards - should pass
+fn test_mixed_with_guards(x: i32) -> i32 {
+    match x {
+        n if n < 0 => -n,    // Negative numbers
+        0 => 0,              // Zero
+        n if n > 100 => 100, // Cap at 100
+        n => n               // Everything else (1-100)
+    }
+}
+
+// Test 15: Redundant or-pattern - should warn
+fn test_redundant_or_pattern(x: i32) -> i32 {
+    match x {
+        1 | 2 | 3 => 100,
+        2 => 200,  // Redundant - 2 already matched above
+        _ => 999
+    }
+}
+
+// Test 16: Complex nested arrays - should pass
+fn test_nested_arrays(arr: [[bool]]) -> i32 {
+    match arr {
+        [[true, true], [true, true]] => 1,
+        [[true, _], _] => 2,
+        [[false, _], _] => 3
+    }
+}
+
+// Test 17: Float patterns need wildcard - should fail
+fn test_float_non_exhaustive(x: f32) -> i32 {
+    match x {
+        0.0 => 1,
+        1.0 => 2
+        // Floats have infinite values
+    }
+}
+
+// Test 18: Multiple guards on same pattern - should pass
+fn test_multiple_guards(x: i32) -> i32 {
+    match x {
+        n if n < 0 => -1,
+        n if n == 0 => 0,
+        n if n > 0 => 1,
+        _ => unreachable!()  // This should never be reached
+    }
+}
+
+// Test 19: Empty match (no arms) - should fail
+fn test_empty_match(x: bool) -> i32 {
+    match x {
+        // No patterns at all
+    }
+}
+
+// Test 20: Overlapping or-patterns - should pass but warn about redundancy
+fn test_overlapping_or_patterns(x: i32) -> i32 {
+    match x {
+        1 | 2 | 3 => 100,
+        3 | 4 | 5 => 200,  // 3 is redundant
+        _ => 999
+    }
+}
+
+// Entry point to run tests
+fn main() {
+    // Test with actual values
+    println("Testing pattern matching exhaustiveness...");
+    
+    // These should compile and run
+    assert(test_bool_exhaustive(true) == 1);
+    assert(test_bool_exhaustive(false) == 2);
+    assert(test_int_with_wildcard(5) == 999);
+    assert(test_or_patterns(2) == 100);
+    assert(test_identifier_pattern(42) == 84);
+    assert(test_mixed_with_guards(-5) == 5);
+    
+    println("Pattern matching tests completed!");
+}

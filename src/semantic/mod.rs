@@ -1,6 +1,7 @@
 mod analyzer;
 mod error;
 pub mod memory_safety;
+mod pattern_exhaustiveness;
 mod symbol;
 mod symbol_table;
 

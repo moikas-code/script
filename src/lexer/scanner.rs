@@ -136,7 +136,7 @@ impl Lexer {
                 if self.match_char('|') {
                     self.add_token(TokenKind::Or);
                 } else {
-                    self.error("Unexpected character '|', did you mean '||'?");
+                    self.add_token(TokenKind::Pipe);
                 }
             }
             '.' => {

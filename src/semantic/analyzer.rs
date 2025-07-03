@@ -1601,43 +1601,37 @@ impl SemanticAnalyzer {
         }
 
         // Check pattern exhaustiveness
-        let exhaustiveness_result = super::pattern_exhaustiveness::check_exhaustiveness(
-            arms,
-            &expr_type,
-            expr.span,
-        );
+        let exhaustiveness_result =
+            super::pattern_exhaustiveness::check_exhaustiveness(arms, &expr_type, expr.span);
 
         if !exhaustiveness_result.is_exhaustive {
             let missing_patterns = exhaustiveness_result.missing_patterns.join(", ");
-            let mut error = SemanticError::new(
-                SemanticErrorKind::NonExhaustivePatterns,
-                span,
-            )
-            .with_note(format!(
-                "Pattern matching is not exhaustive. Missing patterns: {}",
-                missing_patterns
-            ))
-            .with_help("Consider adding a wildcard pattern `_` to handle all remaining cases".to_string());
-            
+            let mut error = SemanticError::new(SemanticErrorKind::NonExhaustivePatterns, span)
+                .with_note(format!(
+                    "Pattern matching is not exhaustive. Missing patterns: {}",
+                    missing_patterns
+                ))
+                .with_help(
+                    "Consider adding a wildcard pattern `_` to handle all remaining cases"
+                        .to_string(),
+                );
+
             // Add a note if guards are present
             if exhaustiveness_result.has_guards {
                 error = error.with_note(
                     "Note: Patterns with guards are not considered exhaustive because guards can fail at runtime".to_string()
                 );
             }
-            
+
             self.add_error(error);
         }
 
         // Report redundant patterns
         for (index, pattern_span) in exhaustiveness_result.redundant_patterns {
             self.add_error(
-                SemanticError::new(
-                    SemanticErrorKind::RedundantPattern,
-                    pattern_span,
-                )
-                .with_note(format!("Pattern {} is unreachable", index + 1))
-                .with_help("Remove this pattern or reorder the match arms".to_string()),
+                SemanticError::new(SemanticErrorKind::RedundantPattern, pattern_span)
+                    .with_note(format!("Pattern {} is unreachable", index + 1))
+                    .with_help("Remove this pattern or reorder the match arms".to_string()),
             );
         }
 

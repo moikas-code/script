@@ -76,6 +76,10 @@ pub enum SemanticErrorKind {
     PrivateSymbolAccess { symbol: String, module: String },
     /// Memory safety violations
     MemorySafetyViolation(crate::semantic::memory_safety::MemorySafetyViolation),
+    /// Non-exhaustive pattern matching
+    NonExhaustivePatterns,
+    /// Redundant pattern (unreachable)
+    RedundantPattern,
 }
 
 /// Semantic error with location information
@@ -100,6 +104,11 @@ impl SemanticError {
     pub fn with_note(mut self, note: String) -> Self {
         self.notes.push(note);
         self
+    }
+
+    /// Add a help message to this error (convenience method)
+    pub fn with_help(self, help: String) -> Self {
+        self.with_note(format!("help: {}", help))
     }
 
     /// Convert to a general Error
@@ -280,6 +289,15 @@ impl fmt::Display for SemanticErrorKind {
             }
             SemanticErrorKind::MemorySafetyViolation(violation) => {
                 write!(f, "memory safety violation: {}", violation)
+            }
+            SemanticErrorKind::NonExhaustivePatterns => {
+                write!(
+                    f,
+                    "non-exhaustive patterns: pattern matching does not cover all possible cases"
+                )
+            }
+            SemanticErrorKind::RedundantPattern => {
+                write!(f, "redundant pattern: this pattern is unreachable")
             }
         }
     }
