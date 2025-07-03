@@ -1,6 +1,6 @@
 [package]
 name = "script"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Warren Gates (moikapy)"]
 description = "Script: A simple yet powerful programming language for web applications and games"

@@ -218,7 +218,7 @@ touch examples/demonstration.script
 
 ## Critical Documentation
 
-- **[STATUS.md](STATUS.md)** - Current implementation status (v0.9.0-beta)
+- **[STATUS.md](STATUS.md)** - Current implementation status (v0.3.0-alpha)
 - **[KNOWN_ISSUES.md](KNOWN_ISSUES.md)** - All known bugs and limitations
 - **[README.md](README.md)** - Project overview and getting started
 
@@ -238,6 +238,6 @@ touch examples/demonstration.script
 - Document workarounds in KNOWN_ISSUES.md if applicable
 
 ### Version Information:
-- Current version: **0.9.0-beta** (not 1.0!)
+- Current version: **0.3.0-alpha** (honest assessment!)
 - ~75% overall completion
 - Critical features like generics, pattern safety, and async are missing

@@ -1,6 +1,6 @@
 # Script Language Implementation Status
 
-## Version: 0.9.0-beta
+## Version: 0.3.0-alpha
 
 This document tracks the actual implementation status of the Script programming language. 
 
