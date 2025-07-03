@@ -55,6 +55,8 @@ pub struct FunctionSignature {
     pub is_const: bool,
     /// Whether this function is async (for actors)
     pub is_async: bool,
+    /// Generic parameters with their bounds
+    pub generic_params: Vec<(String, Vec<String>)>,
 }
 
 impl Symbol {
@@ -219,6 +221,7 @@ mod tests {
             return_type: Type::I32,
             is_const: false,
             is_async: false,
+            generic_params: vec![],
         };
 
         let func_symbol = Symbol::function(
@@ -247,6 +250,7 @@ mod tests {
             return_type: Type::I32,
             is_const: false,
             is_async: false,
+            generic_params: vec![],
         };
 
         let sig2 = FunctionSignature {
@@ -254,6 +258,7 @@ mod tests {
             return_type: Type::I32,
             is_const: false,
             is_async: false,
+            generic_params: vec![],
         };
 
         assert!(sig1.is_compatible_for_overload(&sig2));
@@ -265,6 +270,7 @@ mod tests {
             return_type: Type::I32,
             is_const: false,
             is_async: false,
+            generic_params: vec![],
         };
 
         assert!(sig1.is_compatible_for_overload(&sig3));
@@ -275,6 +281,7 @@ mod tests {
             return_type: Type::F32, // Different return type doesn't matter
             is_const: true,         // Different const doesn't matter
             is_async: false,
+            generic_params: vec![],
         };
 
         assert!(!sig1.is_compatible_for_overload(&sig4));

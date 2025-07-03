@@ -264,7 +264,7 @@ mod tests {
     use crate::source::Span;
 
     fn dummy_span() -> Span {
-        Span::default()
+        Span::dummy()
     }
 
     fn dummy_expr() -> Expr {

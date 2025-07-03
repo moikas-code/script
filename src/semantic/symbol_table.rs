@@ -832,6 +832,7 @@ mod tests {
             return_type: Type::I32,
             is_const: false,
             is_async: false,
+            generic_params: vec![],
         };
         table
             .define_function("add".to_string(), sig1, make_span())
@@ -843,6 +844,7 @@ mod tests {
             return_type: Type::I32,
             is_const: false,
             is_async: false,
+            generic_params: vec![],
         };
         table
             .define_function("add".to_string(), sig2, make_span())
@@ -887,6 +889,7 @@ mod tests {
             return_type: Type::I32,
             is_const: false,
             is_async: false,
+            generic_params: vec![],
         };
         table
             .define_function("foo".to_string(), sig1.clone(), make_span())
@@ -898,6 +901,7 @@ mod tests {
             return_type: Type::F32,
             is_const: true,
             is_async: false,
+            generic_params: vec![],
         };
         let result = table.define_function("foo".to_string(), sig2, make_span());
         assert!(result.is_err());

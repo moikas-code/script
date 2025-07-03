@@ -1,7 +1,7 @@
 use crate::inference::{type_ann_to_type, InferenceContext};
 use crate::parser::{
-    BinaryOp, Block, ExportKind, Expr, ExprKind, ImportSpecifier, Literal, Param, Program, Stmt,
-    StmtKind, TypeAnn, UnaryOp,
+    BinaryOp, Block, ExportKind, Expr, ExprKind, GenericParams, ImportSpecifier, Literal, Param,
+    Program, Stmt, StmtKind, TraitBound, TypeAnn, UnaryOp,
 };
 use crate::source::Span;
 use crate::types::Type;
@@ -24,6 +24,8 @@ struct AnalysisContext {
     _in_const_function: bool,
     /// Whether we're currently in an async function
     in_async_function: bool,
+    /// Generic parameters in the current scope (maps name to bounds)
+    generic_params: HashMap<String, Vec<TraitBound>>,
 }
 
 impl AnalysisContext {
@@ -33,6 +35,7 @@ impl AnalysisContext {
             in_loop: false,
             _in_const_function: false,
             in_async_function: false,
+            generic_params: HashMap::new(),
         }
     }
 }
@@ -193,6 +196,7 @@ impl SemanticAnalyzer {
             return_type: Type::Unknown, // void
             is_const: false,
             is_async: false,
+            generic_params: vec![],
         };
         self.symbol_table
             .define_function(
@@ -214,6 +218,7 @@ impl SemanticAnalyzer {
             return_type: Type::I32,
             is_const: true,
             is_async: false,
+            generic_params: vec![],
         };
         self.symbol_table
             .define_function(
@@ -257,10 +262,11 @@ impl SemanticAnalyzer {
                 ret_type,
                 body,
                 is_async,
-                generic_params: _,
+                generic_params,
             } => {
                 self.analyze_function_with_attributes(
                     name,
+                    generic_params.as_ref(),
                     params,
                     ret_type.as_ref(),
                     body,
@@ -394,6 +400,7 @@ impl SemanticAnalyzer {
     fn analyze_function(
         &mut self,
         name: &str,
+        generic_params: Option<&GenericParams>,
         params: &[Param],
         ret_type: Option<&TypeAnn>,
         body: &Block,
@@ -422,6 +429,7 @@ impl SemanticAnalyzer {
             return_type: return_type.clone(),
             is_const: false, // Legacy method - const handled in new method
             is_async,
+            generic_params: vec![], // TODO: Implement generic parameter conversion
         };
 
         // Define the function
@@ -445,14 +453,25 @@ impl SemanticAnalyzer {
         self.symbol_table.enter_scope();
         self.inference_ctx.push_scope();
 
-        // Push function context
+        // Push function context with generic parameters
         // For async functions, we need to check returns against the unwrapped type
-        let func_context = AnalysisContext {
+        let mut func_context = AnalysisContext {
             current_function_return: Some(base_return_type),
             in_loop: false,
             _in_const_function: false, // TODO: Support @const
             in_async_function: is_async,
+            generic_params: HashMap::new(),
         };
+
+        // Extract generic parameters if present
+        if let Some(generics) = generic_params {
+            for param in &generics.params {
+                func_context
+                    .generic_params
+                    .insert(param.name.clone(), param.bounds.clone());
+            }
+        }
+
         self.push_context(func_context);
 
         // Define parameters
@@ -493,6 +512,7 @@ impl SemanticAnalyzer {
     fn analyze_function_with_attributes(
         &mut self,
         name: &str,
+        generic_params: Option<&GenericParams>,
         params: &[Param],
         ret_type: Option<&TypeAnn>,
         body: &Block,
@@ -527,6 +547,7 @@ impl SemanticAnalyzer {
             return_type: return_type.clone(),
             is_const,
             is_async,
+            generic_params: vec![], // TODO: Implement generic parameter conversion
         };
 
         // Define the function
@@ -550,13 +571,24 @@ impl SemanticAnalyzer {
         self.symbol_table.enter_scope();
         self.inference_ctx.push_scope();
 
-        // Push function context with const flag
-        let func_context = AnalysisContext {
+        // Push function context with const flag and generic parameters
+        let mut func_context = AnalysisContext {
             current_function_return: Some(base_return_type),
             in_loop: false,
             _in_const_function: is_const,
             in_async_function: is_async,
+            generic_params: HashMap::new(),
         };
+
+        // Extract generic parameters if present
+        if let Some(generics) = generic_params {
+            for param in &generics.params {
+                func_context
+                    .generic_params
+                    .insert(param.name.clone(), param.bounds.clone());
+            }
+        }
+
         self.push_context(func_context);
 
         // Define parameters
@@ -787,7 +819,15 @@ impl SemanticAnalyzer {
                 is_async,
             } => {
                 // Analyze the function first
-                self.analyze_function(name, params, ret_type.as_ref(), body, *is_async, span)?;
+                self.analyze_function(
+                    name,
+                    None,
+                    params,
+                    ret_type.as_ref(),
+                    body,
+                    *is_async,
+                    span,
+                )?;
 
                 // Then mark it as exported
                 if let Err(err) = self.symbol_table.process_export(kind, span) {
@@ -915,6 +955,13 @@ impl SemanticAnalyzer {
 
     /// Analyze an identifier
     fn analyze_identifier(&mut self, name: &str, span: crate::source::Span) -> Result<Type> {
+        // First check if it's a type parameter in the current generic context
+        let ctx = self.current_context();
+        if ctx.generic_params.contains_key(name) {
+            // This is a type parameter reference
+            return Ok(Type::TypeParam(name.to_string()));
+        }
+
         // Use module-aware lookup
         if let Some(symbol) = self.symbol_table.lookup_with_modules(name) {
             let symbol_id = symbol.id;
