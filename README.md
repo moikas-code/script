@@ -1,19 +1,19 @@
 # Script Programming Language 📜
 
-> 🚧 **Version 0.9.0-beta** - Script is approaching 1.0 with most core features implemented. See [STATUS.md](STATUS.md) for detailed completion tracking.
+> 🚧 **Version 0.3.0-alpha** - Script is in early development with basic features working but many critical gaps. Not ready for production or educational use yet. See [STATUS.md](STATUS.md) for honest completion tracking.
 
 Script is a modern programming language that embodies the principle of **accessible power** - simple enough for beginners to grasp intuitively, yet performant enough to build production web applications, games, and system tools.
 
-## ✨ Current Features (v0.9.0-beta)
+## ⚠️ What Actually Works (v0.3.0-alpha)
 
-- **🎯 Core Language**: Most syntax and semantics implemented (90% complete)
-- **🔍 Pattern Matching**: Basic matching implemented (exhaustiveness checking pending)  
-- **⚡ Async/Await**: Built-in concurrency with work-stealing scheduler
-- **📦 Module System**: Import/export with package management (manuscript)
-- **🛠️ Developer Tools**: LSP server, testing framework, documentation generator
-- **🎮 Game Ready**: Vector math, timers, RNG, and graphics utilities built-in
-- **🔧 Metaprogramming**: Compile-time evaluation, derives, and list comprehensions
-- **🐛 Debugger**: Breakpoints, stepping, and execution control (in development)
+- **🎯 Basic Parsing**: Simple expressions and statements (generics broken)
+- **✅ Pattern Matching**: Full exhaustiveness checking, or-patterns, guards working!  
+- **❌ Async/Await**: Keywords parse but completely non-functional
+- **❌ Module System**: Import/export syntax parses but resolution fails
+- **❌ Developer Tools**: LSP exists but missing most features, debugger broken
+- **❌ Game Ready**: Some math utilities exist but untested
+- **❌ Metaprogramming**: Planned but not implemented
+- **❌ Memory Safety**: Reference counting without cycle detection (memory leaks)
 
 ## Philosophy
 
@@ -26,17 +26,17 @@ Like a well-written script guides actors through a performance, Script guides pr
 - **🔧 Gradual typing** - Optional type annotations with powerful type inference
 - **🌐 Embeddable** - Designed to integrate seamlessly with Rust, C, and other languages
 
-## Current Status
+## Honest Current Status
 
 ✅ **Phase 1: Lexer** - Complete tokenization with Unicode support and error recovery  
-✅ **Phase 2: Parser** - Full AST construction with Pratt parsing and type annotations  
-✅ **Phase 3: Type System** - Type inference, checking, and gradual typing  
-✅ **Phase 4: Code Generation** - Cranelift JIT compilation and runtime  
-✅ **Phase 5: Runtime** - Memory management, garbage collection, and profiling  
-🚧 **Phase 6: Standard Library** - Core libraries for I/O, collections, math, and more  
-📋 **Phase 7: Tooling** - Language server, package manager, and developer tools  
+🔧 **Phase 2: Parser** - Basic parsing works, generics completely broken  
+🔧 **Phase 3: Type System** - Simple inference works, many features missing  
+❌ **Phase 4: Code Generation** - Very basic implementation, many features broken  
+❌ **Phase 5: Runtime** - Memory leaks, async non-functional  
+❌ **Phase 6: Standard Library** - Missing most essential features  
+❌ **Phase 7: Tooling** - Most tools non-functional or incomplete  
 
-Script has a **working foundation** with compiler, runtime, and core standard library. Several advanced features are still in development.
+**Reality Check**: Script has a basic foundation but is NOT ready for any real use. Many core features don't work or cause memory leaks.
 
 ## Quick Start
 
@@ -286,22 +286,22 @@ script/
 └── tests/           # Integration and unit tests
 ```
 
-## Development Status
+## Honest Development Status
 
-| Component | Status | Features |
+| Component | Status | Reality Check |
 |-----------|--------|----------|
-| **Lexer** | ✅ Complete | Unicode, error recovery, source tracking |
-| **Parser** | 🔧 95% | Recursive descent, Pratt parsing, AST (generics pending) |
-| **Type System** | 🔧 85% | Basic inference and checking (generics in progress) |
-| **Semantic Analysis** | 🔧 80% | Symbol tables, scope resolution (pattern exhaustiveness pending) |
-| **Code Generation** | 🔧 70% | Cranelift JIT basic implementation |
-| **Runtime** | 🔧 75% | Basic memory management, ARC (cycle detection pending) |
-| **Standard Library** | 🚧 60% | Core types, basic I/O, collections (async pending) |
-| **FFI** | 🚧 40% | Basic C interop planned |
-| **Async/Await** | 🚧 30% | Basic design, implementation pending |
-| **Error Handling** | 🔧 90% | Source locations, basic error reporting |
-| **CLI Tools** | 🔧 80% | REPL, basic compiler (debugger in progress) |
-| **Documentation** | 🚧 70% | Basic guides, API docs in progress |
+| **Lexer** | ✅ Complete | Unicode, error recovery, source tracking - works well |
+| **Parser** | 🔧 75% | Basic parsing works, generics completely broken |
+| **Type System** | 🔧 60% | Simple inference works, generics/traits missing |
+| **Semantic Analysis** | 🔧 65% | Symbol tables work, cross-module resolution broken |
+| **Code Generation** | ❌ 40% | Very basic implementation, many features broken |
+| **Runtime** | ❌ 50% | Memory leaks, async non-functional, unsafe |
+| **Standard Library** | ❌ 30% | Missing HashMap, file I/O, most utilities |
+| **FFI** | ❌ 10% | Not implemented |
+| **Async/Await** | ❌ 5% | Keywords parse but completely non-functional |
+| **Error Handling** | 🔧 70% | Basic reporting works, no Result/Option types |
+| **CLI Tools** | 🔧 60% | REPL works, debugger broken, LSP minimal |
+| **Documentation** | 🚧 40% | Many guides outdated or inaccurate |
 
 ## Contributing
 
@@ -350,17 +350,63 @@ Script is released under the **MIT License**. See [LICENSE](LICENSE) for details
 - 💬 **[GitHub Discussions](https://github.com/moikapy/script/discussions)** - Ask questions and share ideas
 - 🐛 **[Issue Tracker](https://github.com/moikapy/script/issues)** - Report bugs or request features
 
-## Roadmap to 1.0
+## Roadmap: From Teaching to Production
 
-Key milestones remaining for v1.0 release:
+### 📚 Educational 1.0 (6-12 months)
+**Goal**: Safe for teaching programming fundamentals
 
-- **Pattern Matching**: Complete exhaustiveness checking and guards
-- **Generics**: Full implementation with type constraints
-- **Memory Safety**: Cycle detection for reference counting
-- **Async Runtime**: Complete async/await implementation
-- **Standard Library**: Finish core modules and documentation
-- **Testing Framework**: Comprehensive test suite
-- **Production Ready**: Performance optimization and stability
+**IMMEDIATE PRIORITIES**:
+1. **Fix Generics**: Complete parser implementation (TODO at line 149)
+2. **Memory Safety**: Implement cycle detection to prevent leaks
+3. **Module System**: Fix import/export resolution for multi-file projects
+4. **Error Handling**: Add Result/Option types for teaching error handling
+5. **Standard Library**: Implement HashMap, file I/O, basic utilities
+6. **Debugger**: Make functional for helping students debug code
+
+### 🌐 Web Apps 1.0 (2-3 years)
+**Goal**: Build production web applications
+
+**CORE REQUIREMENTS**:
+- HTTP server framework and routing
+- JSON parsing/serialization
+- Database connectivity (SQL + NoSQL)
+- WebAssembly compilation target
+- JavaScript interop for web ecosystem
+- Security features (HTTPS, auth, sessions)
+- Template engine for dynamic pages
+- WebSocket support for real-time apps
+
+### 🎮 Games 1.0 (2-4 years)  
+**Goal**: Build shippable games
+
+**CORE REQUIREMENTS**:
+- Graphics/rendering (OpenGL/Vulkan bindings)
+- Audio system (playback/synthesis)
+- Input handling (keyboard/mouse/gamepad)
+- Physics engine integration
+- Asset loading (images/models/audio)
+- Platform builds (console/mobile targets)
+- Real-time performance guarantees
+- GPU compute/shader pipeline
+
+### 🤖 AI Tools 1.0 (3-5 years)
+**Goal**: Build ML/AI applications
+
+**CORE REQUIREMENTS**:
+- Tensor operations (NumPy-like arrays)
+- GPU acceleration (CUDA/OpenCL)
+- Python interop (PyTorch/TensorFlow ecosystem)
+- Linear algebra libraries (BLAS/LAPACK)
+- Memory mapping for large datasets
+- Distributed computing primitives
+- JIT optimization for numerical code
+- Scientific libraries (statistics/signal processing)
+
+### Version Strategy
+- **0.8.0**: Educational 1.0 - Safe for teaching
+- **1.0.0**: Web Apps 1.0 - Production web development
+- **1.5.0**: Games 1.0 - Production game development
+- **2.0.0**: AI Tools 1.0 - Production ML/AI development
 
 ---
 

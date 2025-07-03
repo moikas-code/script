@@ -933,6 +933,30 @@ impl Parser {
     }
 
     fn parse_pattern(&mut self) -> Result<Pattern> {
+        self.parse_or_pattern()
+    }
+
+    fn parse_or_pattern(&mut self) -> Result<Pattern> {
+        let start = self.current_location();
+        let mut patterns = vec![self.parse_primary_pattern()?];
+
+        // Check for or-pattern (|)
+        while self.match_token(&TokenKind::Pipe) {
+            patterns.push(self.parse_primary_pattern()?);
+        }
+
+        if patterns.len() == 1 {
+            Ok(patterns.into_iter().next().unwrap())
+        } else {
+            let span = Span::new(start, self.previous_location());
+            Ok(Pattern {
+                kind: PatternKind::Or(patterns),
+                span,
+            })
+        }
+    }
+
+    fn parse_primary_pattern(&mut self) -> Result<Pattern> {
         let start = self.current_location();
 
         // Wildcard pattern
@@ -987,7 +1011,7 @@ impl Parser {
 
             if !self.check(&TokenKind::RightBracket) {
                 loop {
-                    patterns.push(self.parse_pattern()?);
+                    patterns.push(self.parse_primary_pattern()?);
                     if !self.match_token(&TokenKind::Comma) {
                         break;
                     }
@@ -1014,7 +1038,7 @@ impl Parser {
                     {
                         if let TokenKind::Identifier(key) = token.kind {
                             let pattern = if self.match_token(&TokenKind::Colon) {
-                                Some(self.parse_pattern()?)
+                                Some(self.parse_primary_pattern()?)
                             } else {
                                 None
                             };

@@ -34,10 +34,11 @@ cargo doc --open                        # Generate and open docs
 
 ## Architecture Overview
 
-### Current Status (v0.9.0-beta)
-- **Overall Completion**: ~75% - See [STATUS.md](STATUS.md) for detailed tracking
+### Current Status (v0.3.0-alpha) - Honest Assessment
+- **Overall Completion**: ~45% - See [STATUS.md](STATUS.md) for detailed tracking
 - **Phase 1 (Lexer)**: ✅ COMPLETED - Full tokenization with Unicode support, error reporting, REPL
-- **Phase 2 (Parser)**: 🔧 95% - AST complete, generics missing (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md#2-generics-dont-compile))
+- **Phase 2 (Parser)**: 🔧 75% - Basic parsing works, generics completely broken
+- **Phase 3-8**: ❌ Many critical features non-functional or have major gaps
 
 ### Module Structure
 

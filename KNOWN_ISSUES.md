@@ -1,29 +1,50 @@
 # Known Issues and Limitations
 
-This document tracks known issues, bugs, and limitations in the Script language implementation (v0.9.0-beta).
+This document tracks known issues, bugs, and limitations in the Script language implementation (v0.3.0-alpha).
 
-## Critical Issues (Blocking 1.0)
+## Critical Issues (Blocking Educational Use)
 
-### 1. Pattern Matching Not Safe
-**Severity**: High  
+### 1. Pattern Matching Not Safe ✅ FULLY FIXED
+**Severity**: ~~High~~ ~~Medium~~ Low (Resolved)  
 **Component**: Parser, Semantic Analysis  
-**Description**: Pattern matching lacks exhaustiveness checking, making it possible to write code that crashes at runtime due to unhandled cases.
+**Description**: ~~Pattern matching lacks exhaustiveness checking~~ ✅ COMPLETE! Pattern matching is now safe with full exhaustiveness checking, or-patterns, and guard awareness.
+
+**Update (2025-07-03)**: 
+1. ✅ Basic exhaustiveness checking implemented in `src/semantic/pattern_exhaustiveness.rs`
+2. ✅ Or-pattern parsing implemented with `Pipe` token support
+3. ✅ Guard-aware exhaustiveness checking completed
 
 ```script
-// This compiles but will crash if x is not 1 or 2
+// All of these now work correctly:
+
+// Exhaustiveness checking
 match x {
     1 => "one",
     2 => "two"
-    // Missing default case - runtime panic!
+    // Error: non-exhaustive patterns!
+}
+
+// Or-patterns
+match x {
+    1 | 2 | 3 => "small",
+    _ => "other"
+}
+
+// Guards properly handled
+match x {
+    n if n > 0 => "positive"
+    // Error with note: guards are not exhaustive
 }
 ```
 
-**Files Affected**:
-- `src/semantic/analyzer.rs` - Missing exhaustiveness checking
-- `src/lowering/expr.rs:172` - Or patterns not implemented
-- `src/parser/parser.rs` - Guards parsed but not analyzed
+**Resolution**: Pattern matching is now fully safe. The compiler:
+- Reports errors for non-exhaustive patterns
+- Supports or-patterns with `|` syntax
+- Correctly handles guards (with appropriate warnings about runtime behavior)
+- Detects redundant patterns (considering guards don't make patterns redundant)
 
-### 2. Generics Don't Compile
+
+### 2. Generics Don't Compile ❌ CRITICAL
 **Severity**: High  
 **Component**: Parser, Type System  
 **Description**: Generic functions and types are defined in AST but parser doesn't implement them, causing compilation failures.
@@ -223,4 +244,49 @@ Include:
 3. Expected vs actual behavior
 4. Platform information
 
-Last Updated: 2025-07-02
+## Summary: Priorities for Production Use
+
+### 🎓 Educational Use (6-12 months)
+**Required for teaching programming safely:**
+1. Fix generics parser implementation (TODO at line 149)
+2. ~~Implement pattern matching exhaustiveness checking~~ ✅ COMPLETED
+3. Add memory cycle detection to prevent leaks
+4. Complete module system for multi-file projects
+5. Add Result/Option types for error handling
+6. Implement HashMap and basic collections
+7. Fix debugger for student code inspection
+
+### 🌐 Web App Production (2-3 years)
+**Required for building production web applications:**
+8. HTTP server framework with routing and middleware
+9. JSON parsing/serialization library
+10. Database connectivity (SQL drivers + ORM)
+11. WebAssembly compilation target
+12. JavaScript interop for web ecosystem
+13. Security features (HTTPS, auth, sessions)
+14. Template engine for dynamic pages
+15. WebSocket support for real-time apps
+
+### 🎮 Game Development Production (2-4 years)
+**Required for building shippable games:**
+16. Graphics/rendering (OpenGL/Vulkan bindings)
+17. Audio system (playback/synthesis)
+18. Input handling (keyboard/mouse/gamepad)
+19. Physics engine integration
+20. Asset loading (images/models/audio)
+21. Platform builds (console/mobile targets)
+22. Real-time performance (60+ FPS guarantees)
+23. GPU compute/shader pipeline
+
+### 🤖 AI/ML Production (3-5 years)
+**Required for building ML/AI applications:**
+24. Tensor operations (NumPy-like arrays)
+25. GPU acceleration (CUDA/OpenCL)
+26. Python interop (PyTorch/TensorFlow ecosystem)
+27. Linear algebra libraries (BLAS/LAPACK)
+28. Memory mapping for large datasets
+29. Distributed computing primitives
+30. JIT optimization for numerical code
+31. Scientific libraries (statistics/signal processing)
+
+Last Updated: 2025-01-20

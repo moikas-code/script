@@ -72,6 +72,7 @@ pub enum TokenKind {
     And,
     Or,
     Bang,
+    Pipe, // | for pattern matching
 
     // Delimiters
     LeftParen,
@@ -166,6 +167,7 @@ impl fmt::Display for TokenKind {
             TokenKind::And => write!(f, "&&"),
             TokenKind::Or => write!(f, "||"),
             TokenKind::Bang => write!(f, "!"),
+            TokenKind::Pipe => write!(f, "|"),
 
             TokenKind::LeftParen => write!(f, "("),
             TokenKind::RightParen => write!(f, ")"),
