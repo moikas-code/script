@@ -164,6 +164,24 @@ fn find_identifier_in_stmt(stmt: &Stmt, target: &SourceLocation) -> Option<Ident
         StmtKind::Export { .. } => {
             // Handle exports if needed
         }
+        StmtKind::Struct { name, .. } => {
+            // Check if target is on the struct name
+            if stmt.span.contains_location(target) {
+                return Some(IdentifierInfo {
+                    name: name.clone(),
+                    span: stmt.span,
+                });
+            }
+        }
+        StmtKind::Enum { name, .. } => {
+            // Check if target is on the enum name
+            if stmt.span.contains_location(target) {
+                return Some(IdentifierInfo {
+                    name: name.clone(),
+                    span: stmt.span,
+                });
+            }
+        }
     }
 
     None
@@ -275,6 +293,58 @@ fn find_identifier_in_expr(expr: &Expr, target: &SourceLocation) -> Option<Ident
                 })
             } else {
                 None
+            }
+        }
+        ExprKind::StructConstructor { name, fields } => {
+            // Check if target is on the struct name
+            if expr.span.contains_location(target) {
+                // Could be either the struct name or a field
+                // For now, assume it's the struct name
+                return Some(IdentifierInfo {
+                    name: name.clone(),
+                    span: expr.span,
+                });
+            }
+            // Check fields for identifiers
+            for (_, field_expr) in fields {
+                if let Some(info) = find_identifier_in_expr(field_expr, target) {
+                    return Some(info);
+                }
+            }
+            None
+        }
+        ExprKind::EnumConstructor {
+            enum_name,
+            variant,
+            args,
+        } => {
+            // Check if target is on the enum or variant name
+            if expr.span.contains_location(target) {
+                // For now, return the variant name
+                return Some(IdentifierInfo {
+                    name: variant.clone(),
+                    span: expr.span,
+                });
+            }
+            // Check constructor arguments
+            match args {
+                crate::parser::EnumConstructorArgs::Unit => None,
+                crate::parser::EnumConstructorArgs::Tuple(exprs) => {
+                    for arg_expr in exprs {
+                        if let Some(info) = find_identifier_in_expr(arg_expr, target) {
+                            return Some(info);
+                        }
+                    }
+                    None
+                }
+                crate::parser::EnumConstructorArgs::Struct(fields) => {
+                    for (_, field_expr) in fields {
+                        if let Some(info) = find_identifier_in_expr(field_expr, target) {
+                            return Some(info);
+                        }
+                    }
+                    None
+                }
             }
         }
         ExprKind::Literal(_) => None,

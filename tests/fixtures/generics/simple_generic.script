@@ -1,0 +1,4 @@
+// Simple generic function test
+fn identity<T>(x: T) -> T {
+    x
+}

@@ -734,3 +734,35 @@ fn test() {}
         ]
     );
 }
+#[test]
+fn test_struct_enum_where_keywords() {
+    let input = "struct enum where";
+    let tokens = scan(input);
+
+    assert_eq!(
+        tokens,
+        vec![
+            TokenKind::Struct,
+            TokenKind::Enum,
+            TokenKind::Where,
+        ]
+    );
+}
+
+#[test]
+fn test_colon_colon_operator() {
+    let input = "Status::Ok Vec::new";
+    let tokens = scan(input);
+
+    assert_eq!(
+        tokens,
+        vec![
+            TokenKind::Identifier("Status".to_string()),
+            TokenKind::ColonColon,
+            TokenKind::Identifier("Ok".to_string()),
+            TokenKind::Identifier("Vec".to_string()),
+            TokenKind::ColonColon,
+            TokenKind::Identifier("new".to_string()),
+        ]
+    );
+}

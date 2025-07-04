@@ -47,6 +47,8 @@ pub enum SymbolKind {
 /// Function signature information
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
+    /// Generic parameters (e.g., <T, U: Clone>)
+    pub generic_params: Option<crate::parser::GenericParams>,
     /// Parameter names and types
     pub params: Vec<(String, Type)>,
     /// Return type
@@ -217,6 +219,7 @@ mod tests {
     #[test]
     fn test_function_symbol() {
         let sig = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32), ("y".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -246,6 +249,7 @@ mod tests {
     fn test_function_overload_compatibility() {
         // Different parameter count - compatible
         let sig1 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -254,6 +258,7 @@ mod tests {
         };
 
         let sig2 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32), ("y".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -266,6 +271,7 @@ mod tests {
 
         // Different parameter types - compatible
         let sig3 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::F32)],
             return_type: Type::I32,
             is_const: false,
@@ -277,6 +283,7 @@ mod tests {
 
         // Same signature - not compatible
         let sig4 = FunctionSignature {
+            generic_params: None,
             params: vec![("y".to_string(), Type::I32)],
             return_type: Type::F32, // Different return type doesn't matter
             is_const: true,         // Different const doesn't matter

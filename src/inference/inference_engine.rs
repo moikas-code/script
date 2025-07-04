@@ -236,6 +236,16 @@ impl InferenceEngine {
                 // Export statements don't produce values
                 Type::Unknown
             }
+            
+            StmtKind::Struct { .. } => {
+                // TODO: Implement struct type inference
+                Type::Unknown
+            }
+            
+            StmtKind::Enum { .. } => {
+                // TODO: Implement enum type inference
+                Type::Unknown
+            }
         };
 
         self.stmt_types.insert(stmt.span, ty.clone());
@@ -553,6 +563,16 @@ impl InferenceEngine {
                 // TODO: Implement proper generic type conversion from AST to inference types
                 let _ = type_args; // suppress warning
                 Type::Named(name.clone())
+            }
+            
+            ExprKind::StructConstructor { name, .. } => {
+                // TODO: Implement struct constructor type inference
+                Type::Named(name.clone())
+            }
+            
+            ExprKind::EnumConstructor { variant, .. } => {
+                // TODO: Implement enum constructor type inference
+                Type::Named(variant.clone())
             }
         };
 

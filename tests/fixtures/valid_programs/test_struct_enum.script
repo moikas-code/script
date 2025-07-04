@@ -1,0 +1,47 @@
+// Test struct declaration
+struct Point {
+    x: i32,
+    y: i32
+}
+
+// Test generic struct
+struct Vec<T> {
+    data: [T],
+    len: i32
+}
+
+// Test enum declaration with unit variants
+enum Status {
+    Ok,
+    Error
+}
+
+// Test enum with tuple variants
+enum Option<T> {
+    None,
+    Some(T)
+}
+
+// Test enum with mixed variants
+enum Result<T, E> {
+    Ok(T),
+    Err(E)
+}
+
+// Test enum with struct variants
+enum Shape {
+    Circle { radius: f32 },
+    Rectangle { width: f32, height: f32 },
+    Point
+}
+
+// Test complex generic struct
+struct HashMap<K, V> {
+    buckets: [[Pair<K, V>]],
+    size: i32
+}
+
+struct Pair<K, V> {
+    key: K,
+    value: V
+}

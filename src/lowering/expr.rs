@@ -83,6 +83,28 @@ pub fn lower_expression(lowerer: &mut AstLowerer, expr: &Expr) -> LoweringResult
             // TODO: Implement proper generic constructor lowering
             lower_identifier(lowerer, name, expr)
         }
+        ExprKind::StructConstructor { name, fields } => {
+            // TODO: Implement struct constructor lowering
+            // For now, return a placeholder error
+            let _ = (name, fields); // suppress warnings
+            Err(Error::new(
+                ErrorKind::TypeError,
+                "Struct constructors not yet implemented in lowering",
+            ))
+        }
+        ExprKind::EnumConstructor {
+            enum_name,
+            variant,
+            args,
+        } => {
+            // TODO: Implement enum constructor lowering
+            // For now, return a placeholder error
+            let _ = (enum_name, variant, args); // suppress warnings
+            Err(Error::new(
+                ErrorKind::TypeError,
+                "Enum constructors not yet implemented in lowering",
+            ))
+        }
     }
 }
 

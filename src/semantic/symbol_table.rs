@@ -828,6 +828,7 @@ mod tests {
 
         // Define function with one parameter
         let sig1 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -840,6 +841,7 @@ mod tests {
 
         // Define overload with two parameters
         let sig2 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32), ("y".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -885,6 +887,7 @@ mod tests {
 
         // Define function
         let sig1 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -897,6 +900,7 @@ mod tests {
 
         // Try to define with same signature (different return type doesn't matter)
         let sig2 = FunctionSignature {
+            generic_params: None,
             params: vec![("y".to_string(), Type::I32)], // Different param name doesn't matter
             return_type: Type::F32,
             is_const: true,

@@ -1,0 +1,17 @@
+// Test generic function type checking
+fn identity<T>(x: T) -> T {
+    x
+}
+
+// Using identity with different types
+let a = identity(42);      // Should infer T = i32
+let b = identity("hello");  // Should infer T = string
+let c = identity(true);     // Should infer T = bool
+
+// Test pair function
+fn pair<T, U>(first: T, second: U) -> T {
+    first
+}
+
+let d = pair(42, "hello");    // T = i32, U = string, returns i32
+let e = pair("hi", 3.14);     // T = string, U = f32, returns string

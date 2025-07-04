@@ -24,8 +24,8 @@ struct AnalysisContext {
     _in_const_function: bool,
     /// Whether we're currently in an async function
     in_async_function: bool,
-    /// Generic parameters in the current scope (maps name to bounds)
-    generic_params: HashMap<String, Vec<TraitBound>>,
+    /// Generic parameters in the current scope
+    generic_params: Option<crate::parser::GenericParams>,
 }
 
 impl AnalysisContext {
@@ -35,7 +35,7 @@ impl AnalysisContext {
             in_loop: false,
             _in_const_function: false,
             in_async_function: false,
-            generic_params: HashMap::new(),
+            generic_params: None,
         }
     }
 }
@@ -192,6 +192,7 @@ impl SemanticAnalyzer {
     fn add_builtins(&mut self) -> Result<()> {
         // print function: (unknown) -> void
         let print_sig = FunctionSignature {
+            generic_params: None,
             params: vec![("value".to_string(), Type::Unknown)],
             return_type: Type::Unknown, // void
             is_const: false,
@@ -214,6 +215,7 @@ impl SemanticAnalyzer {
 
         // len function: ([T]) -> i32
         let len_sig = FunctionSignature {
+            generic_params: None,
             params: vec![("array".to_string(), Type::Array(Box::new(Type::Unknown)))],
             return_type: Type::I32,
             is_const: true,
@@ -296,6 +298,24 @@ impl SemanticAnalyzer {
                 body,
             } => {
                 self.analyze_for(variable, iterable, body)?;
+            }
+            StmtKind::Struct {
+                name,
+                generic_params,
+                fields,
+            } => {
+                // TODO: Implement struct definition analysis
+                // For now, just suppress warnings
+                let _ = (name, generic_params, fields);
+            }
+            StmtKind::Enum {
+                name,
+                generic_params,
+                variants,
+            } => {
+                // TODO: Implement enum definition analysis
+                // For now, just suppress warnings
+                let _ = (name, generic_params, variants);
             }
         }
         Ok(())
@@ -400,7 +420,7 @@ impl SemanticAnalyzer {
     fn analyze_function(
         &mut self,
         name: &str,
-        generic_params: Option<&GenericParams>,
+        generic_params: Option<&crate::parser::GenericParams>,
         params: &[Param],
         ret_type: Option<&TypeAnn>,
         body: &Block,
@@ -425,6 +445,7 @@ impl SemanticAnalyzer {
 
         // Create function signature
         let signature = FunctionSignature {
+            generic_params: generic_params.cloned(),
             params: param_types.clone(),
             return_type: return_type.clone(),
             is_const: false, // Legacy method - const handled in new method
@@ -460,7 +481,7 @@ impl SemanticAnalyzer {
             in_loop: false,
             _in_const_function: false, // TODO: Support @const
             in_async_function: is_async,
-            generic_params: HashMap::new(),
+            generic_params: generic_params.cloned(),
         };
 
         // Extract generic parameters if present
@@ -473,6 +494,16 @@ impl SemanticAnalyzer {
         }
 
         self.push_context(func_context);
+
+        // Define generic type parameters in scope
+        if let Some(generics) = generic_params {
+            for generic_param in &generics.params {
+                // Add type parameter to type environment
+                // For now, we'll treat type parameters as type placeholders
+                // Future: track bounds and constraints
+                self.inference_ctx.define_type_param(&generic_param.name);
+            }
+        }
 
         // Define parameters
         for param in params {
@@ -512,7 +543,7 @@ impl SemanticAnalyzer {
     fn analyze_function_with_attributes(
         &mut self,
         name: &str,
-        generic_params: Option<&GenericParams>,
+        generic_params: Option<&crate::parser::GenericParams>,
         params: &[Param],
         ret_type: Option<&TypeAnn>,
         body: &Block,
@@ -541,8 +572,9 @@ impl SemanticAnalyzer {
             base_return_type.clone()
         };
 
-        // Create function signature with const flag
+        // Create function signature with const flag and generic params
         let signature = FunctionSignature {
+            generic_params: generic_params.cloned(),
             params: param_types.clone(),
             return_type: return_type.clone(),
             is_const,
@@ -571,13 +603,13 @@ impl SemanticAnalyzer {
         self.symbol_table.enter_scope();
         self.inference_ctx.push_scope();
 
-        // Push function context with const flag and generic parameters
-        let mut func_context = AnalysisContext {
+        // Push function context with const flag and generic params
+        let func_context = AnalysisContext {
             current_function_return: Some(base_return_type),
             in_loop: false,
             _in_const_function: is_const,
             in_async_function: is_async,
-            generic_params: HashMap::new(),
+            generic_params: generic_params.cloned(),
         };
 
         // Extract generic parameters if present
@@ -590,6 +622,16 @@ impl SemanticAnalyzer {
         }
 
         self.push_context(func_context);
+
+        // Define generic type parameters in scope
+        if let Some(generics) = generic_params {
+            for generic_param in &generics.params {
+                // Add type parameter to type environment
+                // For now, we'll treat type parameters as type placeholders
+                // Future: track bounds and constraints
+                self.inference_ctx.define_type_param(&generic_param.name);
+            }
+        }
 
         // Define parameters
         for param in params {
@@ -819,15 +861,8 @@ impl SemanticAnalyzer {
                 is_async,
             } => {
                 // Analyze the function first
-                self.analyze_function(
-                    name,
-                    None,
-                    params,
-                    ret_type.as_ref(),
-                    body,
-                    *is_async,
-                    span,
-                )?;
+                // Export doesn't support generic params yet
+                self.analyze_function(name, None, params, ret_type.as_ref(), body, *is_async, span)?;
 
                 // Then mark it as exported
                 if let Err(err) = self.symbol_table.process_export(kind, span) {
@@ -932,6 +967,41 @@ impl SemanticAnalyzer {
                 // TODO: Implement proper generic type analysis and resolution
                 let _ = type_args; // suppress warning
                 Ok(Type::Named(name.clone()))
+            }
+            ExprKind::StructConstructor { name, fields } => {
+                // TODO: Implement struct constructor analysis
+                // For now, analyze field expressions and return struct type
+                for (_, field_expr) in fields {
+                    self.analyze_expr(field_expr)?;
+                }
+                Ok(Type::Named(name.clone()))
+            }
+            ExprKind::EnumConstructor {
+                enum_name,
+                variant,
+                args,
+            } => {
+                // TODO: Implement enum constructor analysis
+                // For now, analyze arguments and return enum type
+                match args {
+                    crate::parser::EnumConstructorArgs::Unit => {},
+                    crate::parser::EnumConstructorArgs::Tuple(exprs) => {
+                        for arg_expr in exprs {
+                            self.analyze_expr(arg_expr)?;
+                        }
+                    }
+                    crate::parser::EnumConstructorArgs::Struct(fields) => {
+                        for (_, field_expr) in fields {
+                            self.analyze_expr(field_expr)?;
+                        }
+                    }
+                }
+                if let Some(enum_name) = enum_name {
+                    Ok(Type::Named(enum_name.clone()))
+                } else {
+                    // Unqualified variant - would need context to resolve
+                    Ok(Type::Named(variant.clone()))
+                }
             }
         }
     }
@@ -1186,19 +1256,29 @@ impl SemanticAnalyzer {
 
             if let Some((func_id, symbol_type, maybe_signature)) = symbol_info {
                 if let Some(signature) = maybe_signature {
+                    // Handle generic functions
+                    let instantiated_signature = if signature.generic_params.is_some() {
+                        // TODO: Implement generic type instantiation
+                        // For now, we'll create a simple instantiation that replaces
+                        // type parameters with the actual argument types
+                        self.instantiate_generic_function(&signature, &arg_types)?
+                    } else {
+                        signature.clone()
+                    };
+
                     // Check argument count
-                    if args.len() != signature.params.len() {
+                    if args.len() != instantiated_signature.params.len() {
                         self.add_error(
                             SemanticError::argument_count_mismatch(
-                                signature.params.len(),
+                                instantiated_signature.params.len(),
                                 args.len(),
                                 span,
                             )
                             .with_note(format!(
                                 "function '{}' expects {} argument{}, but {} {} provided",
                                 name,
-                                signature.params.len(),
-                                if signature.params.len() == 1 { "" } else { "s" },
+                                instantiated_signature.params.len(),
+                                if instantiated_signature.params.len() == 1 { "" } else { "s" },
                                 args.len(),
                                 if args.len() == 1 { "was" } else { "were" }
                             )),
@@ -1206,11 +1286,11 @@ impl SemanticAnalyzer {
 
                         // Mark function as used even if there's an error
                         self.symbol_table.mark_used(func_id);
-                        return Ok(signature.return_type.clone());
+                        return Ok(instantiated_signature.return_type.clone());
                     }
 
                     // Check each argument type
-                    for (i, ((param_name, param_type), (arg, arg_type))) in signature
+                    for (i, ((param_name, param_type), (arg, arg_type))) in instantiated_signature
                         .params
                         .iter()
                         .zip(args.iter().zip(arg_types.iter()))
@@ -1246,7 +1326,7 @@ impl SemanticAnalyzer {
                     self.symbol_table.mark_used(func_id);
 
                     // Return the function's return type even if there were argument type errors
-                    return Ok(signature.return_type.clone());
+                    return Ok(instantiated_signature.return_type.clone());
                 } else {
                     // Symbol exists but is not a function
                     self.add_error(
@@ -1963,6 +2043,13 @@ impl SemanticAnalyzer {
                     stmt.span,
                 ));
             }
+            StmtKind::Struct { .. } | StmtKind::Enum { .. } => {
+                // Struct/enum definitions not allowed in function bodies
+                self.add_error(SemanticError::const_function_violation(
+                    "struct/enum definitions not allowed in function bodies",
+                    stmt.span,
+                ));
+            }
         }
         Ok(())
     }
@@ -2109,6 +2196,103 @@ impl SemanticAnalyzer {
                 // For now, allow them as they are essentially type-parameterized constructors
                 Ok(())
             }
+
+            ExprKind::StructConstructor { fields, .. } => {
+                // Struct constructors are allowed if all field values are const
+                for (_, field_expr) in fields {
+                    self.validate_const_expression(field_expr)?;
+                }
+                Ok(())
+            }
+
+            ExprKind::EnumConstructor { args, .. } => {
+                // Enum constructors are allowed if all arguments are const
+                match args {
+                    crate::parser::EnumConstructorArgs::Unit => Ok(()),
+                    crate::parser::EnumConstructorArgs::Tuple(exprs) => {
+                        for arg_expr in exprs {
+                            self.validate_const_expression(arg_expr)?;
+                        }
+                        Ok(())
+                    }
+                    crate::parser::EnumConstructorArgs::Struct(fields) => {
+                        for (_, field_expr) in fields {
+                            self.validate_const_expression(field_expr)?;
+                        }
+                        Ok(())
+                    }
+                }
+            }
+        }
+    }
+
+    /// Instantiate a generic function with concrete types based on call arguments
+    fn instantiate_generic_function(
+        &mut self,
+        signature: &FunctionSignature,
+        arg_types: &[Type],
+    ) -> Result<FunctionSignature> {
+        let generic_params = signature.generic_params.as_ref().unwrap();
+        
+        // Create a type substitution map
+        let mut type_substitutions = HashMap::new();
+        
+        // For simple case, we'll infer type parameters from arguments
+        // This is a simplified version - real implementation would use unification
+        for (i, (param_name, param_type)) in signature.params.iter().enumerate() {
+            if let Some(arg_type) = arg_types.get(i) {
+                // If parameter type is a type parameter, record the substitution
+                if let Type::TypeParam(type_param_name) = param_type {
+                    type_substitutions.insert(type_param_name.clone(), arg_type.clone());
+                }
+                // TODO: Handle more complex cases like Vec<T>, Option<T>, etc.
+            }
+        }
+        
+        // Apply substitutions to create instantiated signature
+        let instantiated_params = signature
+            .params
+            .iter()
+            .map(|(name, ty)| {
+                let instantiated_type = self.substitute_type(ty, &type_substitutions);
+                (name.clone(), instantiated_type)
+            })
+            .collect();
+        
+        let instantiated_return = self.substitute_type(&signature.return_type, &type_substitutions);
+        
+        Ok(FunctionSignature {
+            generic_params: None, // Instantiated functions have no generic params
+            params: instantiated_params,
+            return_type: instantiated_return,
+            is_const: signature.is_const,
+            is_async: signature.is_async,
+        })
+    }
+    
+    /// Substitute type parameters in a type
+    fn substitute_type(&self, ty: &Type, substitutions: &HashMap<String, Type>) -> Type {
+        match ty {
+            Type::TypeParam(name) => {
+                substitutions.get(name).cloned().unwrap_or_else(|| ty.clone())
+            }
+            Type::Array(elem) => {
+                Type::Array(Box::new(self.substitute_type(elem, substitutions)))
+            }
+            Type::Function { params, ret } => {
+                Type::Function {
+                    params: params.iter().map(|t| self.substitute_type(t, substitutions)).collect(),
+                    ret: Box::new(self.substitute_type(ret, substitutions)),
+                }
+            }
+            Type::Generic { name, args } => {
+                Type::Generic {
+                    name: name.clone(),
+                    args: args.iter().map(|t| self.substitute_type(t, substitutions)).collect(),
+                }
+            }
+            // Other types remain unchanged
+            _ => ty.clone(),
         }
     }
 }

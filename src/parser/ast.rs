@@ -24,6 +24,33 @@ pub struct GenericParams {
     pub span: Span,
 }
 
+/// Field in a struct declaration
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructField {
+    pub name: String,
+    pub type_ann: TypeAnn,
+    pub span: Span,
+}
+
+/// Variant in an enum declaration
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumVariant {
+    pub name: String,
+    pub fields: EnumVariantFields,
+    pub span: Span,
+}
+
+/// Different kinds of enum variant fields
+#[derive(Debug, Clone, PartialEq)]
+pub enum EnumVariantFields {
+    /// Unit variant: `None`
+    Unit,
+    /// Tuple variant: `Some(T)`
+    Tuple(Vec<TypeAnn>),
+    /// Struct variant: `Point { x: i32, y: i32 }`
+    Struct(Vec<StructField>),
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub statements: Vec<Stmt>,
@@ -75,6 +102,16 @@ pub enum StmtKind {
     },
     Export {
         export: ExportSpec,
+    },
+    Struct {
+        name: String,
+        generic_params: Option<GenericParams>,
+        fields: Vec<StructField>,
+    },
+    Enum {
+        name: String,
+        generic_params: Option<GenericParams>,
+        variants: Vec<EnumVariant>,
     },
 }
 
@@ -138,6 +175,28 @@ pub enum ExprKind {
         name: String,
         type_args: Vec<TypeAnn>,
     },
+    /// Struct constructor expression (e.g., Point { x: 1, y: 2 })
+    StructConstructor {
+        name: String,
+        fields: Vec<(String, Expr)>,
+    },
+    /// Enum variant constructor (e.g., Some(5), None)
+    EnumConstructor {
+        enum_name: Option<String>,  // None for unqualified variants
+        variant: String,
+        args: EnumConstructorArgs,
+    },
+}
+
+/// Arguments for enum variant constructor
+#[derive(Debug, Clone, PartialEq)]
+pub enum EnumConstructorArgs {
+    /// Unit variant: None
+    Unit,
+    /// Tuple variant: Some(5)
+    Tuple(Vec<Expr>),
+    /// Struct variant: Point { x: 1, y: 2 }
+    Struct(Vec<(String, Expr)>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -338,12 +397,19 @@ impl fmt::Display for Stmt {
                 ret_type,
                 body,
                 is_async,
-                generic_params: _,
+                generic_params,
             } => {
                 if *is_async {
                     write!(f, "async ")?;
                 }
-                write!(f, "fn {}(", name)?;
+                write!(f, "fn {}", name)?;
+                
+                // Display generic parameters
+                if let Some(generics) = generic_params {
+                    write!(f, "{}", generics)?;
+                }
+                
+                write!(f, "(")?;
                 for (i, param) in params.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
@@ -486,6 +552,34 @@ impl fmt::Display for Stmt {
                     ExportKind::Declaration(stmt) => write!(f, "{}", stmt),
                 }
             }
+            StmtKind::Struct { name, generic_params, fields } => {
+                write!(f, "struct {}", name)?;
+                if let Some(generics) = generic_params {
+                    write!(f, "{}", generics)?;
+                }
+                write!(f, " {{")?;
+                for (i, field) in fields.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, " {}: {}", field.name, field.type_ann)?;
+                }
+                write!(f, " }}")
+            }
+            StmtKind::Enum { name, generic_params, variants } => {
+                write!(f, "enum {}", name)?;
+                if let Some(generics) = generic_params {
+                    write!(f, "{}", generics)?;
+                }
+                write!(f, " {{")?;
+                for (i, variant) in variants.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, " {}", variant)?;
+                }
+                write!(f, " }}")
+            }
         }
     }
 }
@@ -577,6 +671,46 @@ impl fmt::Display for Expr {
                     write!(f, ">")?;
                 }
                 Ok(())
+            }
+            ExprKind::StructConstructor { name, fields } => {
+                write!(f, "{} {{ ", name)?;
+                for (i, (field_name, expr)) in fields.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", field_name, expr)?;
+                }
+                write!(f, " }}")
+            }
+            ExprKind::EnumConstructor { enum_name, variant, args } => {
+                if let Some(enum_name) = enum_name {
+                    write!(f, "{}::{}", enum_name, variant)?;
+                } else {
+                    write!(f, "{}", variant)?;
+                }
+                match args {
+                    EnumConstructorArgs::Unit => Ok(()),
+                    EnumConstructorArgs::Tuple(exprs) => {
+                        write!(f, "(")?;
+                        for (i, expr) in exprs.iter().enumerate() {
+                            if i > 0 {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "{}", expr)?;
+                        }
+                        write!(f, ")")
+                    }
+                    EnumConstructorArgs::Struct(fields) => {
+                        write!(f, " {{ ")?;
+                        for (i, (field_name, expr)) in fields.iter().enumerate() {
+                            if i > 0 {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "{}: {}", field_name, expr)?;
+                        }
+                        write!(f, " }}")
+                    }
+                }
             }
         }
     }
@@ -815,6 +949,104 @@ impl fmt::Display for ExportKind {
             }
             ExportKind::Default { expr } => write!(f, "default {}", expr),
             ExportKind::Declaration(stmt) => write!(f, "{}", stmt),
+        }
+    }
+}
+
+impl fmt::Display for GenericParams {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<")?;
+        for (i, param) in self.params.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", param)?;
+        }
+        write!(f, ">")
+    }
+}
+
+impl fmt::Display for GenericParam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)?;
+        if !self.bounds.is_empty() {
+            write!(f, ": ")?;
+            for (i, bound) in self.bounds.iter().enumerate() {
+                if i > 0 {
+                    write!(f, " + ")?;
+                }
+                write!(f, "{}", bound)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for TraitBound {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.trait_name)
+    }
+}
+
+impl fmt::Display for StructField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: {}", self.name, self.type_ann)
+    }
+}
+
+impl fmt::Display for EnumVariant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)?;
+        match &self.fields {
+            EnumVariantFields::Unit => Ok(()),
+            EnumVariantFields::Tuple(types) => {
+                write!(f, "(")?;
+                for (i, ty) in types.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", ty)?;
+                }
+                write!(f, ")")
+            }
+            EnumVariantFields::Struct(fields) => {
+                write!(f, " {{")?;
+                for (i, field) in fields.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, " {}", field)?;
+                }
+                write!(f, " }}")
+            }
+        }
+    }
+}
+
+impl fmt::Display for EnumVariantFields {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EnumVariantFields::Unit => Ok(()),
+            EnumVariantFields::Tuple(types) => {
+                write!(f, "(")?;
+                for (i, ty) in types.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", ty)?;
+                }
+                write!(f, ")")
+            }
+            EnumVariantFields::Struct(fields) => {
+                write!(f, "{{")?;
+                for (i, field) in fields.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, " {}: {}", field.name, field.type_ann)?;
+                }
+                write!(f, " }}")
+            }
         }
     }
 }

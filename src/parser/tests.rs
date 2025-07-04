@@ -1527,3 +1527,266 @@ fn test_parse_generic_display_implementation() {
     let stmt_str = format!("{}", program.statements[0]);
     assert!(stmt_str.contains("HashMap<String, Vec<Option<T>>>"));
 }
+
+// ========== GENERIC FUNCTION PARAMETER TESTS ==========
+
+#[test]
+fn test_parse_generic_function_simple() {
+    // Simple generic function
+    let program = parse("fn identity<T>(x: T) -> T { x }").unwrap();
+    assert_eq!(program.statements.len(), 1);
+    
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            name,
+            generic_params,
+            params,
+            ret_type,
+            ..
+        } => {
+            assert_eq!(name, "identity");
+            
+            // Check generic parameters
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 1);
+            assert_eq!(generics.params[0].name, "T");
+            assert!(generics.params[0].bounds.is_empty());
+            
+            // Check function parameters
+            assert_eq!(params.len(), 1);
+            assert_eq!(params[0].name, "x");
+            assert!(matches!(&params[0].type_ann.kind, TypeKind::TypeParam(n) if n == "T"));
+            
+            // Check return type
+            assert!(matches!(&ret_type.as_ref().unwrap().kind, TypeKind::TypeParam(n) if n == "T"));
+        }
+        _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_generic_function_with_bounds() {
+    // Generic function with trait bounds
+    let program = parse("fn clone_it<T: Clone>(x: T) -> T { x }").unwrap();
+    
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            generic_params,
+            ..
+        } => {
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 1);
+            assert_eq!(generics.params[0].name, "T");
+            assert_eq!(generics.params[0].bounds.len(), 1);
+            assert_eq!(generics.params[0].bounds[0].trait_name, "Clone");
+        }
+        _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_generic_function_multiple_bounds() {
+    // Generic function with multiple trait bounds
+    let program = parse("fn process<T: Clone + Debug + Send>(x: T) {}").unwrap();
+    
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            generic_params,
+            ..
+        } => {
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 1);
+            assert_eq!(generics.params[0].name, "T");
+            assert_eq!(generics.params[0].bounds.len(), 3);
+            assert_eq!(generics.params[0].bounds[0].trait_name, "Clone");
+            assert_eq!(generics.params[0].bounds[1].trait_name, "Debug");
+            assert_eq!(generics.params[0].bounds[2].trait_name, "Send");
+        }
+        _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_generic_function_multiple_params() {
+    // Generic function with multiple type parameters
+    let program = parse("fn swap<T, U>(a: T, b: U) -> U { b }").unwrap();
+    
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            name,
+            generic_params,
+            params,
+            ..
+        } => {
+            assert_eq!(name, "swap");
+            
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 2);
+            assert_eq!(generics.params[0].name, "T");
+            assert_eq!(generics.params[1].name, "U");
+            
+            assert_eq!(params.len(), 2);
+            assert!(matches!(&params[0].type_ann.kind, TypeKind::TypeParam(n) if n == "T"));
+            assert!(matches!(&params[1].type_ann.kind, TypeKind::TypeParam(n) if n == "U"));
+        }
+        _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_generic_function_mixed_bounds() {
+    // Generic function with mixed bounds
+    let program = parse("fn complex<T: Clone, U: Debug + Send, V>(a: T, b: U, c: V) {}").unwrap();
+    
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            generic_params,
+            ..
+        } => {
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 3);
+            
+            // T: Clone
+            assert_eq!(generics.params[0].name, "T");
+            assert_eq!(generics.params[0].bounds.len(), 1);
+            assert_eq!(generics.params[0].bounds[0].trait_name, "Clone");
+            
+            // U: Debug + Send
+            assert_eq!(generics.params[1].name, "U");
+            assert_eq!(generics.params[1].bounds.len(), 2);
+            assert_eq!(generics.params[1].bounds[0].trait_name, "Debug");
+            assert_eq!(generics.params[1].bounds[1].trait_name, "Send");
+            
+            // V (no bounds)
+            assert_eq!(generics.params[2].name, "V");
+            assert!(generics.params[2].bounds.is_empty());
+        }
+        _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_generic_function_empty_params() {
+    // Edge case: empty generic parameters
+    let program = parse("fn weird<>() {}").unwrap();
+    
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            generic_params,
+            ..
+        } => {
+            let generics = generic_params.as_ref().unwrap();
+            assert!(generics.params.is_empty());
+        }
+        _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_generic_function_trailing_comma() {
+    // Edge case: trailing comma
+    let program = parse("fn test<T,>(x: T) -> T { x }").unwrap();
+    
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            generic_params,
+            ..
+        } => {
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 1);
+            assert_eq!(generics.params[0].name, "T");
+        }
+        _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_generic_function_complex_usage() {
+    // Generic function using generic types in body
+    let program = parse("fn map<T, U>(items: Vec<T>) -> Vec<U> { Vec<U>() }").unwrap();
+    
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            name,
+            generic_params,
+            params,
+            ret_type,
+            ..
+        } => {
+            assert_eq!(name, "map");
+            
+            // Check generics
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 2);
+            
+            // Check parameter types use generics
+            assert_eq!(params.len(), 1);
+            match &params[0].type_ann.kind {
+                TypeKind::Generic { name, args } => {
+                    assert_eq!(name, "Vec");
+                    assert_eq!(args.len(), 1);
+                    assert!(matches!(&args[0].kind, TypeKind::TypeParam(n) if n == "T"));
+                }
+                _ => panic!("Expected generic type"),
+            }
+            
+            // Check return type
+            match &ret_type.as_ref().unwrap().kind {
+                TypeKind::Generic { name, args } => {
+                    assert_eq!(name, "Vec");
+                    assert_eq!(args.len(), 1);
+                    assert!(matches!(&args[0].kind, TypeKind::TypeParam(n) if n == "U"));
+                }
+                _ => panic!("Expected generic return type"),
+            }
+        }
+        _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_generic_display() {
+    // Test Display implementation
+    let program = parse("fn test<T: Clone + Debug>(x: T) -> T { x }").unwrap();
+    let stmt_str = format!("{}", program.statements[0]);
+    
+    assert!(stmt_str.contains("fn test<T: Clone + Debug>"));
+    assert!(stmt_str.contains("(x: T)"));
+    assert!(stmt_str.contains("-> T"));
+}
+
+#[test]
+fn test_parse_generic_error_missing_closing() {
+    // Missing closing >
+    assert!(parse("fn test<T(x: T) {}").is_err());
+    assert!(parse("fn test<T, U(x: T) {}").is_err());
+}
+
+#[test]
+fn test_parse_generic_function_error_invalid_syntax() {
+    // Invalid generic syntax
+    assert!(parse("fn test<>(x: T) {}").is_ok()); // Empty is ok
+    assert!(parse("fn test<123>(x: T) {}").is_err()); // Numbers not allowed
+    assert!(parse("fn test<T U>(x: T) {}").is_err()); // Missing comma
+}
+
+#[test]
+fn test_parse_generic_async_function() {
+    // Async generic function
+    let program = parse("async fn fetch<T: Send>(url: string) -> T { await get(url) }").unwrap();
+    
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            is_async,
+            generic_params,
+            ..
+        } => {
+            assert!(*is_async);
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 1);
+            assert_eq!(generics.params[0].name, "T");
+            assert_eq!(generics.params[0].bounds[0].trait_name, "Send");
+        }
+        _ => panic!("Expected function statement"),
+    }
+}

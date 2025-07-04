@@ -82,7 +82,13 @@ impl Lexer {
             ']' => self.add_token(TokenKind::RightBracket),
             ',' => self.add_token(TokenKind::Comma),
             ';' => self.add_token(TokenKind::Semicolon),
-            ':' => self.add_token(TokenKind::Colon),
+            ':' => {
+                if self.match_char(':') {
+                    self.add_token(TokenKind::ColonColon);
+                } else {
+                    self.add_token(TokenKind::Colon);
+                }
+            }
             '+' => self.add_token(TokenKind::Plus),
             '*' => self.add_token(TokenKind::Star),
             '%' => self.add_token(TokenKind::Percent),

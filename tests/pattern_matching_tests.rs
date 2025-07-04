@@ -1,4 +1,7 @@
-use script::{parser::ast::*, Lexer, Parser, Result, SemanticAnalyzer};
+use script::{
+    parser::{Expr, ExprKind, Literal, MatchArm, Pattern, PatternKind, Program, Stmt, StmtKind},
+    Lexer, Parser, Result, SemanticAnalyzer,
+};
 
 fn parse_program(input: &str) -> Result<Program> {
     let lexer = Lexer::new(input);
@@ -15,7 +18,7 @@ fn parse_program(input: &str) -> Result<Program> {
 fn parse_and_analyze(input: &str) -> Result<Program> {
     let program = parse_program(input)?;
     let mut analyzer = SemanticAnalyzer::new();
-    analyzer.analyze(&program)?;
+    analyzer.analyze_program(&program)?;
     Ok(program)
 }
 

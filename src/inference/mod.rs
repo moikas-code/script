@@ -102,6 +102,13 @@ impl InferenceContext {
     pub fn pop_scope(&mut self) {
         self.type_env.pop_scope();
     }
+
+    /// Define a type parameter in the current scope
+    pub fn define_type_param(&mut self, name: &str) {
+        // For now, type parameters are represented as TypeParam types
+        // In the future, we'll track bounds and constraints here
+        self.type_env.define(name.to_string(), Type::TypeParam(name.to_string()));
+    }
 }
 
 impl Default for InferenceContext {

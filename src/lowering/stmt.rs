@@ -30,6 +30,18 @@ pub fn lower_statement(lowerer: &mut AstLowerer, stmt: &Stmt) -> LoweringResult<
             // Exports are handled during semantic analysis
             Ok(())
         }
+        StmtKind::Struct { name, .. } => {
+            // TODO: Implement struct definition lowering
+            // Structs are handled during semantic analysis
+            let _ = name; // suppress warning
+            Ok(())
+        }
+        StmtKind::Enum { name, .. } => {
+            // TODO: Implement enum definition lowering
+            // Enums are handled during semantic analysis
+            let _ = name; // suppress warning
+            Ok(())
+        }
     }
 }
 

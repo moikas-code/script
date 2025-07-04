@@ -238,6 +238,16 @@ impl AstLowerer {
                 // Exports are handled during semantic analysis
                 // For now, we skip them in lowering
             }
+
+            StmtKind::Struct { .. } => {
+                // TODO: Implement struct definition lowering
+                // Structs are handled during semantic analysis
+            }
+
+            StmtKind::Enum { .. } => {
+                // TODO: Implement enum definition lowering
+                // Enums are handled during semantic analysis
+            }
         }
 
         Ok(())
@@ -837,6 +847,24 @@ impl AstLowerer {
                 // For now, treat generic constructors as named types
                 // TODO: Implement proper generic type handling in lowering
                 Ok(Type::Named(name.clone()))
+            }
+            ExprKind::StructConstructor { name, fields: _ } => {
+                // TODO: Implement struct constructor type inference
+                // For now, return the struct type
+                Ok(Type::Named(name.clone()))
+            }
+            ExprKind::EnumConstructor {
+                enum_name,
+                variant: _,
+                args: _,
+            } => {
+                // TODO: Implement enum constructor type inference
+                // For now, return the enum type if known
+                if let Some(enum_name) = enum_name {
+                    Ok(Type::Named(enum_name.clone()))
+                } else {
+                    Ok(Type::Unknown)
+                }
             }
         }
     }

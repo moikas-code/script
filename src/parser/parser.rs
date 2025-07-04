@@ -63,6 +63,10 @@ impl Parser {
             self.parse_import_statement()?
         } else if self.match_token(&TokenKind::Export) {
             self.parse_export_statement()?
+        } else if self.match_token(&TokenKind::Struct) {
+            self.parse_struct_declaration()?
+        } else if self.match_token(&TokenKind::Enum) {
+            self.parse_enum_declaration()?
         } else {
             StmtKind::Expression(self.parse_expression()?)
         };
@@ -113,6 +117,13 @@ impl Parser {
     fn parse_function_common(&mut self, is_async: bool) -> Result<StmtKind> {
         let name = self.consume_identifier("Expected function name")?;
 
+        // Parse generic parameters if present
+        let generic_params = if self.check(&TokenKind::Less) {
+            Some(self.parse_generic_parameters()?)
+        } else {
+            None
+        };
+
         self.consume(&TokenKind::LeftParen, "Expected '(' after function name")?;
 
         let mut params = Vec::new();
@@ -146,7 +157,7 @@ impl Parser {
 
         Ok(StmtKind::Function {
             name,
-            generic_params: None, // TODO: Parse generic parameters
+            generic_params,
             params,
             ret_type,
             body,
@@ -165,6 +176,71 @@ impl Parser {
         };
 
         Ok(StmtKind::Return(expr))
+    }
+
+    /// Parse generic parameters: <T>, <T: Clone>, <T, U: Debug + Send>
+    fn parse_generic_parameters(&mut self) -> Result<GenericParams> {
+        let start = self.current_location();
+        self.consume(&TokenKind::Less, "Expected '<' to start generic parameters")?;
+
+        let mut params = Vec::new();
+
+        // Handle empty generic params case: fn foo<>()
+        if self.check(&TokenKind::Greater) {
+            self.advance(); // consume '>'
+            let span = Span::new(start, self.previous_location());
+            return Ok(GenericParams { params, span });
+        }
+
+        // Parse first generic parameter
+        params.push(self.parse_generic_param()?);
+
+        // Parse remaining generic parameters
+        while self.match_token(&TokenKind::Comma) {
+            // Allow trailing comma: fn foo<T,>()
+            if self.check(&TokenKind::Greater) {
+                break;
+            }
+            params.push(self.parse_generic_param()?);
+        }
+
+        self.consume(
+            &TokenKind::Greater,
+            "Expected '>' to close generic parameters",
+        )?;
+
+        let span = Span::new(start, self.previous_location());
+        Ok(GenericParams { params, span })
+    }
+
+    /// Parse a single generic parameter with optional trait bounds
+    fn parse_generic_param(&mut self) -> Result<GenericParam> {
+        let start = self.current_location();
+        let name = self.consume_identifier("Expected generic parameter name")?;
+
+        let mut bounds = Vec::new();
+
+        // Check for trait bounds after ':'
+        if self.match_token(&TokenKind::Colon) {
+            // Parse first trait bound
+            bounds.push(self.parse_trait_bound()?);
+
+            // Parse additional bounds with '+'
+            while self.match_token(&TokenKind::Plus) {
+                bounds.push(self.parse_trait_bound()?);
+            }
+        }
+
+        let span = Span::new(start, self.previous_location());
+        Ok(GenericParam { name, bounds, span })
+    }
+
+    /// Parse a trait bound (e.g., Clone, Debug, Send)
+    fn parse_trait_bound(&mut self) -> Result<TraitBound> {
+        let start = self.current_location();
+        let trait_name = self.consume_identifier("Expected trait name")?;
+        let span = Span::new(start, self.previous_location());
+        Ok(TraitBound { trait_name, span })
     }
 
     fn parse_while_statement(&mut self) -> Result<StmtKind> {
@@ -380,6 +456,164 @@ impl Parser {
         };
 
         Ok(StmtKind::Export { export: kind })
+    }
+
+    fn parse_struct_declaration(&mut self) -> Result<StmtKind> {
+        let name = self.consume_identifier("Expected struct name")?;
+        
+        // Parse generic parameters if present
+        let generic_params = if self.check(&TokenKind::Less) {
+            Some(self.parse_generic_parameters()?)
+        } else {
+            None
+        };
+        
+        self.consume(&TokenKind::LeftBrace, "Expected '{' after struct name")?;
+        
+        let mut fields = Vec::new();
+        
+        // Parse struct fields
+        while !self.check(&TokenKind::RightBrace) {
+            // Skip newlines
+            if self.match_token(&TokenKind::Newline) {
+                continue;
+            }
+            
+            let field_start = self.current_location();
+            let field_name = self.consume_identifier("Expected field name")?;
+            self.consume(&TokenKind::Colon, "Expected ':' after field name")?;
+            let field_type = self.parse_type_annotation()?;
+            let field_end = self.previous_location();
+            
+            fields.push(StructField {
+                name: field_name,
+                type_ann: field_type,
+                span: Span::new(field_start, field_end),
+            });
+            
+            // Handle comma or newline as field separator
+            if !self.check(&TokenKind::RightBrace) {
+                if !self.match_token(&TokenKind::Comma) && !self.match_token(&TokenKind::Newline) {
+                    return Err(self.error("Expected ',' or newline after struct field"));
+                }
+                // Skip additional newlines
+                while self.match_token(&TokenKind::Newline) {}
+            }
+        }
+        
+        self.consume(&TokenKind::RightBrace, "Expected '}' after struct fields")?;
+        
+        Ok(StmtKind::Struct {
+            name,
+            generic_params,
+            fields,
+        })
+    }
+
+    fn parse_enum_declaration(&mut self) -> Result<StmtKind> {
+        let name = self.consume_identifier("Expected enum name")?;
+        
+        // Parse generic parameters if present
+        let generic_params = if self.check(&TokenKind::Less) {
+            Some(self.parse_generic_parameters()?)
+        } else {
+            None
+        };
+        
+        self.consume(&TokenKind::LeftBrace, "Expected '{' after enum name")?;
+        
+        let mut variants = Vec::new();
+        
+        // Parse enum variants
+        while !self.check(&TokenKind::RightBrace) {
+            // Skip newlines
+            if self.match_token(&TokenKind::Newline) {
+                continue;
+            }
+            
+            let variant_start = self.current_location();
+            let variant_name = self.consume_identifier("Expected variant name")?;
+            
+            // Parse variant fields
+            let fields = if self.match_token(&TokenKind::LeftParen) {
+                // Tuple variant: Some(T), Error(String, i32)
+                let mut types = Vec::new();
+                
+                if !self.check(&TokenKind::RightParen) {
+                    loop {
+                        types.push(self.parse_type_annotation()?);
+                        
+                        if !self.match_token(&TokenKind::Comma) {
+                            break;
+                        }
+                    }
+                }
+                
+                self.consume(&TokenKind::RightParen, "Expected ')' after tuple variant fields")?;
+                EnumVariantFields::Tuple(types)
+            } else if self.match_token(&TokenKind::LeftBrace) {
+                // Struct variant: Point { x: i32, y: i32 }
+                let mut fields = Vec::new();
+                
+                while !self.check(&TokenKind::RightBrace) {
+                    // Skip newlines
+                    if self.match_token(&TokenKind::Newline) {
+                        continue;
+                    }
+                    
+                    let field_start = self.current_location();
+                    let field_name = self.consume_identifier("Expected field name")?;
+                    self.consume(&TokenKind::Colon, "Expected ':' after field name")?;
+                    let field_type = self.parse_type_annotation()?;
+                    let field_end = self.previous_location();
+                    
+                    fields.push(StructField {
+                        name: field_name,
+                        type_ann: field_type,
+                        span: Span::new(field_start, field_end),
+                    });
+                    
+                    if !self.check(&TokenKind::RightBrace) {
+                        if !self.match_token(&TokenKind::Comma) && !self.match_token(&TokenKind::Newline) {
+                            return Err(self.error("Expected ',' or newline after struct field"));
+                        }
+                        // Skip additional newlines
+                        while self.match_token(&TokenKind::Newline) {}
+                    }
+                }
+                
+                self.consume(&TokenKind::RightBrace, "Expected '}' after struct variant fields")?;
+                EnumVariantFields::Struct(fields)
+            } else {
+                // Unit variant: None, Empty
+                EnumVariantFields::Unit
+            };
+            
+            let variant_end = self.previous_location();
+            
+            variants.push(EnumVariant {
+                name: variant_name,
+                fields,
+                span: Span::new(variant_start, variant_end),
+            });
+            
+            // Handle comma or newline as variant separator
+            if !self.check(&TokenKind::RightBrace) {
+                if !self.match_token(&TokenKind::Comma) && !self.match_token(&TokenKind::Newline) {
+                    return Err(self.error("Expected ',' or newline after enum variant"));
+                }
+                // Skip additional newlines
+                while self.match_token(&TokenKind::Newline) {}
+            }
+        }
+        
+        self.consume(&TokenKind::RightBrace, "Expected '}' after enum variants")?;
+        
+        Ok(StmtKind::Enum {
+            name,
+            generic_params,
+            variants,
+        })
     }
 
     fn parse_block(&mut self) -> Result<Block> {
