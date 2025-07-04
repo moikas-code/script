@@ -862,7 +862,15 @@ impl SemanticAnalyzer {
             } => {
                 // Analyze the function first
                 // Export doesn't support generic params yet
-                self.analyze_function(name, None, params, ret_type.as_ref(), body, *is_async, span)?;
+                self.analyze_function(
+                    name,
+                    None,
+                    params,
+                    ret_type.as_ref(),
+                    body,
+                    *is_async,
+                    span,
+                )?;
 
                 // Then mark it as exported
                 if let Err(err) = self.symbol_table.process_export(kind, span) {
@@ -984,7 +992,7 @@ impl SemanticAnalyzer {
                 // TODO: Implement enum constructor analysis
                 // For now, analyze arguments and return enum type
                 match args {
-                    crate::parser::EnumConstructorArgs::Unit => {},
+                    crate::parser::EnumConstructorArgs::Unit => {}
                     crate::parser::EnumConstructorArgs::Tuple(exprs) => {
                         for arg_expr in exprs {
                             self.analyze_expr(arg_expr)?;
@@ -1278,7 +1286,11 @@ impl SemanticAnalyzer {
                                 "function '{}' expects {} argument{}, but {} {} provided",
                                 name,
                                 instantiated_signature.params.len(),
-                                if instantiated_signature.params.len() == 1 { "" } else { "s" },
+                                if instantiated_signature.params.len() == 1 {
+                                    ""
+                                } else {
+                                    "s"
+                                },
                                 args.len(),
                                 if args.len() == 1 { "was" } else { "were" }
                             )),
@@ -2233,10 +2245,10 @@ impl SemanticAnalyzer {
         arg_types: &[Type],
     ) -> Result<FunctionSignature> {
         let generic_params = signature.generic_params.as_ref().unwrap();
-        
+
         // Create a type substitution map
         let mut type_substitutions = HashMap::new();
-        
+
         // For simple case, we'll infer type parameters from arguments
         // This is a simplified version - real implementation would use unification
         for (i, (param_name, param_type)) in signature.params.iter().enumerate() {
@@ -2248,7 +2260,7 @@ impl SemanticAnalyzer {
                 // TODO: Handle more complex cases like Vec<T>, Option<T>, etc.
             }
         }
-        
+
         // Apply substitutions to create instantiated signature
         let instantiated_params = signature
             .params
@@ -2258,9 +2270,9 @@ impl SemanticAnalyzer {
                 (name.clone(), instantiated_type)
             })
             .collect();
-        
+
         let instantiated_return = self.substitute_type(&signature.return_type, &type_substitutions);
-        
+
         Ok(FunctionSignature {
             generic_params: None, // Instantiated functions have no generic params
             params: instantiated_params,
@@ -2269,28 +2281,29 @@ impl SemanticAnalyzer {
             is_async: signature.is_async,
         })
     }
-    
+
     /// Substitute type parameters in a type
     fn substitute_type(&self, ty: &Type, substitutions: &HashMap<String, Type>) -> Type {
         match ty {
-            Type::TypeParam(name) => {
-                substitutions.get(name).cloned().unwrap_or_else(|| ty.clone())
-            }
-            Type::Array(elem) => {
-                Type::Array(Box::new(self.substitute_type(elem, substitutions)))
-            }
-            Type::Function { params, ret } => {
-                Type::Function {
-                    params: params.iter().map(|t| self.substitute_type(t, substitutions)).collect(),
-                    ret: Box::new(self.substitute_type(ret, substitutions)),
-                }
-            }
-            Type::Generic { name, args } => {
-                Type::Generic {
-                    name: name.clone(),
-                    args: args.iter().map(|t| self.substitute_type(t, substitutions)).collect(),
-                }
-            }
+            Type::TypeParam(name) => substitutions
+                .get(name)
+                .cloned()
+                .unwrap_or_else(|| ty.clone()),
+            Type::Array(elem) => Type::Array(Box::new(self.substitute_type(elem, substitutions))),
+            Type::Function { params, ret } => Type::Function {
+                params: params
+                    .iter()
+                    .map(|t| self.substitute_type(t, substitutions))
+                    .collect(),
+                ret: Box::new(self.substitute_type(ret, substitutions)),
+            },
+            Type::Generic { name, args } => Type::Generic {
+                name: name.clone(),
+                args: args
+                    .iter()
+                    .map(|t| self.substitute_type(t, substitutions))
+                    .collect(),
+            },
             // Other types remain unchanged
             _ => ty.clone(),
         }

@@ -460,37 +460,37 @@ impl Parser {
 
     fn parse_struct_declaration(&mut self) -> Result<StmtKind> {
         let name = self.consume_identifier("Expected struct name")?;
-        
+
         // Parse generic parameters if present
         let generic_params = if self.check(&TokenKind::Less) {
             Some(self.parse_generic_parameters()?)
         } else {
             None
         };
-        
+
         self.consume(&TokenKind::LeftBrace, "Expected '{' after struct name")?;
-        
+
         let mut fields = Vec::new();
-        
+
         // Parse struct fields
         while !self.check(&TokenKind::RightBrace) {
             // Skip newlines
             if self.match_token(&TokenKind::Newline) {
                 continue;
             }
-            
+
             let field_start = self.current_location();
             let field_name = self.consume_identifier("Expected field name")?;
             self.consume(&TokenKind::Colon, "Expected ':' after field name")?;
             let field_type = self.parse_type_annotation()?;
             let field_end = self.previous_location();
-            
+
             fields.push(StructField {
                 name: field_name,
                 type_ann: field_type,
                 span: Span::new(field_start, field_end),
             });
-            
+
             // Handle comma or newline as field separator
             if !self.check(&TokenKind::RightBrace) {
                 if !self.match_token(&TokenKind::Comma) && !self.match_token(&TokenKind::Newline) {
@@ -500,9 +500,9 @@ impl Parser {
                 while self.match_token(&TokenKind::Newline) {}
             }
         }
-        
+
         self.consume(&TokenKind::RightBrace, "Expected '}' after struct fields")?;
-        
+
         Ok(StmtKind::Struct {
             name,
             generic_params,
@@ -512,91 +512,99 @@ impl Parser {
 
     fn parse_enum_declaration(&mut self) -> Result<StmtKind> {
         let name = self.consume_identifier("Expected enum name")?;
-        
+
         // Parse generic parameters if present
         let generic_params = if self.check(&TokenKind::Less) {
             Some(self.parse_generic_parameters()?)
         } else {
             None
         };
-        
+
         self.consume(&TokenKind::LeftBrace, "Expected '{' after enum name")?;
-        
+
         let mut variants = Vec::new();
-        
+
         // Parse enum variants
         while !self.check(&TokenKind::RightBrace) {
             // Skip newlines
             if self.match_token(&TokenKind::Newline) {
                 continue;
             }
-            
+
             let variant_start = self.current_location();
             let variant_name = self.consume_identifier("Expected variant name")?;
-            
+
             // Parse variant fields
             let fields = if self.match_token(&TokenKind::LeftParen) {
                 // Tuple variant: Some(T), Error(String, i32)
                 let mut types = Vec::new();
-                
+
                 if !self.check(&TokenKind::RightParen) {
                     loop {
                         types.push(self.parse_type_annotation()?);
-                        
+
                         if !self.match_token(&TokenKind::Comma) {
                             break;
                         }
                     }
                 }
-                
-                self.consume(&TokenKind::RightParen, "Expected ')' after tuple variant fields")?;
+
+                self.consume(
+                    &TokenKind::RightParen,
+                    "Expected ')' after tuple variant fields",
+                )?;
                 EnumVariantFields::Tuple(types)
             } else if self.match_token(&TokenKind::LeftBrace) {
                 // Struct variant: Point { x: i32, y: i32 }
                 let mut fields = Vec::new();
-                
+
                 while !self.check(&TokenKind::RightBrace) {
                     // Skip newlines
                     if self.match_token(&TokenKind::Newline) {
                         continue;
                     }
-                    
+
                     let field_start = self.current_location();
                     let field_name = self.consume_identifier("Expected field name")?;
                     self.consume(&TokenKind::Colon, "Expected ':' after field name")?;
                     let field_type = self.parse_type_annotation()?;
                     let field_end = self.previous_location();
-                    
+
                     fields.push(StructField {
                         name: field_name,
                         type_ann: field_type,
                         span: Span::new(field_start, field_end),
                     });
-                    
+
                     if !self.check(&TokenKind::RightBrace) {
-                        if !self.match_token(&TokenKind::Comma) && !self.match_token(&TokenKind::Newline) {
+                        if !self.match_token(&TokenKind::Comma)
+                            && !self.match_token(&TokenKind::Newline)
+                        {
                             return Err(self.error("Expected ',' or newline after struct field"));
                         }
                         // Skip additional newlines
                         while self.match_token(&TokenKind::Newline) {}
                     }
                 }
-                
-                self.consume(&TokenKind::RightBrace, "Expected '}' after struct variant fields")?;
+
+                self.consume(
+                    &TokenKind::RightBrace,
+                    "Expected '}' after struct variant fields",
+                )?;
                 EnumVariantFields::Struct(fields)
             } else {
                 // Unit variant: None, Empty
                 EnumVariantFields::Unit
             };
-            
+
             let variant_end = self.previous_location();
-            
+
             variants.push(EnumVariant {
                 name: variant_name,
                 fields,
                 span: Span::new(variant_start, variant_end),
             });
-            
+
             // Handle comma or newline as variant separator
             if !self.check(&TokenKind::RightBrace) {
                 if !self.match_token(&TokenKind::Comma) && !self.match_token(&TokenKind::Newline) {
@@ -606,9 +614,9 @@ impl Parser {
                 while self.match_token(&TokenKind::Newline) {}
             }
         }
-        
+
         self.consume(&TokenKind::RightBrace, "Expected '}' after enum variants")?;
-        
+
         Ok(StmtKind::Enum {
             name,
             generic_params,

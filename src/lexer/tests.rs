@@ -741,11 +741,7 @@ fn test_struct_enum_where_keywords() {
 
     assert_eq!(
         tokens,
-        vec![
-            TokenKind::Struct,
-            TokenKind::Enum,
-            TokenKind::Where,
-        ]
+        vec![TokenKind::Struct, TokenKind::Enum, TokenKind::Where,]
     );
 }
 

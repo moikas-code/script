@@ -182,7 +182,7 @@ pub enum ExprKind {
     },
     /// Enum variant constructor (e.g., Some(5), None)
     EnumConstructor {
-        enum_name: Option<String>,  // None for unqualified variants
+        enum_name: Option<String>, // None for unqualified variants
         variant: String,
         args: EnumConstructorArgs,
     },
@@ -403,12 +403,12 @@ impl fmt::Display for Stmt {
                     write!(f, "async ")?;
                 }
                 write!(f, "fn {}", name)?;
-                
+
                 // Display generic parameters
                 if let Some(generics) = generic_params {
                     write!(f, "{}", generics)?;
                 }
-                
+
                 write!(f, "(")?;
                 for (i, param) in params.iter().enumerate() {
                     if i > 0 {
@@ -552,7 +552,11 @@ impl fmt::Display for Stmt {
                     ExportKind::Declaration(stmt) => write!(f, "{}", stmt),
                 }
             }
-            StmtKind::Struct { name, generic_params, fields } => {
+            StmtKind::Struct {
+                name,
+                generic_params,
+                fields,
+            } => {
                 write!(f, "struct {}", name)?;
                 if let Some(generics) = generic_params {
                     write!(f, "{}", generics)?;
@@ -566,7 +570,11 @@ impl fmt::Display for Stmt {
                 }
                 write!(f, " }}")
             }
-            StmtKind::Enum { name, generic_params, variants } => {
+            StmtKind::Enum {
+                name,
+                generic_params,
+                variants,
+            } => {
                 write!(f, "enum {}", name)?;
                 if let Some(generics) = generic_params {
                     write!(f, "{}", generics)?;
@@ -682,7 +690,11 @@ impl fmt::Display for Expr {
                 }
                 write!(f, " }}")
             }
-            ExprKind::EnumConstructor { enum_name, variant, args } => {
+            ExprKind::EnumConstructor {
+                enum_name,
+                variant,
+                args,
+            } => {
                 if let Some(enum_name) = enum_name {
                     write!(f, "{}::{}", enum_name, variant)?;
                 } else {
