@@ -1,0 +1,83 @@
+// Complex generic functions with multiple type parameters and trait bounds
+// Tests advanced generic features
+
+// Define some basic traits
+trait Display {
+    fn display(&self) -> string;
+}
+
+trait Clone {
+    fn clone(&self) -> Self;
+}
+
+trait Eq {
+    fn eq(&self, other: &Self) -> bool;
+}
+
+// Generic swap function with two type parameters
+fn swap<T, U>(x: T, y: U) -> (U, T) {
+    return (y, x);
+}
+
+// Generic function with trait bounds
+fn duplicate_if_equal<T: Clone + Eq>(x: T, y: T) -> (T, T) {
+    if x.eq(&y) {
+        return (x.clone(), y.clone());
+    } else {
+        return (x, y);
+    }
+}
+
+// Generic container struct
+struct Pair<A, B> {
+    first: A,
+    second: B,
+}
+
+impl<A, B> Pair<A, B> {
+    fn new(first: A, second: B) -> Pair<A, B> {
+        return Pair { first: first, second: second };
+    }
+    
+    fn get_first(&self) -> &A {
+        return &self.first;
+    }
+    
+    fn get_second(&self) -> &B {
+        return &self.second;
+    }
+    
+    fn swap(self) -> Pair<B, A> {
+        return Pair { first: self.second, second: self.first };
+    }
+}
+
+// Generic function that uses other generic functions
+fn process_pair<T: Display, U: Display>(p: Pair<T, U>) -> string {
+    let first_str = p.get_first().display();
+    let second_str = p.get_second().display();
+    return format("{} and {}", first_str, second_str);
+}
+
+fn main() -> i32 {
+    // Test swap function
+    let (a, b) = swap(10, "hello");
+    println("Swapped: {} and {}", a, b);
+    
+    // Test generic pair
+    let pair1 = Pair::new(42, 3.14);
+    println("Pair: ({}, {})", pair1.get_first(), pair1.get_second());
+    
+    let pair2 = pair1.swap();
+    println("Swapped pair: ({}, {})", pair2.get_first(), pair2.get_second());
+    
+    // Test nested generics
+    let nested = Pair::new(Pair::new(1, 2), Pair::new("a", "b"));
+    let inner1 = nested.get_first();
+    let inner2 = nested.get_second();
+    println("Nested: (({}, {}), ({}, {}))", 
+        inner1.get_first(), inner1.get_second(),
+        inner2.get_first(), inner2.get_second());
+    
+    return 0;
+}

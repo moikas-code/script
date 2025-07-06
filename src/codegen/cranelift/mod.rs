@@ -108,6 +108,9 @@ impl CraneliftBackend {
 
     /// Compile an IR module
     fn compile_module(&mut self, ir_module: &IrModule) -> CodegenResult<()> {
+        // Declare runtime functions
+        self.declare_runtime_functions()?;
+
         // First pass: declare all functions
         for (_, func) in ir_module.functions() {
             self.declare_function(func)?;
@@ -115,7 +118,7 @@ impl CraneliftBackend {
 
         // Second pass: compile function bodies
         for (_, func) in ir_module.functions() {
-            self.compile_function(func)?;
+            self.compile_function(func, ir_module)?;
         }
 
         // Finalize the module
@@ -125,6 +128,86 @@ impl CraneliftBackend {
                 format!("Failed to finalize module: {}", e),
             )
         })?;
+
+        Ok(())
+    }
+
+    /// Declare runtime functions
+    fn declare_runtime_functions(&mut self) -> CodegenResult<()> {
+        // Declare script_print(ptr: i64, len: i64)
+        {
+            let mut sig = self.module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // ptr
+            sig.params.push(AbiParam::new(types::I64)); // len
+            
+            let func_id = self
+                .module
+                .declare_function("script_print", Linkage::Import, &sig)
+                .map_err(|e| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Failed to declare runtime function script_print: {}", e),
+                    )
+                })?;
+            
+            self.func_ids.insert("script_print".to_string(), func_id);
+        }
+
+        // Declare script_alloc(size: i64) -> i64
+        {
+            let mut sig = self.module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // size
+            sig.returns.push(AbiParam::new(types::I64)); // ptr
+            
+            let func_id = self
+                .module
+                .declare_function("script_alloc", Linkage::Import, &sig)
+                .map_err(|e| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Failed to declare runtime function script_alloc: {}", e),
+                    )
+                })?;
+            
+            self.func_ids.insert("script_alloc".to_string(), func_id);
+        }
+
+        // Declare script_free(ptr: i64)
+        {
+            let mut sig = self.module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // ptr
+            
+            let func_id = self
+                .module
+                .declare_function("script_free", Linkage::Import, &sig)
+                .map_err(|e| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Failed to declare runtime function script_free: {}", e),
+                    )
+                })?;
+            
+            self.func_ids.insert("script_free".to_string(), func_id);
+        }
+
+        // Declare script_panic(msg: i64, len: i64) -> !
+        {
+            let mut sig = self.module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // msg ptr
+            sig.params.push(AbiParam::new(types::I64)); // len
+            
+            let func_id = self
+                .module
+                .declare_function("script_panic", Linkage::Import, &sig)
+                .map_err(|e| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Failed to declare runtime function script_panic: {}", e),
+                    )
+                })?;
+            
+            self.func_ids.insert("script_panic".to_string(), func_id);
+        }
 
         Ok(())
     }
@@ -168,7 +251,7 @@ impl CraneliftBackend {
     }
 
     /// Compile a function
-    fn compile_function(&mut self, func: &IrFunction) -> CodegenResult<()> {
+    fn compile_function(&mut self, func: &IrFunction, ir_module: &IrModule) -> CodegenResult<()> {
         let func_id = self.func_ids.get(&func.name).ok_or_else(|| {
             Error::new(
                 ErrorKind::RuntimeError,
@@ -184,7 +267,7 @@ impl CraneliftBackend {
         self.ctx.func.signature = sig;
 
         // Create function translator
-        let mut translator = FunctionTranslator::new(&self.module);
+        let mut translator = FunctionTranslator::new(&mut self.module, &self.func_ids, ir_module);
 
         // Translate the function
         translator.translate_function(func, &mut self.ctx.func)?;
@@ -291,6 +374,8 @@ fn script_type_to_cranelift(ty: &ScriptType) -> types::Type {
         ScriptType::TypeVar(_) => types::I64, // Should be resolved by now
         ScriptType::Generic { .. } => types::I64, // Should be resolved by now
         ScriptType::TypeParam(_) => types::I64, // Should be resolved by now
+        ScriptType::Tuple(_) => types::I64, // TODO: Tuples are not yet implemented in codegen
+        ScriptType::Reference { .. } => types::I64, // TODO: References are not yet implemented in codegen
     }
 }
 

@@ -1,0 +1,75 @@
+// Tuple and Reference Types in Script
+// Demonstrates the new type system features
+
+// Basic tuple types
+let point: (i32, i32) = (10, 20)
+let rgb: (f32, f32, f32) = (1.0, 0.5, 0.0)
+let person: (string, i32, bool) = ("Alice", 25, true)
+
+// Generic tuples
+fn swap<T, U>(pair: (T, U)) -> (U, T) {
+    let (first, second) = pair
+    (second, first)
+}
+
+// Reference types
+let value: i32 = 42
+let ref_to_value: &i32 = &value
+
+// Mutable references
+let mut counter: i32 = 0
+let counter_ref: &mut i32 = &mut counter
+
+fn increment(x: &mut i32) {
+    *x = *x + 1
+}
+
+// References to arrays
+let numbers: [i32] = [1, 2, 3, 4, 5]
+let array_ref: &[i32] = &numbers
+
+// Generic functions with references
+fn first<T>(items: &[T]) -> &T {
+    &items[0]
+}
+
+// Complex nested types
+let data: (Vec<i32>, Option<string>) = (vec![1, 2, 3], Some("hello"))
+let ref_to_data: &(Vec<i32>, Option<string>) = &data
+
+// Function types vs tuple types
+let add_fn: (i32, i32) -> i32 = |a, b| a + b  // Function type
+let coords: (i32, i32) = (5, 10)               // Tuple type
+
+// Pattern matching with tuples
+match point {
+    (0, 0) => print("Origin"),
+    (x, 0) => print("On X axis"),
+    (0, y) => print("On Y axis"),
+    (x, y) => print("Point at ({}, {})", x, y)
+}
+
+// Returning tuples from functions
+fn min_max(arr: &[i32]) -> (i32, i32) {
+    let mut min = arr[0]
+    let mut max = arr[0]
+    
+    for i in 1..arr.len() {
+        if arr[i] < min {
+            min = arr[i]
+        }
+        if arr[i] > max {
+            max = arr[i]
+        }
+    }
+    
+    (min, max)
+}
+
+// Using the new features together
+fn process_data<T, U>(data: &(Vec<T>, Option<U>)) -> Option<&U> {
+    match data {
+        (_, Some(value)) => Some(value),
+        (_, None) => None
+    }
+}

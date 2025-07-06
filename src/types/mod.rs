@@ -3,6 +3,7 @@ use std::fmt;
 
 pub mod conversion;
 pub mod generics;
+pub mod definitions;
 
 /// The main type representation in the Script language
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -37,6 +38,10 @@ pub enum Type {
     Generic { name: String, args: Vec<Type> },
     /// Type parameter in generic context (named type variable)
     TypeParam(String),
+    /// Tuple type (e.g., (i32, string), (T, U, V))
+    Tuple(Vec<Type>),
+    /// Reference type (e.g., &T, &mut T)
+    Reference { mutable: bool, inner: Box<Type> },
 }
 
 impl Type {
@@ -100,6 +105,16 @@ impl Type {
 
             // Type parameters are equal if they have the same name
             (Type::TypeParam(n1), Type::TypeParam(n2)) => n1 == n2,
+            
+            // Tuple types must have matching element types
+            (Type::Tuple(t1), Type::Tuple(t2)) => {
+                t1.len() == t2.len() && t1.iter().zip(t2.iter()).all(|(a, b)| a.equals(b))
+            }
+            
+            // Reference types must have matching mutability and inner types
+            (Type::Reference { mutable: m1, inner: i1 }, Type::Reference { mutable: m2, inner: i2 }) => {
+                m1 == m2 && i1.equals(i2)
+            }
 
             // All other combinations are not equal
             _ => false,
@@ -215,6 +230,23 @@ impl fmt::Display for Type {
                 Ok(())
             }
             Type::TypeParam(name) => write!(f, "{}", name),
+            Type::Tuple(types) => {
+                write!(f, "(")?;
+                for (i, ty) in types.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", ty)?;
+                }
+                write!(f, ")")
+            }
+            Type::Reference { mutable, inner } => {
+                if *mutable {
+                    write!(f, "&mut {}", inner)
+                } else {
+                    write!(f, "&{}", inner)
+                }
+            }
         }
     }
 }

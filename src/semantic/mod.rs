@@ -1,4 +1,4 @@
-mod analyzer;
+pub mod analyzer;
 mod error;
 pub mod memory_safety;
 mod pattern_exhaustiveness;

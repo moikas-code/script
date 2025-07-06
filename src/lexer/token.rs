@@ -28,6 +28,7 @@ pub enum TokenKind {
     // Keywords
     Fn,
     Let,
+    Mut,
     If,
     Else,
     While,
@@ -41,6 +42,7 @@ pub enum TokenKind {
     Await,
     Struct,
     Enum,
+    Impl,
     Where,
 
     // Module system keywords
@@ -76,6 +78,7 @@ pub enum TokenKind {
     Or,
     Bang,
     Pipe, // | for pattern matching
+    Ampersand, // & for reference types
 
     // Delimiters
     LeftParen,
@@ -105,6 +108,7 @@ impl TokenKind {
         match word {
             "fn" => Some(TokenKind::Fn),
             "let" => Some(TokenKind::Let),
+            "mut" => Some(TokenKind::Mut),
             "if" => Some(TokenKind::If),
             "else" => Some(TokenKind::Else),
             "while" => Some(TokenKind::While),
@@ -117,6 +121,7 @@ impl TokenKind {
             "await" => Some(TokenKind::Await),
             "struct" => Some(TokenKind::Struct),
             "enum" => Some(TokenKind::Enum),
+            "impl" => Some(TokenKind::Impl),
             "where" => Some(TokenKind::Where),
             "import" => Some(TokenKind::Import),
             "export" => Some(TokenKind::Export),
@@ -138,6 +143,7 @@ impl fmt::Display for TokenKind {
 
             TokenKind::Fn => write!(f, "fn"),
             TokenKind::Let => write!(f, "let"),
+            TokenKind::Mut => write!(f, "mut"),
             TokenKind::If => write!(f, "if"),
             TokenKind::Else => write!(f, "else"),
             TokenKind::While => write!(f, "while"),
@@ -151,6 +157,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Await => write!(f, "await"),
             TokenKind::Struct => write!(f, "struct"),
             TokenKind::Enum => write!(f, "enum"),
+            TokenKind::Impl => write!(f, "impl"),
             TokenKind::Where => write!(f, "where"),
 
             TokenKind::Import => write!(f, "import"),
@@ -178,6 +185,7 @@ impl fmt::Display for TokenKind {
             TokenKind::Or => write!(f, "||"),
             TokenKind::Bang => write!(f, "!"),
             TokenKind::Pipe => write!(f, "|"),
+            TokenKind::Ampersand => write!(f, "&"),
 
             TokenKind::LeftParen => write!(f, "("),
             TokenKind::RightParen => write!(f, ")"),

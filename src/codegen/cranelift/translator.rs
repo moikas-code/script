@@ -1,6 +1,6 @@
 use cranelift::codegen::ir::Function;
 use cranelift::prelude::*;
-use cranelift_module::Module;
+use cranelift_module::{DataDescription, FuncId, Linkage as ModuleLinkage, Module};
 
 use crate::error::{Error, ErrorKind};
 use crate::ir::{BasicBlock, BlockId, Constant, Function as IrFunction, Instruction, ValueId};
@@ -12,25 +12,43 @@ use std::collections::HashMap;
 /// Translates IR functions to Cranelift IR
 pub struct FunctionTranslator<'a> {
     /// Module for looking up functions
-    #[allow(dead_code)]
-    module: &'a dyn Module,
+    module: &'a mut dyn Module,
+    /// Function name to ID mapping
+    func_ids: &'a HashMap<String, FuncId>,
+    /// IR module for function lookups
+    ir_module: &'a crate::ir::Module,
     /// Value mapping from IR to Cranelift
     values: HashMap<ValueId, Value>,
+    /// Type mapping for values (for runtime type checking)
+    value_types: HashMap<ValueId, crate::types::Type>,
     /// Block mapping from IR to Cranelift
     blocks: HashMap<BlockId, Block>,
     /// Variable counter for SSA construction
     #[allow(dead_code)]
     var_counter: usize,
+    /// Track which blocks have been processed
+    processed_blocks: std::collections::HashSet<BlockId>,
+    /// String constants for this function
+    string_constants: Vec<(String, cranelift_module::DataId)>,
 }
 
 impl<'a> FunctionTranslator<'a> {
     /// Create a new function translator
-    pub fn new(module: &'a dyn Module) -> Self {
+    pub fn new(
+        module: &'a mut dyn Module,
+        func_ids: &'a HashMap<String, FuncId>,
+        ir_module: &'a crate::ir::Module,
+    ) -> Self {
         FunctionTranslator {
             module,
+            func_ids,
+            ir_module,
             values: HashMap::new(),
+            value_types: HashMap::new(),
             blocks: HashMap::new(),
             var_counter: 0,
+            processed_blocks: std::collections::HashSet::new(),
+            string_constants: Vec::new(),
         }
     }
 
@@ -52,13 +70,16 @@ impl<'a> FunctionTranslator<'a> {
             builder.append_block_param(entry_block, ty);
 
             // Map parameter to value
-            let _param_val = builder.block_params(entry_block)[i];
-            // TODO: Create proper parameter ValueId mapping
+            let param_val = builder.block_params(entry_block)[i];
+            // Parameters use ValueIds starting at 1000 (as set in lowering/mod.rs)
+            let param_value_id = ValueId(i as u32 + 1000);
+            self.values.insert(param_value_id, param_val);
+            // Track parameter type
+            self.value_types.insert(param_value_id, param.ty.clone());
         }
 
-        // Switch to entry block
+        // Switch to entry block (but don't seal it yet)
         builder.switch_to_block(entry_block);
-        builder.seal_block(entry_block);
 
         // First pass: create all blocks
         for (block_id, _ir_block) in ir_func.blocks() {
@@ -87,6 +108,11 @@ impl<'a> FunctionTranslator<'a> {
         block: &BasicBlock,
         builder: &mut FunctionBuilder,
     ) -> CodegenResult<()> {
+        // Check if this block has already been processed
+        if self.processed_blocks.contains(&block.id) {
+            return Ok(());
+        }
+
         let cranelift_block = *self
             .blocks
             .get(&block.id)
@@ -97,8 +123,16 @@ impl<'a> FunctionTranslator<'a> {
 
         // Translate instructions
         for (value_id, inst_with_loc) in &block.instructions {
+            // Track the type of this instruction's result if it produces one
+            if let Some(result_type) = inst_with_loc.instruction.result_type() {
+                self.value_types.insert(*value_id, result_type);
+            }
+            
             self.translate_instruction(*value_id, &inst_with_loc.instruction, builder)?;
         }
+
+        // Mark this block as processed
+        self.processed_blocks.insert(block.id);
 
         // Seal the block if all predecessors have been processed
         // In a real implementation, this would track predecessor processing
@@ -181,19 +215,88 @@ impl<'a> FunctionTranslator<'a> {
             }
 
             Instruction::Call {
-                func: _,
+                func,
                 args,
-                ty: _,
+                ty,
             } => {
-                // For now, just handle the call basic structure
-                let _arg_vals: Vec<Value> = args
-                    .iter()
-                    .map(|arg| self.get_value(*arg))
-                    .collect::<Result<Vec<_>, _>>()?;
+                // Look up the function in the IR module to get its name and signature
+                let ir_func = self.ir_module.get_function(*func).ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Internal error: Function ID {:?} not found", func),
+                    )
+                })?;
 
-                // TODO: Implement actual function calls to registered functions
-                // For now, return a placeholder constant
-                let result = builder.ins().iconst(types::I32, 0);
+                // Validate argument count
+                let expected_arg_count = ir_func.params.len();
+                if args.len() != expected_arg_count {
+                    return Err(Error::new(
+                        ErrorKind::TypeError,
+                        format!(
+                            "Function '{}' expects {} argument{}, but {} {} provided",
+                            ir_func.name,
+                            expected_arg_count,
+                            if expected_arg_count == 1 { "" } else { "s" },
+                            args.len(),
+                            if args.len() == 1 { "was" } else { "were" }
+                        ),
+                    ));
+                }
+
+                // Get the Cranelift function ID from our mapping using the function name
+                let cranelift_func_id = self.func_ids.get(&ir_func.name).ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Function '{}' is not available in this context", ir_func.name),
+                    )
+                })?;
+
+                // Get the function reference
+                let func_ref = self.module.declare_func_in_func(*cranelift_func_id, builder.func);
+
+                // Collect and validate argument values
+                let mut arg_vals = Vec::with_capacity(args.len());
+                for (i, arg) in args.iter().enumerate() {
+                    let val = self.get_value(*arg)?;
+                    
+                    // Validate argument type if we have type information
+                    if let Some(arg_type) = self.value_types.get(arg) {
+                        let expected_type = &ir_func.params[i].ty;
+                        
+                        // Basic type compatibility check
+                        if !self.types_compatible(arg_type, expected_type) {
+                            return Err(Error::new(
+                                ErrorKind::TypeError,
+                                format!(
+                                    "Type mismatch in function call '{}': parameter {} expects {:?}, but {:?} was provided",
+                                    ir_func.name, i + 1, expected_type, arg_type
+                                ),
+                            ));
+                        }
+                    }
+                    
+                    arg_vals.push(val);
+                }
+
+                // Call the function
+                let inst = builder.ins().call(func_ref, &arg_vals);
+                
+                // Handle return value
+                let result = if ty != &crate::types::Type::Unknown {
+                    // Function has a return value
+                    let results = builder.inst_results(inst);
+                    if results.is_empty() {
+                        return Err(Error::new(
+                            ErrorKind::RuntimeError,
+                            format!("Function '{}' should return a value but didn't", ir_func.name),
+                        ));
+                    }
+                    results[0]
+                } else {
+                    // Void function - create a dummy value for SSA form
+                    builder.ins().iconst(types::I32, 0)
+                };
+                
                 self.values.insert(value_id, result);
             }
 
@@ -351,6 +454,36 @@ impl<'a> FunctionTranslator<'a> {
             .ok_or_else(|| Error::new(ErrorKind::RuntimeError, format!("Value {:?} not found", id)))
     }
 
+    /// Check if two types are compatible
+    fn types_compatible(&self, actual: &crate::types::Type, expected: &crate::types::Type) -> bool {
+        use crate::types::Type;
+        
+        match (actual, expected) {
+            // Exact match
+            (a, e) if a == e => true,
+            
+            // Unknown type is compatible with anything (gradual typing)
+            (Type::Unknown, _) | (_, Type::Unknown) => true,
+            
+            // Named types need string comparison
+            (Type::Named(a), Type::Named(e)) => a == e,
+            
+            // Array types need element type compatibility
+            (Type::Array(a), Type::Array(e)) => self.types_compatible(a, e),
+            
+            // Function types need full signature compatibility
+            (Type::Function { params: a_params, ret: a_ret }, 
+             Type::Function { params: e_params, ret: e_ret }) => {
+                a_params.len() == e_params.len() &&
+                a_params.iter().zip(e_params.iter()).all(|(a, e)| self.types_compatible(a, e)) &&
+                self.types_compatible(a_ret, e_ret)
+            }
+            
+            // No other conversions are allowed
+            _ => false,
+        }
+    }
+
     /// Get a block by ID
     fn get_block(&self, id: BlockId) -> CodegenResult<Block> {
         self.blocks
@@ -505,23 +638,53 @@ impl<'a> FunctionTranslator<'a> {
         s: &str,
         builder: &mut FunctionBuilder,
     ) -> CodegenResult<Value> {
-        // For now, we'll create a simple implementation
-        // In a production system, this would need proper string interning
-        // and garbage collection integration
+        // Check if we've already created a data section for this string
+        for (existing_str, data_id) in &self.string_constants {
+            if existing_str == s {
+                // Reuse existing string constant
+                let global_value = self.module.declare_data_in_func(*data_id, builder.func);
+                return Ok(builder.ins().global_value(types::I64, global_value));
+            }
+        }
 
-        // Create a data section for the string
+        // Create a unique data ID for this string constant
+        let data_name = format!("str_const_{}", self.string_constants.len());
+        
+        // Declare the data in the module
+        let data_id = self.module
+            .declare_data(&data_name, ModuleLinkage::Local, false, false)
+            .map_err(|e| Error::new(
+                ErrorKind::RuntimeError,
+                format!("Failed to declare string data: {}", e),
+            ))?;
+
+        // Create the data content
+        let mut data_desc = DataDescription::new();
         let string_bytes = s.as_bytes();
-        let string_len = string_bytes.len();
+        
+        // Store length followed by the string data (Pascal-style string)
+        let mut contents = Vec::with_capacity(8 + string_bytes.len());
+        contents.extend_from_slice(&(string_bytes.len() as u64).to_le_bytes());
+        contents.extend_from_slice(string_bytes);
+        
+        data_desc.define(contents.into_boxed_slice());
+        
+        // Define the data in the module
+        self.module
+            .define_data(data_id, &data_desc)
+            .map_err(|e| Error::new(
+                ErrorKind::RuntimeError,
+                format!("Failed to define string data: {}", e),
+            ))?;
 
-        // For simplicity, we'll just return a pointer-like value
-        // This is a placeholder - a real implementation would:
-        // 1. Store the string in a data section
-        // 2. Return a pointer to script string object
-        // 3. Handle UTF-8 encoding properly
-        // 4. Integrate with garbage collection
+        // Remember this string constant
+        self.string_constants.push((s.to_string(), data_id));
 
-        // Create a fake pointer (just the length for now)
-        Ok(builder.ins().iconst(types::I64, string_len as i64))
+        // Get a reference to the data in the current function
+        let global_value = self.module.declare_data_in_func(data_id, builder.func);
+        
+        // Return a pointer to the string data
+        Ok(builder.ins().global_value(types::I64, global_value))
     }
 
     /// Translate get field pointer (object field access)

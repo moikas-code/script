@@ -192,7 +192,7 @@ async fn build_target(
     // Lower to IR
     let symbol_table = crate::semantic::SymbolTable::new();
     let type_info = std::collections::HashMap::new();
-    let mut lowerer = AstLowerer::new(symbol_table, type_info);
+    let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new());
     let ir_module = lowerer.lower_program(&ast).map_err(|e| {
         PackageError::ManifestParse(format!(
             "Lowering error in {}: {}",

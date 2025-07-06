@@ -48,6 +48,8 @@ pub enum SemanticErrorKind {
     InvalidMemberAccess(Type),
     /// Unknown member
     UnknownMember { ty: Type, member: String },
+    /// Method not found for type
+    MethodNotFound { type_name: String, method_name: String },
     /// Const function violation
     ConstFunctionViolation(String),
     /// Non-const function called from const function
@@ -80,6 +82,26 @@ pub enum SemanticErrorKind {
     NonExhaustivePatterns,
     /// Redundant pattern (unreachable)
     RedundantPattern,
+    /// Undefined type parameter
+    UndefinedTypeParameter(String),
+    /// Duplicate field in struct/enum constructor
+    DuplicateField(String),
+    /// Missing required field
+    MissingField(String),
+    /// Unknown field
+    UnknownField(String),
+    /// Not a struct type
+    NotAStruct(String),
+    /// Not an enum type
+    NotAnEnum(String),
+    /// Unknown enum variant
+    UnknownVariant { enum_name: String, variant_name: String },
+    /// Unqualified enum variant
+    UnqualifiedEnumVariant(String),
+    /// Variant form mismatch (unit/tuple/struct)
+    VariantFormMismatch { variant: String, expected: String, found: String },
+    /// Undefined type
+    UndefinedType(String),
 }
 
 /// Semantic error with location information
@@ -232,6 +254,9 @@ impl fmt::Display for SemanticErrorKind {
             SemanticErrorKind::UnknownMember { ty, member } => {
                 write!(f, "type {} has no member '{}'", ty, member)
             }
+            SemanticErrorKind::MethodNotFound { type_name, method_name } => {
+                write!(f, "no method '{}' found for type '{}'", method_name, type_name)
+            }
             SemanticErrorKind::ConstFunctionViolation(msg) => {
                 write!(f, "const function violation: {}", msg)
             }
@@ -299,6 +324,36 @@ impl fmt::Display for SemanticErrorKind {
             SemanticErrorKind::RedundantPattern => {
                 write!(f, "redundant pattern: this pattern is unreachable")
             }
+            SemanticErrorKind::UndefinedTypeParameter(name) => {
+                write!(f, "undefined type parameter '{}'", name)
+            }
+            SemanticErrorKind::DuplicateField(name) => {
+                write!(f, "duplicate field '{}'", name)
+            }
+            SemanticErrorKind::MissingField(name) => {
+                write!(f, "missing required field '{}'", name)
+            }
+            SemanticErrorKind::UnknownField(name) => {
+                write!(f, "unknown field '{}'", name)
+            }
+            SemanticErrorKind::NotAStruct(name) => {
+                write!(f, "'{}' is not a struct type", name)
+            }
+            SemanticErrorKind::NotAnEnum(name) => {
+                write!(f, "'{}' is not an enum type", name)
+            }
+            SemanticErrorKind::UnknownVariant { enum_name, variant_name } => {
+                write!(f, "no variant '{}' found for enum '{}'", variant_name, enum_name)
+            }
+            SemanticErrorKind::UnqualifiedEnumVariant(variant) => {
+                write!(f, "unqualified enum variant '{}'", variant)
+            }
+            SemanticErrorKind::VariantFormMismatch { variant, expected, found } => {
+                write!(f, "variant '{}' expects {}, but {} were provided", variant, expected, found)
+            }
+            SemanticErrorKind::UndefinedType(name) => {
+                write!(f, "undefined type '{}'", name)
+            }
         }
     }
 }
@@ -360,6 +415,16 @@ impl SemanticError {
             SemanticErrorKind::UnknownMember {
                 ty,
                 member: member.to_string(),
+            },
+            span,
+        )
+    }
+
+    pub fn method_not_found(type_name: &str, method_name: &str, span: Span) -> Self {
+        SemanticError::new(
+            SemanticErrorKind::MethodNotFound {
+                type_name: type_name.to_string(),
+                method_name: method_name.to_string(),
             },
             span,
         )
@@ -476,6 +541,11 @@ impl SemanticError {
         span: Span,
     ) -> Self {
         SemanticError::new(SemanticErrorKind::MemorySafetyViolation(violation), span)
+    }
+
+    // Type-related error constructors
+    pub fn undefined_type(name: &str, span: Span) -> Self {
+        SemanticError::new(SemanticErrorKind::UndefinedType(name.to_string()), span)
     }
 }
 

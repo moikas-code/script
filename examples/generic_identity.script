@@ -1,0 +1,25 @@
+// Basic generic identity function test
+// Tests simple generic function definition and type inference
+
+fn identity<T>(x: T) -> T {
+    x
+}
+
+fn main() -> i32 {
+    // Test with integer
+    let int_result = identity(42);
+    
+    // Test with boolean
+    let bool_result = identity(true);
+    
+    // Test with float
+    let float_result = identity(3.14);
+    
+    // Simple verification - if we made it here, the generic function worked
+    // Return the integer result as our exit code
+    if int_result == 42 {
+        0 // Success
+    } else {
+        1 // Failed
+    }
+}

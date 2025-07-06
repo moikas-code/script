@@ -86,9 +86,11 @@ impl DeriveHandler for DebugDeriveHandler {
                     final_expr: Some(Box::new(Expr {
                         kind: ExprKind::Literal(Literal::String(format!("{}{{...}}", type_name))),
                         span: Span::dummy(),
+                        id: 0, // Temporary ID for generated code
                     })),
                 },
                 is_async: false,
+                where_clause: None,
             },
             span: Span::dummy(),
             attributes: vec![],
@@ -124,9 +126,11 @@ impl DeriveHandler for SerializeDeriveHandler {
                     final_expr: Some(Box::new(Expr {
                         kind: ExprKind::Literal(Literal::String("{}".to_string())),
                         span: Span::dummy(),
+                        id: 0, // Temporary ID for generated code
                     })),
                 },
                 is_async: false,
+                where_clause: None,
             },
             span: Span::dummy(),
             attributes: vec![],

@@ -1,0 +1,25 @@
+// Test that function parameters are considered initialized
+fn identity<T>(x: T) -> T {
+    return x
+}
+
+fn add(a: I32, b: I32) -> I32 {
+    return a + b
+}
+
+fn main() {
+    let result1 = identity(42)
+    let result2 = identity("hello")
+    let sum = add(10, 20)
+    
+    // Test method parameters
+    impl String {
+        fn length(self) -> I32 {
+            // self should be considered initialized
+            return 0  // Placeholder
+        }
+    }
+    
+    let s = "test"
+    let len = s.length()
+}

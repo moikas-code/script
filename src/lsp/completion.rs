@@ -486,6 +486,21 @@ fn format_type(ty: &Type) -> String {
             }
         }
         Type::TypeParam(name) => name.clone(),
+        Type::Tuple(types) => {
+            let type_str = types
+                .iter()
+                .map(|t| format_type(t))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("({})", type_str)
+        }
+        Type::Reference { mutable, inner } => {
+            if *mutable {
+                format!("&mut {}", format_type(inner))
+            } else {
+                format!("&{}", format_type(inner))
+            }
+        }
     }
 }
 

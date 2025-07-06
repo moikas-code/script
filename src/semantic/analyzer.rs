@@ -1,7 +1,12 @@
 use crate::inference::{type_ann_to_type, InferenceContext};
 use crate::parser::{
+<<<<<<< HEAD
     BinaryOp, Block, ExportKind, Expr, ExprKind, GenericParams, ImportSpecifier, Literal, Param,
     Program, Stmt, StmtKind, TraitBound, TypeAnn, UnaryOp,
+=======
+    BinaryOp, Block, ExportKind, Expr, ExprKind, ImportSpecifier, Literal, Param, Program, Stmt,
+    StmtKind, TypeAnn, TypeKind, UnaryOp, ImplBlock, Method, GenericParams,
+>>>>>>> 289b5f6 (feat: Complete generic system implementation with full compilation pipeline)
 };
 use crate::source::Span;
 use crate::types::Type;
@@ -12,6 +17,17 @@ use super::error::{SemanticError, SemanticErrorKind};
 use super::memory_safety::{MemorySafetyContext, MemorySafetyViolation};
 use super::symbol::FunctionSignature;
 use super::symbol_table::SymbolTable;
+
+/// Represents a generic function instantiation for monomorphization
+#[derive(Debug, Clone)]
+pub struct GenericInstantiation {
+    /// Name of the generic function
+    pub function_name: String,
+    /// Concrete type arguments
+    pub type_args: Vec<Type>,
+    /// Location where instantiation occurred
+    pub span: Span,
+}
 
 /// Context for the current analysis
 #[derive(Debug)]
@@ -26,6 +42,8 @@ struct AnalysisContext {
     in_async_function: bool,
     /// Generic parameters in the current scope
     generic_params: Option<crate::parser::GenericParams>,
+    /// Generic parameter names in current scope
+    generic_param_names: Vec<String>,
 }
 
 impl AnalysisContext {
@@ -36,6 +54,7 @@ impl AnalysisContext {
             _in_const_function: false,
             in_async_function: false,
             generic_params: None,
+            generic_param_names: Vec::new(),
         }
     }
 }
@@ -55,6 +74,14 @@ pub struct SemanticAnalyzer {
     errors: Vec<SemanticError>,
     /// Whether memory safety analysis is enabled
     memory_safety_enabled: bool,
+    /// Impl blocks for method resolution
+    impl_blocks: Vec<ImplBlock>,
+    /// Method resolution cache
+    method_cache: HashMap<(String, String), Vec<Method>>, // (type_name, method_name) -> methods
+    /// Generic instantiations for monomorphization
+    generic_instantiations: Vec<GenericInstantiation>,
+    /// Type information for expressions (maps expression ID to type)
+    type_info: HashMap<usize, Type>,
 }
 
 impl SemanticAnalyzer {
@@ -67,6 +94,10 @@ impl SemanticAnalyzer {
             context_stack: vec![AnalysisContext::new()],
             errors: Vec::new(),
             memory_safety_enabled: true,
+            impl_blocks: Vec::new(),
+            method_cache: HashMap::new(),
+            generic_instantiations: Vec::new(),
+            type_info: HashMap::new(),
         }
     }
 
@@ -239,6 +270,328 @@ impl SemanticAnalyzer {
         Ok(())
     }
 
+    /// Analyze a struct definition
+    fn analyze_struct_definition(
+        &mut self,
+        name: &str,
+        generic_params: Option<&GenericParams>,
+        fields: &[crate::parser::StructField],
+        where_clause: Option<&crate::parser::WhereClause>,
+        span: Span,
+    ) -> Result<()> {
+        // Create struct type
+        let struct_type = if let Some(generics) = generic_params {
+            Type::Generic {
+                name: name.to_string(),
+                args: generics.params.iter().map(|p| Type::TypeParam(p.name.clone())).collect(),
+            }
+        } else {
+            Type::Named(name.to_string())
+        };
+
+        // Enter struct scope for generic parameters
+        if let Some(generics) = generic_params {
+            self.inference_ctx.push_scope();
+            
+            // Define generic type parameters
+            for param in &generics.params {
+                self.inference_ctx.define_type_param(&param.name);
+                
+                // Add trait bounds
+                if !param.bounds.is_empty() {
+                    let bound_names: Vec<String> = param.bounds
+                        .iter()
+                        .map(|b| b.trait_name.clone())
+                        .collect();
+                    self.inference_ctx.add_generic_bounds(
+                        param.name.clone(),
+                        bound_names,
+                        param.span,
+                    );
+                }
+            }
+            
+            // Validate where clause constraints
+            if let Some(where_clause) = where_clause {
+                for predicate in &where_clause.predicates {
+                    if let crate::parser::TypeKind::TypeParam(type_param) = &predicate.type_.kind {
+                        // Validate that the type parameter exists
+                        let param_exists = generics.params.iter()
+                            .any(|p| p.name == *type_param);
+                        
+                        if !param_exists {
+                            self.add_error(SemanticError::new(
+                                SemanticErrorKind::UndefinedTypeParameter(type_param.clone()),
+                                predicate.span,
+                            ));
+                            continue;
+                        }
+                        
+                        // Add bounds to inference context
+                        let bound_names: Vec<String> = predicate.bounds
+                            .iter()
+                            .map(|b| b.trait_name.clone())
+                            .collect();
+                        self.inference_ctx.add_generic_bounds(
+                            type_param.clone(),
+                            bound_names,
+                            predicate.span,
+                        );
+                    }
+                }
+            }
+        }
+
+        // Analyze field types
+        for field in fields {
+            let field_type = type_ann_to_type(&field.type_ann);
+            
+            // Validate field types (check that they're well-formed)
+            if let Err(err) = self.validate_type(&field_type, field.type_ann.span) {
+                self.add_error(err);
+            }
+        }
+
+        // Create struct info for symbol table
+        let field_info: Vec<(String, Type)> = fields.iter()
+            .map(|f| (f.name.clone(), type_ann_to_type(&f.type_ann)))
+            .collect();
+        
+        let struct_info = crate::semantic::symbol::StructInfo {
+            generic_params: generic_params.cloned(),
+            fields: field_info,
+            where_clause: where_clause.cloned(),
+        };
+        
+        // Register the struct type in the symbol table using a custom method
+        match self.symbol_table.define_struct(
+            name.to_string(),
+            struct_info,
+            span,
+        ) {
+            Ok(_) => {},
+            Err(err) => {
+                self.add_error(
+                    SemanticError::new(
+                        SemanticErrorKind::DuplicateFunction(name.to_string()),
+                        span,
+                    )
+                    .with_note(err),
+                );
+            }
+        }
+        
+        // Exit struct scope
+        if generic_params.is_some() {
+            self.inference_ctx.pop_scope();
+        }
+
+        Ok(())
+    }
+
+    /// Analyze an enum definition
+    fn analyze_enum_definition(
+        &mut self,
+        name: &str,
+        generic_params: Option<&GenericParams>,
+        variants: &[crate::parser::EnumVariant],
+        where_clause: Option<&crate::parser::WhereClause>,
+        span: Span,
+    ) -> Result<()> {
+        // Create enum type
+        let enum_type = if let Some(generics) = generic_params {
+            Type::Generic {
+                name: name.to_string(),
+                args: generics.params.iter().map(|p| Type::TypeParam(p.name.clone())).collect(),
+            }
+        } else {
+            Type::Named(name.to_string())
+        };
+
+        // Enter enum scope for generic parameters
+        if let Some(generics) = generic_params {
+            self.inference_ctx.push_scope();
+            
+            // Define generic type parameters
+            for param in &generics.params {
+                self.inference_ctx.define_type_param(&param.name);
+                
+                // Add trait bounds
+                if !param.bounds.is_empty() {
+                    let bound_names: Vec<String> = param.bounds
+                        .iter()
+                        .map(|b| b.trait_name.clone())
+                        .collect();
+                    self.inference_ctx.add_generic_bounds(
+                        param.name.clone(),
+                        bound_names,
+                        param.span,
+                    );
+                }
+            }
+            
+            // Validate where clause constraints
+            if let Some(where_clause) = where_clause {
+                for predicate in &where_clause.predicates {
+                    if let crate::parser::TypeKind::TypeParam(type_param) = &predicate.type_.kind {
+                        // Validate that the type parameter exists
+                        let param_exists = generics.params.iter()
+                            .any(|p| p.name == *type_param);
+                        
+                        if !param_exists {
+                            self.add_error(SemanticError::new(
+                                SemanticErrorKind::UndefinedTypeParameter(type_param.clone()),
+                                predicate.span,
+                            ));
+                            continue;
+                        }
+                        
+                        // Add bounds to inference context
+                        let bound_names: Vec<String> = predicate.bounds
+                            .iter()
+                            .map(|b| b.trait_name.clone())
+                            .collect();
+                        self.inference_ctx.add_generic_bounds(
+                            type_param.clone(),
+                            bound_names,
+                            predicate.span,
+                        );
+                    }
+                }
+            }
+        }
+
+        // Analyze variant types
+        for variant in variants {
+            match &variant.fields {
+                crate::parser::EnumVariantFields::Unit => {
+                    // Unit variants have no additional data
+                }
+                crate::parser::EnumVariantFields::Tuple(field_types) => {
+                    // Tuple variants have typed fields
+                    for field_type in field_types {
+                        let type_ = type_ann_to_type(field_type);
+                        if let Err(err) = self.validate_type(&type_, field_type.span) {
+                            self.add_error(err);
+                        }
+                    }
+                }
+                crate::parser::EnumVariantFields::Struct(fields) => {
+                    // Struct variants have named fields
+                    for field in fields {
+                        let field_type = type_ann_to_type(&field.type_ann);
+                        if let Err(err) = self.validate_type(&field_type, field.type_ann.span) {
+                            self.add_error(err);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Create enum variant info for symbol table
+        let variant_info: Vec<crate::semantic::symbol::EnumVariantInfo> = variants.iter()
+            .map(|v| {
+                let variant_type = match &v.fields {
+                    crate::parser::EnumVariantFields::Unit => {
+                        crate::semantic::symbol::EnumVariantType::Unit
+                    }
+                    crate::parser::EnumVariantFields::Tuple(types) => {
+                        crate::semantic::symbol::EnumVariantType::Tuple(
+                            types.iter().map(type_ann_to_type).collect()
+                        )
+                    }
+                    crate::parser::EnumVariantFields::Struct(fields) => {
+                        crate::semantic::symbol::EnumVariantType::Struct(
+                            fields.iter()
+                                .map(|f| (f.name.clone(), type_ann_to_type(&f.type_ann)))
+                                .collect()
+                        )
+                    }
+                };
+                crate::semantic::symbol::EnumVariantInfo {
+                    name: v.name.clone(),
+                    variant_type,
+                }
+            })
+            .collect();
+        
+        let enum_info = crate::semantic::symbol::EnumInfo {
+            generic_params: generic_params.cloned(),
+            variants: variant_info,
+            where_clause: where_clause.cloned(),
+        };
+        
+        // Register the enum type in the symbol table using a custom method
+        match self.symbol_table.define_enum(
+            name.to_string(),
+            enum_info,
+            span,
+        ) {
+            Ok(_) => {},
+            Err(err) => {
+                self.add_error(
+                    SemanticError::new(
+                        SemanticErrorKind::DuplicateFunction(name.to_string()),
+                        span,
+                    )
+                    .with_note(err),
+                );
+            }
+        }
+        
+        // Exit enum scope
+        if generic_params.is_some() {
+            self.inference_ctx.pop_scope();
+        }
+
+        Ok(())
+    }
+
+    /// Validate that a type is well-formed
+    fn validate_type(&mut self, type_: &Type, span: Span) -> std::result::Result<(), SemanticError> {
+        match type_ {
+            Type::TypeParam(name) => {
+                // Check if the type parameter is in scope
+                if let Some(current_context) = self.context_stack.last() {
+                    if !current_context.generic_param_names.contains(name) {
+                        return Err(SemanticError::new(
+                            SemanticErrorKind::UndefinedTypeParameter(name.clone()),
+                            span,
+                        ));
+                    }
+                }
+                Ok(())
+            }
+            Type::Array(elem_type) => {
+                self.validate_type(elem_type, span)
+            }
+            Type::Generic { name: _, args } => {
+                for arg in args {
+                    self.validate_type(arg, span)?;
+                }
+                Ok(())
+            }
+            Type::Function { params, ret } => {
+                for param in params {
+                    self.validate_type(param, span)?;
+                }
+                self.validate_type(ret, span)
+            }
+            Type::Option(inner) => {
+                self.validate_type(inner, span)
+            }
+            Type::Result { ok, err } => {
+                self.validate_type(ok, span)?;
+                self.validate_type(err, span)
+            }
+            Type::Future(inner) => {
+                self.validate_type(inner, span)
+            }
+            // All other types are valid
+            _ => Ok(()),
+        }
+    }
+
     /// Analyze a statement
     fn analyze_stmt(&mut self, stmt: &Stmt) -> Result<()> {
         // Check for @const attribute on functions and variables
@@ -265,6 +618,7 @@ impl SemanticAnalyzer {
                 body,
                 is_async,
                 generic_params,
+                where_clause: _, // TODO: Handle where clause constraints
             } => {
                 self.analyze_function_with_attributes(
                     name,
@@ -303,19 +657,22 @@ impl SemanticAnalyzer {
                 name,
                 generic_params,
                 fields,
+                where_clause,
             } => {
-                // TODO: Implement struct definition analysis
-                // For now, just suppress warnings
-                let _ = (name, generic_params, fields);
+                // Define the struct type and analyze its fields
+                self.analyze_struct_definition(name, generic_params.as_ref(), fields, where_clause.as_ref(), stmt.span)?;
             }
             StmtKind::Enum {
                 name,
                 generic_params,
                 variants,
+                where_clause,
             } => {
-                // TODO: Implement enum definition analysis
-                // For now, just suppress warnings
-                let _ = (name, generic_params, variants);
+                // Define the enum type and analyze its variants
+                self.analyze_enum_definition(name, generic_params.as_ref(), variants, where_clause.as_ref(), stmt.span)?;
+            }
+            StmtKind::Impl(impl_block) => {
+                self.analyze_impl_block(impl_block)?;
             }
         }
         Ok(())
@@ -427,6 +784,29 @@ impl SemanticAnalyzer {
         is_async: bool,
         span: crate::source::Span,
     ) -> Result<()> {
+        self.analyze_function_with_where_clause(
+            name,
+            generic_params,
+            params,
+            ret_type,
+            body,
+            is_async,
+            None, // No where clause for basic function
+            span,
+        )
+    }
+
+    fn analyze_function_with_where_clause(
+        &mut self,
+        name: &str,
+        generic_params: Option<&crate::parser::GenericParams>,
+        params: &[Param],
+        ret_type: Option<&TypeAnn>,
+        body: &Block,
+        is_async: bool,
+        where_clause: Option<&crate::parser::WhereClause>,
+        span: crate::source::Span,
+    ) -> Result<()> {
         // Convert parameter types
         let param_types: Vec<(String, Type)> = params
             .iter()
@@ -473,6 +853,11 @@ impl SemanticAnalyzer {
         // Enter function scope
         self.symbol_table.enter_scope();
         self.inference_ctx.push_scope();
+        
+        // Enter memory safety scope for the function
+        if self.memory_safety_enabled {
+            self.memory_safety_ctx.enter_scope();
+        }
 
         // Push function context with generic parameters
         // For async functions, we need to check returns against the unwrapped type
@@ -482,6 +867,9 @@ impl SemanticAnalyzer {
             _in_const_function: false, // TODO: Support @const
             in_async_function: is_async,
             generic_params: generic_params.cloned(),
+            generic_param_names: generic_params
+                .map(|gp| gp.params.iter().map(|p| p.name.clone()).collect())
+                .unwrap_or_default(),
         };
 
         // Extract generic parameters if present
@@ -500,8 +888,58 @@ impl SemanticAnalyzer {
             for generic_param in &generics.params {
                 // Add type parameter to type environment
                 // For now, we'll treat type parameters as type placeholders
-                // Future: track bounds and constraints
+                // Define type parameter and track bounds
                 self.inference_ctx.define_type_param(&generic_param.name);
+                
+                // Add trait bounds to inference context
+                if !generic_param.bounds.is_empty() {
+                    let bound_names: Vec<String> = generic_param.bounds
+                        .iter()
+                        .map(|b| b.trait_name.clone())
+                        .collect();
+                    self.inference_ctx.add_generic_bounds(
+                        generic_param.name.clone(),
+                        bound_names,
+                        generic_param.span,
+                    );
+                }
+            }
+        }
+
+        // Validate where clause constraints
+        if let Some(where_clause) = where_clause {
+            for predicate in &where_clause.predicates {
+                // For now, we'll only handle type parameter constraints
+                if let crate::parser::TypeKind::TypeParam(type_param) = &predicate.type_.kind {
+                    // Validate that the type parameter exists
+                    if let Some(generics) = generic_params {
+                        let param_exists = generics.params.iter()
+                            .any(|p| p.name == *type_param);
+                        
+                        if !param_exists {
+                            self.add_error(SemanticError::new(
+                                SemanticErrorKind::UndefinedTypeParameter(type_param.clone()),
+                                predicate.span,
+                            ));
+                            continue;
+                        }
+                    }
+                    
+                    // Add bounds to inference context
+                    let bound_names: Vec<String> = predicate.bounds
+                        .iter()
+                        .map(|b| b.trait_name.clone())
+                        .collect();
+                    self.inference_ctx.add_generic_bounds(
+                        type_param.clone(),
+                        bound_names,
+                        predicate.span,
+                    );
+                } else {
+                    // For now, skip non-type-parameter predicates
+                    // TODO: Handle more complex where clause predicates
+                    continue;
+                }
             }
         }
 
@@ -510,12 +948,33 @@ impl SemanticAnalyzer {
             let param_type = type_ann_to_type(&param.type_ann);
             match self.symbol_table.define_parameter(
                 param.name.clone(),
-                param_type,
+                param_type.clone(),
                 param.type_ann.span,
             ) {
                 Ok(symbol_id) => {
                     // Mark parameters as used
                     self.symbol_table.mark_used(symbol_id);
+                    
+                    // Memory safety: Define and initialize function parameters
+                    if self.memory_safety_enabled {
+                        // Define the parameter in memory safety context
+                        if let Err(err) = self.memory_safety_ctx.define_variable(
+                            param.name.clone(),
+                            param_type,
+                            false, // Parameters are immutable by default
+                            param.type_ann.span,
+                        ) {
+                            // This shouldn't happen as symbol table already checked for duplicates
+                        }
+                        
+                        // Function parameters are initialized by the caller
+                        if let Err(err) = self.memory_safety_ctx.initialize_variable(
+                            &param.name,
+                            param.type_ann.span,
+                        ) {
+                            // This shouldn't fail as we just defined the variable
+                        }
+                    }
                 }
                 Err(err) => {
                     self.add_error(
@@ -535,6 +994,11 @@ impl SemanticAnalyzer {
         self.pop_context();
         self.symbol_table.exit_scope();
         self.inference_ctx.pop_scope();
+        
+        // Exit memory safety scope
+        if self.memory_safety_enabled {
+            self.memory_safety_ctx.exit_scope(span);
+        }
 
         Ok(())
     }
@@ -602,6 +1066,11 @@ impl SemanticAnalyzer {
         // Enter function scope
         self.symbol_table.enter_scope();
         self.inference_ctx.push_scope();
+        
+        // Enter memory safety scope for the function
+        if self.memory_safety_enabled {
+            self.memory_safety_ctx.enter_scope();
+        }
 
         // Push function context with const flag and generic params
         let func_context = AnalysisContext {
@@ -610,6 +1079,9 @@ impl SemanticAnalyzer {
             _in_const_function: is_const,
             in_async_function: is_async,
             generic_params: generic_params.cloned(),
+            generic_param_names: generic_params
+                .map(|gp| gp.params.iter().map(|p| p.name.clone()).collect())
+                .unwrap_or_default(),
         };
 
         // Extract generic parameters if present
@@ -628,8 +1100,21 @@ impl SemanticAnalyzer {
             for generic_param in &generics.params {
                 // Add type parameter to type environment
                 // For now, we'll treat type parameters as type placeholders
-                // Future: track bounds and constraints
+                // Define type parameter and track bounds
                 self.inference_ctx.define_type_param(&generic_param.name);
+                
+                // Add trait bounds to inference context
+                if !generic_param.bounds.is_empty() {
+                    let bound_names: Vec<String> = generic_param.bounds
+                        .iter()
+                        .map(|b| b.trait_name.clone())
+                        .collect();
+                    self.inference_ctx.add_generic_bounds(
+                        generic_param.name.clone(),
+                        bound_names,
+                        generic_param.span,
+                    );
+                }
             }
         }
 
@@ -638,12 +1123,33 @@ impl SemanticAnalyzer {
             let param_type = type_ann_to_type(&param.type_ann);
             match self.symbol_table.define_parameter(
                 param.name.clone(),
-                param_type,
+                param_type.clone(),
                 param.type_ann.span,
             ) {
                 Ok(symbol_id) => {
                     // Mark parameters as used
                     self.symbol_table.mark_used(symbol_id);
+                    
+                    // Memory safety: Define and initialize function parameters
+                    if self.memory_safety_enabled {
+                        // Define the parameter in memory safety context
+                        if let Err(err) = self.memory_safety_ctx.define_variable(
+                            param.name.clone(),
+                            param_type,
+                            false, // Parameters are immutable by default
+                            param.type_ann.span,
+                        ) {
+                            // This shouldn't happen as symbol table already checked for duplicates
+                        }
+                        
+                        // Function parameters are initialized by the caller
+                        if let Err(err) = self.memory_safety_ctx.initialize_variable(
+                            &param.name,
+                            param.type_ann.span,
+                        ) {
+                            // This shouldn't fail as we just defined the variable
+                        }
+                    }
                 }
                 Err(err) => {
                     self.add_error(
@@ -665,6 +1171,11 @@ impl SemanticAnalyzer {
         self.pop_context();
         self.symbol_table.exit_scope();
         self.inference_ctx.pop_scope();
+        
+        // Exit memory safety scope
+        if self.memory_safety_enabled {
+            self.memory_safety_ctx.exit_scope(span);
+        }
 
         Ok(())
     }
@@ -942,7 +1453,7 @@ impl SemanticAnalyzer {
 
     /// Analyze an expression
     fn analyze_expr(&mut self, expr: &Expr) -> Result<Type> {
-        match &expr.kind {
+        let expr_type = match &expr.kind {
             ExprKind::Literal(lit) => self.analyze_literal(lit),
             ExprKind::Identifier(name) => self.analyze_identifier(name, expr.span),
             ExprKind::Binary { left, op, right } => self.analyze_binary(left, op, right, expr.span),
@@ -950,7 +1461,7 @@ impl SemanticAnalyzer {
             ExprKind::Call { callee, args } => self.analyze_call(callee, args, expr.span),
             ExprKind::Index { object, index } => self.analyze_index(object, index, expr.span),
             ExprKind::Member { object, property } => {
-                self.analyze_member(object, property, expr.span)
+                self.analyze_member_enhanced(object, property, expr.span)
             }
             ExprKind::If {
                 condition,
@@ -971,47 +1482,42 @@ impl SemanticAnalyzer {
                 Ok(Type::Array(Box::new(Type::Unknown)))
             }
             ExprKind::GenericConstructor { name, type_args } => {
-                // For now, treat generic constructors as named types
-                // TODO: Implement proper generic type analysis and resolution
-                let _ = type_args; // suppress warning
-                Ok(Type::Named(name.clone()))
+                // Analyze generic type constructor
+                let concrete_type_args: Vec<Type> = type_args
+                    .iter()
+                    .map(type_ann_to_type)
+                    .collect();
+                
+                // Look up the generic type definition
+                if let Some(symbol) = self.symbol_table.lookup(name) {
+                    // For now, create a generic type instance
+                    Ok(Type::Generic {
+                        name: name.clone(),
+                        args: concrete_type_args,
+                    })
+                } else {
+                    self.add_error(SemanticError::undefined_variable(name, expr.span));
+                    Ok(Type::Unknown)
+                }
             }
             ExprKind::StructConstructor { name, fields } => {
-                // TODO: Implement struct constructor analysis
-                // For now, analyze field expressions and return struct type
-                for (_, field_expr) in fields {
-                    self.analyze_expr(field_expr)?;
-                }
-                Ok(Type::Named(name.clone()))
+                self.analyze_struct_constructor(name, fields, expr.span)
             }
             ExprKind::EnumConstructor {
                 enum_name,
                 variant,
                 args,
             } => {
-                // TODO: Implement enum constructor analysis
-                // For now, analyze arguments and return enum type
-                match args {
-                    crate::parser::EnumConstructorArgs::Unit => {}
-                    crate::parser::EnumConstructorArgs::Tuple(exprs) => {
-                        for arg_expr in exprs {
-                            self.analyze_expr(arg_expr)?;
-                        }
-                    }
-                    crate::parser::EnumConstructorArgs::Struct(fields) => {
-                        for (_, field_expr) in fields {
-                            self.analyze_expr(field_expr)?;
-                        }
-                    }
-                }
-                if let Some(enum_name) = enum_name {
-                    Ok(Type::Named(enum_name.clone()))
-                } else {
-                    // Unqualified variant - would need context to resolve
-                    Ok(Type::Named(variant.clone()))
-                }
+                self.analyze_enum_constructor(enum_name.as_deref(), variant, args, expr.span)
             }
+        };
+        
+        // Record the type information for this expression
+        if let Ok(ref type_) = expr_type {
+            self.record_expression_type(expr.id, type_.clone());
         }
+        
+        expr_type
     }
 
     /// Analyze a literal
@@ -1266,10 +1772,18 @@ impl SemanticAnalyzer {
                 if let Some(signature) = maybe_signature {
                     // Handle generic functions
                     let instantiated_signature = if signature.generic_params.is_some() {
-                        // TODO: Implement generic type instantiation
-                        // For now, we'll create a simple instantiation that replaces
-                        // type parameters with the actual argument types
-                        self.instantiate_generic_function(&signature, &arg_types)?
+                        // Create instantiation and track it for monomorphization
+                        let instantiated = self.instantiate_generic_function(&signature, &arg_types)?;
+                        
+                        // Track this generic instantiation
+                        let instantiation = GenericInstantiation {
+                            function_name: name.clone(),
+                            type_args: arg_types.clone(),
+                            span,
+                        };
+                        self.add_generic_instantiation(instantiation);
+                        
+                        instantiated
                     } else {
                         signature.clone()
                     };
@@ -1929,6 +2443,16 @@ impl SemanticAnalyzer {
         &self.errors
     }
 
+    /// Get the collected generic instantiations
+    pub fn generic_instantiations(&self) -> &[GenericInstantiation] {
+        &self.generic_instantiations
+    }
+
+    /// Add a generic instantiation for tracking
+    pub fn add_generic_instantiation(&mut self, instantiation: GenericInstantiation) {
+        self.generic_instantiations.push(instantiation);
+    }
+
     /// Get the memory safety context
     pub fn memory_safety_context(&self) -> &MemorySafetyContext {
         &self.memory_safety_ctx
@@ -1942,12 +2466,12 @@ impl SemanticAnalyzer {
     /// Extract the type information collected during analysis
     /// Returns a HashMap mapping expression IDs to their inferred types
     pub fn extract_type_info(&self) -> HashMap<usize, Type> {
-        // For now, we'll return an empty map since we're not tracking expression IDs yet
-        // In a complete implementation, we would:
-        // 1. Assign unique IDs to each expression node during parsing
-        // 2. Store the inferred type for each expression ID during analysis
-        // 3. Return the collected type information here
-        HashMap::new()
+        self.type_info.clone()
+    }
+    
+    /// Record the type of an expression
+    fn record_expression_type(&mut self, expr_id: usize, type_: Type) {
+        self.type_info.insert(expr_id, type_);
     }
 
     /// Take ownership of the symbol table
@@ -2055,10 +2579,10 @@ impl SemanticAnalyzer {
                     stmt.span,
                 ));
             }
-            StmtKind::Struct { .. } | StmtKind::Enum { .. } => {
-                // Struct/enum definitions not allowed in function bodies
+            StmtKind::Struct { .. } | StmtKind::Enum { .. } | StmtKind::Impl(_) => {
+                // Struct/enum/impl definitions not allowed in function bodies
                 self.add_error(SemanticError::const_function_violation(
-                    "struct/enum definitions not allowed in function bodies",
+                    "struct/enum/impl definitions not allowed in function bodies",
                     stmt.span,
                 ));
             }
@@ -2257,7 +2781,8 @@ impl SemanticAnalyzer {
                 if let Type::TypeParam(type_param_name) = param_type {
                     type_substitutions.insert(type_param_name.clone(), arg_type.clone());
                 }
-                // TODO: Handle more complex cases like Vec<T>, Option<T>, etc.
+                // Handle complex generic types
+                self.infer_type_substitutions_from_generic(param_type, arg_type, &mut type_substitutions);
             }
         }
 
@@ -2272,6 +2797,13 @@ impl SemanticAnalyzer {
             .collect();
 
         let instantiated_return = self.substitute_type(&signature.return_type, &type_substitutions);
+
+        // Track this generic instantiation for monomorphization
+        if !type_substitutions.is_empty() {
+            // We need the function name, but it's not passed to this method
+            // TODO: Pass function name to track instantiations properly
+            // For now, we'll track in the caller
+        }
 
         Ok(FunctionSignature {
             generic_params: None, // Instantiated functions have no generic params
@@ -2307,6 +2839,859 @@ impl SemanticAnalyzer {
             // Other types remain unchanged
             _ => ty.clone(),
         }
+    }
+
+    /// Infer type substitutions from generic types (e.g., Vec<T> matched with Vec<i32>)
+    fn infer_type_substitutions_from_generic(
+        &self,
+        param_type: &Type,
+        arg_type: &Type,
+        substitutions: &mut HashMap<String, Type>,
+    ) {
+        match (param_type, arg_type) {
+            // Direct type parameter match
+            (Type::TypeParam(name), concrete_type) => {
+                substitutions.insert(name.clone(), concrete_type.clone());
+            }
+            // Generic type match (e.g., Vec<T> with Vec<i32>)
+            (Type::Generic { name: pname, args: pargs }, Type::Generic { name: aname, args: aargs }) 
+                if pname == aname && pargs.len() == aargs.len() => {
+                for (parg, aarg) in pargs.iter().zip(aargs.iter()) {
+                    self.infer_type_substitutions_from_generic(parg, aarg, substitutions);
+                }
+            }
+            // Array type match
+            (Type::Array(pelem), Type::Array(aelem)) => {
+                self.infer_type_substitutions_from_generic(pelem, aelem, substitutions);
+            }
+            // Option type match
+            (Type::Option(pinner), Type::Option(ainner)) => {
+                self.infer_type_substitutions_from_generic(pinner, ainner, substitutions);
+            }
+            // Result type match
+            (Type::Result { ok: pok, err: perr }, Type::Result { ok: aok, err: aerr }) => {
+                self.infer_type_substitutions_from_generic(pok, aok, substitutions);
+                self.infer_type_substitutions_from_generic(perr, aerr, substitutions);
+            }
+            // Function type match
+            (Type::Function { params: pparams, ret: pret }, Type::Function { params: aparams, ret: aret }) 
+                if pparams.len() == aparams.len() => {
+                for (pparam, aparam) in pparams.iter().zip(aparams.iter()) {
+                    self.infer_type_substitutions_from_generic(pparam, aparam, substitutions);
+                }
+                self.infer_type_substitutions_from_generic(pret, aret, substitutions);
+            }
+            // No match needed for other cases
+            _ => {}
+        }
+    }
+
+    /// Analyze an impl block
+    fn analyze_impl_block(&mut self, impl_block: &ImplBlock) -> Result<()> {
+        // Store the impl block for method resolution
+        self.impl_blocks.push(impl_block.clone());
+
+        // Clear method cache for the target type
+        let target_type_name = impl_block.type_name.clone();
+        self.method_cache.retain(|(type_name, _), _| type_name != &target_type_name);
+
+        // Enter new scope for impl block
+        self.symbol_table.enter_scope();
+        self.inference_ctx.push_scope();
+
+        // Set up generic context for impl block
+        let mut impl_context = AnalysisContext::new();
+        impl_context.generic_params = impl_block.generic_params.clone();
+        self.push_context(impl_context);
+
+        // Define generic type parameters in scope
+        if let Some(generics) = &impl_block.generic_params {
+            for generic_param in &generics.params {
+                self.inference_ctx.define_type_param(&generic_param.name);
+            }
+        }
+
+        // Analyze each method in the impl block
+        for method in &impl_block.methods {
+            // Create a TypeAnn from the type name for method analysis
+            let target_type_ann = TypeAnn {
+                kind: TypeKind::Named(impl_block.type_name.clone()),
+                span: impl_block.span,
+            };
+            self.analyze_method(method, &target_type_ann)?;
+        }
+
+        // Exit impl context
+        self.pop_context();
+        self.symbol_table.exit_scope();
+        self.inference_ctx.pop_scope();
+
+        Ok(())
+    }
+
+    /// Analyze a method within an impl block
+    fn analyze_method(&mut self, method: &Method, target_type: &TypeAnn) -> Result<()> {
+        // Create a unique method name that includes the type
+        let method_name = format!("{}::{}", target_type, method.name);
+
+        // Convert parameter types, including self parameter
+        let mut param_types = Vec::new();
+        
+        // First parameter is always self
+        let self_type = type_ann_to_type(target_type);
+        param_types.push(("self".to_string(), self_type));
+        
+        // Add other parameters
+        for param in &method.params {
+            let param_type = type_ann_to_type(&param.type_ann);
+            param_types.push((param.name.clone(), param_type));
+        }
+
+        // Convert return type
+        let return_type = method.ret_type.as_ref()
+            .map(type_ann_to_type)
+            .unwrap_or(Type::Unknown);
+
+        // Create method signature
+        let signature = FunctionSignature {
+            generic_params: method.generic_params.clone(),
+            params: param_types,
+            return_type,
+            is_const: false, // TODO: Support @const methods
+            is_async: method.is_async,
+        };
+
+        // Define the method as a function
+        match self.symbol_table.define_function(method_name, signature, method.span) {
+            Ok(_) => {},
+            Err(err) => {
+                self.add_error(
+                    SemanticError::new(
+                        SemanticErrorKind::DuplicateFunction(method.name.clone()),
+                        method.span,
+                    )
+                    .with_note(err),
+                );
+            }
+        }
+
+        // Enter method scope
+        self.symbol_table.enter_scope();
+        self.inference_ctx.push_scope();
+        
+        // Enter memory safety scope for the method
+        if self.memory_safety_enabled {
+            self.memory_safety_ctx.enter_scope();
+        }
+
+        // Create method context
+        let method_context = AnalysisContext {
+            current_function_return: Some(method.ret_type.as_ref()
+                .map(type_ann_to_type)
+                .unwrap_or(Type::Unknown)),
+            in_loop: false,
+            _in_const_function: false, // TODO: Support @const methods
+            in_async_function: method.is_async,
+            generic_params: method.generic_params.clone(),
+            generic_param_names: Vec::new(),
+        };
+        self.push_context(method_context);
+
+        // Define generic type parameters for the method
+        if let Some(generics) = &method.generic_params {
+            for generic_param in &generics.params {
+                self.inference_ctx.define_type_param(&generic_param.name);
+            }
+        }
+
+        // Define self parameter
+        let self_type = type_ann_to_type(target_type);
+        match self.symbol_table.define_parameter(
+            "self".to_string(),
+            self_type.clone(),
+            method.span,
+        ) {
+            Ok(symbol_id) => {
+                self.symbol_table.mark_used(symbol_id);
+                
+                // Memory safety: Define and initialize self parameter
+                if self.memory_safety_enabled {
+                    // Define the self parameter in memory safety context
+                    if let Err(err) = self.memory_safety_ctx.define_variable(
+                        "self".to_string(),
+                        self_type,
+                        false, // self is immutable
+                        method.span,
+                    ) {
+                        // This shouldn't happen as symbol table already checked for duplicates
+                    }
+                    
+                    // self parameter is initialized by the caller
+                    if let Err(err) = self.memory_safety_ctx.initialize_variable(
+                        "self",
+                        method.span,
+                    ) {
+                        // This shouldn't fail as we just defined the variable
+                    }
+                }
+            }
+            Err(err) => {
+                self.add_error(
+                    SemanticError::duplicate_variable("self", method.span).with_note(err),
+                );
+            }
+        }
+
+        // Define method parameters
+        for param in &method.params {
+            let param_type = type_ann_to_type(&param.type_ann);
+            match self.symbol_table.define_parameter(
+                param.name.clone(),
+                param_type,
+                param.type_ann.span,
+            ) {
+                Ok(symbol_id) => {
+                    self.symbol_table.mark_used(symbol_id);
+                }
+                Err(err) => {
+                    self.add_error(
+                        SemanticError::duplicate_variable(&param.name, param.type_ann.span)
+                            .with_note(err),
+                    );
+                }
+            }
+        }
+
+        // Analyze method body
+        if false { // TODO: Support @const methods
+            self.analyze_const_function_body(&method.body)?;
+        } else {
+            self.analyze_block(&method.body)?;
+        }
+
+        // Exit method context
+        self.pop_context();
+        self.symbol_table.exit_scope();
+        self.inference_ctx.pop_scope();
+        
+        // Exit memory safety scope
+        if self.memory_safety_enabled {
+            self.memory_safety_ctx.exit_scope(method.span);
+        }
+
+        Ok(())
+    }
+
+    /// Resolve method calls on types
+    fn resolve_method_call(
+        &mut self,
+        receiver_type: &Type,
+        method_name: &str,
+        args: &[Expr],
+        span: crate::source::Span,
+    ) -> Result<Type> {
+        // Check cache first
+        let cache_key = (receiver_type.to_string(), method_name.to_string());
+        if let Some(methods) = self.method_cache.get(&cache_key) {
+            if !methods.is_empty() {
+                let methods = methods.clone(); // Clone to avoid borrow checker issues
+                return self.analyze_method_call_with_methods(
+                    receiver_type,
+                    method_name,
+                    args,
+                    &methods,
+                    span,
+                );
+            }
+        }
+
+        // Find matching impl blocks
+        let mut matching_methods = Vec::new();
+        for impl_block in &self.impl_blocks.clone() {
+            let impl_target_type = Type::Named(impl_block.type_name.clone());
+            
+            // Check if receiver type matches impl target type
+            if self.types_match(receiver_type, &impl_target_type) {
+                // Find methods with matching name
+                for method in &impl_block.methods {
+                    if method.name == method_name {
+                        matching_methods.push(method.clone());
+                    }
+                }
+            }
+        }
+
+        // Cache the result
+        self.method_cache.insert(cache_key, matching_methods.clone());
+
+        if matching_methods.is_empty() {
+            self.add_error(SemanticError::new(
+                SemanticErrorKind::MethodNotFound {
+                    type_name: receiver_type.to_string(),
+                    method_name: method_name.to_string(),
+                },
+                span,
+            ));
+            return Ok(Type::Unknown);
+        }
+
+        self.analyze_method_call_with_methods(
+            receiver_type,
+            method_name,
+            args,
+            &matching_methods,
+            span,
+        )
+    }
+
+    /// Analyze method call with resolved methods
+    fn analyze_method_call_with_methods(
+        &mut self,
+        receiver_type: &Type,
+        method_name: &str,
+        args: &[Expr],
+        methods: &[Method],
+        span: crate::source::Span,
+    ) -> Result<Type> {
+        // For simplicity, use the first matching method
+        // In a complete implementation, we would do overload resolution
+        if let Some(method) = methods.first() {
+            // Analyze arguments
+            let arg_types: Vec<Type> = args
+                .iter()
+                .map(|arg| self.analyze_expr(arg))
+                .collect::<Result<Vec<_>>>()?;
+
+            // Check argument count (excluding self)
+            if args.len() != method.params.len() {
+                self.add_error(
+                    SemanticError::argument_count_mismatch(
+                        method.params.len(),
+                        args.len(),
+                        span,
+                    )
+                    .with_note(format!(
+                        "method '{}' on type {} expects {} arguments, but {} were provided",
+                        method_name,
+                        receiver_type,
+                        method.params.len(),
+                        args.len()
+                    )),
+                );
+            } else {
+                // Check each argument type
+                for (i, (param, (arg, arg_type))) in method.params.iter()
+                    .zip(args.iter().zip(arg_types.iter()))
+                    .enumerate()
+                {
+                    let param_type = type_ann_to_type(&param.type_ann);
+                    
+                    if !arg_type.is_assignable_to(&param_type) {
+                        self.add_error(
+                            SemanticError::type_mismatch(
+                                param_type.clone(),
+                                arg_type.clone(),
+                                arg.span,
+                            )
+                            .with_note(format!(
+                                "argument {} to method '{}' has wrong type",
+                                i + 1,
+                                method_name
+                            ))
+                            .with_note(format!(
+                                "parameter '{}' expects type {}, but argument has type {}",
+                                param.name, param_type, arg_type
+                            )),
+                        );
+                    }
+                }
+            }
+
+            // Return method's return type
+            Ok(method.ret_type.as_ref()
+                .map(type_ann_to_type)
+                .unwrap_or(Type::Unknown))
+        } else {
+            self.add_error(SemanticError::new(
+                SemanticErrorKind::MethodNotFound {
+                    type_name: receiver_type.to_string(),
+                    method_name: method_name.to_string(),
+                },
+                span,
+            ));
+            Ok(Type::Unknown)
+        }
+    }
+
+    /// Check if two types match for method resolution
+    fn types_match(&self, type1: &Type, type2: &Type) -> bool {
+        match (type1, type2) {
+            // Exact match
+            (t1, t2) if t1 == t2 => true,
+            // Unknown matches everything (gradual typing)
+            (Type::Unknown, _) | (_, Type::Unknown) => true,
+            // Named types match by name
+            (Type::Named(name1), Type::Named(name2)) => name1 == name2,
+            // Generic types match if base names match
+            (Type::Generic { name: name1, .. }, Type::Generic { name: name2, .. }) => name1 == name2,
+            // Array types match if element types match
+            (Type::Array(elem1), Type::Array(elem2)) => self.types_match(elem1, elem2),
+            // Other cases don't match
+            _ => false,
+        }
+    }
+
+    /// Enhanced member access analysis with method call support
+    fn analyze_member_enhanced(
+        &mut self,
+        object: &Expr,
+        property: &str,
+        span: crate::source::Span,
+    ) -> Result<Type> {
+        let object_type = self.analyze_expr(object)?;
+
+        // Try method resolution first
+        if let Ok(method_type) = self.resolve_method_call(&object_type, property, &[], span) {
+            return Ok(method_type);
+        }
+
+        // Fall back to field access
+        match &object_type {
+            Type::Unknown => Ok(Type::Unknown),
+            _ => {
+                self.add_error(SemanticError::invalid_member_access(
+                    object_type.clone(),
+                    span,
+                ));
+                Ok(Type::Unknown)
+            }
+        }
+    }
+
+    /// Analyze a struct constructor expression
+    fn analyze_struct_constructor(
+        &mut self,
+        name: &str,
+        fields: &[(String, Expr)],
+        span: crate::source::Span,
+    ) -> Result<Type> {
+        // Look up the struct definition and clone the info we need
+        let struct_info_opt = self.symbol_table.lookup(name)
+            .and_then(|symbol| symbol.struct_info().cloned());
+        
+        if let Some(struct_info) = struct_info_opt {
+                // Check if struct has generic parameters
+            // Check if struct has generic parameters
+            let (final_type, type_args) = if struct_info.generic_params.is_some() {
+                // Infer generic type arguments from field values
+                let inferred_args = self.infer_struct_type_args(
+                    name,
+                    &struct_info,
+                    fields,
+                    span
+                )?;
+                
+                // Track this generic instantiation
+                if !inferred_args.is_empty() {
+                    let instantiation = GenericInstantiation {
+                        function_name: format!("{}::new", name), // Constructor convention
+                        type_args: inferred_args.clone(),
+                        span,
+                    };
+                    self.add_generic_instantiation(instantiation);
+                }
+                
+                (Type::Generic {
+                    name: name.to_string(),
+                    args: inferred_args.clone(),
+                }, inferred_args)
+            } else {
+                (Type::Named(name.to_string()), vec![])
+            };
+            
+            // Analyze and validate fields
+            let mut seen_fields = std::collections::HashSet::new();
+            let mut provided_fields = std::collections::HashMap::new();
+            
+            for (field_name, field_expr) in fields {
+                // Check for duplicate fields
+                if !seen_fields.insert(field_name.clone()) {
+                    self.add_error(
+                        SemanticError::new(
+                            SemanticErrorKind::DuplicateField(field_name.clone()),
+                            field_expr.span,
+                        )
+                        .with_note(format!("field '{}' provided multiple times", field_name))
+                    );
+                    continue;
+                }
+                
+                // Analyze field expression
+                let field_value_type = self.analyze_expr(field_expr)?;
+                provided_fields.insert(field_name.clone(), (field_value_type, field_expr.span));
+            }
+            
+            // Check that all required fields are provided and types match
+            for (expected_field_name, expected_field_type) in &struct_info.fields {
+                if let Some((provided_type, field_span)) = provided_fields.get(expected_field_name) {
+                    // Substitute generic parameters if needed
+                    let concrete_field_type = if !type_args.is_empty() {
+                        self.substitute_type_params(expected_field_type, &type_args, &struct_info.generic_params)
+                    } else {
+                        expected_field_type.clone()
+                    };
+                    
+                    // Check type compatibility
+                    if !self.is_assignable_to(provided_type, &concrete_field_type) {
+                        self.add_error(
+                            SemanticError::type_mismatch(
+                                concrete_field_type.clone(),
+                                provided_type.clone(),
+                                *field_span,
+                            )
+                            .with_note(format!(
+                                "field '{}' expects type {}, but value has type {}",
+                                expected_field_name, expected_field_type, provided_type
+                            ))
+                        );
+                    }
+                } else {
+                    // Field is missing
+                    self.add_error(
+                        SemanticError::new(
+                            SemanticErrorKind::MissingField(expected_field_name.clone()),
+                            span,
+                        )
+                        .with_note(format!(
+                            "struct '{}' requires field '{}'",
+                            name, expected_field_name
+                        ))
+                    );
+                }
+            }
+            
+            // Check for extra fields
+            for (provided_field_name, _) in &provided_fields {
+                let field_exists = struct_info.fields.iter()
+                    .any(|(name, _)| name == provided_field_name);
+                
+                if !field_exists {
+                    self.add_error(
+                        SemanticError::new(
+                            SemanticErrorKind::UnknownField(provided_field_name.clone()),
+                            span,
+                        )
+                        .with_note(format!(
+                            "struct '{}' has no field '{}'",
+                            name, provided_field_name
+                        ))
+                    );
+                }
+            }
+            
+            Ok(final_type)
+        } else {
+            // Struct doesn't exist
+            self.add_error(SemanticError::undefined_type(name, span));
+            Ok(Type::Unknown)
+        }
+    }
+
+    /// Analyze an enum constructor expression
+    fn analyze_enum_constructor(
+        &mut self,
+        enum_name: Option<&str>,
+        variant_name: &str,
+        args: &crate::parser::EnumConstructorArgs,
+        span: crate::source::Span,
+    ) -> Result<Type> {
+        // For qualified variants (EnumName::Variant), use the provided enum name
+        // For unqualified variants, we'd need to search all enums in scope (TODO)
+        let enum_name = if let Some(name) = enum_name {
+            name
+        } else {
+            // For now, we don't support unqualified enum variants
+            self.add_error(
+                SemanticError::new(
+                    SemanticErrorKind::UnqualifiedEnumVariant(variant_name.to_string()),
+                    span,
+                )
+                .with_note("enum variants must be qualified with their enum name (e.g., Option::Some)".to_string())
+            );
+            return Ok(Type::Unknown);
+        };
+        
+        // Look up the enum definition and clone the info we need
+        let enum_info_opt = self.symbol_table.lookup(enum_name)
+            .and_then(|symbol| symbol.enum_info().cloned());
+        
+        if let Some(enum_info) = enum_info_opt {
+                // Find the variant
+                let variant_info = enum_info.variants.iter()
+                    .find(|v| v.name == variant_name);
+                
+                if let Some(variant) = variant_info {
+                    // Check if enum has generic parameters
+                    let (final_type, type_args) = if enum_info.generic_params.is_some() {
+                        // Infer generic type arguments from variant arguments
+                        let inferred_args = self.infer_enum_type_args(
+                            enum_name,
+                            &enum_info,
+                            variant,
+                            args,
+                            span
+                        )?;
+                        
+                        // Track this generic instantiation
+                        if !inferred_args.is_empty() {
+                            let instantiation = GenericInstantiation {
+                                function_name: format!("{}::{}", enum_name, variant_name),
+                                type_args: inferred_args.clone(),
+                                span,
+                            };
+                            self.add_generic_instantiation(instantiation);
+                        }
+                        
+                        (Type::Generic {
+                            name: enum_name.to_string(),
+                            args: inferred_args.clone(),
+                        }, inferred_args)
+                    } else {
+                        (Type::Named(enum_name.to_string()), vec![])
+                    };
+                    
+                    // Validate variant arguments
+                    match (&variant.variant_type, args) {
+                        (crate::semantic::symbol::EnumVariantType::Unit, 
+                         crate::parser::EnumConstructorArgs::Unit) => {
+                            // Unit variant with no args - correct
+                        }
+                        (crate::semantic::symbol::EnumVariantType::Tuple(expected_types), 
+                         crate::parser::EnumConstructorArgs::Tuple(arg_exprs)) => {
+                            // Tuple variant - check argument count and types
+                            if arg_exprs.len() != expected_types.len() {
+                                self.add_error(
+                                    SemanticError::argument_count_mismatch(
+                                        expected_types.len(),
+                                        arg_exprs.len(),
+                                        span,
+                                    )
+                                    .with_note(format!(
+                                        "variant '{}::{}' expects {} argument{}, but {} {} provided",
+                                        enum_name, variant_name,
+                                        expected_types.len(),
+                                        if expected_types.len() == 1 { "" } else { "s" },
+                                        arg_exprs.len(),
+                                        if arg_exprs.len() == 1 { "was" } else { "were" }
+                                    ))
+                                );
+                            } else {
+                                // Check each argument type
+                                for (i, (expected_type, arg_expr)) in expected_types.iter()
+                                    .zip(arg_exprs.iter())
+                                    .enumerate()
+                                {
+                                    let arg_type = self.analyze_expr(arg_expr)?;
+                                    
+                                    // Substitute generic parameters if needed
+                                    let concrete_type = if !type_args.is_empty() {
+                                        self.substitute_type_params(expected_type, &type_args, &enum_info.generic_params)
+                                    } else {
+                                        expected_type.clone()
+                                    };
+                                    
+                                    if !self.is_assignable_to(&arg_type, &concrete_type) {
+                                        self.add_error(
+                                            SemanticError::type_mismatch(
+                                                concrete_type.clone(),
+                                                arg_type,
+                                                arg_expr.span,
+                                            )
+                                            .with_note(format!(
+                                                "argument {} to variant '{}::{}' has wrong type",
+                                                i + 1, enum_name, variant_name
+                                            ))
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        (crate::semantic::symbol::EnumVariantType::Struct(expected_fields), 
+                         crate::parser::EnumConstructorArgs::Struct(field_exprs)) => {
+                            // Struct variant - validate fields
+                            let mut seen_fields = std::collections::HashSet::new();
+                            let mut provided_fields = std::collections::HashMap::new();
+                            
+                            for (field_name, field_expr) in field_exprs {
+                                if !seen_fields.insert(field_name.clone()) {
+                                    self.add_error(
+                                        SemanticError::new(
+                                            SemanticErrorKind::DuplicateField(field_name.clone()),
+                                            field_expr.span,
+                                        )
+                                        .with_note(format!("field '{}' provided multiple times", field_name))
+                                    );
+                                    continue;
+                                }
+                                
+                                let field_type = self.analyze_expr(field_expr)?;
+                                provided_fields.insert(field_name.clone(), (field_type, field_expr.span));
+                            }
+                            
+                            // Check all required fields
+                            for (expected_field_name, expected_field_type) in expected_fields {
+                                if let Some((provided_type, field_span)) = provided_fields.get(expected_field_name) {
+                                    // Substitute generic parameters if needed
+                                    let concrete_type = if !type_args.is_empty() {
+                                        self.substitute_type_params(expected_field_type, &type_args, &enum_info.generic_params)
+                                    } else {
+                                        expected_field_type.clone()
+                                    };
+                                    
+                                    if !self.is_assignable_to(provided_type, &concrete_type) {
+                                        self.add_error(
+                                            SemanticError::type_mismatch(
+                                                concrete_type,
+                                                provided_type.clone(),
+                                                *field_span,
+                                            )
+                                            .with_note(format!(
+                                                "field '{}' expects type {}, but value has type {}",
+                                                expected_field_name, expected_field_type, provided_type
+                                            ))
+                                        );
+                                    }
+                                } else {
+                                    self.add_error(
+                                        SemanticError::new(
+                                            SemanticErrorKind::MissingField(expected_field_name.clone()),
+                                            span,
+                                        )
+                                        .with_note(format!(
+                                            "variant '{}::{}' requires field '{}'",
+                                            enum_name, variant_name, expected_field_name
+                                        ))
+                                    );
+                                }
+                            }
+                            
+                            // Check for extra fields
+                            for (provided_field_name, _) in &provided_fields {
+                                let field_exists = expected_fields.iter()
+                                    .any(|(name, _)| name == provided_field_name);
+                                
+                                if !field_exists {
+                                    self.add_error(
+                                        SemanticError::new(
+                                            SemanticErrorKind::UnknownField(provided_field_name.clone()),
+                                            span,
+                                        )
+                                        .with_note(format!(
+                                            "variant '{}::{}' has no field '{}'",
+                                            enum_name, variant_name, provided_field_name
+                                        ))
+                                    );
+                                }
+                            }
+                        }
+                        _ => {
+                            // Mismatch between variant type and constructor args
+                            let expected_form = match &variant.variant_type {
+                                crate::semantic::symbol::EnumVariantType::Unit => "no arguments",
+                                crate::semantic::symbol::EnumVariantType::Tuple(_) => "tuple arguments",
+                                crate::semantic::symbol::EnumVariantType::Struct(_) => "struct fields",
+                            };
+                            let provided_form = match args {
+                                crate::parser::EnumConstructorArgs::Unit => "no arguments",
+                                crate::parser::EnumConstructorArgs::Tuple(_) => "tuple arguments",
+                                crate::parser::EnumConstructorArgs::Struct(_) => "struct fields",
+                            };
+                            
+                            self.add_error(
+                                SemanticError::new(
+                                    SemanticErrorKind::VariantFormMismatch {
+                                        variant: format!("{}::{}", enum_name, variant_name),
+                                        expected: expected_form.to_string(),
+                                        found: provided_form.to_string(),
+                                    },
+                                    span,
+                                )
+                            );
+                        }
+                    }
+                    
+                    Ok(final_type)
+                } else {
+                    // Variant doesn't exist in this enum
+                    self.add_error(
+                        SemanticError::new(
+                            SemanticErrorKind::UnknownVariant {
+                                enum_name: enum_name.to_string(),
+                                variant_name: variant_name.to_string(),
+                            },
+                            span,
+                        )
+                    );
+                    Ok(Type::Unknown)
+                }
+        } else {
+            // Enum doesn't exist
+            self.add_error(SemanticError::undefined_type(enum_name, span));
+            Ok(Type::Unknown)
+        }
+    }
+
+    /// Infer generic type arguments for a struct constructor
+    fn infer_struct_type_args(
+        &mut self,
+        struct_name: &str,
+        struct_info: &crate::semantic::symbol::StructInfo,
+        provided_fields: &[(String, Expr)],
+        span: crate::source::Span,
+    ) -> Result<Vec<Type>> {
+        // For now, return empty type args - full type inference would go here
+        // TODO: Implement proper type inference from field values
+        if let Some(generic_params) = &struct_info.generic_params {
+            // Return Unknown for each type parameter as placeholder
+            Ok(generic_params.params.iter()
+                .map(|_| Type::Unknown)
+                .collect())
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    /// Infer generic type arguments for an enum constructor
+    fn infer_enum_type_args(
+        &mut self,
+        enum_name: &str,
+        enum_info: &crate::semantic::symbol::EnumInfo,
+        variant: &crate::semantic::symbol::EnumVariantInfo,
+        args: &crate::parser::EnumConstructorArgs,
+        span: crate::source::Span,
+    ) -> Result<Vec<Type>> {
+        // For now, return empty type args - full type inference would go here
+        // TODO: Implement proper type inference from variant arguments
+        if let Some(generic_params) = &enum_info.generic_params {
+            // Return Unknown for each type parameter as placeholder
+            Ok(generic_params.params.iter()
+                .map(|_| Type::Unknown)
+                .collect())
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    /// Substitute type parameters with concrete types
+    fn substitute_type_params(
+        &self,
+        ty: &Type,
+        type_args: &[Type],
+        generic_params: &Option<crate::parser::GenericParams>,
+    ) -> Type {
+        // Simple substitution for now - would need full implementation
+        // TODO: Implement proper type substitution
+        ty.clone()
     }
 }
 

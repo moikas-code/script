@@ -426,13 +426,14 @@ fn run_program(source: &str, file_name: Option<&str>) {
         return;
     }
 
-    // Extract type information and symbol table
+    // Extract type information, generic instantiations, and symbol table
     let type_info = analyzer.extract_type_info();
+    let generic_instantiations = analyzer.generic_instantiations().to_vec();
     let symbol_table = analyzer.into_symbol_table();
 
     // Lower to IR
-    let mut lowerer = AstLowerer::new(symbol_table, type_info);
-    let ir_module = match lowerer.lower_program(&program) {
+    let mut lowerer = AstLowerer::new(symbol_table, type_info.clone(), generic_instantiations.clone());
+    let mut ir_module = match lowerer.lower_program(&program) {
         Ok(module) => module,
         Err(error) => {
             let mut reporter = ErrorReporter::new();
@@ -441,6 +442,33 @@ fn run_program(source: &str, file_name: Option<&str>) {
             return;
         }
     };
+
+    // Monomorphize generic functions if any exist
+    if !generic_instantiations.is_empty() {
+        use script::codegen::monomorphization::MonomorphizationContext;
+        
+        let mut mono_context = MonomorphizationContext::new();
+        mono_context.initialize_from_semantic_analysis(&generic_instantiations, &type_info);
+        
+        if let Err(error) = mono_context.monomorphize(&mut ir_module) {
+            let mut reporter = ErrorReporter::new();
+            reporter.report(error);
+            reporter.print_all();
+            return;
+        }
+        
+        // Print monomorphization statistics if there were any generic functions
+        let stats = mono_context.stats();
+        if stats.functions_monomorphized > 0 {
+            println!(
+                "{} Monomorphized {} generic functions ({} instantiations, {} duplicates avoided)",
+                "Info:".blue().bold(),
+                stats.functions_monomorphized,
+                stats.type_instantiations,
+                stats.duplicates_avoided
+            );
+        }
+    }
 
     // Generate code
     let mut codegen = CodeGenerator::new();

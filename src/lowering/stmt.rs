@@ -42,6 +42,11 @@ pub fn lower_statement(lowerer: &mut AstLowerer, stmt: &Stmt) -> LoweringResult<
             let _ = name; // suppress warning
             Ok(())
         }
+        StmtKind::Impl(_) => {
+            // TODO: Implement impl block lowering
+            // Impl blocks are handled during semantic analysis
+            Ok(())
+        }
     }
 }
 

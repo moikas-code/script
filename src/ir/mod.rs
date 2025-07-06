@@ -243,6 +243,18 @@ impl IrBuilder {
             value,
         });
     }
+
+    /// Check if the current block has a terminator instruction
+    pub fn current_block_has_terminator(&self) -> bool {
+        if let (Some(func_id), Some(block_id)) = (self.current_function, self.current_block) {
+            if let Some(func) = self.module.get_function(func_id) {
+                if let Some(block) = func.get_block(block_id) {
+                    return block.has_terminator();
+                }
+            }
+        }
+        false
+    }
 }
 
 impl Default for IrBuilder {

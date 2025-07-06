@@ -84,6 +84,8 @@ pub struct CompilationContext {
     compilation_order: Vec<String>,
     /// Type information collected during semantic analysis
     type_info: HashMap<usize, crate::types::Type>,
+    /// Generic instantiations collected during semantic analysis
+    generic_instantiations: Vec<crate::semantic::analyzer::GenericInstantiation>,
     /// Package root directory
     package_root: Option<PathBuf>,
     /// Whether to compile in release mode
@@ -100,6 +102,7 @@ impl CompilationContext {
             global_symbols: SymbolTable::new(),
             compilation_order: Vec::new(),
             type_info: HashMap::new(),
+            generic_instantiations: Vec::new(),
             package_root: None,
             release_mode: false,
             debug_flags: DebugFlags::default(),
@@ -299,7 +302,11 @@ impl CompilationContext {
         }
 
         // Lower all modules to IR
-        let mut lowerer = AstLowerer::new(self.global_symbols.clone(), self.type_info.clone());
+        let mut lowerer = AstLowerer::new(
+            self.global_symbols.clone(), 
+            self.type_info.clone(), 
+            self.generic_instantiations.clone()
+        );
 
         // Create a combined program from all modules
         let mut combined_statements = Vec::new();
@@ -318,7 +325,76 @@ impl CompilationContext {
             statements: combined_statements,
         };
 
-        lowerer.lower_program(&combined_program)
+        let mut ir_module = lowerer.lower_program(&combined_program)?;
+        
+        // Monomorphize generic functions if any exist
+        if !self.generic_instantiations.is_empty() || self.has_generic_functions(&ir_module) {
+            use crate::codegen::monomorphization::MonomorphizationContext;
+            
+            let mut mono_context = MonomorphizationContext::new();
+            mono_context.initialize_from_semantic_analysis(&self.generic_instantiations, &self.type_info);
+            
+            mono_context.monomorphize(&mut ir_module)?;
+            
+            // Report monomorphization statistics
+            let stats = mono_context.stats();
+            if stats.functions_monomorphized > 0 {
+                println!(
+                    "Monomorphized {} generic functions ({} instantiations, {} duplicates avoided)",
+                    stats.functions_monomorphized,
+                    stats.type_instantiations,
+                    stats.duplicates_avoided
+                );
+            }
+        }
+        
+        Ok(ir_module)
+    }
+
+    /// Check if the IR module contains generic functions
+    fn has_generic_functions(&self, module: &IrModule) -> bool {
+        use crate::types::Type;
+        
+        // Check each function for type parameters
+        for function in module.functions().values() {
+            if self.is_generic_function(function) {
+                return true;
+            }
+        }
+        false
+    }
+    
+    /// Check if a function is generic (has type parameters)
+    fn is_generic_function(&self, function: &crate::ir::Function) -> bool {
+        // Check parameters
+        for param in &function.params {
+            if self.has_type_parameter(&param.ty) {
+                return true;
+            }
+        }
+        
+        // Check return type
+        self.has_type_parameter(&function.return_type)
+    }
+    
+    /// Check if a type contains type parameters
+    fn has_type_parameter(&self, ty: &crate::types::Type) -> bool {
+        use crate::types::Type;
+        
+        match ty {
+            Type::TypeParam(_) => true,
+            Type::Array(elem) => self.has_type_parameter(elem),
+            Type::Option(inner) => self.has_type_parameter(inner),
+            Type::Result { ok, err } => self.has_type_parameter(ok) || self.has_type_parameter(err),
+            Type::Function { params, ret } => {
+                params.iter().any(|p| self.has_type_parameter(p)) || self.has_type_parameter(ret)
+            }
+            Type::Generic { args, .. } => args.iter().any(|arg| self.has_type_parameter(arg)),
+            Type::Future(inner) => self.has_type_parameter(inner),
+            Type::Tuple(types) => types.iter().any(|t| self.has_type_parameter(t)),
+            Type::Reference { inner, .. } => self.has_type_parameter(inner),
+            _ => false,
+        }
     }
 
     /// Perform semantic analysis on a single module
@@ -349,6 +425,10 @@ impl CompilationContext {
             // Extract type information and merge with global type info
             let module_types = analyzer.extract_type_info();
             self.type_info.extend(module_types);
+            
+            // Collect generic instantiations from this module
+            let module_instantiations = analyzer.generic_instantiations().to_vec();
+            self.generic_instantiations.extend(module_instantiations);
 
             // For now, we don't merge symbol tables as that would require
             // more sophisticated module system support

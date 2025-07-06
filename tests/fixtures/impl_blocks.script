@@ -1,0 +1,82 @@
+// Test file for impl block parsing
+
+// Simple impl block
+struct Point {
+    x: i32,
+    y: i32
+}
+
+impl Point {
+    fn new(x: i32, y: i32) -> Point {
+        Point { x: x, y: y }
+    }
+    
+    fn distance(self, other: Point) -> f64 {
+        let dx = other.x - self.x
+        let dy = other.y - self.y
+        sqrt(dx * dx + dy * dy)
+    }
+}
+
+// Generic impl block
+struct Vec<T> {
+    items: [T]
+}
+
+impl<T> Vec<T> {
+    fn new() -> Vec<T> {
+        Vec { items: [] }
+    }
+    
+    fn push(self, item: T) {
+        self.items.append(item)
+    }
+    
+    fn len(self) -> i32 {
+        self.items.length()
+    }
+}
+
+// Impl with where clause
+struct Container<T> {
+    value: T
+}
+
+impl<T> Container<T> where T: Clone {
+    fn clone_value(self) -> T {
+        self.value.clone()
+    }
+}
+
+// Async methods
+struct AsyncWorker {
+    id: i32
+}
+
+impl AsyncWorker {
+    async fn do_work(self) -> Result<string, Error> {
+        await async_operation(self.id)
+    }
+    
+    async fn process_batch(self, items: [string]) {
+        for item in items {
+            await self.process_item(item)
+        }
+    }
+}
+
+// Methods with generic parameters
+struct Processor {
+    name: string
+}
+
+impl Processor {
+    fn process<T>(self, item: T) -> Result<T, Error> where T: Debug {
+        print("Processing: ", item)
+        Ok(item)
+    }
+    
+    fn transform<A, B>(self, value: A, converter: (A) -> B) -> B {
+        converter(value)
+    }
+}

@@ -327,6 +327,7 @@ impl TestRunner {
                 ret_type: None,
                 body: test.body.clone(),
                 is_async: false,
+                where_clause: None,
             },
             span: test.span,
             attributes: vec![],
@@ -346,10 +347,12 @@ impl TestRunner {
                                 callee: Box::new(crate::parser::Expr {
                                     kind: crate::parser::ExprKind::Identifier(test.name.clone()),
                                     span: test.span,
+                                    id: 0, // Temporary ID for generated code
                                 }),
                                 args: vec![],
                             },
                             span: test.span,
+                            id: 0, // Temporary ID for generated code
                         }),
                         span: test.span,
                         attributes: vec![],
@@ -357,6 +360,7 @@ impl TestRunner {
                     final_expr: None,
                 },
                 is_async: false,
+                where_clause: None,
             },
             span: test.span,
             attributes: vec![],

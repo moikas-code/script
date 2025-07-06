@@ -81,6 +81,18 @@ impl TypeInfoBuilder {
                 // Type parameters should be resolved by now, treat as named type
                 self.get_or_insert_named(name, script_type)
             }
+            ScriptType::Tuple(types) => {
+                // For tuples, recursively add element types
+                for element_type in types {
+                    let _element_id = self.add_base_type(element_type);
+                }
+                self.get_or_insert_composite("tuple", script_type)
+            }
+            ScriptType::Reference { inner, .. } => {
+                // For references, add the inner type
+                let _inner_id = self.add_base_type(inner);
+                self.get_or_insert_composite("reference", script_type)
+            }
         }
     }
 

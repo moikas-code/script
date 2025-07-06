@@ -6,9 +6,15 @@
 use crate::codegen::debug::DebugFlags;
 use crate::error::Error;
 use crate::ir::Module as IrModule;
+use crate::semantic::analyzer::SemanticAnalyzer;
+use crate::inference::InferenceContext;
+use std::time::Instant;
 
 pub mod cranelift;
 pub mod debug;
+pub mod monomorphization;
+
+pub use monomorphization::{MonomorphizationContext, MonomorphizationStats};
 
 /// Result type for code generation
 pub type CodegenResult<T> = Result<T, Error>;
@@ -25,6 +31,23 @@ pub trait CodegenBackend {
 /// High-level code generator that dispatches to specific backends
 pub struct CodeGenerator {
     backend: Box<dyn CodegenBackend<Output = ExecutableModule>>,
+    /// Monomorphization context for generic handling
+    monomorphization_ctx: MonomorphizationContext,
+    /// Compilation statistics
+    stats: CodegenStats,
+}
+
+/// Statistics for code generation
+#[derive(Debug, Default)]
+pub struct CodegenStats {
+    /// Number of functions generated
+    pub functions_generated: usize,
+    /// Number of generic functions monomorphized
+    pub generic_functions_monomorphized: usize,
+    /// Code size in bytes
+    pub code_size: usize,
+    /// Compilation time in milliseconds
+    pub compilation_time_ms: u64,
 }
 
 /// Executable module that can be run
@@ -41,6 +64,8 @@ impl CodeGenerator {
     pub fn new() -> Self {
         CodeGenerator {
             backend: Box::new(cranelift::CraneliftBackend::new()),
+            monomorphization_ctx: MonomorphizationContext::new(),
+            stats: CodegenStats::default(),
         }
     }
 
@@ -48,12 +73,62 @@ impl CodeGenerator {
     pub fn with_debug(debug_flags: DebugFlags) -> Self {
         CodeGenerator {
             backend: Box::new(cranelift::CraneliftBackend::with_debug(debug_flags)),
+            monomorphization_ctx: MonomorphizationContext::new(),
+            stats: CodegenStats::default(),
+        }
+    }
+
+    /// Create a new code generator with semantic analyzer integration
+    pub fn with_semantic_analyzer(semantic_analyzer: SemanticAnalyzer) -> Self {
+        CodeGenerator {
+            backend: Box::new(cranelift::CraneliftBackend::new()),
+            monomorphization_ctx: MonomorphizationContext::new().with_semantic_analyzer(semantic_analyzer),
+            stats: CodegenStats::default(),
+        }
+    }
+
+    /// Create a new code generator with inference context integration
+    pub fn with_inference_context(inference_ctx: InferenceContext) -> Self {
+        CodeGenerator {
+            backend: Box::new(cranelift::CraneliftBackend::new()),
+            monomorphization_ctx: MonomorphizationContext::new().with_inference_context(inference_ctx),
+            stats: CodegenStats::default(),
         }
     }
 
     /// Generate executable code from IR
     pub fn generate(&mut self, ir_module: &IrModule) -> CodegenResult<ExecutableModule> {
-        self.backend.generate(ir_module)
+        let start_time = Instant::now();
+        
+        // Generate code using the backend directly
+        // Note: Monomorphization should have been done earlier in the pipeline
+        let result = self.backend.generate(ir_module);
+        
+        // Update compilation stats
+        self.stats.compilation_time_ms = start_time.elapsed().as_millis() as u64;
+        
+        match result {
+            Ok(executable) => {
+                self.stats.functions_generated = ir_module.functions().len();
+                Ok(executable)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Get compilation statistics
+    pub fn stats(&self) -> &CodegenStats {
+        &self.stats
+    }
+
+    /// Get monomorphization statistics
+    pub fn monomorphization_stats(&self) -> &MonomorphizationStats {
+        self.monomorphization_ctx.stats()
+    }
+
+    /// Get a mutable reference to the monomorphization context
+    pub fn monomorphization_context_mut(&mut self) -> &mut MonomorphizationContext {
+        &mut self.monomorphization_ctx
     }
 }
 
@@ -150,5 +225,37 @@ mod tests {
 
         let result = gen.generate(&module);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_code_generator_with_semantic_analyzer() {
+        let semantic_analyzer = SemanticAnalyzer::new();
+        let gen = CodeGenerator::with_semantic_analyzer(semantic_analyzer);
+        
+        // Verify the generator was created successfully
+        assert!(gen.monomorphization_ctx.semantic_analyzer_mut().is_some());
+    }
+
+    #[test]
+    fn test_code_generator_with_inference_context() {
+        let inference_ctx = InferenceContext::new();
+        let gen = CodeGenerator::with_inference_context(inference_ctx);
+        
+        // Verify the generator was created successfully
+        assert!(gen.monomorphization_ctx.inference_context_mut().is_some());
+    }
+
+    #[test]
+    fn test_compilation_stats() {
+        let mut gen = CodeGenerator::new();
+        let builder = IrBuilder::new();
+        let module = builder.build();
+
+        let _result = gen.generate(&module);
+        
+        // Check that stats were updated
+        let stats = gen.stats();
+        assert!(stats.compilation_time_ms > 0);
+        assert_eq!(stats.functions_generated, module.functions().len());
     }
 }

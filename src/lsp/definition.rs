@@ -182,6 +182,16 @@ fn find_identifier_in_stmt(stmt: &Stmt, target: &SourceLocation) -> Option<Ident
                 });
             }
         }
+        StmtKind::Impl(impl_block) => {
+            // Check if target is on the type name
+            if stmt.span.contains_location(target) {
+                return Some(IdentifierInfo {
+                    name: impl_block.type_name.clone(),
+                    span: stmt.span,
+                });
+            }
+            // TODO: Check methods within impl block
+        }
     }
 
     None

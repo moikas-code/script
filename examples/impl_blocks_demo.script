@@ -1,0 +1,155 @@
+// Script Language - Impl Blocks Demo
+// This file demonstrates the implementation block syntax and features
+
+// Basic struct with impl block
+struct Rectangle {
+    width: f64,
+    height: f64
+}
+
+impl Rectangle {
+    // Constructor method
+    fn new(width: f64, height: f64) -> Rectangle {
+        Rectangle { width: width, height: height }
+    }
+    
+    // Method that takes self
+    fn area(self) -> f64 {
+        self.width * self.height
+    }
+    
+    // Method that modifies self (when mutable references are supported)
+    fn scale(self, factor: f64) {
+        self.width = self.width * factor
+        self.height = self.height * factor
+    }
+}
+
+// Generic struct with impl block
+struct Stack<T> {
+    items: [T],
+    capacity: i32
+}
+
+impl<T> Stack<T> {
+    // Generic constructor
+    fn new(capacity: i32) -> Stack<T> {
+        Stack {
+            items: [],
+            capacity: capacity
+        }
+    }
+    
+    // Method with self parameter
+    fn push(self, item: T) -> bool {
+        if self.items.len() < self.capacity {
+            self.items.push(item)
+            true
+        } else {
+            false
+        }
+    }
+    
+    fn pop(self) -> Option<T> {
+        self.items.pop()
+    }
+    
+    fn is_empty(self) -> bool {
+        self.items.len() == 0
+    }
+}
+
+// Impl block with where clause
+struct Pair<A, B> {
+    first: A,
+    second: B
+}
+
+impl<A, B> Pair<A, B> where A: Clone, B: Clone {
+    // Method that requires trait bounds
+    fn clone_both(self) -> (A, B) {
+        (self.first.clone(), self.second.clone())
+    }
+}
+
+// Async methods example
+struct HttpClient {
+    base_url: string,
+    timeout: i32
+}
+
+impl HttpClient {
+    fn new(base_url: string) -> HttpClient {
+        HttpClient {
+            base_url: base_url,
+            timeout: 30000
+        }
+    }
+    
+    // Async method
+    async fn get(self, path: string) -> Result<Response, Error> {
+        let url = self.base_url + path
+        await http_get(url, self.timeout)
+    }
+    
+    async fn post(self, path: string, body: string) -> Result<Response, Error> {
+        let url = self.base_url + path
+        await http_post(url, body, self.timeout)
+    }
+}
+
+// Complex example with multiple generic parameters and bounds
+struct Cache<K, V> {
+    entries: Map<K, V>,
+    max_size: i32
+}
+
+impl<K, V> Cache<K, V> where K: Hash + Eq, V: Clone {
+    fn new(max_size: i32) -> Cache<K, V> {
+        Cache {
+            entries: Map::new(),
+            max_size: max_size
+        }
+    }
+    
+    fn get(self, key: K) -> Option<V> {
+        if let Some(value) = self.entries.get(key) {
+            Some(value.clone())
+        } else {
+            None
+        }
+    }
+    
+    fn put(self, key: K, value: V) {
+        if self.entries.len() >= self.max_size {
+            // Remove oldest entry (simplified)
+            self.entries.clear()
+        }
+        self.entries.insert(key, value)
+    }
+}
+
+// Example usage
+fn main() {
+    // Using Rectangle
+    let rect = Rectangle::new(10.0, 20.0)
+    print("Area:", rect.area())
+    
+    // Using generic Stack
+    let stack = Stack::new(10)
+    stack.push(1)
+    stack.push(2)
+    stack.push(3)
+    
+    while !stack.is_empty() {
+        if let Some(value) = stack.pop() {
+            print("Popped:", value)
+        }
+    }
+    
+    // Using async methods
+    let client = HttpClient::new("https://api.example.com")
+    
+    // This would be in an async context
+    // let response = await client.get("/users")
+}

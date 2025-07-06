@@ -7,7 +7,7 @@
 use crate::error::{Error, ErrorKind};
 use crate::ir::{Constant, Instruction, IrBuilder, Module as IrModule, Parameter, ValueId};
 use crate::parser::{Block, Expr, Program, Stmt, StmtKind};
-use crate::semantic::SymbolTable;
+use crate::semantic::{SymbolTable, analyzer::GenericInstantiation};
 use crate::types::Type;
 use std::collections::HashMap;
 use std::mem;
@@ -31,17 +31,29 @@ pub struct AstLowerer {
     symbol_table: SymbolTable,
     /// Type information from semantic analysis
     type_info: HashMap<usize, Type>, // Maps expression IDs to types
+    /// Generic instantiations for monomorphization
+    generic_instantiations: Vec<GenericInstantiation>,
 }
 
 impl AstLowerer {
     /// Create a new AST lowerer
-    pub fn new(symbol_table: SymbolTable, type_info: HashMap<usize, Type>) -> Self {
+    pub fn new(
+        symbol_table: SymbolTable, 
+        type_info: HashMap<usize, Type>,
+        generic_instantiations: Vec<GenericInstantiation>
+    ) -> Self {
         AstLowerer {
             builder: IrBuilder::new(),
             context: LoweringContext::new(),
             symbol_table,
             type_info,
+            generic_instantiations,
         }
+    }
+    
+    /// Get the generic instantiations for monomorphization
+    pub fn generic_instantiations(&self) -> &[GenericInstantiation] {
+        &self.generic_instantiations
     }
 
     /// Lower a program to IR
@@ -247,6 +259,11 @@ impl AstLowerer {
             StmtKind::Enum { .. } => {
                 // TODO: Implement enum definition lowering
                 // Enums are handled during semantic analysis
+            }
+            
+            StmtKind::Impl(_) => {
+                // TODO: Implement impl block lowering
+                // Impl blocks are handled during semantic analysis
             }
         }
 
@@ -675,15 +692,29 @@ impl AstLowerer {
                 }
             }
             TypeKind::TypeParam(name) => Type::TypeParam(name.clone()),
+            TypeKind::Tuple(types) => {
+                let element_types: Vec<Type> = types
+                    .iter()
+                    .map(|t| self.convert_type_annotation(t))
+                    .collect();
+                Type::Tuple(element_types)
+            }
+            TypeKind::Reference { mutable, inner } => Type::Reference {
+                mutable: *mutable,
+                inner: Box::new(self.convert_type_annotation(inner)),
+            },
         }
     }
 
     /// Get the type of an expression
     fn get_expression_type(&self, expr: &Expr) -> LoweringResult<Type> {
+        // First, try to get the type from semantic analysis
+        if let Some(type_) = self.type_info.get(&expr.id) {
+            return Ok(type_.clone());
+        }
+        
+        // Fallback to basic type inference if type information is not available
         use crate::parser::ExprKind;
-
-        // TODO: Use semantic analysis results from type_info HashMap
-        // For now, implement basic type inference from expression kinds
 
         match &expr.kind {
             ExprKind::Literal(literal) => {
@@ -844,8 +875,8 @@ impl AstLowerer {
                 Ok(Type::Array(Box::new(Type::Unknown)))
             }
             ExprKind::GenericConstructor { name, type_args: _ } => {
-                // For now, treat generic constructors as named types
-                // TODO: Implement proper generic type handling in lowering
+                // Generic constructors are treated as named types
+                // NOTE: With monomorphization complete, this may be the correct approach
                 Ok(Type::Named(name.clone()))
             }
             ExprKind::StructConstructor { name, fields: _ } => {
@@ -896,7 +927,9 @@ impl AstLowerer {
     fn ensure_return(&mut self) {
         // Check if the current block already has a terminator
         // If not, add a return
-        self.builder.build_return(None);
+        if !self.builder.current_block_has_terminator() {
+            self.builder.build_return(None);
+        }
     }
 }
 
@@ -915,8 +948,9 @@ mod tests {
         // Create dummy symbol table and type info for testing
         let symbol_table = SymbolTable::new();
         let type_info = HashMap::new();
+        let generic_instantiations = Vec::new();
 
-        let mut lowerer = AstLowerer::new(symbol_table, type_info);
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, generic_instantiations);
         lowerer.lower_program(&program)
     }
 

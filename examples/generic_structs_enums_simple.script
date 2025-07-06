@@ -1,0 +1,30 @@
+// Simple test of generic struct and enum definitions
+// Just parsing the type definitions, not using them yet
+
+// Generic struct
+struct Box<T> {
+    value: T
+}
+
+// Generic enum  
+enum Option<T> {
+    Some(T),
+    None
+}
+
+// Struct with multiple type parameters
+struct Pair<A, B> {
+    first: A,
+    second: B
+}
+
+// Generic function to test 
+fn identity<T>(x: T) -> T {
+    x
+}
+
+fn main() {
+    // Just test the generic function for now
+    let result = identity(42);
+    print("Parsed generic definitions successfully!")
+}

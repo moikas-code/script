@@ -29,6 +29,17 @@ pub fn type_from_ast(type_ann: &TypeAnn) -> Type {
             // Convert type parameter
             Type::TypeParam(name.clone())
         }
+        TypeKind::Tuple(types) => {
+            // Convert tuple type
+            Type::Tuple(types.iter().map(type_from_ast).collect())
+        }
+        TypeKind::Reference { mutable, inner } => {
+            // Convert reference type
+            Type::Reference {
+                mutable: *mutable,
+                inner: Box::new(type_from_ast(inner)),
+            }
+        }
     }
 }
 

@@ -155,6 +155,7 @@ impl DocGenerator {
                 ret_type,
                 body: _,
                 is_async,
+                where_clause: _, // TODO: Include where clause in docs
             } => {
                 let mut signature = String::new();
 

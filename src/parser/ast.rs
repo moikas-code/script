@@ -24,6 +24,44 @@ pub struct GenericParams {
     pub span: Span,
 }
 
+/// Where clause for complex generic constraints
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhereClause {
+    pub predicates: Vec<WherePredicate>,
+    pub span: Span,
+}
+
+/// A single predicate in a where clause
+#[derive(Debug, Clone, PartialEq)]
+pub struct WherePredicate {
+    pub type_: TypeAnn,
+    pub bounds: Vec<TraitBound>,
+    pub span: Span,
+}
+
+/// Implementation block for methods on a type
+#[derive(Debug, Clone, PartialEq)]
+pub struct ImplBlock {
+    pub type_name: String,
+    pub generic_params: Option<GenericParams>,
+    pub methods: Vec<Method>,
+    pub where_clause: Option<WhereClause>,
+    pub span: Span,
+}
+
+/// Method definition within an impl block
+#[derive(Debug, Clone, PartialEq)]
+pub struct Method {
+    pub name: String,
+    pub generic_params: Option<GenericParams>,
+    pub params: Vec<Param>,
+    pub ret_type: Option<TypeAnn>,
+    pub where_clause: Option<WhereClause>,
+    pub body: Block,
+    pub is_async: bool,
+    pub span: Span,
+}
+
 /// Field in a struct declaration
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
@@ -82,6 +120,7 @@ pub enum StmtKind {
         generic_params: Option<GenericParams>,
         params: Vec<Param>,
         ret_type: Option<TypeAnn>,
+        where_clause: Option<WhereClause>,
         body: Block,
         is_async: bool,
     },
@@ -107,18 +146,22 @@ pub enum StmtKind {
         name: String,
         generic_params: Option<GenericParams>,
         fields: Vec<StructField>,
+        where_clause: Option<WhereClause>,
     },
     Enum {
         name: String,
         generic_params: Option<GenericParams>,
         variants: Vec<EnumVariant>,
+        where_clause: Option<WhereClause>,
     },
+    Impl(ImplBlock),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Expr {
     pub kind: ExprKind,
     pub span: Span,
+    pub id: usize, // Unique ID for type information tracking
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -300,6 +343,13 @@ pub enum TypeKind {
     },
     /// Type parameter in generic context (e.g., T, U, K, V)
     TypeParam(String),
+    /// Tuple type (e.g., (i32, string), (T, U, V))
+    Tuple(Vec<TypeAnn>),
+    /// Reference type (e.g., &T, &mut T)
+    Reference {
+        mutable: bool,
+        inner: Box<TypeAnn>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -398,6 +448,7 @@ impl fmt::Display for Stmt {
                 body,
                 is_async,
                 generic_params,
+                where_clause,
             } => {
                 if *is_async {
                     write!(f, "async ")?;
@@ -420,6 +471,12 @@ impl fmt::Display for Stmt {
                 if let Some(ret) = ret_type {
                     write!(f, " -> {}", ret)?;
                 }
+                
+                // Display where clause
+                if let Some(where_cl) = where_clause {
+                    write!(f, " {}", where_cl)?;
+                }
+                
                 write!(f, " {}", body)
             }
             StmtKind::Return(expr) => {
@@ -556,10 +613,14 @@ impl fmt::Display for Stmt {
                 name,
                 generic_params,
                 fields,
+                where_clause,
             } => {
                 write!(f, "struct {}", name)?;
                 if let Some(generics) = generic_params {
                     write!(f, "{}", generics)?;
+                }
+                if let Some(where_cl) = where_clause {
+                    write!(f, " {}", where_cl)?;
                 }
                 write!(f, " {{")?;
                 for (i, field) in fields.iter().enumerate() {
@@ -574,10 +635,14 @@ impl fmt::Display for Stmt {
                 name,
                 generic_params,
                 variants,
+                where_clause,
             } => {
                 write!(f, "enum {}", name)?;
                 if let Some(generics) = generic_params {
                     write!(f, "{}", generics)?;
+                }
+                if let Some(where_cl) = where_clause {
+                    write!(f, " {}", where_cl)?;
                 }
                 write!(f, " {{")?;
                 for (i, variant) in variants.iter().enumerate() {
@@ -587,6 +652,9 @@ impl fmt::Display for Stmt {
                     write!(f, " {}", variant)?;
                 }
                 write!(f, " }}")
+            }
+            StmtKind::Impl(impl_block) => {
+                write!(f, "{}", impl_block)
             }
         }
     }
@@ -813,6 +881,23 @@ impl fmt::Display for TypeAnn {
                 Ok(())
             }
             TypeKind::TypeParam(name) => write!(f, "{}", name),
+            TypeKind::Tuple(types) => {
+                write!(f, "(")?;
+                for (i, ty) in types.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", ty)?;
+                }
+                write!(f, ")")
+            }
+            TypeKind::Reference { mutable, inner } => {
+                if *mutable {
+                    write!(f, "&mut {}", inner)
+                } else {
+                    write!(f, "&{}", inner)
+                }
+            }
         }
     }
 }
@@ -1060,5 +1145,89 @@ impl fmt::Display for EnumVariantFields {
                 write!(f, " }}")
             }
         }
+    }
+}
+
+impl fmt::Display for WhereClause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "where ")?;
+        for (i, predicate) in self.predicates.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", predicate)?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for WherePredicate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: ", self.type_)?;
+        for (i, bound) in self.bounds.iter().enumerate() {
+            if i > 0 {
+                write!(f, " + ")?;
+            }
+            write!(f, "{}", bound)?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for ImplBlock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "impl")?;
+        
+        // Display generic parameters
+        if let Some(generics) = &self.generic_params {
+            write!(f, "{}", generics)?;
+        }
+        
+        write!(f, " {}", self.type_name)?;
+        
+        // Display where clause
+        if let Some(where_clause) = &self.where_clause {
+            write!(f, " {}", where_clause)?;
+        }
+        
+        writeln!(f, " {{")?;
+        for method in &self.methods {
+            writeln!(f, "    {}", method)?;
+        }
+        write!(f, "}}")
+    }
+}
+
+impl fmt::Display for Method {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_async {
+            write!(f, "async ")?;
+        }
+        write!(f, "fn {}", self.name)?;
+        
+        // Display generic parameters
+        if let Some(generics) = &self.generic_params {
+            write!(f, "{}", generics)?;
+        }
+        
+        write!(f, "(")?;
+        for (i, param) in self.params.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}: {}", param.name, param.type_ann)?;
+        }
+        write!(f, ")")?;
+        
+        if let Some(ret_type) = &self.ret_type {
+            write!(f, " -> {}", ret_type)?;
+        }
+        
+        // Display where clause
+        if let Some(where_clause) = &self.where_clause {
+            write!(f, " {}", where_clause)?;
+        }
+        
+        write!(f, " {}", self.body)
     }
 }

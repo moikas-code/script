@@ -21,6 +21,115 @@ fn parse_expr(input: &str) -> Result<Expr> {
 }
 
 #[test]
+fn test_parse_impl_blocks() {
+    // Simple impl block
+    let program = parse(r#"
+        struct Point { x: i32, y: i32 }
+        
+        impl Point {
+            fn new(x: i32, y: i32) -> Point {
+                Point { x: x, y: y }
+            }
+        }
+    "#).unwrap();
+    
+    assert_eq!(program.statements.len(), 2);
+    
+    // Check that the second statement is an impl block
+    match &program.statements[1].kind {
+        StmtKind::Impl(impl_block) => {
+            assert_eq!(impl_block.type_name, "Point");
+            assert!(impl_block.generic_params.is_none());
+            assert!(impl_block.where_clause.is_none());
+            assert_eq!(impl_block.methods.len(), 1);
+            
+            // Check the method
+            let method = &impl_block.methods[0];
+            assert_eq!(method.name, "new");
+            assert!(!method.is_async);
+            assert_eq!(method.params.len(), 2);
+        }
+        _ => panic!("Expected impl block"),
+    }
+}
+
+#[test]
+fn test_parse_generic_impl_block() {
+    let program = parse(r#"
+        struct Vec<T> { items: [T] }
+        
+        impl<T> Vec<T> {
+            fn new() -> Vec<T> {
+                Vec { items: [] }
+            }
+        }
+    "#).unwrap();
+    
+    assert_eq!(program.statements.len(), 2);
+    
+    match &program.statements[1].kind {
+        StmtKind::Impl(impl_block) => {
+            assert_eq!(impl_block.type_name, "Vec");
+            
+            // Check generic params
+            assert!(impl_block.generic_params.is_some());
+            let generics = impl_block.generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 1);
+            assert_eq!(generics.params[0].name, "T");
+        }
+        _ => panic!("Expected impl block"),
+    }
+}
+
+#[test]
+fn test_parse_impl_with_where_clause() {
+    let program = parse(r#"
+        struct Container<T> { value: T }
+        
+        impl<T> Container<T> where T: Clone {
+            fn clone_value(self) -> T {
+                self.value.clone()
+            }
+        }
+    "#).unwrap();
+    
+    match &program.statements[1].kind {
+        StmtKind::Impl(impl_block) => {
+            assert!(impl_block.where_clause.is_some());
+            let where_clause = impl_block.where_clause.as_ref().unwrap();
+            assert_eq!(where_clause.predicates.len(), 1);
+            
+            let predicate = &where_clause.predicates[0];
+            assert_eq!(predicate.bounds.len(), 1);
+            assert_eq!(predicate.bounds[0].trait_name, "Clone");
+        }
+        _ => panic!("Expected impl block"),
+    }
+}
+
+#[test]
+fn test_parse_async_methods() {
+    let program = parse(r#"
+        struct Worker {}
+        
+        impl Worker {
+            async fn do_work(self) -> Result<string> {
+                await something()
+            }
+        }
+    "#).unwrap();
+    
+    match &program.statements[1].kind {
+        StmtKind::Impl(impl_block) => {
+            let method = &impl_block.methods[0];
+            assert!(method.is_async);
+            assert_eq!(method.name, "do_work");
+        }
+        _ => panic!("Expected impl block"),
+    }
+}
+
+#[test]
 fn test_parse_literals() {
     // Numbers
     let expr = parse_expr("42").unwrap();
@@ -1073,6 +1182,187 @@ fn test_parse_generic_type_with_type_params() {
 }
 
 #[test]
+fn test_parse_tuple_type_basic() {
+    // Basic tuple type
+    let program = parse("let point: (i32, i32)").unwrap();
+    match &program.statements[0].kind {
+        StmtKind::Let { type_ann, .. } => {
+            let type_ann = type_ann.as_ref().unwrap();
+            match &type_ann.kind {
+                TypeKind::Tuple(types) => {
+                    assert_eq!(types.len(), 2);
+                    assert!(matches!(&types[0].kind, TypeKind::Named(n) if n == "i32"));
+                    assert!(matches!(&types[1].kind, TypeKind::Named(n) if n == "i32"));
+                }
+                _ => panic!("Expected tuple type, got {:?}", type_ann.kind),
+            }
+        }
+        _ => panic!("Expected let statement"),
+    }
+}
+
+#[test]
+fn test_parse_tuple_type_multiple() {
+    // Tuple with multiple types
+    let program = parse("let data: (string, bool, f32)").unwrap();
+    match &program.statements[0].kind {
+        StmtKind::Let { type_ann, .. } => {
+            let type_ann = type_ann.as_ref().unwrap();
+            match &type_ann.kind {
+                TypeKind::Tuple(types) => {
+                    assert_eq!(types.len(), 3);
+                    assert!(matches!(&types[0].kind, TypeKind::Named(n) if n == "string"));
+                    assert!(matches!(&types[1].kind, TypeKind::Named(n) if n == "bool"));
+                    assert!(matches!(&types[2].kind, TypeKind::Named(n) if n == "f32"));
+                }
+                _ => panic!("Expected tuple type"),
+            }
+        }
+        _ => panic!("Expected let statement"),
+    }
+}
+
+#[test]
+fn test_parse_tuple_type_generic() {
+    // Tuple with generic types
+    let program = parse("let pair: (T, U)").unwrap();
+    match &program.statements[0].kind {
+        StmtKind::Let { type_ann, .. } => {
+            let type_ann = type_ann.as_ref().unwrap();
+            match &type_ann.kind {
+                TypeKind::Tuple(types) => {
+                    assert_eq!(types.len(), 2);
+                    assert!(matches!(&types[0].kind, TypeKind::TypeParam(n) if n == "T"));
+                    assert!(matches!(&types[1].kind, TypeKind::TypeParam(n) if n == "U"));
+                }
+                _ => panic!("Expected tuple type"),
+            }
+        }
+        _ => panic!("Expected let statement"),
+    }
+}
+
+#[test]
+fn test_parse_reference_type() {
+    // Immutable reference
+    let program = parse("let x: &i32").unwrap();
+    match &program.statements[0].kind {
+        StmtKind::Let { type_ann, .. } => {
+            let type_ann = type_ann.as_ref().unwrap();
+            match &type_ann.kind {
+                TypeKind::Reference { mutable, inner } => {
+                    assert!(!mutable);
+                    assert!(matches!(&inner.kind, TypeKind::Named(n) if n == "i32"));
+                }
+                _ => panic!("Expected reference type, got {:?}", type_ann.kind),
+            }
+        }
+        _ => panic!("Expected let statement"),
+    }
+}
+
+#[test]
+fn test_parse_mutable_reference_type() {
+    // Mutable reference
+    let program = parse("let x: &mut string").unwrap();
+    match &program.statements[0].kind {
+        StmtKind::Let { type_ann, .. } => {
+            let type_ann = type_ann.as_ref().unwrap();
+            match &type_ann.kind {
+                TypeKind::Reference { mutable, inner } => {
+                    assert!(mutable);
+                    assert!(matches!(&inner.kind, TypeKind::Named(n) if n == "string"));
+                }
+                _ => panic!("Expected reference type"),
+            }
+        }
+        _ => panic!("Expected let statement"),
+    }
+}
+
+#[test]
+fn test_parse_complex_tuple_reference() {
+    // Complex type: reference to tuple containing generics
+    let program = parse("let x: &(Vec<T>, Option<U>)").unwrap();
+    match &program.statements[0].kind {
+        StmtKind::Let { type_ann, .. } => {
+            let type_ann = type_ann.as_ref().unwrap();
+            match &type_ann.kind {
+                TypeKind::Reference { mutable, inner } => {
+                    assert!(!mutable);
+                    match &inner.kind {
+                        TypeKind::Tuple(types) => {
+                            assert_eq!(types.len(), 2);
+                            
+                            // Check Vec<T>
+                            match &types[0].kind {
+                                TypeKind::Generic { name, args } => {
+                                    assert_eq!(name, "Vec");
+                                    assert_eq!(args.len(), 1);
+                                    assert!(matches!(&args[0].kind, TypeKind::TypeParam(n) if n == "T"));
+                                }
+                                _ => panic!("Expected generic Vec<T>"),
+                            }
+                            
+                            // Check Option<U>
+                            match &types[1].kind {
+                                TypeKind::Generic { name, args } => {
+                                    assert_eq!(name, "Option");
+                                    assert_eq!(args.len(), 1);
+                                    assert!(matches!(&args[0].kind, TypeKind::TypeParam(n) if n == "U"));
+                                }
+                                _ => panic!("Expected generic Option<U>"),
+                            }
+                        }
+                        _ => panic!("Expected tuple type inside reference"),
+                    }
+                }
+                _ => panic!("Expected reference type"),
+            }
+        }
+        _ => panic!("Expected let statement"),
+    }
+}
+
+#[test]
+fn test_parse_function_vs_tuple_types() {
+    // Function type (has arrow)
+    let program = parse("let f: (i32, i32) -> i32").unwrap();
+    match &program.statements[0].kind {
+        StmtKind::Let { type_ann, .. } => {
+            let type_ann = type_ann.as_ref().unwrap();
+            match &type_ann.kind {
+                TypeKind::Function { params, ret } => {
+                    assert_eq!(params.len(), 2);
+                    assert!(matches!(&params[0].kind, TypeKind::Named(n) if n == "i32"));
+                    assert!(matches!(&params[1].kind, TypeKind::Named(n) if n == "i32"));
+                    assert!(matches!(&ret.kind, TypeKind::Named(n) if n == "i32"));
+                }
+                _ => panic!("Expected function type, got {:?}", type_ann.kind),
+            }
+        }
+        _ => panic!("Expected let statement"),
+    }
+    
+    // Tuple type (no arrow)
+    let program = parse("let t: (i32, i32)").unwrap();
+    match &program.statements[0].kind {
+        StmtKind::Let { type_ann, .. } => {
+            let type_ann = type_ann.as_ref().unwrap();
+            match &type_ann.kind {
+                TypeKind::Tuple(types) => {
+                    assert_eq!(types.len(), 2);
+                    assert!(matches!(&types[0].kind, TypeKind::Named(n) if n == "i32"));
+                    assert!(matches!(&types[1].kind, TypeKind::Named(n) if n == "i32"));
+                }
+                _ => panic!("Expected tuple type, got {:?}", type_ann.kind),
+            }
+        }
+        _ => panic!("Expected let statement"),
+    }
+}
+
+#[test]
 fn test_parse_nested_generic_types() {
     // Nested generic types
     let program = parse("let opt: Option<Vec<i32>>").unwrap();
@@ -1773,5 +2063,110 @@ fn test_parse_generic_async_function() {
             assert_eq!(generics.params[0].bounds[0].trait_name, "Send");
         }
         _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_function_with_where_clause() {
+    // Function with where clause
+    let program = parse("fn test<T, U>(x: T, y: U) -> T where T: Clone + Debug, U: Debug { x }").unwrap();
+
+    match &program.statements[0].kind {
+        StmtKind::Function {
+            name,
+            generic_params,
+            where_clause,
+            ..
+        } => {
+            assert_eq!(name, "test");
+            
+            // Check generic parameters
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 2);
+            assert_eq!(generics.params[0].name, "T");
+            assert_eq!(generics.params[1].name, "U");
+            
+            // Check where clause
+            let where_clause = where_clause.as_ref().unwrap();
+            assert_eq!(where_clause.predicates.len(), 2);
+            
+            // First predicate: T: Clone + Debug
+            assert_eq!(where_clause.predicates[0].bounds.len(), 2);
+            assert_eq!(where_clause.predicates[0].bounds[0].trait_name, "Clone");
+            assert_eq!(where_clause.predicates[0].bounds[1].trait_name, "Debug");
+            
+            // Second predicate: U: Debug
+            assert_eq!(where_clause.predicates[1].bounds.len(), 1);
+            assert_eq!(where_clause.predicates[1].bounds[0].trait_name, "Debug");
+        }
+        _ => panic!("Expected function statement"),
+    }
+}
+
+#[test]
+fn test_parse_struct_with_where_clause() {
+    // Struct with where clause
+    let program = parse("struct Container<T, U> where T: Clone, U: Debug { data: T, meta: U }").unwrap();
+
+    match &program.statements[0].kind {
+        StmtKind::Struct {
+            name,
+            generic_params,
+            where_clause,
+            fields,
+            ..
+        } => {
+            assert_eq!(name, "Container");
+            
+            // Check generic parameters
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 2);
+            assert_eq!(generics.params[0].name, "T");
+            assert_eq!(generics.params[1].name, "U");
+            
+            // Check where clause
+            let where_clause = where_clause.as_ref().unwrap();
+            assert_eq!(where_clause.predicates.len(), 2);
+            
+            // Check fields
+            assert_eq!(fields.len(), 2);
+            assert_eq!(fields[0].name, "data");
+            assert_eq!(fields[1].name, "meta");
+        }
+        _ => panic!("Expected struct statement"),
+    }
+}
+
+#[test]
+fn test_parse_enum_with_where_clause() {
+    // Enum with where clause
+    let program = parse("enum Result<T, E> where T: Clone, E: Debug { Ok(T), Err(E) }").unwrap();
+
+    match &program.statements[0].kind {
+        StmtKind::Enum {
+            name,
+            generic_params,
+            where_clause,
+            variants,
+            ..
+        } => {
+            assert_eq!(name, "Result");
+            
+            // Check generic parameters
+            let generics = generic_params.as_ref().unwrap();
+            assert_eq!(generics.params.len(), 2);
+            assert_eq!(generics.params[0].name, "T");
+            assert_eq!(generics.params[1].name, "E");
+            
+            // Check where clause
+            let where_clause = where_clause.as_ref().unwrap();
+            assert_eq!(where_clause.predicates.len(), 2);
+            
+            // Check variants
+            assert_eq!(variants.len(), 2);
+            assert_eq!(variants[0].name, "Ok");
+            assert_eq!(variants[1].name, "Err");
+        }
+        _ => panic!("Expected enum statement"),
     }
 }

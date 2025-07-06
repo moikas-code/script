@@ -114,6 +114,7 @@ impl InferenceEngine {
                 ret_type,
                 body,
                 is_async,
+                where_clause: _, // TODO: Handle where clause
             } => {
                 // Enter new scope for function body
                 self.context.push_scope();
@@ -244,6 +245,11 @@ impl InferenceEngine {
 
             StmtKind::Enum { .. } => {
                 // TODO: Implement enum type inference
+                Type::Unknown
+            }
+            
+            StmtKind::Impl(_) => {
+                // TODO: Implement impl block type inference
                 Type::Unknown
             }
         };
@@ -559,8 +565,8 @@ impl InferenceEngine {
                 Type::Array(Box::new(Type::Unknown))
             }
             ExprKind::GenericConstructor { name, type_args } => {
-                // For now, treat generic constructors as named types
-                // TODO: Implement proper generic type conversion from AST to inference types
+                // Generic constructors are treated as named types
+                // NOTE: With monomorphization complete, this simplified approach may be sufficient
                 let _ = type_args; // suppress warning
                 Type::Named(name.clone())
             }

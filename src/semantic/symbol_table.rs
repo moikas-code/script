@@ -3,7 +3,7 @@ use crate::source::Span;
 use crate::types::Type;
 use std::collections::HashMap;
 
-use super::symbol::{FunctionSignature, Symbol, SymbolId, SymbolKind};
+use super::symbol::{FunctionSignature, Symbol, SymbolId, SymbolKind, StructInfo, EnumInfo};
 
 /// A unique identifier for a scope
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -408,6 +408,82 @@ impl SymbolTable {
     /// Check if we're in the global scope
     pub fn is_global_scope(&self) -> bool {
         self.current_scope == ScopeId(0)
+    }
+
+    /// Define a struct type in the current scope
+    pub fn define_struct(
+        &mut self,
+        name: String,
+        info: StructInfo,
+        def_span: Span,
+    ) -> Result<SymbolId, String> {
+        // Check if already defined in current scope
+        if let Some(scope) = self.scopes.get(&self.current_scope) {
+            if let Some(existing_ids) = scope.symbols.get(&name) {
+                if !existing_ids.is_empty() {
+                    return Err(format!("Struct '{}' already defined in this scope", name));
+                }
+            }
+        }
+
+        let symbol_id = SymbolId(self.next_symbol_id);
+        self.next_symbol_id += 1;
+
+        let symbol = Symbol::struct_type(
+            symbol_id,
+            name.clone(),
+            info,
+            def_span,
+            self.current_scope,
+        );
+
+        // Add to symbols map
+        self.symbols.insert(symbol_id, symbol);
+
+        // Add to current scope
+        if let Some(scope) = self.scopes.get_mut(&self.current_scope) {
+            scope.symbols.entry(name).or_insert_with(Vec::new).push(symbol_id);
+        }
+
+        Ok(symbol_id)
+    }
+
+    /// Define an enum type in the current scope
+    pub fn define_enum(
+        &mut self,
+        name: String,
+        info: EnumInfo,
+        def_span: Span,
+    ) -> Result<SymbolId, String> {
+        // Check if already defined in current scope
+        if let Some(scope) = self.scopes.get(&self.current_scope) {
+            if let Some(existing_ids) = scope.symbols.get(&name) {
+                if !existing_ids.is_empty() {
+                    return Err(format!("Enum '{}' already defined in this scope", name));
+                }
+            }
+        }
+
+        let symbol_id = SymbolId(self.next_symbol_id);
+        self.next_symbol_id += 1;
+
+        let symbol = Symbol::enum_type(
+            symbol_id,
+            name.clone(),
+            info,
+            def_span,
+            self.current_scope,
+        );
+
+        // Add to symbols map
+        self.symbols.insert(symbol_id, symbol);
+
+        // Add to current scope
+        if let Some(scope) = self.scopes.get_mut(&self.current_scope) {
+            scope.symbols.entry(name).or_insert_with(Vec::new).push(symbol_id);
+        }
+
+        Ok(symbol_id)
     }
 
     /// Create a new module
