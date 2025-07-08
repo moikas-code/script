@@ -53,7 +53,7 @@ impl DocGenerator {
     /// Generate documentation from source code
     pub fn generate_from_source(&mut self, source: &str, module_name: &str) -> Result<()> {
         // First, collect all tokens including doc comments
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source)?;
         let (tokens, errors) = lexer.scan_tokens();
 
         if !errors.is_empty() {

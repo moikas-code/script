@@ -66,6 +66,24 @@ impl Module {
         func_id
     }
 
+    /// Create a new async function in this module
+    pub fn create_async_function(
+        &mut self,
+        name: String,
+        params: Vec<Parameter>,
+        return_type: Type,
+    ) -> FunctionId {
+        let func_id = FunctionId(self.next_function_id);
+        self.next_function_id += 1;
+
+        let mut function = Function::new(func_id, name.clone(), params, return_type);
+        function.is_async = true;
+        self.functions.insert(func_id, function);
+        self.function_names.insert(name, func_id);
+
+        func_id
+    }
+
     /// Get a function by ID
     pub fn get_function(&self, id: FunctionId) -> Option<&Function> {
         self.functions.get(&id)

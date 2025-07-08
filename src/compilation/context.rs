@@ -52,7 +52,7 @@ impl CompilationUnit {
 
     /// Parse the source code
     pub fn parse(&mut self) -> Result<()> {
-        let lexer = Lexer::new(&self.source);
+        let lexer = Lexer::new(&self.source)?;
         let (tokens, lex_errors) = lexer.scan_tokens();
 
         if !lex_errors.is_empty() {
@@ -353,8 +353,6 @@ impl CompilationContext {
 
     /// Check if the IR module contains generic functions
     fn has_generic_functions(&self, module: &IrModule) -> bool {
-        use crate::types::Type;
-        
         // Check each function for type parameters
         for function in module.functions().values() {
             if self.is_generic_function(function) {

@@ -1,6 +1,9 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with the Script programming language repository.
+
+## Project Overview
+**Script Language v0.5.0-alpha** - AI-native programming language with production-grade generics, pattern matching, and memory cycle detection. Current focus: fixing async security vulnerabilities and module system.
 
 ## Common Development Commands
 
@@ -44,90 +47,64 @@ cargo doc --features mcp --open         # Include MCP documentation
 
 ## Architecture Overview
 
-### Current Status (v0.3.5-alpha) - Honest Assessment
-- **Overall Completion**: ~60% - See [STATUS.md](STATUS.md) for detailed tracking
-- **Phase 1 (Lexer)**: ✅ COMPLETED - Full tokenization with Unicode support, error reporting, REPL
-- **Phase 2 (Parser)**: 🔧 85% - Basic parsing works, generics now functional
-- **Phase 3-8**: ❌ Many critical features non-functional or have major gaps
-- **Phase 9 (MCP)**: 🔄 IN DEVELOPMENT - AI integration framework
+### Implementation Status (v0.5.0-alpha)
+**Overall Completion**: ~80% - See [kb/STATUS.md](kb/STATUS.md) for detailed tracking
 
-### Module Structure
+| Phase | Status | Completion | Notes |
+|-------|--------|------------|-------|
+| Lexer | ✅ | 100% | Unicode support, error reporting, REPL |
+| Parser | ✅ | 99% | Generics, enum patterns, exhaustiveness |
+| Type System | ✅ | 95% | Monomorphization, inference, generics operational |
+| Semantic | ✅ | 99% | Pattern safety, exhaustiveness, symbol resolution |
+| CodeGen | 🔧 | 85% | Generic compilation works, pattern matching partial |
+| Runtime | 🔧 | 60% | Bacon-Rajan cycle detection complete |
+| Stdlib | 🔧 | 30% | Core functions only, missing HashMap/Set/I/O |
+| Module System | ❌ | 25% | **BROKEN** - blocks multi-file projects |
+| MCP | 🔄 | 15% | Security framework designed, implementation starting |
 
-```
-src/
-├── lexer/          # Tokenization (Phase 1 - Complete)
-│   ├── mod.rs      # Token types and lexer module exports
-│   ├── scanner.rs  # Scanner implementation with Unicode support
-│   └── tests.rs    # Comprehensive lexer tests
-├── parser/         # AST & Parsing (Phase 2 - In Progress)
-│   ├── mod.rs      # AST node definitions and parser exports
-│   ├── parser.rs   # Recursive descent parser with Pratt parsing
-│   └── tests.rs    # Parser tests
-├── mcp/            # Model Context Protocol (Phase 9 - In Development)
-│   ├── mod.rs      # MCP module exports and feature gates
-│   ├── server/     # MCP server implementation
-│   ├── security/   # Security framework and sandboxing
-│   ├── tools/      # Script analysis tools for AI
-│   └── resources/  # Secure resource access
-├── error/          # Error infrastructure
-│   └── mod.rs      # ScriptError type with source locations
-├── source/         # Source tracking
-│   └── mod.rs      # SourceLocation and Span types
-└── main.rs         # CLI entry point with REPL modes
-```
+### Key Architecture Components
 
-### Parser Architecture
+**Core Modules:**
+- `src/lexer/` - Tokenization with Unicode support ✅
+- `src/parser/` - Recursive descent + Pratt parsing ✅  
+- `src/semantic/` - Type checking, pattern exhaustiveness ✅
+- `src/codegen/` - Cranelift IR generation 🔧
+- `src/runtime/` - Memory management, cycle detection 🔧
+- `src/mcp/` - AI integration security framework 🔄
 
-The parser uses **recursive descent** with **Pratt parsing** for expressions:
-- `parse_expression()` handles operator precedence via binding power
-- `parse_primary()` handles literals, identifiers, and grouped expressions
-- Statements include let bindings, functions, returns, while/for loops
-- Everything is expression-oriented (if/while/blocks return values)
+### Core Design Principles
 
-### MCP Architecture
+1. **Expression-Oriented**: Everything returns a value (if/while/blocks)
+2. **Gradual Typing**: Optional type annotations with inference
+3. **Memory Safety**: ARC with Bacon-Rajan cycle detection
+4. **AI-Native**: Security-first MCP implementation for AI development
+5. **Error Recovery**: Multiple error reporting with source context
 
-The MCP implementation follows security-first principles:
-- **Security Manager**: Input validation, rate limiting, audit logging
-- **Secure Sandbox**: Isolated analysis environment with resource limits
-- **Tool Registry**: Script analyzer, formatter, documentation generator
-- **Resource Management**: Controlled file access with path validation
-- **Protocol Compliance**: Full MCP specification support
+## Current Development Focus
 
-### Error Handling
+### 🚨 Critical Issues (Immediate Priority)
+1. **Async Security Vulnerabilities** - Use-after-free, memory corruption in FFI/runtime
+2. **Module System Broken** - Multi-file projects currently non-functional
+3. **Generic Implementation Security** - Array bounds checking missing, field access vulnerabilities
 
-Script uses a custom `ScriptError` type that:
-- Tracks source location (line, column, file)
-- Provides contextual error messages with source line display
-- Supports error recovery in the lexer (continues after errors)
-- Reports multiple errors before failing
+### 🔧 Active Development
+- **Runtime Safety** takes precedence over new features
+- **MCP Security Framework** for AI integration  
+- **Standard Library** expansion (HashMap/Set/I/O missing)
 
-### AST Design
+## Development Workflow
 
-Key expression types:
-```rust
-Expr::Literal(value)                    // Numbers, strings, booleans
-Expr::Binary { left, op, right }        // Arithmetic, comparison, logical
-Expr::Call { callee, args }             // Function calls
-Expr::If { condition, then, else_ }     // If expressions (not statements!)
-Expr::Block(statements)                 // Block expressions return last value
-```
+### Quick Start
+1. **Check Issues**: Review `kb/KNOWN_ISSUES.md` before starting work
+2. **Check Status**: Review `kb/STATUS.md` for current completion status  
+3. **Security First**: All external inputs are untrusted, validate everything
+4. **Update Docs**: Keep `kb/` documentation current as you work
 
-### REPL Modes
-
-The REPL supports two modes:
-1. **Token mode** (`--tokens`): Shows tokenization output with spans
-2. **Parse mode** (default): Parses input and displays AST
-
-## Key Design Decisions
-
-1. **Expression-Oriented**: Everything returns a value (if, while, blocks)
-2. **Gradual Typing**: Type annotations are optional; inference fills gaps
-3. **Memory Strategy**: Will use ARC with cycle detection (not yet implemented)
-4. **Compilation Targets**: Planning Cranelift (dev) and LLVM (prod) backends
-5. **Error Philosophy**: Show multiple errors, provide helpful context
-6. **AI Integration**: Security-first MCP implementation for AI-native development
-
-## Working with the Codebase
+### Key Development Rules
+- **Git Rule**: Never author commits as Claude, always as the user
+- **Security Rule**: All MCP tools must use sandboxed analysis
+- **Memory Rule**: Runtime safety takes precedence over new features
+- **Testing Rule**: Security validation tests are mandatory
 
 ### Adding New Token Types
 1. Add variant to `TokenKind` enum in `src/lexer/mod.rs`
@@ -141,197 +118,114 @@ The REPL supports two modes:
 3. Update `Display` implementations for pretty-printing
 4. Add parser tests in `src/parser/tests.rs`
 
-### MCP Development Guidelines
+### MCP Security Guidelines
 
-When working on MCP functionality, maintain philosophical discipline:
+**Core Principles:**
+- All MCP tools use sandboxed analysis (non-negotiable)
+- All external inputs require validation (untrusted by default)  
+- Resource limits enforced at multiple layers (defense in depth)
+- Security validation tests mandatory (no exceptions)
 
-#### Security-First Development
-- All MCP tools must use sandboxed analysis - this is non-negotiable
-- Input validation is mandatory for all AI interactions - external inputs are untrusted
-- Audit logging required for security compliance - transparency builds trust
-- Resource limits enforced at multiple layers - defense in depth
-
-#### Architecture Consistency
-- Follow existing patterns from LSP server implementation - consistency reduces complexity
-- Integrate with existing lexer/parser/semantic components - reuse proven foundations
-- Maintain consistency with error handling and reporting - unified experience
-- Use existing configuration patterns - familiar patterns reduce friction
-
-#### Testing Requirements
-- Security validation tests mandatory - security without testing is faith
-- Integration tests with existing components - isolation breeds fragility
-- Performance benchmarks for analysis operations - measure to improve
-- Protocol compliance verification - standards enable interoperability
-
-### Testing Error Cases
-Use the error reporter pattern:
+**Testing Pattern:**
 ```rust
-let mut reporter = ErrorReporter::new();
-reporter.report(error.with_file_name("test.script").with_source_line(line));
-reporter.print_all();
-```
-
-### MCP Security Testing
-```rust
-// Test dangerous input rejection
-let malicious_code = r#"
-    import std.fs
-    fs.delete_all("/")
-"#;
+// Validate dangerous input rejection
 assert!(mcp_server.validate_input(malicious_code).is_err());
-
-// Test resource limits
-let large_code = "x".repeat(1_000_000);
-assert!(mcp_server.analyze_code(&large_code).is_err());
+// Test resource limits  
+assert!(mcp_server.analyze_code(&"x".repeat(1_000_000)).is_err());
 ```
 
 ## Implementation Roadmap
 
-See `IMPLEMENTATION_TODO.md` for original planning. Current status:
-- **[STATUS.md](STATUS.md)**: Detailed completion tracking for all phases
-- **[KNOWN_ISSUES.md](KNOWN_ISSUES.md)**: All known bugs and limitations
+See `./kb/IMPLEMENTATION_TODO.md` for original planning. Current status:
+- **[status](./kb/status)**: Detailed completion tracking for all phases
+- **[KNOWN_ISSUES.md](./kb/active/KNOWN_ISSUES.md)**: All known bugs and limitations
 
-Next major milestones for v1.0:
-- Complete MCP server implementation with security framework
-- Integrate AI-powered development tools
-- Fix pattern matching exhaustiveness checking (completed)
-- Complete generic parameter parsing (completed)
-- Implement cycle detection for memory safety
-- Complete async/await implementation
+### Recent Major Achievements ✅
+- **Pattern Matching**: Exhaustiveness checking, or-patterns, guard support
+- **Generics System**: Full monomorphization pipeline with 43% deduplication efficiency  
+- **Memory Management**: Production-grade Bacon-Rajan cycle detection
+- **Type System**: Complete type inference with constructor constraints
 
-### Git Rules
-- Never Author Git Commits or PRs as Claude
+### Known Security Issues 🚨
+- **Async Runtime**: Critical vulnerabilities (use-after-free, memory corruption)
+- **Array Bounds**: Missing bounds checking in code generation
+- **Field Access**: Hash-based offsets without validation
+- **Resource Limits**: No DoS protection in type inference/monomorphization
 
-## Development Principles
+## File Organization
 
-- Always create subagents when planning or implementing tasks
-- **Supervisor Role**: You are a Supervisor of a team of subagents; when planning or implementing tasks, you will give each team member a task to complete
-- **Security Mindset**: Every external input is untrusted until validated
-- **Philosophical Approach**: The obstacle of AI integration becomes the way to language leadership
+### Directory Structure
+- **Root**: Only config files, documentation, build files  
+- **tests/**: All test files and fixtures organized by type
+- **examples/**: Demo programs and tutorials
+- **kb/**: Knowledge base with STATUS.md, KNOWN_ISSUES.md, docs
 
-## File Organization Rules
+### Prohibited Root Files
+No `.script` files in root directory. Use:
+- `tests/fixtures/valid_programs/` for test cases
+- `examples/` for demonstrations  
+- `tests/mcp/security/` for MCP validation
 
-### Project Structure Requirements
+## Essential Documentation
 
-**Root Directory Policy:**
-- **FORBIDDEN**: No test files, temporary files, or .script files in root
-- **ALLOWED**: Only configuration files, documentation, and build files
+### Critical References
+- **[kb/status](kb/status)** - Implementation status tracking
+- **[kb/active/KNOWN_ISSUES.md](kb/active/KNOWN_ISSUES.md)** - Bug tracker and limitations  
+- **[README.md](README.md)** - Project overview and setup
 
-**Test File Organization:**
-```
-tests/
-├── fixtures/          # Test data and example programs
-│   ├── legacy_tests/   # Moved legacy test files
-│   ├── valid_programs/ # Working .script examples
-│   └── error_cases/    # Programs that should fail
-├── integration/        # Cross-module integration tests
-├── mcp/               # MCP-specific tests
-│   ├── security/      # Security validation tests
-│   ├── tools/         # Tool functionality tests
-│   └── protocol/      # Protocol compliance tests
-└── modules/           # Module-specific test files
-```
-
-**Common Violations and Solutions:**
-| ❌ Wrong | ✅ Correct |
-|----------|------------|
-| `test_simple.script` | `tests/fixtures/valid_programs/simple.script` |
-| `debug_test.script` | `examples/debug_example.script` |
-| `temp_example.script` | `examples/example.script` (or delete) |
-| `mcp_test.script` | `tests/mcp/security/validation_test.script` |
-
-**Enforcement:**
-- Pre-commit hooks automatically reject root test files
-- .gitignore prevents accidental commits of temporary files
-- CI checks enforce file organization compliance
-
-### File Naming Conventions
-
-**Prohibited Root Directory Patterns:**
-- `test_*.script` (matches: test_simple.script)
-- `debug_*.script` (matches: debug_types.script)  
-- `*_test.script` (matches: simple_test.script)
-- `*_test_*.script` (matches: type_test_all.script)
-- `*_types.script` (matches: debug_types.script)
-- `type_*.script` (matches: type_test_all.script)
-- `*test*.script` (matches: anytest.script)
-- `all_*.script` (matches: all_test.script)
-- `mcp_*.script` (matches: mcp_example.script)
-
-**Pattern Testing:**
-```bash
-# Test if a filename would be ignored
-git check-ignore -v filename.script
-
-# Examples of comprehensive pattern coverage:
-git check-ignore -v debug_types.script    # ✅ Ignored by /*_types.script
-git check-ignore -v type_test_all.script  # ✅ Ignored by /*test*.script
-git check-ignore -v simple_test.script    # ✅ Ignored by /*_test.script
-git check-ignore -v mcp_test.script       # ✅ Ignored by /*test*.script
-```
-
-### Quick Reference for Developers
-```bash
-# WRONG - don't do this
-touch test_something.script      # Matches /test_*.script
-touch debug_test.script          # Matches /debug_*.script
-touch simple_test.script         # Matches /*_test.script
-touch mcp_example.script         # Matches /*test*.script
-
-# RIGHT - proper organization
-touch tests/fixtures/valid_programs/something.script
-touch examples/demonstration.script
-touch tests/mcp/security/validation_example.script
-```
-
-### Lessons Learned
-- **GitIgnore Gap**: Initial patterns missed hybrid naming conventions (`*_test_*.script`)
-- **Pre-commit Safety Net**: Location-based hooks catch what name-based patterns miss
-- **Pattern Testing**: Always test new ignore patterns with `git check-ignore -v`
-- **Comprehensive Coverage**: Use multiple overlapping patterns for robust protection
-
-## Critical Documentation
-
-- **[STATUS.md](STATUS.md)** - Current implementation status (v0.3.5-alpha)
-- **[KNOWN_ISSUES.md](KNOWN_ISSUES.md)** - All known bugs and limitations
-- **[README.md](README.md)** - Project overview and getting started
-
-## Reference Links
-- [Rust Official Documentation](https://doc.rust-lang.org/book/title-page.html)
+### External References  
+- [Rust Documentation](https://doc.rust-lang.org/book/)
 - [MCP Specification](https://modelcontextprotocol.io/docs)
 
-## Development Workflow Checklist
+## Memory Management for Claude Code
 
-### Before Starting Any Task:
-1. Check [KNOWN_ISSUES.md](KNOWN_ISSUES.md) to see if the issue is already documented
-2. Review [STATUS.md](STATUS.md) for current completion status
-3. Update both files as you work on features
+### Documentation Workflow
+- Store all project analysis docs in `/kb/` directory
+- Update `kb//active` when bugs are found or fixed
+- Update `kb/status` when features are completed
+- Delete outdated docs when no longer needed
 
-### When Implementing Features:
-- If you discover a bug, add it to KNOWN_ISSUES.md
-- When you complete a feature, update STATUS.md percentages
-- Document workarounds in KNOWN_ISSUES.md if applicable
+### Current Version: v0.5.0-alpha
+- **Overall**: ~80% complete with critical security issues
+- **Focus**: Async security fixes → Module system repair → Standard library
+- **Blocker**: Async runtime has memory corruption vulnerabilities requiring immediate fix
 
-### When Working on MCP:
-- Security considerations must be documented first
-- All external inputs require validation
-- Resource limits must be enforced
-- Audit logging is mandatory
+## CLI Commands
 
-### Version Information:
-- Current version: **0.3.5-alpha** (including MCP development)
-- ~60% overall completion
-- Critical features like memory safety and async are missing
-- MCP integration provides strategic differentiation opportunity
+### Security and Optimization
+- `/audit` - Perform a Security (SOC2 Compliant), and Optimization Audit of the provided file or files; Ensure they are ready for Production.
+- `/implement` - Implement a production-ready implementation of the provided text; Refer to and update the @kb documentation for tracking and guidance
+
+## MCP Server Integration
+
+The Script language includes a **Knowledge Base MCP Server** (`script-kb-mcp`) that provides Claude Code with persistent memory and context about the project.
+
+### MCP Server Features
+- **KB Management**: Read, update, and delete knowledge base files
+- **Smart Search**: Search across all documentation with context
+- **Status Tracking**: Get current implementation status and known issues
+- **Security**: Path validation and file type restrictions
+
+### Available MCP Tools
+- `kb_read` - Read any KB file (e.g., "active/KNOWN_ISSUES.md")
+- `kb_list` - Browse KB directory structure
+- `kb_update` - Create/update KB files 
+- `kb_delete` - Delete KB files
+- `kb_search` - Search KB content
+- `kb_status` - Get implementation status overview
+- `kb_issues` - Get current known issues
+
+### Configuration
+MCP server is configured at: `~/.config/Claude/claude_desktop_config.json`
+Test the server: `./script-kb-mcp/test-mcp.sh`
+
+### Usage Examples
+- "Show me the current implementation status" → Uses `kb_status`
+- "What are the known issues?" → Uses `kb_issues`
+- "Update the roadmap with this milestone" → Uses `kb_update`
+- "Search for async implementation details" → Uses `kb_search`
 
 ---
 
-*"The impediment to action advances action. What stands in the way becomes the way."* - Marcus Aurelius
-
-MCP integration is not merely a feature addition; it is the path to establishing Script as the first AI-native programming language. Through measured implementation and unwavering focus on security, we transform the challenge of AI integration into Script's greatest competitive advantage.
+*Script: The first AI-native programming language. Security-first development transforms AI integration challenges into competitive advantages.*
 ```
-
-## Memory Entries
-
-### Project Workflow
-- Always Store Docs created to help the AI build the project in the `/kb` dir, and update and delete them when needed

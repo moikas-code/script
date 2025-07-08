@@ -8,7 +8,10 @@ use tower_lsp::lsp_types::{Location, Position, Url};
 /// Generate definition location for a symbol at the given position
 pub fn goto_definition(content: &str, position: Position, uri: &Url) -> Option<Location> {
     // Parse the document
-    let lexer = Lexer::new(content);
+    let lexer = match Lexer::new(content) {
+        Ok(lexer) => lexer,
+        Err(_) => return None, // Return None if lexer initialization fails
+    };
     let (tokens, _errors) = lexer.scan_tokens();
 
     let mut parser = Parser::new(tokens);

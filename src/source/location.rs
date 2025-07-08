@@ -25,12 +25,13 @@ impl SourceLocation {
     }
 
     pub fn advance(&mut self, ch: char) {
-        self.byte_offset += ch.len_utf8();
+        // Use saturating arithmetic to prevent overflow
+        self.byte_offset = self.byte_offset.saturating_add(ch.len_utf8());
         if ch == '\n' {
-            self.line += 1;
+            self.line = self.line.saturating_add(1);
             self.column = 1;
         } else {
-            self.column += 1;
+            self.column = self.column.saturating_add(1);
         }
     }
 }

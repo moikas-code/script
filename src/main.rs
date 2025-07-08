@@ -28,7 +28,9 @@ fn main() {
 
     // Check for version flag
     if args.len() >= 2 && (args[1] == "--version" || args[1] == "-V") {
-        println!("Script Language v{}", env!("CARGO_PKG_VERSION"));
+        println!("Script Language v{} (alpha - not production ready)", env!("CARGO_PKG_VERSION"));
+        println!("⚠️  WARNING: Contains memory leaks, panic points, and incomplete features.");
+        println!("Use for educational purposes and experimentation only.");
         return;
     }
 
@@ -170,6 +172,7 @@ fn run_repl() {
         "Script".cyan().bold(),
         "v0.1.0".green()
     );
+    println!("{}", "⚠️  ALPHA VERSION - Not production ready".yellow());
     println!("Type 'exit' to quit");
     println!("Type ':tokens' to switch to token mode");
     println!("Type ':parse' to switch to parse mode (default)");

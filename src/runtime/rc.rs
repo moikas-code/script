@@ -12,10 +12,23 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 
 use crate::runtime::gc;
 use crate::runtime::profiler;
+use crate::runtime::type_registry::{self, RegisterableType, TypeId};
+
+/// Color states for tri-color marking algorithm
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Color {
+    /// Object not yet visited by GC
+    White = 0,
+    /// Object visited but children not yet processed
+    Gray = 1,
+    /// Object and all children processed
+    Black = 2,
+}
 
 /// Internal reference count structure
 struct RcBox<T: ?Sized> {
@@ -23,6 +36,14 @@ struct RcBox<T: ?Sized> {
     strong: AtomicUsize,
     /// Number of weak references
     weak: AtomicUsize,
+    /// Color for tri-color marking during GC
+    color: AtomicU8,
+    /// Whether this object is buffered as a potential cycle root
+    buffered: AtomicBool,
+    /// Whether this object has been traced in current GC cycle
+    traced: AtomicBool,
+    /// Type ID for safe downcasting
+    type_id: TypeId,
     /// The actual value
     value: T,
 }
@@ -47,10 +68,27 @@ pub struct ScriptWeak<T> {
     phantom: PhantomData<RcBox<T>>,
 }
 
+
 impl<T> ScriptRc<T> {
     /// Create a new reference-counted value
-    pub fn new(value: T) -> Self {
+    pub fn new(value: T) -> Self
+    where
+        T: 'static,
+    {
         let layout = std::alloc::Layout::new::<RcBox<T>>();
+
+        // Register the type and get its ID
+        let type_id = type_registry::register_type::<T>(
+            std::any::type_name::<T>(),
+            |ptr, visitor| {
+                // Default: assume type has no references
+                // Types that contain ScriptRc should implement Traceable
+                let _ = (ptr, visitor);
+            },
+            |ptr| unsafe {
+                std::ptr::drop_in_place(ptr as *mut T);
+            },
+        );
 
         // Notify profiler of allocation
         profiler::record_allocation(layout.size(), std::any::type_name::<T>());
@@ -66,6 +104,10 @@ impl<T> ScriptRc<T> {
             ptr.write(RcBox {
                 strong: AtomicUsize::new(1),
                 weak: AtomicUsize::new(1), // +1 for the strong reference
+                color: AtomicU8::new(Color::Black as u8),
+                buffered: AtomicBool::new(false),
+                traced: AtomicBool::new(false),
+                type_id,
                 value,
             });
 
@@ -143,6 +185,82 @@ impl<T> ScriptRc<T> {
     fn inner(&self) -> &RcBox<T> {
         unsafe { self.ptr.as_ref() }
     }
+
+    /// Create a ScriptRc from a raw pointer
+    /// 
+    /// # Safety
+    /// The pointer must have been created by ScriptRc::as_raw and must still be valid.
+    /// This increments the reference count.
+    pub unsafe fn from_raw(ptr: *const ()) -> Option<Self> {
+        if ptr.is_null() {
+            return None;
+        }
+        
+        let rc_box = ptr as *mut RcBox<T>;
+        let non_null = NonNull::new(rc_box)?;
+        
+        // Increment reference count
+        (*rc_box).strong.fetch_add(1, Ordering::Relaxed);
+        
+        Some(ScriptRc {
+            ptr: non_null,
+            phantom: PhantomData,
+        })
+    }
+
+    /// Get the color for GC marking
+    pub(crate) fn color(&self) -> Color {
+        let color_val = unsafe { self.ptr.as_ref().color.load(Ordering::Relaxed) };
+        match color_val {
+            0 => Color::White,
+            1 => Color::Gray,
+            2 => Color::Black,
+            _ => Color::Black, // Default to black for safety
+        }
+    }
+
+    /// Set the color for GC marking
+    pub(crate) fn set_color(&self, color: Color) {
+        unsafe {
+            self.ptr.as_ref().color.store(color as u8, Ordering::Relaxed);
+        }
+    }
+
+    /// Check if this object is buffered as a potential cycle root
+    pub(crate) fn is_buffered(&self) -> bool {
+        unsafe { self.ptr.as_ref().buffered.load(Ordering::Relaxed) }
+    }
+
+    /// Mark this object as buffered for cycle detection
+    pub(crate) fn set_buffered(&self, buffered: bool) {
+        unsafe {
+            self.ptr.as_ref().buffered.store(buffered, Ordering::Relaxed);
+        }
+    }
+
+    /// Check if this object has been traced in current GC cycle
+    pub(crate) fn is_traced(&self) -> bool {
+        unsafe { self.ptr.as_ref().traced.load(Ordering::Relaxed) }
+    }
+
+    /// Mark this object as traced in current GC cycle
+    pub(crate) fn set_traced(&self, traced: bool) {
+        unsafe {
+            self.ptr.as_ref().traced.store(traced, Ordering::Relaxed);
+        }
+    }
+}
+
+impl<T: ?Sized> ScriptRc<T> {
+    /// Get the type ID of this value
+    pub fn type_id(&self) -> TypeId {
+        unsafe { self.ptr.as_ref().type_id }
+    }
+
+    /// Get a raw pointer to this ScriptRc
+    pub fn as_raw(&self) -> *const () {
+        self.ptr.as_ptr() as *const ()
+    }
 }
 
 impl<T: ?Sized> Clone for ScriptRc<T> {
@@ -160,27 +278,55 @@ impl<T: ?Sized> Clone for ScriptRc<T> {
 impl<T: ?Sized> Drop for ScriptRc<T> {
     fn drop(&mut self) {
         unsafe {
-            if self.ptr.as_ref().strong.fetch_sub(1, Ordering::Release) == 1 {
+            // Use atomic operations to prevent race conditions
+            let old_strong = self.ptr.as_ref().strong.fetch_sub(1, Ordering::Release);
+            
+            if old_strong == 1 {
                 // This was the last strong reference
                 std::sync::atomic::fence(Ordering::Acquire);
 
-                // Unregister from GC
-                gc::unregister_rc(self);
+                // Use secure unregistration if available
+                if let Err(_) = crate::runtime::safe_gc::secure_unregister_rc(self) {
+                    // Fallback to original GC
+                    gc::unregister_rc(self);
+                }
 
                 // Drop the value
                 std::ptr::drop_in_place(&mut (*self.ptr.as_ptr()).value);
 
-                // Decrement the weak count
-                if self.ptr.as_ref().weak.fetch_sub(1, Ordering::Release) == 1 {
-                    // This was the last weak reference too, deallocate
-                    std::sync::atomic::fence(Ordering::Acquire);
+                // Atomically decrement weak count with compare-and-swap to prevent races
+                loop {
+                    let current_weak = self.ptr.as_ref().weak.load(Ordering::Acquire);
+                    if current_weak == 0 {
+                        break; // Another thread already handled deallocation
+                    }
+                    
+                    if self.ptr.as_ref().weak.compare_exchange_weak(
+                        current_weak,
+                        current_weak - 1,
+                        Ordering::Release,
+                        Ordering::Relaxed,
+                    ).is_ok() {
+                        if current_weak == 1 {
+                            // This was the last weak reference too, deallocate
+                            std::sync::atomic::fence(Ordering::Acquire);
 
-                    let layout = std::alloc::Layout::for_value(&**self);
+                            let layout = std::alloc::Layout::for_value(&**self);
 
-                    // Notify profiler of deallocation
-                    profiler::record_deallocation(layout.size(), std::any::type_name::<T>());
+                            // Notify profiler of deallocation
+                            profiler::record_deallocation(layout.size(), std::any::type_name::<T>());
 
-                    std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
+                            std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
+                        }
+                        break;
+                    }
+                }
+            } else if old_strong > 1 {
+                // Reference count decreased but object still alive
+                // Use secure notification if available
+                if let Err(_) = crate::runtime::safe_gc::secure_possible_cycle(self) {
+                    // Fallback to original GC
+                    gc::possible_cycle(self);
                 }
             }
         }
@@ -265,26 +411,42 @@ impl<T> ScriptWeak<T> {
 
         let inner = unsafe { self.ptr.as_ref() };
 
-        // Try to increment the strong count
-        let mut strong = inner.strong.load(Ordering::Relaxed);
+        // Use a retry loop with exponential backoff to handle race conditions
+        let mut retries = 0;
+        const MAX_RETRIES: usize = 10;
+        
         loop {
+            let strong = inner.strong.load(Ordering::Acquire);
+            
             if strong == 0 {
-                return None;
+                return None; // Object has been deallocated
             }
 
+            // Use acquire ordering to synchronize with release in drop
             match inner.strong.compare_exchange_weak(
                 strong,
-                strong + 1,
-                Ordering::SeqCst,
+                strong.checked_add(1)?,  // Prevent overflow
+                Ordering::Acquire,
                 Ordering::Relaxed,
             ) {
                 Ok(_) => {
+                    // Successfully incremented strong count
                     return Some(ScriptRc {
                         ptr: self.ptr,
                         phantom: PhantomData,
                     });
                 }
-                Err(current) => strong = current,
+                Err(_) => {
+                    retries += 1;
+                    if retries >= MAX_RETRIES {
+                        return None; // Give up after too many retries
+                    }
+                    
+                    // Exponential backoff to reduce contention
+                    if retries > 3 {
+                        std::thread::yield_now();
+                    }
+                }
             }
         }
     }
@@ -335,19 +497,36 @@ impl<T> Drop for ScriptWeak<T> {
         if self.ptr != NonNull::dangling() {
             let inner = unsafe { self.ptr.as_ref() };
 
-            if inner.weak.fetch_sub(1, Ordering::Release) == 1 {
-                // This was the last weak reference, deallocate if no strong refs
-                std::sync::atomic::fence(Ordering::Acquire);
+            // Use compare-and-swap loop to prevent race conditions
+            loop {
+                let current_weak = inner.weak.load(Ordering::Acquire);
+                if current_weak == 0 {
+                    break; // Already deallocated by another thread
+                }
 
-                if inner.strong.load(Ordering::SeqCst) == 0 {
-                    unsafe {
-                        let layout = std::alloc::Layout::for_value(&*self.ptr.as_ptr());
+                if inner.weak.compare_exchange_weak(
+                    current_weak,
+                    current_weak - 1,
+                    Ordering::Release,
+                    Ordering::Relaxed,
+                ).is_ok() {
+                    if current_weak == 1 {
+                        // This was the last weak reference, check for deallocation
+                        std::sync::atomic::fence(Ordering::Acquire);
 
-                        // Notify profiler of deallocation
-                        profiler::record_deallocation(layout.size(), std::any::type_name::<T>());
+                        // Double-check strong count to avoid race with drop
+                        if inner.strong.load(Ordering::SeqCst) == 0 {
+                            unsafe {
+                                let layout = std::alloc::Layout::for_value(&*self.ptr.as_ptr());
 
-                        std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
+                                // Notify profiler of deallocation
+                                profiler::record_deallocation(layout.size(), std::any::type_name::<T>());
+
+                                std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
+                            }
+                        }
                     }
+                    break;
                 }
             }
         }

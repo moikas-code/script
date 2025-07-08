@@ -32,6 +32,10 @@ pub struct CraneliftBackend {
     debug_context: Option<DebugContext>,
     /// Debug compilation flags
     debug_flags: DebugFlags,
+    /// Field layout registry for struct types
+    field_layouts: crate::codegen::FieldLayoutRegistry,
+    /// Bounds checker for array operations
+    bounds_checker: crate::codegen::BoundsChecker,
 }
 
 impl CraneliftBackend {
@@ -66,6 +70,8 @@ impl CraneliftBackend {
             func_ids: HashMap::new(),
             debug_context: None,
             debug_flags: DebugFlags::default(),
+            field_layouts: crate::codegen::FieldLayoutRegistry::new(),
+            bounds_checker: crate::codegen::BoundsChecker::new(crate::codegen::BoundsCheckMode::Always),
         }
     }
 
@@ -339,13 +345,17 @@ impl CodegenBackend for CraneliftBackend {
         });
 
         // Find entry point (main function if it exists)
-        let entry_point = if module.get_function_by_name("main").is_some() {
-            Some("main".to_string())
+        let (entry_point, is_async) = if let Some(main_func) = module.get_function_by_name("main") {
+            (Some("main".to_string()), main_func.is_async)
         } else {
-            None
+            (None, false)
         };
 
-        Ok(ExecutableModule::new(entry_point, backend_data))
+        if is_async {
+            Ok(ExecutableModule::new_async(entry_point, backend_data))
+        } else {
+            Ok(ExecutableModule::new(entry_point, backend_data))
+        }
     }
 }
 

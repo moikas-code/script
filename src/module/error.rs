@@ -122,6 +122,22 @@ impl ModuleError {
         Self::new(ModuleErrorKind::ConfigError, message)
     }
 
+    pub fn runtime_error(module_path: impl Into<String>, error: impl Into<String>) -> Self {
+        let path = module_path.into();
+        Self::new(
+            ModuleErrorKind::ConfigError, // Using ConfigError for runtime errors
+            format!("Runtime error in module '{}': {}", path, error.into()),
+        )
+        .with_module_path(path)
+    }
+
+    pub fn security_violation(message: impl Into<String>) -> Self {
+        Self::new(
+            ModuleErrorKind::ConfigError, // Using ConfigError for security violations
+            format!("Security violation: {}", message.into()),
+        )
+    }
+
     pub fn with_location(mut self, location: SourceLocation) -> Self {
         self.location = Some(location);
         self

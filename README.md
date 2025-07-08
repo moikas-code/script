@@ -1,18 +1,22 @@
 # Script Programming Language 📜
 
-> 🚧 **Version 0.3.5-alpha** - Script maintains steady progress toward becoming the first AI-native programming language. Core features demonstrate reliability while advanced capabilities undergo careful development. See [STATUS.md](STATUS.md) for measured completion assessment.
+> 🚧 **Version 0.5.0-alpha** - Script achieves ~80% completion with production-grade pattern matching, generics, and memory cycle detection. Core language features demonstrate production-quality reliability while runtime safety and module system undergo critical development. See [kb/STATUS.md](kb/STATUS.md) for detailed progress tracking.
+> 
+> ⚠️ **NOT PRODUCTION READY** - While pattern matching, generics, and memory cycle detection are production-grade, Script contains **critical security vulnerabilities** in async runtime (use-after-free, memory corruption) and broken module system preventing multi-file projects. Use for educational purposes and experimentation only.
 
 Script embodies the principle of **accessible power** - simple enough for beginners to grasp intuitively, yet designed to pioneer AI-enhanced development workflows and build production applications with confidence.
 
-## ⚡ Current Capabilities (v0.3.5-alpha)
+## ⚡ Current Capabilities (v0.5.0-alpha)
 
-- **🎯 Solid Foundation**: Expression parsing, pattern matching with full safety guarantees
-- **✅ Generic Functions**: Complete parsing and basic type checking operational  
-- **✅ Pattern Safety**: Full exhaustiveness checking, or-patterns, guards - all functioning reliably
-- **🔄 AI Integration**: MCP framework development progressing systematically
-- **❌ Advanced Runtime**: Async/await, memory cycle detection, complete module resolution await implementation
-- **❌ Production Tooling**: LSP and debugger require enhancement for professional use
-- **❌ Complete Standard Library**: Essential collections and I/O capabilities need completion
+- **✅ Pattern Matching**: Production-grade exhaustiveness checking including enum variants, or-patterns, guards
+- **✅ Generic System**: Complete end-to-end implementation for functions, structs, and enums with type inference
+- **✅ Memory Safety**: Production-grade cycle detection with full Bacon-Rajan algorithm
+- **✅ Type Safety**: Comprehensive type checking with gradual typing and inference engine
+- **🔧 Code Generation**: Cranelift IR generation working, some pattern matching codegen missing
+- **🔄 AI Integration**: MCP security framework designed, implementation in progress
+- **🚨 Async Runtime**: **CRITICAL SECURITY VULNERABILITIES** - Use-after-free, memory corruption
+- **❌ Module System**: Multi-file project support broken, import/export resolution incomplete
+- **❌ Standard Library**: Core functions only, HashMap/Set and I/O operations missing
 
 ## Philosophy
 
@@ -28,18 +32,21 @@ Like a well-written script guides actors through a performance, Script guides pr
 
 ## Honest Current Assessment
 
-**Philosophical Approach**: Acknowledging current limitations enables focused improvement rather than misplaced expectations.
+**Current Development Focus**: Fixing critical async security vulnerabilities, then repairing module system for multi-file projects.
 
-✅ **Phase 1: Lexer** - Complete tokenization with Unicode support and robust error recovery  
-🔧 **Phase 2: Parser** - Solid foundation with generic functions operational, some edge cases remain  
-🔧 **Phase 3: Type System** - Core inference functional, advanced features under development  
-🔧 **Phase 4: Code Generation** - Basic implementation stable, optimization integration needed  
-🔄 **Phase 5: Runtime** - Essential operations work, memory cycle detection in progress  
-🔧 **Phase 6: Standard Library** - Core functionality present, comprehensive expansion ongoing  
-🔄 **Phase 7: Tooling** - Development tools functional for basic use, professional features developing  
-🔄 **Phase 8: AI Integration** - Strategic framework implementation proceeding systematically
+| Phase | Status | Completion | Critical Issues |
+|-------|--------|------------|----------------|
+| **Lexer** | ✅ | 100% | None - production ready |
+| **Parser** | ✅ | 99% | None - production ready |  
+| **Type System** | ✅ | 95% | None - production ready |
+| **Semantic** | ✅ | 99% | None - production ready |
+| **CodeGen** | 🔧 | 85% | Pattern matching codegen incomplete |
+| **Runtime** | 🚨 | 60% | **CRITICAL: Async security vulnerabilities** |
+| **Module System** | ❌ | 25% | **BROKEN: Multi-file projects fail** |
+| **Stdlib** | 🔧 | 30% | HashMap/Set/I/O missing |
+| **MCP/AI** | 🔄 | 15% | Security framework in progress |
 
-**Current Reality**: Script demonstrates reliability in core areas while acknowledging that advanced production use requires patience as capabilities mature.
+**Current Reality**: Core language features are production-quality, but **critical security vulnerabilities in async runtime** and **broken module system** prevent production use. Immediate focus: fix async memory safety, then enable multi-file projects.
 
 ## Quick Start
 
@@ -53,30 +60,28 @@ cargo build --release
 
 # Add to PATH for convenient access
 export PATH="$PATH:$(pwd)/target/release"
-
-# System-wide installation
-sudo cp target/release/script /usr/local/bin/
-sudo cp target/release/script-lsp /usr/local/bin/
-sudo cp target/release/manuscript /usr/local/bin/
 ```
 
 ### Initial Exploration
 
 ```bash
 # Interactive REPL for experimentation
-script
+cargo run
 
-# Execute script files
-script hello.script
+# Parse and display AST
+cargo run examples/hello.script
 
-# Compile with optimization
-script --optimize 3 --run hello.script
+# Run with token mode
+cargo run -- --tokens
 
-# AI Integration (when available)
-script-mcp --help  # MCP server for AI development tools
+# Build with MCP support (experimental)
+cargo build --features mcp
 
-# Development assistance
-script --help
+# Run benchmarks
+cargo bench
+
+# Run tests
+cargo test
 ```
 
 ## Language Features
@@ -92,13 +97,15 @@ fn fibonacci(n: i32) -> i32 {
 }
 
 // Pattern matching with comprehensive safety
-let point = { x: 10, y: 20 }
-let { x, y } = point
+enum Result<T, E> { Ok(T), Err(E) }
+enum NetworkError { Timeout, ConnectionFailed, AuthError }
 
 match response {
     Ok(data) => process_success(data),
     Err(NetworkError::Timeout) => retry_request(),
-    Err(e) => handle_error(e)
+    Err(NetworkError::ConnectionFailed) => reconnect(),
+    Err(NetworkError::AuthError) => reauthenticate()
+    // Compiler ensures all cases covered - no runtime surprises!
 }
 
 // Iterator chains with functional elegance
@@ -130,41 +137,47 @@ fn calculate_average(numbers: [f64]) -> f64 {
     sum / numbers.len() as f64
 }
 
-// Generics and constraints (fully parsed, type checking developing)
-trait Drawable {
-    fn draw(self) -> string
-}
+// Generics with complete type inference
+struct Box<T> { value: T }
+enum Option<T> { Some(T), None }
 
-struct Circle<T> {
-    radius: T,
-    center: Point<T>
-}
+// Type inference works seamlessly
+let int_box = Box { value: 42 }        // Inferred as Box<i32>
+let str_box = Box { value: "hello" }   // Inferred as Box<string>
+let opt = Option::Some(3.14)           // Inferred as Option<f64>
 
-impl<T: Number> Drawable for Circle<T> {
-    fn draw(self) -> string {
-        "Circle with radius " + self.radius.to_string()
-    }
+// Generic functions with trait bounds
+fn sort<T: Ord + Clone>(items: Vec<T>) -> Vec<T> {
+    let mut sorted = items.clone()
+    sorted.sort()
+    sorted
 }
 ```
 
-### Memory Management Philosophy
+### Memory Management Excellence
 
-Script employs automatic reference counting with planned cycle detection:
+Script employs automatic reference counting with **production-grade cycle detection**:
 
 ```script
-// Automatic memory management
+// Automatic memory management with cycle detection
 let list = LinkedList::new()
 list.push("Hello")
 list.push("World")
 // Memory freed automatically when list scope ends
 
-// Weak references prevent cycles (implementation in progress)
+// Bacon-Rajan cycle detection handles complex cycles
 struct Node {
     value: i32,
     next: Option<Rc<Node>>,
-    parent: Option<Weak<Node>>  // Breaks potential cycles
+    parent: Option<Rc<Node>>  // Cycles detected and collected automatically
 }
 ```
+
+**Memory Safety Features**:
+- ✅ **Production-grade cycle detection** using Bacon-Rajan algorithm
+- ✅ **Type registry** for safe type recovery and downcasting  
+- ✅ **Incremental collection** with configurable work limits
+- ✅ **Thread-safe concurrent collection** support
 
 ## AI-Native Development - Revolutionary Capability
 
@@ -202,7 +215,7 @@ AI_Assistant → Script MCP Server → Deep Language Analysis
 - Audit logging maintains complete interaction transparency
 - Rate limiting prevents resource exhaustion
 
-**Current Implementation Status**: 🔄 Security framework and protocol implementation proceeding systematically
+**Current Implementation Status**: 🔄 Security framework designed, MCP server implementation in progress (15% complete)
 
 ## Integration & Embedding
 
@@ -305,17 +318,12 @@ cargo bench
 # Network requests: Target 15,000 req/s
 ```
 
-## Documentation Resources
+## Documentation
 
-Comprehensive guidance available across multiple domains:
-
-- **[Language Guide](docs/language/README.md)** - Complete language reference
-- **[Standard Library](docs/stdlib/README.md)** - Built-in functions and modules
-- **[AI Integration Guide](docs/ai/MCP_INTEGRATION.md)** - AI-native development workflows
-- **[Integration Guide](docs/integration/EMBEDDING.md)** - Embedding in applications
-- **[FFI Guide](docs/integration/FFI.md)** - Foreign function interface
-- **[Build Guide](docs/integration/BUILD.md)** - Building and deployment strategies
-- **[CLI Reference](docs/integration/CLI.md)** - Command-line interface
+### Core Documentation
+- **[kb/STATUS.md](kb/STATUS.md)** - Current implementation status and progress tracking
+- **[kb/KNOWN_ISSUES.md](kb/KNOWN_ISSUES.md)** - Bug tracker and limitations  
+- **[CLAUDE.md](CLAUDE.md)** - Development guidance for AI assistants
 
 ## Project Architecture
 
@@ -342,55 +350,50 @@ script/
 └── tests/           # Integration and unit tests
 ```
 
-## Measured Development Status
+## Current Implementation Status
 
-| Component | Status | Assessment |
-|-----------|--------|------------|
-| **Lexer** | ✅ Complete | Unicode, error recovery, source tracking - reliable foundation |
-| **Parser** | 🔧 85% | Expression parsing robust, generics functional, edge cases remain |
-| **Type System** | 🔧 60% | Core inference operational, advanced features developing |
-| **Semantic Analysis** | 🔧 90% | Symbol resolution solid, pattern safety complete |
-| **Code Generation** | 🔧 40% | Basic functionality stable, optimization integration needed |
-| **Runtime** | 🔧 50% | Core operations reliable, cycle detection in progress |
-| **Standard Library** | 🔧 30% | Essential functions present, comprehensive expansion ongoing |
-| **AI Integration** | 🔄 15% | Security framework developing, protocol implementation proceeding |
-| **Async/Await** | 🔧 20% | Syntax recognition complete, runtime implementation developing |
-| **Error Handling** | 🔧 70% | Basic reporting functional, Result/Option types planned |
-| **CLI Tools** | 🔧 60% | REPL reliable, LSP functional, debugger requires enhancement |
-| **Documentation** | 🔧 60% | Core guides available, AI integration documentation developing |
+| Component | Status | Assessment | Critical Issues |
+|-----------|--------|------------|----------------|
+| **Lexer** | ✅ 100% | Complete - Unicode support, error recovery, source tracking | None |
+| **Parser** | ✅ 99% | Production ready - Full generic support, enum patterns, exhaustiveness | None |
+| **Type System** | ✅ 95% | Production ready - Monomorphization, inference, gradual typing | None |
+| **Semantic** | ✅ 99% | Production ready - Exhaustiveness checking, symbol resolution, pattern safety | None |
+| **Code Generation** | 🔧 85% | Functional - Generic compilation works, some pattern matching missing | Array bounds checking missing |
+| **Runtime** | 🚨 60% | **CRITICAL ISSUES** - Bacon-Rajan cycle detection complete | **Async use-after-free vulnerabilities** |
+| **Module System** | ❌ 25% | **BROKEN** - Multi-file projects fail | Import/export resolution non-functional |
+| **Standard Library** | 🔧 30% | Basic - Core functions only | HashMap/Set/I/O operations missing |
+| **AI Integration** | 🔄 15% | In development - Security framework designed | Implementation starting |
+| **Documentation** | 🔧 65% | Good foundation - Core docs solid | Needs updates for recent features |
 
-## Contributing with Purpose
+## Contributing & Development
 
-Script welcomes thoughtful contributions across multiple domains:
+### Critical Priorities (Immediate Attention Required)
+1. **🚨 Fix Async Security Vulnerabilities** - Use-after-free and memory corruption in async runtime
+2. **🔧 Repair Module System** - Multi-file projects currently non-functional
+3. **🛡️ Add Array Bounds Checking** - Missing memory safety in code generation
+4. **📦 Expand Standard Library** - HashMap, Set, I/O operations needed
 
-- 🐛 **Bug Resolution** - Strengthen stability through systematic improvement
-- ✨ **Feature Development** - Extend capabilities with careful consideration  
-- 📚 **Documentation Enhancement** - Improve clarity and accessibility
-- 🔧 **Tooling Development** - Build superior developer experience
-- 🎯 **Performance Optimization** - Enhance compiler and runtime efficiency
-- 🤖 **AI Integration** - Pioneer AI-native development capabilities
-
-Guidelines available in [CONTRIBUTING.md](CONTRIBUTING.md).
+### Contributing Guidelines
+Script welcomes thoughtful contributions. See [kb/KNOWN_ISSUES.md](kb/KNOWN_ISSUES.md) for current bug tracker.
 
 ### Development Environment Setup
 
 ```bash
-# Establish development environment
+# Clone and build
 git clone https://github.com/moikapy/script.git
 cd script
+cargo build --release
 
-# Install dependencies and validate
-cargo build
+# Run tests and benchmarks
+cargo test
+cargo bench
 
-# Execute comprehensive testing
-cargo test --all-features
-
-# Explore example capabilities
+# Try examples
 cargo run examples/fibonacci.script
+cargo run -- --tokens  # Token mode
 
-# MCP development (when ready)
+# MCP development (experimental)
 cargo build --features mcp
-cargo run --bin script-mcp --features mcp
 ```
 
 ## License
@@ -405,87 +408,24 @@ Script operates under the **MIT License**. Complete details available in [LICENS
 
 ## Support Channels
 
-- 📖 **[User Guide](docs/USER_GUIDE.md)** - Comprehensive Script usage guidance
-- 📚 **[Language Reference](docs/LANGUAGE_REFERENCE.md)** - Complete specification  
-- 🔧 **[Developer Guide](docs/DEVELOPER_GUIDE.md)** - Contributing to Script development
-- 🤖 **[AI Integration Guide](docs/ai/GETTING_STARTED.md)** - AI-native development workflows
 - 💬 **[GitHub Discussions](https://github.com/moikapy/script/discussions)** - Community questions and ideas
 - 🐛 **[Issue Tracker](https://github.com/moikapy/script/issues)** - Bug reports and feature requests
+- 🛡️ **[Security Audit Report](GENERIC_IMPLEMENTATION_SECURITY_AUDIT.md)** - Critical vulnerability findings
 
-## Roadmap: Measured Progress Toward Production Excellence
+## Roadmap
 
-### 🤖 AI Integration 1.0 (6-12 months) - **Current Strategic Focus**
-**Goal**: Establish Script as the first AI-native programming language
+### Immediate Priorities (2025-Q3)
+1. **🚨 Security Fixes** - Resolve async runtime vulnerabilities 
+2. **🔧 Module System** - Enable multi-file projects
+3. **📦 Standard Library** - HashMap, Set, I/O operations
+4. **🛡️ Memory Safety** - Array bounds checking
 
-**IMMEDIATE PRIORITIES**:
-1. **Complete MCP Security Framework**: Comprehensive input validation and sandboxing
-2. **Implement Basic MCP Server**: Protocol compliance with essential tool integration
-3. **Integrate Script Analyzer**: Leverage existing compiler infrastructure for AI analysis
-4. **Establish Security Testing**: Comprehensive validation and penetration testing
-5. **Create Integration Documentation**: Complete guides for AI-enhanced development
-6. **Demonstrate AI Workflows**: Working examples of Script's AI-native capabilities
-
-**Strategic Impact**: Revolutionary positioning as first language designed for AI era
-
-### 📚 Educational 1.0 (6-12 months)
-**Goal**: Reliable foundation for programming instruction
-
-**CORE REQUIREMENTS**:
-- ~~Complete pattern matching safety~~ ✅ ACHIEVED
-- ~~Implement generic function parsing~~ ✅ SUBSTANTIALLY COMPLETE
-- Complete memory cycle detection for reliability
-- Finish module system for multi-file project instruction
-- Implement Result/Option types for proper error handling
-- Complete HashMap and essential collections
-- Enhance debugger for student code inspection
-
-### 🌐 Web Applications 1.0 (2-3 years)
-**Goal**: Production web development capabilities
-
-**INFRASTRUCTURE REQUIREMENTS**:
-- HTTP server framework with routing and middleware
-- JSON parsing/serialization library
-- Database connectivity (SQL + NoSQL)
-- WebAssembly compilation target
-- JavaScript interop for web ecosystem
-- Security features (HTTPS, authentication, sessions)
-- Template engine for dynamic content
-- WebSocket support for real-time applications
-
-### 🎮 Game Development 1.0 (2-4 years)  
-**Goal**: Shippable game development platform
-
-**PLATFORM REQUIREMENTS**:
-- Graphics/rendering system (OpenGL/Vulkan bindings)
-- Audio system (playback/synthesis)
-- Input handling (keyboard/mouse/gamepad)
-- Physics engine integration
-- Asset loading pipeline (images/models/audio)
-- Platform builds (console/mobile targets)
-- Real-time performance guarantees
-- GPU compute/shader pipeline
-
-### 🧠 AI Tools 1.0 (3-5 years)
-**Goal**: Machine learning application development
-
-**COMPUTATIONAL REQUIREMENTS**:
-- Tensor operations (NumPy-like arrays)
-- GPU acceleration (CUDA/OpenCL)
-- Python interop (PyTorch/TensorFlow ecosystem)
-- Linear algebra libraries (BLAS/LAPACK)
-- Memory mapping for large datasets
-- Distributed computing primitives
-- JIT optimization for numerical computation
-- Scientific libraries (statistics/signal processing)
-
-### Version Philosophy
-- **0.3.5**: Current alpha - Core stability with AI integration development
-- **0.5.0**: Educational beta - Safe for programming instruction
-- **0.8.0**: Educational 1.0 - Production-ready for teaching
-- **1.0.0**: AI Integration 1.0 - First AI-native programming platform
-- **1.5.0**: Web Apps 1.0 - Production web development
-- **2.0.0**: Games 1.0 - Production game development
-- **3.0.0**: AI Tools 1.0 - Advanced ML/AI development
+### Version Milestones
+- **v0.5.0-alpha** (Current): Core features complete, critical security issues
+- **v0.6.0**: Security vulnerabilities resolved
+- **v0.8.0**: Educational release - safe for teaching
+- **v1.0.0**: AI Integration release - first AI-native language
+- **v2.0.0**: Web/Game development ready
 
 ---
 

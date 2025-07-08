@@ -29,6 +29,7 @@ sha2 = "0.10"
 thiserror = "1.0"
 dirs = "5.0"
 serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
 num_cpus = "1.0"
 crossbeam = "0.8"
 # LSP dependencies
@@ -45,11 +46,19 @@ tempfile = "3.0"
 reqwest = { version = "0.12", features = ["json", "blocking"] }
 # Self-update functionality
 self_update = { version = "0.40", features = ["archive-tar", "archive-zip", "compression-flate2"] }
+# Unicode security dependencies
+unicode-normalization = "0.1.22"
+# Performance dependencies
+ahash = "0.8"
 
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.0"
 tempfile = "3.0"
+
+[features]
+# Enable fuzzing support
+fuzzing = []
 
 [[bench]]
 name = "lexer"
@@ -77,6 +86,22 @@ harness = false
 
 [[bench]]
 name = "tooling"
+harness = false
+
+[[bench]]
+name = "monomorphization_bench"
+harness = false
+
+[[bench]]
+name = "generic_compilation_bench"
+harness = false
+
+[[bench]]
+name = "cycle_detection_bench"
+harness = false
+
+[[bench]]
+name = "unicode_security_bench"
 harness = false
 
 [[bin]]

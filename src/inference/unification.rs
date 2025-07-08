@@ -96,6 +96,75 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
         // Named types must have the same name
         (Type::Named(n1), Type::Named(n2)) if n1 == n2 => Ok(Substitution::new()),
 
+        // Generic types - unify if same base name and all type arguments unify
+        (Type::Generic { name: n1, args: a1 }, Type::Generic { name: n2, args: a2 }) => {
+            if n1 != n2 {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    format!("Generic type mismatch: {} != {}", n1, n2),
+                )
+                .with_location(span.start));
+            }
+            
+            if a1.len() != a2.len() {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    format!(
+                        "Generic type argument count mismatch: {} has {} arguments, {} has {}",
+                        n1, a1.len(), n2, a2.len()
+                    ),
+                )
+                .with_location(span.start));
+            }
+            
+            let mut subst = Substitution::new();
+            for (arg1, arg2) in a1.iter().zip(a2.iter()) {
+                let arg_subst = unify(arg1, arg2, span)?;
+                subst.compose(arg_subst);
+            }
+            Ok(subst)
+        }
+        
+        // Tuple types - unify if all elements unify
+        (Type::Tuple(elems1), Type::Tuple(elems2)) => {
+            if elems1.len() != elems2.len() {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    format!(
+                        "Tuple size mismatch: ({}) != ({})",
+                        elems1.len(), elems2.len()
+                    ),
+                )
+                .with_location(span.start));
+            }
+            
+            let mut subst = Substitution::new();
+            for (elem1, elem2) in elems1.iter().zip(elems2.iter()) {
+                let elem_subst = unify(elem1, elem2, span)?;
+                subst.compose(elem_subst);
+            }
+            Ok(subst)
+        }
+        
+        // Reference types - unify if mutability matches and inner types unify
+        (Type::Reference { mutable: m1, inner: i1 }, Type::Reference { mutable: m2, inner: i2 }) => {
+            if m1 != m2 {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    format!(
+                        "Reference mutability mismatch: {} != {}",
+                        if *m1 { "&mut" } else { "&" },
+                        if *m2 { "&mut" } else { "&" }
+                    ),
+                )
+                .with_location(span.start));
+            }
+            unify(i1, i2, span)
+        }
+        
+        // Option types - unify inner types
+        (Type::Option(inner1), Type::Option(inner2)) => unify(inner1, inner2, span),
+
         // Type mismatch
         _ => Err(Error::new(
             ErrorKind::TypeError,
@@ -228,5 +297,137 @@ mod tests {
         };
         let result = unify(&Type::TypeVar(0), &infinite_fn, span);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_unify_generic_types() {
+        let span = test_span();
+
+        // Same generic type with same args unifies
+        let gen1 = Type::Generic {
+            name: "Vec".to_string(),
+            args: vec![Type::I32],
+        };
+        let gen2 = Type::Generic {
+            name: "Vec".to_string(),
+            args: vec![Type::I32],
+        };
+        assert!(unify(&gen1, &gen2, span).is_ok());
+
+        // Different generic names don't unify
+        let gen3 = Type::Generic {
+            name: "Option".to_string(),
+            args: vec![Type::I32],
+        };
+        assert!(unify(&gen1, &gen3, span).is_err());
+
+        // Different arg counts don't unify
+        let gen4 = Type::Generic {
+            name: "Vec".to_string(),
+            args: vec![Type::I32, Type::Bool],
+        };
+        assert!(unify(&gen1, &gen4, span).is_err());
+
+        // Generic with type variable
+        let gen5 = Type::Generic {
+            name: "Vec".to_string(),
+            args: vec![Type::TypeVar(0)],
+        };
+        let result = unify(&gen5, &gen1, span).unwrap();
+        assert_eq!(result.get(0), Some(&Type::I32));
+    }
+
+    #[test]
+    fn test_unify_tuple_types() {
+        let span = test_span();
+
+        // Same tuple types unify
+        let tup1 = Type::Tuple(vec![Type::I32, Type::Bool]);
+        let tup2 = Type::Tuple(vec![Type::I32, Type::Bool]);
+        assert!(unify(&tup1, &tup2, span).is_ok());
+
+        // Different lengths don't unify
+        let tup3 = Type::Tuple(vec![Type::I32]);
+        assert!(unify(&tup1, &tup3, span).is_err());
+
+        // Different element types don't unify
+        let tup4 = Type::Tuple(vec![Type::F32, Type::Bool]);
+        assert!(unify(&tup1, &tup4, span).is_err());
+
+        // Tuple with type variables
+        let tup5 = Type::Tuple(vec![Type::TypeVar(0), Type::TypeVar(1)]);
+        let result = unify(&tup5, &tup1, span).unwrap();
+        assert_eq!(result.get(0), Some(&Type::I32));
+        assert_eq!(result.get(1), Some(&Type::Bool));
+    }
+
+    #[test]
+    fn test_unify_reference_types() {
+        let span = test_span();
+
+        // Same reference types unify
+        let ref1 = Type::Reference {
+            mutable: false,
+            inner: Box::new(Type::I32),
+        };
+        let ref2 = Type::Reference {
+            mutable: false,
+            inner: Box::new(Type::I32),
+        };
+        assert!(unify(&ref1, &ref2, span).is_ok());
+
+        // Different mutability doesn't unify
+        let ref3 = Type::Reference {
+            mutable: true,
+            inner: Box::new(Type::I32),
+        };
+        assert!(unify(&ref1, &ref3, span).is_err());
+
+        // Reference with type variable
+        let ref4 = Type::Reference {
+            mutable: false,
+            inner: Box::new(Type::TypeVar(0)),
+        };
+        let result = unify(&ref4, &ref1, span).unwrap();
+        assert_eq!(result.get(0), Some(&Type::I32));
+    }
+
+    #[test]
+    fn test_unify_option_types() {
+        let span = test_span();
+
+        // Same option types unify
+        let opt1 = Type::Option(Box::new(Type::I32));
+        let opt2 = Type::Option(Box::new(Type::I32));
+        assert!(unify(&opt1, &opt2, span).is_ok());
+
+        // Different inner types don't unify
+        let opt3 = Type::Option(Box::new(Type::Bool));
+        assert!(unify(&opt1, &opt3, span).is_err());
+
+        // Option with type variable
+        let opt4 = Type::Option(Box::new(Type::TypeVar(0)));
+        let result = unify(&opt4, &opt1, span).unwrap();
+        assert_eq!(result.get(0), Some(&Type::I32));
+    }
+
+    #[test]
+    fn test_unify_nested_generics() {
+        let span = test_span();
+
+        // Box<Option<i32>>
+        let nested1 = Type::Generic {
+            name: "Box".to_string(),
+            args: vec![Type::Option(Box::new(Type::I32))],
+        };
+        
+        // Box<Option<T0>>
+        let nested2 = Type::Generic {
+            name: "Box".to_string(),
+            args: vec![Type::Option(Box::new(Type::TypeVar(0)))],
+        };
+        
+        let result = unify(&nested2, &nested1, span).unwrap();
+        assert_eq!(result.get(0), Some(&Type::I32));
     }
 }

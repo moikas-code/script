@@ -1,0 +1,51 @@
+// Pattern Matching Safety Demo
+// This demonstrates Script's pattern matching safety features
+
+fn main() {
+    // Example 1: Exhaustive boolean matching
+    let is_ready = true
+    let status = match is_ready {
+        true => "Ready to go!",
+        false => "Not ready yet"
+    }
+    print("Status: " + status)
+    
+    // Example 2: Or-patterns (multiple values in one arm)
+    let number = 2
+    let size = match number {
+        1 | 2 | 3 => "small",
+        4 | 5 | 6 => "medium", 
+        7 | 8 | 9 => "large",
+        _ => "out of range"
+    }
+    print("Size category: " + size)
+    
+    // Example 3: Pattern matching with guards
+    let score = 85
+    let grade = match score {
+        n if n >= 90 => "A",
+        n if n >= 80 => "B",
+        n if n >= 70 => "C",
+        n if n >= 60 => "D",
+        _ => "F"
+    }
+    print("Grade: " + grade)
+    
+    // Example 4: This would cause a compile error (non-exhaustive)
+    // Uncomment to see the error message:
+    /*
+    let value = 42
+    let result = match value {
+        0 => "zero",
+        1 => "one"
+        // Error: Pattern matching is not exhaustive. 
+        // Missing patterns: _ (or any integer pattern)
+    }
+    */
+    
+    print("\nPattern matching safety features:")
+    print("✓ Exhaustiveness checking enforced")
+    print("✓ Or-patterns supported (|)")
+    print("✓ Guards supported (if conditions)")
+    print("✓ Helpful error messages for missing patterns")
+}

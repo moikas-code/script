@@ -1,0 +1,20 @@
+// Simple async/await example
+
+async fn delay(ms: i32) -> i32 {
+    // In a real implementation, this would sleep for ms milliseconds
+    // For now, we'll just return the value
+    ms
+}
+
+async fn add_delayed(a: i32, b: i32) -> i32 {
+    let delay_a = await delay(100)
+    let delay_b = await delay(200)
+    a + b + delay_a + delay_b
+}
+
+fn main() {
+    // In a real async runtime, we'd need to block_on this
+    // For now, we'll just call it
+    let result = add_delayed(5, 10)
+    print("Result: " + result)
+}

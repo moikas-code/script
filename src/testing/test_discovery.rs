@@ -182,7 +182,10 @@ impl TestModule {
 
                 // Parse and discover tests
                 let source = fs::read_to_string(&path)?;
-                let lexer = crate::Lexer::new(&source);
+                let lexer = match crate::Lexer::new(&source) {
+                    Ok(lexer) => lexer,
+                    Err(_) => continue, // Skip files with lexer initialization errors
+                };
                 let (tokens, errors) = lexer.scan_tokens();
 
                 if !errors.is_empty() {

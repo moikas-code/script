@@ -5,10 +5,10 @@ mod pattern_exhaustiveness;
 mod symbol;
 mod symbol_table;
 
-pub use analyzer::SemanticAnalyzer;
+pub use analyzer::{SemanticAnalyzer, GenericInstantiation};
 pub use error::{SemanticError, SemanticErrorKind};
 pub use memory_safety::{MemorySafetyContext, MemorySafetyViolation};
-pub use symbol::{FunctionSignature, Symbol, SymbolKind};
+pub use symbol::{FunctionSignature, Symbol, SymbolKind, StructInfo, EnumInfo, EnumVariantInfo, EnumVariantType};
 pub use symbol_table::{ScopeId, SymbolTable};
 
 use crate::parser::Program;

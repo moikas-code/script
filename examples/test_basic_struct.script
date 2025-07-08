@@ -1,0 +1,9 @@
+// Basic test for struct construction
+struct Box<T> {
+    value: T
+}
+
+fn main() {
+    let b1 = Box { value: 42 };
+    print("Created box with value 42");
+}

@@ -4,7 +4,7 @@ use cranelift_module::{DataDescription, FuncId, Linkage as ModuleLinkage, Module
 
 use crate::error::{Error, ErrorKind};
 use crate::ir::{BasicBlock, BlockId, Constant, Function as IrFunction, Instruction, ValueId};
-use crate::ir::{BinaryOp, ComparisonOp, UnaryOp};
+use crate::ir::{BinaryOp, ComparisonOp, UnaryOp, LayoutCalculator, VariantDataLayout};
 
 use super::{script_type_to_cranelift, CodegenResult};
 use std::collections::HashMap;
@@ -30,6 +30,8 @@ pub struct FunctionTranslator<'a> {
     processed_blocks: std::collections::HashSet<BlockId>,
     /// String constants for this function
     string_constants: Vec<(String, cranelift_module::DataId)>,
+    /// Layout calculator for struct/enum layouts
+    layout_calculator: LayoutCalculator,
 }
 
 impl<'a> FunctionTranslator<'a> {
@@ -49,6 +51,7 @@ impl<'a> FunctionTranslator<'a> {
             var_counter: 0,
             processed_blocks: std::collections::HashSet::new(),
             string_constants: Vec::new(),
+            layout_calculator: LayoutCalculator::new(),
         }
     }
 
@@ -366,6 +369,380 @@ impl<'a> FunctionTranslator<'a> {
                 let result = self.translate_phi(incoming, ty, builder)?;
                 self.values.insert(value_id, result);
             }
+
+            // Async instructions
+            Instruction::Suspend { state, resume_block } => {
+                // Save the state and return Poll::Pending
+                let state_val = self.get_value(*state)?;
+                // Store state (implementation-specific)
+                // For now, just return a constant representing Poll::Pending
+                let pending = builder.ins().iconst(types::I32, 1); // Poll::Pending = 1
+                builder.ins().return_(&[pending]);
+            }
+
+            Instruction::PollFuture { future, output_ty } => {
+                // Poll the future - this would call the poll method
+                // For now, create a placeholder implementation
+                let future_val = self.get_value(*future)?;
+                
+                // In a real implementation, this would:
+                // 1. Call the poll method on the future
+                // 2. Return a Poll<T> enum value
+                // For now, return a placeholder
+                let result = builder.ins().iconst(types::I32, 0); // Placeholder
+                self.values.insert(value_id, result);
+            }
+
+            Instruction::CreateAsyncState { initial_state, state_size, output_ty } => {
+                // Allocate memory for the async state
+                let size_bytes = *state_size as i64;
+                let size_val = builder.ins().iconst(types::I64, size_bytes);
+                
+                // Call malloc or use stack allocation
+                // For now, use stack allocation
+                let stack_slot = builder.create_sized_stack_slot(StackSlotData::new(
+                    StackSlotKind::ExplicitSlot,
+                    *state_size,
+                    3, // 8-byte alignment
+                ));
+                
+                let state_ptr = builder.ins().stack_addr(types::I64, stack_slot, 0);
+                
+                // Initialize the state discriminant
+                let state_val = builder.ins().iconst(types::I32, *initial_state as i64);
+                let memflags = MemFlags::new();
+                builder.ins().store(memflags, state_val, state_ptr, 0);
+                
+                self.values.insert(value_id, state_ptr);
+            }
+
+            Instruction::StoreAsyncState { state_ptr, offset, value } => {
+                let ptr_val = self.get_value(*state_ptr)?;
+                let val = self.get_value(*value)?;
+                let offset_val = builder.ins().iconst(types::I64, *offset as i64);
+                let addr = builder.ins().iadd(ptr_val, offset_val);
+                let memflags = MemFlags::new();
+                builder.ins().store(memflags, val, addr, 0);
+            }
+
+            Instruction::LoadAsyncState { state_ptr, offset, ty } => {
+                let ptr_val = self.get_value(*state_ptr)?;
+                let offset_val = builder.ins().iconst(types::I64, *offset as i64);
+                let addr = builder.ins().iadd(ptr_val, offset_val);
+                let cranelift_ty = script_type_to_cranelift(ty);
+                let memflags = MemFlags::new();
+                let result = builder.ins().load(cranelift_ty, memflags, addr, 0);
+                self.values.insert(value_id, result);
+            }
+
+            Instruction::GetAsyncState { state_ptr } => {
+                // Load the state discriminant (first field of state struct)
+                let ptr_val = self.get_value(*state_ptr)?;
+                let memflags = MemFlags::new();
+                let result = builder.ins().load(types::I32, memflags, ptr_val, 0);
+                self.values.insert(value_id, result);
+            }
+
+            Instruction::SetAsyncState { state_ptr, new_state } => {
+                // Store the new state discriminant
+                let ptr_val = self.get_value(*state_ptr)?;
+                let state_val = builder.ins().iconst(types::I32, *new_state as i64);
+                let memflags = MemFlags::new();
+                builder.ins().store(memflags, state_val, ptr_val, 0);
+            }
+
+            // Enum-related instructions needed for async
+            Instruction::GetEnumTag { enum_value } => {
+                // Get the discriminant of an enum (first field)
+                let enum_val = self.get_value(*enum_value)?;
+                let memflags = MemFlags::new();
+                let result = builder.ins().load(types::I32, memflags, enum_val, 0);
+                self.values.insert(value_id, result);
+            }
+
+            Instruction::SetEnumTag { enum_ptr, tag } => {
+                // Set the discriminant of an enum
+                let ptr_val = self.get_value(*enum_ptr)?;
+                let tag_val = builder.ins().iconst(types::I32, *tag as i64);
+                let memflags = MemFlags::new();
+                builder.ins().store(memflags, tag_val, ptr_val, 0);
+            }
+
+            Instruction::ExtractEnumData { enum_value, variant_index, ty } => {
+                // Extract data from an enum variant
+                let enum_val = self.get_value(*enum_value)?;
+                let memflags = MemFlags::new();
+                
+                // Data starts after discriminant (tag) with alignment
+                let tag_size = 4i32; // Discriminant is u32
+                let data_alignment = 8i32; // Default alignment for data
+                let data_offset = ((tag_size + data_alignment - 1) & !(data_alignment - 1)) as i32;
+                
+                // Calculate offset for the specific field
+                // For now, assume 8-byte fields (pointer-sized)
+                let field_offset = data_offset + (*variant_index as i32 * 8);
+                
+                // Load the value from the calculated offset
+                let cranelift_ty = script_type_to_cranelift(ty);
+                let result = builder.ins().load(cranelift_ty, memflags, enum_val, field_offset);
+                self.values.insert(value_id, result);
+            }
+
+            // These might already be implemented, but including for completeness
+            Instruction::AllocStruct { struct_name, ty } => {
+                let result = self.translate_alloc(ty, builder)?;
+                self.values.insert(value_id, result);
+            }
+
+            Instruction::ConstructStruct { struct_name, fields, ty } => {
+                // Allocate struct and initialize fields
+                let struct_ptr = self.translate_alloc(ty, builder)?;
+                
+                // Initialize each field
+                for (_field_name, field_value) in fields {
+                    // In a real implementation, look up field offset
+                    // For now, just store sequentially
+                    let _field_val = self.get_value(*field_value)?;
+                    // Would need proper field offset calculation
+                }
+                
+                self.values.insert(value_id, struct_ptr);
+            }
+
+            Instruction::AllocEnum { enum_name, variant_size, ty } => {
+                // Allocate space for enum (discriminant + largest variant)
+                let total_size = 4 + variant_size; // 4 bytes for discriminant
+                let stack_slot = builder.create_sized_stack_slot(StackSlotData::new(
+                    StackSlotKind::ExplicitSlot,
+                    total_size,
+                    3, // 8-byte alignment
+                ));
+                
+                let enum_ptr = builder.ins().stack_addr(types::I64, stack_slot, 0);
+                self.values.insert(value_id, enum_ptr);
+            }
+
+            Instruction::ConstructEnum { enum_name, variant, tag, args, ty } => {
+                // Allocate enum and set discriminant
+                let enum_ptr = self.translate_alloc(ty, builder)?;
+                
+                // Set the discriminant
+                let tag_val = builder.ins().iconst(types::I32, *tag as i64);
+                let memflags = MemFlags::new();
+                builder.ins().store(memflags, tag_val, enum_ptr, 0);
+                
+                // Store variant data if any
+                if !args.is_empty() {
+                    // Get enum layout information if available
+                    let variant_layout = self.layout_calculator.get_variant_layout(enum_name, variant);
+                    
+                    // Calculate data offset based on tag size and alignment
+                    let tag_size = 4u32; // Discriminant is always u32
+                    let data_alignment = 8u32; // Default alignment for data
+                    let data_offset = ((tag_size + data_alignment - 1) & !(data_alignment - 1)) as i32;
+                    
+                    // Store variant data based on layout information
+                    match variant_layout.map(|v| &v.data_layout) {
+                        Some(VariantDataLayout::Tuple(type_layouts)) => {
+                            // Use calculated offsets for tuple variants
+                            let mut current_offset = data_offset;
+                            for (i, arg) in args.iter().enumerate() {
+                                let arg_val = self.get_value(*arg)?;
+                                
+                                // Get type layout if available
+                                if let Some(type_layout) = type_layouts.get(i) {
+                                    // Align offset to type's alignment requirement
+                                    let aligned_offset = ((current_offset as u32 + type_layout.alignment - 1) 
+                                        & !(type_layout.alignment - 1)) as i32;
+                                    builder.ins().store(memflags, arg_val, enum_ptr, aligned_offset);
+                                    current_offset = aligned_offset + type_layout.size as i32;
+                                } else {
+                                    // Fallback: assume pointer-sized
+                                    builder.ins().store(memflags, arg_val, enum_ptr, current_offset);
+                                    current_offset += 8;
+                                }
+                            }
+                        }
+                        Some(VariantDataLayout::Struct(fields)) => {
+                            // For struct variants, match args with field names
+                            // This would require additional information about field order
+                            // For now, treat as tuple
+                            let mut current_offset = data_offset;
+                            for arg in args {
+                                let arg_val = self.get_value(*arg)?;
+                                builder.ins().store(memflags, arg_val, enum_ptr, current_offset);
+                                current_offset += 8;
+                            }
+                        }
+                        _ => {
+                            // No layout info available, use conservative defaults
+                            let mut current_offset = data_offset;
+                            for arg in args {
+                                let arg_val = self.get_value(*arg)?;
+                                builder.ins().store(memflags, arg_val, enum_ptr, current_offset);
+                                current_offset += 8;
+                            }
+                        }
+                    }
+                }
+                
+                self.values.insert(value_id, enum_ptr);
+            }
+
+            Instruction::BoundsCheck { array, index, length, error_msg: _ } => {
+                // Get array and index values
+                let array_val = self.get_value(*array)?;
+                let index_val = self.get_value(*index)?;
+                
+                // Get array length - either from the optional length param or by loading it
+                let length_val = if let Some(len) = length {
+                    self.get_value(*len)?
+                } else {
+                    // Load length from array (assuming it's stored at offset 0)
+                    let memflags = MemFlags::new();
+                    builder.ins().load(types::I64, memflags, array_val, 0)
+                };
+                
+                // Check if index is within bounds: 0 <= index < length
+                // First check: index >= 0 (for signed integers)
+                let zero = builder.ins().iconst(types::I64, 0);
+                let index_gte_zero = builder.ins().icmp(IntCC::SignedGreaterThanOrEqual, index_val, zero);
+                
+                // Second check: index < length
+                let index_lt_length = builder.ins().icmp(IntCC::UnsignedLessThan, index_val, length_val);
+                
+                // Combine both checks
+                let in_bounds = builder.ins().band(index_gte_zero, index_lt_length);
+                
+                // Create blocks for bounds check
+                let ok_block = builder.create_block();
+                let panic_block = builder.create_block();
+                
+                // Branch based on bounds check
+                builder.ins().brif(in_bounds, ok_block, &[], panic_block, &[]);
+                
+                // Panic block - trap with bounds check error
+                builder.switch_to_block(panic_block);
+                builder.ins().trap(TrapCode::HeapOutOfBounds);
+                
+                // Continue in ok block
+                builder.switch_to_block(ok_block);
+                
+                // BoundsCheck doesn't produce a value, but we need something for SSA
+                let dummy = builder.ins().iconst(types::I32, 0);
+                self.values.insert(value_id, dummy);
+            }
+
+            Instruction::ValidateFieldAccess { object, field_name: _, object_type: _ } => {
+                // Get object pointer
+                let object_val = self.get_value(*object)?;
+                
+                // In a production implementation, this would:
+                // 1. Check that the object is not null
+                // 2. Verify the object's type matches expected type
+                // 3. Ensure the field exists in the type
+                
+                // For now, just do a null check
+                let null_val = builder.ins().iconst(types::I64, 0);
+                let is_not_null = builder.ins().icmp(IntCC::NotEqual, object_val, null_val);
+                
+                // Create blocks for validation
+                let ok_block = builder.create_block();
+                let panic_block = builder.create_block();
+                
+                // Branch based on null check
+                builder.ins().brif(is_not_null, ok_block, &[], panic_block, &[]);
+                
+                // Panic block - trap with null pointer error
+                builder.switch_to_block(panic_block);
+                builder.ins().trap(TrapCode::NullReference);
+                
+                // Continue in ok block
+                builder.switch_to_block(ok_block);
+                
+                // ValidateFieldAccess doesn't produce a value, but we need something for SSA
+                let dummy = builder.ins().iconst(types::I32, 0);
+                self.values.insert(value_id, dummy);
+            }
+
+            Instruction::ErrorPropagation { value, value_type, success_type } => {
+                // Get the Result/Option value to check
+                let result_val = self.get_value(*value)?;
+                
+                // For Result<T, E> and Option<T>, we need to check the discriminant
+                // to determine if it's Ok/Some or Err/None
+                match value_type {
+                    crate::types::Type::Result { .. } => {
+                        // For Result<T, E>, check if tag is 0 (Ok) or 1 (Err)
+                        let tag = builder.ins().load(types::I32, MemFlags::new(), result_val, 0);
+                        let ok_tag = builder.ins().iconst(types::I32, 0);
+                        let is_ok = builder.ins().icmp(IntCC::Equal, tag, ok_tag);
+                        
+                        // Create blocks for Ok and Err cases
+                        let ok_block = builder.create_block();
+                        let err_block = builder.create_block();
+                        
+                        // Branch based on discriminant
+                        builder.ins().brif(is_ok, ok_block, &[], err_block, &[]);
+                        
+                        // Err block - return the error
+                        builder.switch_to_block(err_block);
+                        // Extract the error value from the Result
+                        let error_offset = 8; // Skip tag (4 bytes) + padding (4 bytes)
+                        let error_val = builder.ins().load(types::I64, MemFlags::new(), result_val, error_offset);
+                        builder.ins().return_(&[error_val]);
+                        
+                        // Ok block - extract the success value
+                        builder.switch_to_block(ok_block);
+                        let success_offset = 8; // Skip tag (4 bytes) + padding (4 bytes)
+                        let success_val = builder.ins().load(
+                            script_type_to_cranelift(success_type),
+                            MemFlags::new(),
+                            result_val,
+                            success_offset
+                        );
+                        self.values.insert(value_id, success_val);
+                    }
+                    
+                    crate::types::Type::Option(_) => {
+                        // For Option<T>, check if tag is 0 (None) or 1 (Some)
+                        let tag = builder.ins().load(types::I32, MemFlags::new(), result_val, 0);
+                        let some_tag = builder.ins().iconst(types::I32, 1);
+                        let is_some = builder.ins().icmp(IntCC::Equal, tag, some_tag);
+                        
+                        // Create blocks for Some and None cases
+                        let some_block = builder.create_block();
+                        let none_block = builder.create_block();
+                        
+                        // Branch based on discriminant
+                        builder.ins().brif(is_some, some_block, &[], none_block, &[]);
+                        
+                        // None block - return None (converted to function's return type)
+                        builder.switch_to_block(none_block);
+                        // For Option propagation, we need to return None as the function's return type
+                        let none_val = builder.ins().iconst(types::I64, 0); // Placeholder
+                        builder.ins().return_(&[none_val]);
+                        
+                        // Some block - extract the value
+                        builder.switch_to_block(some_block);
+                        let value_offset = 8; // Skip tag (4 bytes) + padding (4 bytes)
+                        let inner_val = builder.ins().load(
+                            script_type_to_cranelift(success_type),
+                            MemFlags::new(),
+                            result_val,
+                            value_offset
+                        );
+                        self.values.insert(value_id, inner_val);
+                    }
+                    
+                    _ => {
+                        return Err(Error::new(
+                            ErrorKind::RuntimeError,
+                            format!("Error propagation can only be used on Result or Option types, got {:?}", value_type)
+                        ));
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -452,6 +829,19 @@ impl<'a> FunctionTranslator<'a> {
             .get(&id)
             .copied()
             .ok_or_else(|| Error::new(ErrorKind::RuntimeError, format!("Value {:?} not found", id)))
+    }
+
+    /// Get the ValueId for a cranelift Value (reverse lookup)
+    fn get_value_id_for_value(&self, value: Value) -> ValueId {
+        // This is a helper for reverse lookup - in production code,
+        // we'd maintain a bidirectional mapping
+        for (id, val) in &self.values {
+            if *val == value {
+                return *id;
+            }
+        }
+        // If not found, return a dummy ID
+        ValueId(0)
     }
 
     /// Check if two types are compatible
@@ -695,19 +1085,26 @@ impl<'a> FunctionTranslator<'a> {
         field_ty: &crate::types::Type,
         builder: &mut FunctionBuilder,
     ) -> CodegenResult<Value> {
-        // For object field access, we need to:
-        // 1. Calculate the field offset based on the field name
-        // 2. Add the offset to the object pointer
+        // Get the object's type from our type tracking
+        let object_type = self.value_types.values()
+            .find(|t| matches!(t, crate::types::Type::Named(_)))
+            .cloned()
+            .unwrap_or(crate::types::Type::Unknown);
 
-        // For now, use a simple hash-based offset calculation
-        // In a real implementation, this would use proper object layout info
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        use std::hash::Hasher;
-        hasher.write(field_name.as_bytes());
-        let hash = hasher.finish();
-        let field_offset = (hash % 256) as i64; // Use a reasonable range for offsets
+        // Calculate field offset using the layout calculator
+        let field_offset = match &object_type {
+            crate::types::Type::Named(type_name) => {
+                // Look up the struct definition to get field layout
+                self.layout_calculator.get_field_offset(type_name, field_name)
+                    .unwrap_or(0)
+            }
+            _ => {
+                // For non-struct types, use offset 0 (this shouldn't happen in well-typed code)
+                0
+            }
+        };
 
-        let offset_const = builder.ins().iconst(types::I64, field_offset);
+        let offset_const = builder.ins().iconst(types::I64, field_offset as i64);
         Ok(builder.ins().iadd(object, offset_const))
     }
 

@@ -66,7 +66,10 @@ fn token_kind_to_semantic_type(kind: &TokenKind) -> Option<u32> {
 
 /// Generate semantic tokens for a Script source file
 pub fn generate_semantic_tokens(source: &str) -> Vec<SemanticToken> {
-    let mut lexer = Lexer::new(source);
+    let mut lexer = match Lexer::new(source) {
+        Ok(lexer) => lexer,
+        Err(_) => return Vec::new(), // Return empty tokens on lexer initialization error
+    };
     let mut tokens = Vec::new();
     let mut prev_line = 0;
     let mut prev_col = 0;

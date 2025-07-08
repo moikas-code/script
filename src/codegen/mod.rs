@@ -13,8 +13,12 @@ use std::time::Instant;
 pub mod cranelift;
 pub mod debug;
 pub mod monomorphization;
+pub mod field_layout;
+pub mod bounds_check;
 
 pub use monomorphization::{MonomorphizationContext, MonomorphizationStats};
+pub use field_layout::{FieldLayout, FieldLayoutRegistry};
+pub use bounds_check::{BoundsChecker, BoundsCheckMode};
 
 /// Result type for code generation
 pub type CodegenResult<T> = Result<T, Error>;
@@ -54,6 +58,8 @@ pub struct CodegenStats {
 pub struct ExecutableModule {
     /// Entry point function name
     pub entry_point: Option<String>,
+    /// Whether the entry point is async
+    pub is_async: bool,
     /// Internal backend-specific data
     #[allow(dead_code)]
     backend_data: Box<dyn std::any::Any>,
@@ -143,8 +149,23 @@ impl ExecutableModule {
     pub fn new(entry_point: Option<String>, backend_data: Box<dyn std::any::Any>) -> Self {
         ExecutableModule {
             entry_point,
+            is_async: false,
             backend_data,
         }
+    }
+    
+    /// Create a new executable module with async entry point
+    pub fn new_async(entry_point: Option<String>, backend_data: Box<dyn std::any::Any>) -> Self {
+        ExecutableModule {
+            entry_point,
+            is_async: true,
+            backend_data,
+        }
+    }
+    
+    /// Check if the entry point is async
+    pub fn is_async_entry_point(&self) -> bool {
+        self.is_async
     }
 
     /// Execute the module's entry point
@@ -161,6 +182,10 @@ impl ExecutableModule {
                 )
             })?;
 
+            // Check if this is an async main function
+            // In a complete implementation, we'd check the function's metadata
+            let is_async_main = entry_name.ends_with("_async") || self.is_async_entry_point();
+
             // Look up the function ID
             let func_id = cranelift_data.func_ids.get(entry_name).ok_or_else(|| {
                 Error::new(
@@ -172,11 +197,37 @@ impl ExecutableModule {
             // Get the function pointer from the JIT module
             let func_ptr = cranelift_data.module.get_finalized_function(*func_id);
 
-            // Cast to function pointer and call
-            // For now, assume entry point takes no parameters and returns i32
-            let entry_fn: extern "C" fn() -> i32 = unsafe { std::mem::transmute(func_ptr) };
-
-            Ok(entry_fn())
+            if is_async_main {
+                // For async main, we need to:
+                // 1. Call the async main function to get a Future
+                // 2. Block on that future using the runtime
+                
+                // Cast to async main signature (returns a Future pointer)
+                let async_main_fn: extern "C" fn() -> *mut std::ffi::c_void = 
+                    unsafe { std::mem::transmute(func_ptr) };
+                
+                let future_ptr = async_main_fn();
+                
+                // Call the runtime's block_on function
+                // In a real implementation, this would be properly typed
+                #[allow(improper_ctypes_definitions)]
+                extern "C" {
+                    fn script_block_on(future: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+                    fn script_run_executor();
+                }
+                
+                unsafe {
+                    // Run the executor to completion
+                    script_run_executor();
+                }
+                
+                // For now, return success
+                Ok(0)
+            } else {
+                // Regular synchronous main
+                let entry_fn: extern "C" fn() -> i32 = unsafe { std::mem::transmute(func_ptr) };
+                Ok(entry_fn())
+            }
         } else {
             Err(Error::new(
                 crate::error::ErrorKind::RuntimeError,

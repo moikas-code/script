@@ -102,6 +102,10 @@ pub enum SemanticErrorKind {
     VariantFormMismatch { variant: String, expected: String, found: String },
     /// Undefined type
     UndefinedType(String),
+    /// Error propagation (?) used in non-Result/Option function
+    ErrorPropagationInNonResult,
+    /// Invalid error propagation on non-Result/Option type
+    InvalidErrorPropagation { actual_type: Type },
 }
 
 /// Semantic error with location information
@@ -353,6 +357,12 @@ impl fmt::Display for SemanticErrorKind {
             }
             SemanticErrorKind::UndefinedType(name) => {
                 write!(f, "undefined type '{}'", name)
+            }
+            SemanticErrorKind::ErrorPropagationInNonResult => {
+                write!(f, "the ? operator can only be used in functions that return Result or Option")
+            }
+            SemanticErrorKind::InvalidErrorPropagation { actual_type } => {
+                write!(f, "the ? operator can only be applied to Result or Option types, not {}", actual_type)
             }
         }
     }

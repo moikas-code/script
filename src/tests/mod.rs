@@ -10,7 +10,7 @@ mod tests {
     #[test]
     fn test_async_await_tokens() {
         let source = "async await";
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, errors) = lexer.scan_tokens();
         
         assert_eq!(errors.len(), 0);
@@ -28,7 +28,7 @@ mod tests {
             }
         "#;
         
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
@@ -53,7 +53,7 @@ mod tests {
             }
         "#;
         
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
@@ -84,7 +84,7 @@ mod tests {
             }
         "#;
         
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
@@ -105,7 +105,7 @@ mod tests {
             }
         "#;
         
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
@@ -131,7 +131,7 @@ mod tests {
             }
         "#;
         
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
@@ -150,14 +150,14 @@ mod tests {
             }
         "#;
         
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
         
         let symbol_table = crate::semantic::SymbolTable::new();
         let type_info = HashMap::new();
-        let mut lowerer = AstLowerer::new(symbol_table, type_info);
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new());
         let module = lowerer.lower_program(&program).unwrap();
         
         assert_eq!(module.functions().len(), 1);
@@ -267,7 +267,7 @@ mod tests {
             }
         "#;
         
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
@@ -294,7 +294,7 @@ mod tests {
             async fn outer() -> i32 { await middle() }
         "#;
         
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();
@@ -314,7 +314,7 @@ mod tests {
             }
         "#;
         
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().unwrap();

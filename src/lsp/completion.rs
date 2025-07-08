@@ -216,7 +216,10 @@ fn get_variable_completions(
     let mut items = Vec::new();
 
     // Parse the content
-    let lexer = Lexer::new(content);
+    let lexer = match Lexer::new(content) {
+        Ok(lexer) => lexer,
+        Err(_) => return items, // Return empty items if lexer initialization fails
+    };
     let (tokens, errors) = lexer.scan_tokens();
     if !errors.is_empty() {
         return items; // Return empty items if there are lexer errors

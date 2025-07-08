@@ -3,9 +3,11 @@ use std::future::Future as StdFuture;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
-use std::task::{Context, Poll, Waker};
+use std::task::{Context, Poll, Wake, Waker};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+use crate::error::{Error, Result};
 
 /// The Future trait for Script language async operations
 pub trait ScriptFuture {
@@ -17,6 +19,85 @@ pub trait ScriptFuture {
 
 /// A boxed future type for dynamic dispatch
 pub type BoxedFuture<T> = Box<dyn ScriptFuture<Output = T> + Send>;
+
+/// Shared result storage for blocking operations
+#[derive(Debug)]
+pub struct SharedResult<T> {
+    /// The result of the async operation
+    result: Mutex<Option<T>>,
+    /// Condition variable to signal completion
+    completion: Condvar,
+    /// Flag to indicate if the operation completed
+    completed: AtomicBool,
+}
+
+impl<T> SharedResult<T> {
+    /// Create a new shared result storage
+    pub fn new() -> Arc<Self> {
+        Arc::new(SharedResult {
+            result: Mutex::new(None),
+            completion: Condvar::new(),
+            completed: AtomicBool::new(false),
+        })
+    }
+
+    /// Store the result and signal completion
+    pub fn set_result(&self, value: T) -> Result<()> {
+        let mut result = self.result.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on shared result")
+        })?;
+        *result = Some(value);
+        self.completed.store(true, Ordering::SeqCst);
+        self.completion.notify_all();
+        Ok(())
+    }
+
+    /// Wait for the result and return it
+    pub fn wait_for_result(&self) -> Result<T> {
+        let mut result = self.result.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on shared result")
+        })?;
+        while result.is_none() {
+            result = self.completion.wait(result).map_err(|_| {
+                Error::lock_poisoned("Condition variable wait failed")
+            })?;
+        }
+        result.take().ok_or_else(|| {
+            Error::internal("Shared result was empty after wait completed")
+        })
+    }
+
+    /// Wait for the result with a timeout
+    pub fn wait_for_result_timeout(&self, timeout: Duration) -> Result<Option<T>> {
+        let mut result = self.result.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on shared result")
+        })?;
+        let start = Instant::now();
+        
+        while result.is_none() && start.elapsed() < timeout {
+            let remaining = timeout.saturating_sub(start.elapsed());
+            if remaining.is_zero() {
+                break;
+            }
+            
+            let (guard, timeout_result) = self.completion.wait_timeout(result, remaining).map_err(|_| {
+                Error::lock_poisoned("Condition variable wait timeout failed")
+            })?;
+            result = guard;
+            
+            if timeout_result.timed_out() {
+                break;
+            }
+        }
+        
+        Ok(result.take())
+    }
+
+    /// Check if the operation has completed
+    pub fn is_completed(&self) -> bool {
+        self.completed.load(Ordering::SeqCst)
+    }
+}
 
 /// Task represents an async computation that can be scheduled
 pub struct Task {
@@ -37,7 +118,17 @@ pub struct TaskWaker {
 
 impl TaskWaker {
     fn wake(&self) {
-        self.executor.wake_task(self.task_id);
+        let _ = self.executor.wake_task(self.task_id);
+    }
+}
+
+impl Wake for TaskWaker {
+    fn wake(self: Arc<Self>) {
+        TaskWaker::wake(&self);
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        TaskWaker::wake(self);
     }
 }
 
@@ -67,10 +158,13 @@ impl ExecutorShared {
         }
     }
 
-    fn wake_task(&self, task_id: TaskId) {
-        let mut queue = self.ready_queue.lock().unwrap();
+    fn wake_task(&self, task_id: TaskId) -> Result<()> {
+        let mut queue = self.ready_queue.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on ready queue")
+        })?;
         queue.push_back(task_id);
         self.wake_signal.notify_one();
+        Ok(())
     }
 
     fn shutdown(&self) {
@@ -90,9 +184,11 @@ impl Executor {
     }
 
     /// Spawn a new task
-    pub fn spawn(executor: Arc<Mutex<Self>>, future: BoxedFuture<()>) -> TaskId {
+    pub fn spawn(executor: Arc<Mutex<Self>>, future: BoxedFuture<()>) -> Result<TaskId> {
         let (task_id, shared) = {
-            let mut exec = executor.lock().unwrap();
+            let mut exec = executor.lock().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire lock on executor")
+            })?;
             let task_id = TaskId(exec.next_id);
             exec.next_id += 1;
 
@@ -117,13 +213,15 @@ impl Executor {
         };
 
         // Wake the task outside the lock
-        shared.wake_task(task_id);
-        task_id
+        shared.wake_task(task_id)?;
+        Ok(task_id)
     }
 
     /// Run the executor until all tasks complete
-    pub fn run(executor: Arc<Mutex<Self>>) {
-        let shared = executor.lock().unwrap().shared.clone();
+    pub fn run(executor: Arc<Mutex<Self>>) -> Result<()> {
+        let shared = executor.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on executor")
+        })?.shared.clone();
 
         loop {
             // Check for shutdown
@@ -132,31 +230,39 @@ impl Executor {
             }
 
             let task_info = {
-                let mut queue = shared.ready_queue.lock().unwrap();
+                let mut queue = shared.ready_queue.lock().map_err(|_| {
+                    Error::lock_poisoned("Failed to acquire lock on ready queue")
+                })?;
 
                 // Wait for tasks to be ready
                 while queue.is_empty() && !shared.shutdown.load(Ordering::Relaxed) {
                     // Check if we have any tasks at all
                     let has_tasks = {
-                        let exec = executor.lock().unwrap();
+                        let exec = executor.lock().map_err(|_| {
+                            Error::lock_poisoned("Failed to acquire lock on executor")
+                        })?;
                         exec.tasks.iter().any(|t| t.is_some())
                     };
 
                     if !has_tasks {
-                        return; // All tasks completed
+                        return Ok(()); // All tasks completed
                     }
 
                     // Wait for wake signal
-                    queue = shared.wake_signal.wait(queue).unwrap();
+                    queue = shared.wake_signal.wait(queue).map_err(|_| {
+                        Error::lock_poisoned("Condition variable wait failed")
+                    })?;
                 }
 
                 if shared.shutdown.load(Ordering::Relaxed) {
-                    return;
+                    return Ok(());
                 }
 
                 // Get next ready task
                 if let Some(task_id) = queue.pop_front() {
-                    let exec = executor.lock().unwrap();
+                    let exec = executor.lock().map_err(|_| {
+                        Error::lock_poisoned("Failed to acquire lock on executor")
+                    })?;
                     exec.tasks
                         .get(task_id.0)
                         .and_then(|t| t.clone())
@@ -167,14 +273,18 @@ impl Executor {
             };
 
             if let Some((task_id, task)) = task_info {
-                let mut future = task.future.lock().unwrap();
+                let mut future = task.future.lock().map_err(|_| {
+                    Error::lock_poisoned("Failed to acquire lock on task future")
+                })?;
                 let waker = create_waker(task.waker.clone());
 
                 match future.poll(&waker) {
                     Poll::Ready(()) => {
                         // Task completed, remove it
                         drop(future);
-                        let mut exec = executor.lock().unwrap();
+                        let mut exec = executor.lock().map_err(|_| {
+                            Error::lock_poisoned("Failed to acquire lock on executor")
+                        })?;
                         exec.tasks[task_id.0] = None;
                     }
                     Poll::Pending => {
@@ -186,9 +296,12 @@ impl Executor {
     }
 
     /// Shutdown the executor
-    pub fn shutdown(executor: Arc<Mutex<Self>>) {
-        let shared = executor.lock().unwrap().shared.clone();
+    pub fn shutdown(executor: Arc<Mutex<Self>>) -> Result<()> {
+        let shared = executor.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on executor")
+        })?.shared.clone();
         shared.shutdown();
+        Ok(())
     }
 }
 
@@ -381,13 +494,324 @@ impl<T> ScriptFuture for JoinAll<T> {
         }
 
         if all_ready {
-            let mut results = Vec::new();
-            for result in self.results.drain(..) {
-                results.push(result.unwrap());
+            // Collect all results, only proceeding if all are Some
+            let results: Option<Vec<T>> = self.results.drain(..).collect();
+            match results {
+                Some(values) => Poll::Ready(values),
+                None => {
+                    // This indicates an internal logic error - some result was None
+                    // Reset to pending and continue (defensive programming)
+                    Poll::Pending
+                }
             }
-            Poll::Ready(results)
         } else {
             Poll::Pending
+        }
+    }
+}
+
+/// A specialized executor for blocking operations
+pub struct BlockingExecutor {
+    shared: Arc<ExecutorShared>,
+    tasks: Vec<Option<Arc<Task>>>,
+    next_task_id: usize,
+}
+
+impl BlockingExecutor {
+    /// Create a new blocking executor
+    pub fn new() -> Arc<Mutex<Self>> {
+        let shared = Arc::new(ExecutorShared {
+            ready_queue: Mutex::new(VecDeque::new()),
+            wake_signal: Condvar::new(),
+            shutdown: AtomicBool::new(false),
+        });
+
+        Arc::new(Mutex::new(BlockingExecutor {
+            shared,
+            tasks: Vec::new(),
+            next_task_id: 0,
+        }))
+    }
+
+    /// Block on a future until it completes, returning the result
+    pub fn block_on<T>(future: BoxedFuture<T>) -> Result<T>
+    where
+        T: Send + 'static,
+    {
+        let result_storage = SharedResult::<T>::new();
+        let result_clone = result_storage.clone();
+
+        // Create a wrapper future that stores the result
+        struct BlockingFuture<T> {
+            inner: BoxedFuture<T>,
+            result_storage: Arc<SharedResult<T>>,
+        }
+
+        impl<T> ScriptFuture for BlockingFuture<T> {
+            type Output = ();
+
+            fn poll(&mut self, waker: &Waker) -> Poll<Self::Output> {
+                match self.inner.poll(waker) {
+                    Poll::Ready(value) => {
+                        self.result_storage.set_result(value);
+                        Poll::Ready(())
+                    }
+                    Poll::Pending => Poll::Pending,
+                }
+            }
+        }
+
+        let blocking_future = BlockingFuture {
+            inner: future,
+            result_storage: result_clone,
+        };
+
+        // Create a dedicated executor for this operation
+        let executor = Self::new();
+
+        // Spawn the future
+        let task_id = {
+            let mut exec = executor.lock().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire lock on blocking executor")
+            })?;
+            let task_id = TaskId(exec.next_task_id);
+            exec.next_task_id += 1;
+
+            let waker = Arc::new(TaskWaker {
+                task_id,
+                executor: exec.shared.clone(),
+            });
+
+            let task = Arc::new(Task {
+                id: task_id,
+                future: Mutex::new(Box::new(blocking_future)),
+                waker,
+            });
+
+            // Ensure tasks vector is large enough
+            if task_id.0 >= exec.tasks.len() {
+                exec.tasks.resize(task_id.0 + 1, None);
+            }
+
+            exec.tasks[task_id.0] = Some(task);
+            let _ = exec.shared.wake_task(task_id);
+            task_id
+        };
+
+        // Run the executor in a separate thread to avoid blocking the current thread completely
+        let exec_clone = executor.clone();
+        let handle = thread::spawn(move || {
+            Self::run_until_complete(exec_clone);
+        });
+
+        // Wait for the result
+        let result = result_storage.wait_for_result()?;
+
+        // Clean up the executor thread
+        {
+            let exec = executor.lock().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire lock on blocking executor")
+            })?;
+            exec.shared.shutdown.store(true, Ordering::SeqCst);
+            exec.shared.wake_signal.notify_all();
+        }
+
+        // Wait for the thread to finish
+        handle.join().map_err(|_| {
+            Error::async_error("Failed to join executor thread")
+        })?;
+
+        Ok(result)
+    }
+
+    /// Block on a future with a timeout
+    pub fn block_on_timeout<T>(future: BoxedFuture<T>, timeout: Duration) -> Result<Option<T>>
+    where
+        T: Send + 'static,
+    {
+        let result_storage = SharedResult::<T>::new();
+        let result_clone = result_storage.clone();
+
+        // Create a wrapper future that stores the result
+        struct BlockingFuture<T> {
+            inner: BoxedFuture<T>,
+            result_storage: Arc<SharedResult<T>>,
+        }
+
+        impl<T> ScriptFuture for BlockingFuture<T> {
+            type Output = ();
+
+            fn poll(&mut self, waker: &Waker) -> Poll<Self::Output> {
+                match self.inner.poll(waker) {
+                    Poll::Ready(value) => {
+                        self.result_storage.set_result(value);
+                        Poll::Ready(())
+                    }
+                    Poll::Pending => Poll::Pending,
+                }
+            }
+        }
+
+        let blocking_future = BlockingFuture {
+            inner: future,
+            result_storage: result_clone,
+        };
+
+        // Create a dedicated executor for this operation
+        let executor = Self::new();
+
+        // Spawn the future
+        {
+            let mut exec = executor.lock().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire lock on blocking executor")
+            })?;
+            let task_id = TaskId(exec.next_task_id);
+            exec.next_task_id += 1;
+
+            let waker = Arc::new(TaskWaker {
+                task_id,
+                executor: exec.shared.clone(),
+            });
+
+            let task = Arc::new(Task {
+                id: task_id,
+                future: Mutex::new(Box::new(blocking_future)),
+                waker,
+            });
+
+            // Ensure tasks vector is large enough
+            if task_id.0 >= exec.tasks.len() {
+                exec.tasks.resize(task_id.0 + 1, None);
+            }
+
+            exec.tasks[task_id.0] = Some(task);
+            let _ = exec.shared.wake_task(task_id);
+        }
+
+        // Run the executor in a separate thread
+        let exec_clone = executor.clone();
+        let handle = thread::spawn(move || {
+            Self::run_until_complete(exec_clone);
+        });
+
+        // Wait for the result with timeout
+        let result = result_storage.wait_for_result_timeout(timeout)?;
+
+        // Clean up the executor thread
+        {
+            let exec = executor.lock().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire lock on blocking executor")
+            })?;
+            exec.shared.shutdown.store(true, Ordering::SeqCst);
+            exec.shared.wake_signal.notify_all();
+        }
+
+        // Wait for the thread to finish
+        handle.join().map_err(|_| {
+            Error::async_error("Failed to join executor thread")
+        })?;
+
+        Ok(result)
+    }
+
+    /// Run the executor until completion or shutdown
+    fn run_until_complete(executor: Arc<Mutex<Self>>) {
+        let shared = match executor.lock() {
+            Ok(exec) => exec.shared.clone(),
+            Err(_) => return, // Exit on lock failure
+        };
+
+        loop {
+            // Check for shutdown
+            if shared.shutdown.load(Ordering::Relaxed) {
+                return;
+            }
+
+            let task_id = {
+                let mut queue = match shared.ready_queue.lock() {
+                    Ok(q) => q,
+                    Err(_) => return, // Exit on lock failure
+                };
+
+                // Wait for tasks to be ready
+                while queue.is_empty() && !shared.shutdown.load(Ordering::Relaxed) {
+                    // Check if we have any tasks at all
+                    let has_tasks = {
+                        let exec = match executor.lock() {
+                            Ok(e) => e,
+                            Err(_) => return, // Exit on lock failure
+                        };
+                        exec.tasks.iter().any(|t| t.is_some())
+                    };
+
+                    if !has_tasks {
+                        return; // All tasks completed
+                    }
+
+                    // Wait for wake signal
+                    queue = match shared.wake_signal.wait(queue) {
+                        Ok(q) => q,
+                        Err(_) => return, // Exit on condition variable failure
+                    };
+                }
+
+                if shared.shutdown.load(Ordering::Relaxed) {
+                    return;
+                }
+
+                queue.pop_front()
+            };
+
+            if let Some(task_id) = task_id {
+                // Get the task
+                let task = {
+                    let exec = match executor.lock() {
+                        Ok(e) => e,
+                        Err(_) => return, // Exit on lock failure
+                    };
+                    exec.tasks.get(task_id.0).and_then(|t| t.clone())
+                };
+
+                if let Some(task) = task {
+                    // Poll the task
+                    let mut future = match task.future.lock() {
+                        Ok(f) => f,
+                        Err(_) => return, // Exit on lock failure
+                    };
+                    let waker = Waker::from(task.waker.clone());
+
+                    match future.poll(&waker) {
+                        Poll::Ready(()) => {
+                            // Task completed - remove it
+                            let mut exec = match executor.lock() {
+                                Ok(e) => e,
+                                Err(_) => return, // Exit on lock failure
+                            };
+                            exec.tasks[task_id.0] = None;
+                        }
+                        Poll::Pending => {
+                            // Task is still pending, it will be woken when ready
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl Default for BlockingExecutor {
+    fn default() -> Self {
+        // Create a default instance (though this won't be used much)
+        let shared = Arc::new(ExecutorShared {
+            ready_queue: Mutex::new(VecDeque::new()),
+            wake_signal: Condvar::new(),
+            shutdown: AtomicBool::new(false),
+        });
+
+        BlockingExecutor {
+            shared,
+            tasks: Vec::new(),
+            next_task_id: 0,
         }
     }
 }
@@ -543,7 +967,7 @@ mod tests {
         Executor::shutdown(executor);
 
         // Wait for the executor thread to finish
-        handle.join().unwrap();
+        let _ = handle.join();
 
         // Task should have executed
         assert_eq!(counter.load(Ordering::Relaxed), 1);

@@ -172,7 +172,7 @@ async fn build_target(
     context.set_release_mode(release);
 
     // Tokenize
-    let lexer = Lexer::new(&source);
+    let lexer = Lexer::new(&source).map_err(|e| PackageError::ManifestParse(e.to_string()))?;
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     if !lex_errors.is_empty() {

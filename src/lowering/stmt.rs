@@ -109,7 +109,7 @@ mod tests {
     use std::collections::HashMap;
 
     fn parse_statement(source: &str) -> Stmt {
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Failed to parse");
@@ -122,7 +122,7 @@ mod tests {
 
         let symbol_table = SymbolTable::new();
         let type_info = HashMap::new();
-        let mut lowerer = AstLowerer::new(symbol_table, type_info);
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new());
 
         // Create a dummy function context
         lowerer
@@ -142,7 +142,7 @@ mod tests {
 
         let symbol_table = SymbolTable::new();
         let type_info = HashMap::new();
-        let mut lowerer = AstLowerer::new(symbol_table, type_info);
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new());
 
         // Create a dummy function context
         lowerer

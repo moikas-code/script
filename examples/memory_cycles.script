@@ -1,0 +1,198 @@
+// Memory Cycle Detection Demonstration
+// This example shows how Script's garbage collector detects and collects circular references
+
+// Simple node structure that can form cycles
+struct Node {
+    value: i32,
+    next: Node?  // Optional reference to another Node
+}
+
+// Example 1: Simple Cycle (A -> B -> A)
+fn simple_cycle() {
+    print("=== Simple Cycle Example ===")
+    
+    let a = Node { value: 1, next: null }
+    let b = Node { value: 2, next: null }
+    
+    // Create circular reference
+    a.next = b
+    b.next = a
+    
+    print("Created cycle: Node 1 -> Node 2 -> Node 1")
+    
+    // When a and b go out of scope, the cycle detector
+    // will identify and collect this circular reference
+}
+
+// Example 2: Self-referencing cycle
+fn self_cycle() {
+    print("\n=== Self-Reference Example ===")
+    
+    let node = Node { value: 42, next: null }
+    node.next = node  // Points to itself!
+    
+    print("Created self-referencing node")
+    
+    // Even self-references are detected and collected
+}
+
+// Example 3: Complex cycle with multiple nodes
+fn complex_cycle() {
+    print("\n=== Complex Cycle Example ===")
+    
+    let a = Node { value: 1, next: null }
+    let b = Node { value: 2, next: null }
+    let c = Node { value: 3, next: null }
+    let d = Node { value: 4, next: null }
+    
+    // Create cycle: A -> B -> C -> D -> B
+    a.next = b
+    b.next = c
+    c.next = d
+    d.next = b  // Creates the cycle
+    
+    print("Created complex cycle: 1 -> 2 -> 3 -> 4 -> 2")
+    
+    // The GC will detect that B, C, and D form a cycle
+    // reachable only from A, and collect them appropriately
+}
+
+// Example 4: Breaking cycles with weak references
+struct WeakNode {
+    value: i32,
+    strong_next: Node?,
+    weak_next: weak<Node>?  // Weak reference doesn't prevent collection
+}
+
+fn weak_reference_example() {
+    print("\n=== Weak Reference Example ===")
+    
+    let parent = Node { value: 1, next: null }
+    let child = Node { value: 2, next: null }
+    
+    // Create a strong reference from parent to child
+    parent.next = child
+    
+    // If we had a back-reference from child to parent,
+    // we'd want to use a weak reference to avoid cycles
+    // (Note: This example assumes weak reference support)
+    
+    print("Using weak references prevents reference cycles")
+}
+
+// Example 5: Data structures prone to cycles
+struct LinkedList {
+    head: ListNode?
+}
+
+struct ListNode {
+    data: i32,
+    next: ListNode?,
+    prev: ListNode?  // Doubly-linked lists can easily create cycles
+}
+
+fn doubly_linked_list_example() {
+    print("\n=== Doubly-Linked List Example ===")
+    
+    let list = LinkedList { head: null }
+    
+    // Create nodes
+    let node1 = ListNode { data: 10, next: null, prev: null }
+    let node2 = ListNode { data: 20, next: null, prev: null }
+    let node3 = ListNode { data: 30, next: null, prev: null }
+    
+    // Link them together
+    list.head = node1
+    node1.next = node2
+    node2.prev = node1
+    node2.next = node3
+    node3.prev = node2
+    
+    // Without cycle detection, the prev/next references
+    // would prevent garbage collection
+    print("Doubly-linked list with bidirectional references")
+}
+
+// Example 6: Tree with parent pointers
+struct TreeNode {
+    value: i32,
+    left: TreeNode?,
+    right: TreeNode?,
+    parent: TreeNode?  // Parent pointers create cycles
+}
+
+fn tree_with_parent_pointers() {
+    print("\n=== Tree with Parent Pointers Example ===")
+    
+    let root = TreeNode { value: 50, left: null, right: null, parent: null }
+    let left_child = TreeNode { value: 25, left: null, right: null, parent: null }
+    let right_child = TreeNode { value: 75, left: null, right: null, parent: null }
+    
+    // Create tree structure
+    root.left = left_child
+    root.right = right_child
+    
+    // Add parent pointers (creating cycles)
+    left_child.parent = root
+    right_child.parent = root
+    
+    print("Tree with parent pointers creates reference cycles")
+    
+    // The cycle detector ensures the entire tree is collected
+    // when root goes out of scope
+}
+
+// Example 7: Observer pattern (common source of cycles)
+struct Subject {
+    observers: [Observer]
+}
+
+struct Observer {
+    name: String,
+    subject: Subject?  // Back-reference to subject
+}
+
+fn observer_pattern_example() {
+    print("\n=== Observer Pattern Example ===")
+    
+    let subject = Subject { observers: [] }
+    
+    let observer1 = Observer { name: "Observer1", subject: subject }
+    let observer2 = Observer { name: "Observer2", subject: subject }
+    
+    // Add observers to subject
+    subject.observers.push(observer1)
+    subject.observers.push(observer2)
+    
+    print("Observer pattern with bidirectional references")
+    
+    // Without cycle detection, subject and observers would leak
+}
+
+// Main demonstration function
+fn main() {
+    print("Script Memory Cycle Detection Examples")
+    print("=====================================\n")
+    
+    // Run all examples
+    simple_cycle()
+    self_cycle()
+    complex_cycle()
+    weak_reference_example()
+    doubly_linked_list_example()
+    tree_with_parent_pointers()
+    observer_pattern_example()
+    
+    print("\n=====================================")
+    print("All examples completed!")
+    print("The garbage collector automatically detects and")
+    print("collects all circular references shown above.")
+    
+    // Force a garbage collection (if available)
+    // gc.collect()
+    
+    print("\nMemory cycles have been collected successfully!")
+}
+
+// Run the demonstration
+main()

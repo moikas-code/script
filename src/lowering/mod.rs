@@ -15,8 +15,10 @@ use std::mem;
 pub mod context;
 pub mod expr;
 pub mod stmt;
+pub mod async_transform;
 
 pub use context::LoweringContext;
+pub use async_transform::{transform_async_function, AsyncTransformInfo};
 
 /// Result type for lowering operations
 pub type LoweringResult<T> = Result<T, Error>;
@@ -88,10 +90,35 @@ impl AstLowerer {
                     base_return_type
                 };
 
-                let func_id = self
-                    .builder
-                    .create_function(name.clone(), ir_params, return_type);
+                let func_id = if *is_async {
+                    self.builder
+                        .create_async_function(name.clone(), ir_params, return_type)
+                } else {
+                    self.builder
+                        .create_function(name.clone(), ir_params, return_type)
+                };
                 self.context.register_function(name.clone(), func_id);
+            }
+        }
+
+        // Transform async functions into state machines
+        let async_functions: Vec<_> = program
+            .statements
+            .iter()
+            .filter_map(|stmt| match &stmt.kind {
+                StmtKind::Function { name, is_async, .. } if *is_async => {
+                    self.context.get_function(name).map(|id| (name.clone(), id))
+                }
+                _ => None,
+            })
+            .collect();
+
+        for (name, func_id) in async_functions {
+            // Transform the async function
+            let module = self.builder.module_mut();
+            if let Err(e) = transform_async_function(module, func_id) {
+                eprintln!("Warning: Failed to transform async function '{}': {}", name, e);
+                // Continue with other functions
             }
         }
 
@@ -940,7 +967,7 @@ mod tests {
     use crate::parser::Parser;
 
     fn lower_source(source: &str) -> LoweringResult<IrModule> {
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Failed to parse");

@@ -229,6 +229,10 @@ pub enum ExprKind {
         variant: String,
         args: EnumConstructorArgs,
     },
+    /// Error propagation operator (?)
+    ErrorPropagation {
+        expr: Box<Expr>,
+    },
 }
 
 /// Arguments for enum variant constructor
@@ -269,6 +273,15 @@ pub enum PatternKind {
     Array(Vec<Pattern>),
     Object(Vec<(String, Option<Pattern>)>),
     Or(Vec<Pattern>),
+    /// Enum constructor pattern (e.g., Some(x), None, Result::Ok(value))
+    EnumConstructor {
+        /// Enum name (None for inferred, Some for qualified like Option::Some)
+        enum_name: Option<String>,
+        /// Variant name
+        variant: String,
+        /// Arguments for tuple/struct variants (None for unit variants)
+        args: Option<Vec<Pattern>>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -846,6 +859,26 @@ impl fmt::Display for Pattern {
                     write!(f, "{}", p)?;
                 }
                 Ok(())
+            }
+            PatternKind::EnumConstructor { enum_name, variant, args } => {
+                if let Some(enum_name) = enum_name {
+                    write!(f, "{}::{}", enum_name, variant)?;
+                } else {
+                    write!(f, "{}", variant)?;
+                }
+                
+                if let Some(args) = args {
+                    write!(f, "(")?;
+                    for (i, arg) in args.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", arg)?;
+                    }
+                    write!(f, ")")
+                } else {
+                    Ok(())
+                }
             }
         }
     }

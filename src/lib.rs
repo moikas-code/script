@@ -14,6 +14,7 @@ pub mod module;
 pub mod package;
 pub mod parser;
 pub mod runtime;
+pub mod security;
 pub mod semantic;
 pub mod source;
 pub mod stdlib;
@@ -30,7 +31,7 @@ pub use codegen::{CodeGenerator, ExecutableModule};
 pub use debugger::{
     get_debugger, initialize_debugger, is_debugger_initialized, shutdown_debugger, Breakpoint,
     BreakpointCondition, BreakpointId, BreakpointManager, BreakpointType, DebugEvent, DebugHook,
-    DebugSession, Debugger, DebuggerError, DebuggerResult, DebuggerState, ExecutionContext,
+    DebugSession, Debugger, DebuggerState, ExecutionContext,
     RuntimeDebugInterface,
 };
 pub use error::{Error, Result};

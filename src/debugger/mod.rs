@@ -14,7 +14,7 @@ pub mod manager;
 pub mod runtime_hooks;
 
 pub use breakpoint::{Breakpoint, BreakpointCondition, BreakpointId, BreakpointType};
-pub use manager::{BreakpointManager, BreakpointManagerError, BreakpointManagerResult};
+pub use manager::BreakpointManager;
 pub use runtime_hooks::{
     DebugEvent, DebugHook, DebuggerState, ExecutionContext, RuntimeDebugInterface,
 };
@@ -24,6 +24,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
 use crate::source::SourceLocation;
+use crate::error::{Error, Result};
 
 /// Global debugger instance
 static DEBUGGER: RwLock<Option<Arc<Debugger>>> = RwLock::new(None);
@@ -32,10 +33,12 @@ static DEBUGGER: RwLock<Option<Arc<Debugger>>> = RwLock::new(None);
 ///
 /// This must be called before any debugging operations can be performed.
 /// Returns an error if the debugger is already initialized.
-pub fn initialize_debugger() -> Result<(), DebuggerError> {
-    let mut debugger_lock = DEBUGGER.write().unwrap();
+pub fn initialize_debugger() -> Result<()> {
+    let mut debugger_lock = DEBUGGER.write().map_err(|_| {
+        Error::lock_poisoned("Failed to acquire write lock on global debugger")
+    })?;
     if debugger_lock.is_some() {
-        return Err(DebuggerError::AlreadyInitialized);
+        return Err(Error::invalid_conversion("Debugger is already initialized"));
     }
 
     let debugger = Arc::new(Debugger::new());
@@ -45,20 +48,23 @@ pub fn initialize_debugger() -> Result<(), DebuggerError> {
 }
 
 /// Get the global debugger instance
-pub fn get_debugger() -> Result<Arc<Debugger>, DebuggerError> {
-    DEBUGGER
-        .read()
-        .unwrap()
+pub fn get_debugger() -> Result<Arc<Debugger>> {
+    let debugger_lock = DEBUGGER.read().map_err(|_| {
+        Error::lock_poisoned("Failed to acquire read lock on global debugger")
+    })?;
+    debugger_lock
         .as_ref()
         .cloned()
-        .ok_or(DebuggerError::NotInitialized)
+        .ok_or_else(|| Error::invalid_conversion("Debugger is not initialized"))
 }
 
 /// Shutdown the debugger
-pub fn shutdown_debugger() -> Result<(), DebuggerError> {
-    let mut debugger_lock = DEBUGGER.write().unwrap();
+pub fn shutdown_debugger() -> Result<()> {
+    let mut debugger_lock = DEBUGGER.write().map_err(|_| {
+        Error::lock_poisoned("Failed to acquire write lock on global debugger")
+    })?;
     if debugger_lock.is_none() {
-        return Err(DebuggerError::NotInitialized);
+        return Err(Error::invalid_conversion("Debugger is not initialized"));
     }
 
     *debugger_lock = None;
@@ -98,40 +104,6 @@ pub struct DebugSession {
     pub active: bool,
 }
 
-/// Debugger error types
-#[derive(Debug, Clone, PartialEq)]
-pub enum DebuggerError {
-    /// Debugger is already initialized
-    AlreadyInitialized,
-    /// Debugger is not initialized
-    NotInitialized,
-    /// Breakpoint operation failed
-    BreakpointError(String),
-    /// Runtime integration error
-    RuntimeError(String),
-    /// Session not found
-    SessionNotFound(usize),
-    /// Invalid operation
-    InvalidOperation(String),
-}
-
-impl std::fmt::Display for DebuggerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DebuggerError::AlreadyInitialized => write!(f, "Debugger is already initialized"),
-            DebuggerError::NotInitialized => write!(f, "Debugger is not initialized"),
-            DebuggerError::BreakpointError(msg) => write!(f, "Breakpoint error: {}", msg),
-            DebuggerError::RuntimeError(msg) => write!(f, "Runtime error: {}", msg),
-            DebuggerError::SessionNotFound(id) => write!(f, "Debug session {} not found", id),
-            DebuggerError::InvalidOperation(msg) => write!(f, "Invalid operation: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for DebuggerError {}
-
-/// Result type for debugger operations
-pub type DebuggerResult<T> = std::result::Result<T, DebuggerError>;
 
 impl Debugger {
     /// Create a new debugger instance
@@ -162,16 +134,18 @@ impl Debugger {
 
     /// Get the current debugger state
     pub fn state(&self) -> DebuggerState {
-        *self.state.read().unwrap()
+        self.state.read().map(|state| *state).unwrap_or(DebuggerState::Stopped)
     }
 
     /// Set the debugger state
     pub fn set_state(&self, state: DebuggerState) {
-        *self.state.write().unwrap() = state;
+        if let Ok(mut state_lock) = self.state.write() {
+            *state_lock = state;
+        }
     }
 
     /// Create a new debugging session
-    pub fn create_session(&self, name: String, file: Option<String>) -> DebuggerResult<usize> {
+    pub fn create_session(&self, name: String, file: Option<String>) -> Result<usize> {
         let session_id = self.next_session_id.fetch_add(1, Ordering::SeqCst);
         let session = DebugSession {
             id: session_id,
@@ -181,45 +155,58 @@ impl Debugger {
             active: true,
         };
 
-        let mut sessions = self.sessions.lock().unwrap();
+        let mut sessions = self.sessions.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on debugging sessions")
+        })?;
         sessions.insert(session_id, session);
 
         Ok(session_id)
     }
 
     /// Get a debugging session
-    pub fn get_session(&self, session_id: usize) -> DebuggerResult<DebugSession> {
-        let sessions = self.sessions.lock().unwrap();
+    pub fn get_session(&self, session_id: usize) -> Result<DebugSession> {
+        let sessions = self.sessions.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on debugging sessions")
+        })?;
         sessions
             .get(&session_id)
             .cloned()
-            .ok_or(DebuggerError::SessionNotFound(session_id))
+            .ok_or_else(|| Error::key_not_found(format!("Debug session {}", session_id)))
     }
 
     /// Update a debugging session
-    pub fn update_session(&self, session_id: usize, session: DebugSession) -> DebuggerResult<()> {
-        let mut sessions = self.sessions.lock().unwrap();
+    pub fn update_session(&self, session_id: usize, session: DebugSession) -> Result<()> {
+        let mut sessions = self.sessions.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on debugging sessions")
+        })?;
         if sessions.contains_key(&session_id) {
             sessions.insert(session_id, session);
             Ok(())
         } else {
-            Err(DebuggerError::SessionNotFound(session_id))
+            Err(Error::key_not_found(format!("Debug session {}", session_id)))
         }
     }
 
     /// Remove a debugging session
-    pub fn remove_session(&self, session_id: usize) -> DebuggerResult<()> {
-        let mut sessions = self.sessions.lock().unwrap();
+    pub fn remove_session(&self, session_id: usize) -> Result<()> {
+        let mut sessions = self.sessions.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on debugging sessions")
+        })?;
         sessions
             .remove(&session_id)
             .map(|_| ())
-            .ok_or(DebuggerError::SessionNotFound(session_id))
+            .ok_or_else(|| Error::key_not_found(format!("Debug session {}", session_id)))
     }
 
     /// List all active sessions
     pub fn list_sessions(&self) -> Vec<DebugSession> {
-        let sessions = self.sessions.lock().unwrap();
-        sessions.values().cloned().collect()
+        let sessions = self.sessions.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on debugging sessions")
+        });
+        match sessions {
+            Ok(sessions) => sessions.values().cloned().collect(),
+            Err(_) => Vec::new(), // Return empty vec on lock failure
+        }
     }
 
     /// Check if execution should break at the given location
@@ -244,12 +231,14 @@ impl Debugger {
         &self,
         location: SourceLocation,
         function_name: Option<&str>,
-    ) -> DebuggerResult<()> {
+    ) -> Result<()> {
         // Set state to paused
         self.set_state(DebuggerState::Paused);
 
         // Update current location in active sessions
-        let mut sessions = self.sessions.lock().unwrap();
+        let mut sessions = self.sessions.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on debugging sessions")
+        })?;
         for session in sessions.values_mut() {
             if session.active {
                 session.current_location = Some(location);
@@ -266,39 +255,41 @@ impl Debugger {
     }
 
     /// Continue execution from a breakpoint
-    pub fn continue_execution(&self) -> DebuggerResult<()> {
+    pub fn continue_execution(&self) -> Result<()> {
         self.set_state(DebuggerState::Running);
         println!("Continuing execution...");
         Ok(())
     }
 
     /// Step to the next line
-    pub fn step_next(&self) -> DebuggerResult<()> {
+    pub fn step_next(&self) -> Result<()> {
         self.set_state(DebuggerState::Stepping);
         println!("Stepping to next line...");
         Ok(())
     }
 
     /// Step into function calls
-    pub fn step_into(&self) -> DebuggerResult<()> {
+    pub fn step_into(&self) -> Result<()> {
         self.set_state(DebuggerState::SteppingInto);
         println!("Stepping into function...");
         Ok(())
     }
 
     /// Step out of current function
-    pub fn step_out(&self) -> DebuggerResult<()> {
+    pub fn step_out(&self) -> Result<()> {
         self.set_state(DebuggerState::SteppingOut);
         println!("Stepping out of function...");
         Ok(())
     }
 
     /// Stop debugging
-    pub fn stop(&self) -> DebuggerResult<()> {
+    pub fn stop(&self) -> Result<()> {
         self.set_state(DebuggerState::Stopped);
 
         // Clear current location in all sessions
-        let mut sessions = self.sessions.lock().unwrap();
+        let mut sessions = self.sessions.lock().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire lock on debugging sessions")
+        })?;
         for session in sessions.values_mut() {
             session.current_location = None;
             session.active = false;
@@ -331,7 +322,7 @@ impl Debugger {
     ///
     /// This method starts an interactive debugging session where the user
     /// can set breakpoints, step through code, inspect variables, etc.
-    pub fn start_session(&mut self) -> DebuggerResult<()> {
+    pub fn start_session(&mut self) -> Result<()> {
         self.set_enabled(true);
         self.set_state(DebuggerState::Running);
 
@@ -352,10 +343,16 @@ impl Debugger {
 
         loop {
             print!("(debug) ");
-            io::stdout().flush().unwrap();
+            if let Err(e) = io::stdout().flush() {
+                eprintln!("Error flushing stdout: {}", e);
+                break;
+            }
 
             let mut input = String::new();
-            io::stdin().read_line(&mut input).unwrap();
+            if let Err(e) = io::stdin().read_line(&mut input) {
+                eprintln!("Error reading input: {}", e);
+                break;
+            }
             let input = input.trim();
 
             match input {
@@ -385,12 +382,17 @@ impl Debugger {
                     if let Ok(line) = line_str.parse::<usize>() {
                         // Get the current file name from the session
                         let file_name = {
-                            let sessions = self.sessions.lock().unwrap();
-                            sessions
-                                .values()
-                                .find(|s| s.active)
-                                .and_then(|s| s.file.clone())
-                                .unwrap_or_else(|| "unnamed.script".to_string())
+                            let sessions = self.sessions.lock().map_err(|_| {
+                                Error::lock_poisoned("Failed to acquire lock on debugging sessions")
+                            });
+                            match sessions {
+                                Ok(sessions) => sessions
+                                    .values()
+                                    .find(|s| s.active)
+                                    .and_then(|s| s.file.clone())
+                                    .unwrap_or_else(|| "unnamed.script".to_string()),
+                                Err(_) => "unnamed.script".to_string(),
+                            }
                         };
 
                         match self
@@ -420,7 +422,7 @@ impl Debugger {
 
 /// Check if the debugger is initialized
 pub fn is_debugger_initialized() -> bool {
-    DEBUGGER.read().unwrap().is_some()
+    DEBUGGER.read().map(|lock| lock.is_some()).unwrap_or(false)
 }
 
 #[cfg(test)]

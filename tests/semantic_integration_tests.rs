@@ -52,7 +52,7 @@ fn analyze_with_modules(
     source: &str,
     module_dir: Option<PathBuf>,
 ) -> Result<SemanticAnalyzer, Error> {
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).unwrap();
     let (tokens, errors) = lexer.scan_tokens();
     if !errors.is_empty() {
         return Err(errors[0].clone());
@@ -79,7 +79,7 @@ fn expect_semantic_errors(
     expected_errors: Vec<SemanticErrorKind>,
     module_dir: Option<PathBuf>,
 ) {
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -220,7 +220,7 @@ fn test_cross_module_function_calls() {
     "#;
 
     // Parse and analyze to check function call validation
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -288,7 +288,7 @@ fn test_memory_safety_across_modules() {
     let mut analyzer = SemanticAnalyzer::new();
     analyzer.set_memory_safety_enabled(true);
 
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -363,7 +363,7 @@ fn test_const_function_cross_module_calls() {
 
     // This would require full module integration to test properly
     // For now, we test that const function validation framework exists
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -455,7 +455,7 @@ fn test_error_reporting_with_file_context() {
         }
     "#;
 
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -569,7 +569,7 @@ fn test_array_type_checking_cross_module() {
         }
     "#;
 
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();

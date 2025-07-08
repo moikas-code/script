@@ -18,7 +18,7 @@ impl BenchmarkAdapter {
     /// Prepare a compiled program from source code (following the main.rs pattern)
     pub fn prepare_program(source: &str) -> Result<CompiledProgram, String> {
         // Lexing
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, lex_errors) = lexer.scan_tokens();
 
         if !lex_errors.is_empty() {
@@ -36,7 +36,7 @@ impl BenchmarkAdapter {
         let type_info = HashMap::new();
 
         // Lower to IR
-        let mut lowerer = AstLowerer::new(symbol_table, type_info);
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new());
         let ir_module = lowerer
             .lower_program(&program)
             .map_err(|e| format!("IR lowering error: {:?}", e))?;
@@ -59,7 +59,7 @@ impl BenchmarkAdapter {
 
     /// Simple compilation benchmark that just measures parse time
     pub fn parse_only(source: &str) -> Result<script::Program, String> {
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, lex_errors) = lexer.scan_tokens();
 
         if !lex_errors.is_empty() {

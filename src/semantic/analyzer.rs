@@ -15,8 +15,57 @@ use std::collections::HashMap;
 
 use super::error::{SemanticError, SemanticErrorKind};
 use super::memory_safety::{MemorySafetyContext, MemorySafetyViolation};
-use super::symbol::FunctionSignature;
+use super::symbol::{FunctionSignature, SymbolKind, EnumInfo, EnumVariantInfo, EnumVariantType};
 use super::symbol_table::SymbolTable;
+
+/// Convert a Type to TypeAnn for interface compatibility
+fn type_to_type_ann(ty: &Type) -> TypeAnn {
+    // Create a dummy span for the conversion
+    let dummy_span = Span::new(
+        crate::source::SourceLocation::new(0, 0, 0),
+        crate::source::SourceLocation::new(0, 0, 0),
+    );
+    
+    let kind = match ty {
+        Type::I32 => TypeKind::Named("i32".to_string()),
+        Type::F32 => TypeKind::Named("f32".to_string()),
+        Type::Bool => TypeKind::Named("bool".to_string()),
+        Type::String => TypeKind::Named("string".to_string()),
+        Type::Unknown => TypeKind::Named("unknown".to_string()),
+        Type::Never => TypeKind::Named("never".to_string()),
+        Type::Named(name) => TypeKind::Named(name.clone()),
+        Type::TypeParam(name) => TypeKind::TypeParam(name.clone()),
+        Type::Generic { name, args } => TypeKind::Generic {
+            name: name.clone(),
+            args: args.iter().map(type_to_type_ann).collect(),
+        },
+        Type::Array(elem) => TypeKind::Array(Box::new(type_to_type_ann(elem))),
+        Type::Tuple(types) => TypeKind::Tuple(types.iter().map(type_to_type_ann).collect()),
+        Type::Reference { mutable, inner } => TypeKind::Reference {
+            mutable: *mutable,
+            inner: Box::new(type_to_type_ann(inner)),
+        },
+        Type::Function { params, ret } => TypeKind::Function {
+            params: params.iter().map(type_to_type_ann).collect(),
+            ret: Box::new(type_to_type_ann(ret)),
+        },
+        Type::Option(inner) => TypeKind::Generic {
+            name: "Option".to_string(),
+            args: vec![type_to_type_ann(inner)],
+        },
+        Type::Result { ok, err } => TypeKind::Generic {
+            name: "Result".to_string(),
+            args: vec![type_to_type_ann(ok), type_to_type_ann(err)],
+        },
+        Type::Future(inner) => TypeKind::Generic {
+            name: "Future".to_string(),
+            args: vec![type_to_type_ann(inner)],
+        },
+        Type::TypeVar(_) => TypeKind::Named("unknown".to_string()), // Type variables become unknown
+    };
+    
+    TypeAnn { kind, span: dummy_span }
+}
 
 /// Represents a generic function instantiation for monomorphization
 #[derive(Debug, Clone)]
@@ -111,6 +160,60 @@ impl SemanticAnalyzer {
     /// Enable or disable memory safety analysis
     pub fn set_memory_safety_enabled(&mut self, enabled: bool) {
         self.memory_safety_enabled = enabled;
+    }
+
+    /// Import symbols from another symbol table (for module imports)
+    pub fn import_symbols_from(&mut self, source_table: &SymbolTable) -> Result<()> {
+        // Copy all symbols from the source table to our symbol table
+        // This is a simplified approach - in a real implementation we'd want
+        // more sophisticated merging with proper scope handling
+        
+        // Get all symbols from the source table
+        let current_scope_symbols = source_table.get_current_scope_symbols();
+        
+        for symbol in current_scope_symbols {
+            // Try to add the symbol to our table using the appropriate method
+            match &symbol.kind {
+                super::symbol::SymbolKind::Function(signature) => {
+                    // Ignore errors for now - they might be duplicates
+                    let _ = self.symbol_table.define_function(
+                        symbol.name.clone(),
+                        signature.clone(),
+                        symbol.def_span,
+                    );
+                }
+                super::symbol::SymbolKind::Variable => {
+                    // Ignore errors for now - they might be duplicates
+                    let _ = self.symbol_table.define_variable(
+                        symbol.name.clone(),
+                        symbol.ty.clone(),
+                        symbol.def_span,
+                        symbol.is_mutable,
+                    );
+                }
+                super::symbol::SymbolKind::Struct(struct_info) => {
+                    // Ignore errors for now - they might be duplicates
+                    let _ = self.symbol_table.define_struct(
+                        symbol.name.clone(),
+                        struct_info.clone(),
+                        symbol.def_span,
+                    );
+                }
+                super::symbol::SymbolKind::Enum(enum_info) => {
+                    // Ignore errors for now - they might be duplicates
+                    let _ = self.symbol_table.define_enum(
+                        symbol.name.clone(),
+                        enum_info.clone(),
+                        symbol.def_span,
+                    );
+                }
+                _ => {
+                    // Skip other symbol types for now
+                }
+            }
+        }
+        
+        Ok(())
     }
 
     /// Get the current analysis context
@@ -262,6 +365,95 @@ impl SemanticAnalyzer {
             .map_err(|e| {
                 SemanticError::new(
                     SemanticErrorKind::DuplicateFunction(e),
+                    crate::source::Span::single(crate::source::SourceLocation::initial()),
+                )
+                .into_error()
+            })?;
+
+        // Add built-in Option<T> enum
+        let option_variants = vec![
+            EnumVariantInfo {
+                name: "None".to_string(),
+                variant_type: EnumVariantType::Unit,
+            },
+            EnumVariantInfo {
+                name: "Some".to_string(),
+                variant_type: EnumVariantType::Tuple(vec![Type::TypeParam("T".to_string())]),
+            },
+        ];
+        
+        let option_generic_params = crate::parser::GenericParams {
+            params: vec![crate::parser::GenericParam {
+                name: "T".to_string(),
+                bounds: vec![],
+                span: crate::source::Span::single(crate::source::SourceLocation::initial()),
+            }],
+            span: crate::source::Span::single(crate::source::SourceLocation::initial()),
+        };
+        
+        let option_info = EnumInfo {
+            generic_params: Some(option_generic_params),
+            variants: option_variants,
+            where_clause: None,
+        };
+        
+        self.symbol_table
+            .define_enum(
+                "Option".to_string(),
+                option_info,
+                crate::source::Span::single(crate::source::SourceLocation::initial()),
+            )
+            .map_err(|e| {
+                SemanticError::new(
+                    SemanticErrorKind::DuplicateType(e),
+                    crate::source::Span::single(crate::source::SourceLocation::initial()),
+                )
+                .into_error()
+            })?;
+            
+        // Add built-in Result<T, E> enum
+        let result_variants = vec![
+            EnumVariantInfo {
+                name: "Ok".to_string(),
+                variant_type: EnumVariantType::Tuple(vec![Type::TypeParam("T".to_string())]),
+            },
+            EnumVariantInfo {
+                name: "Err".to_string(),
+                variant_type: EnumVariantType::Tuple(vec![Type::TypeParam("E".to_string())]),
+            },
+        ];
+        
+        let result_generic_params = crate::parser::GenericParams {
+            params: vec![
+                crate::parser::GenericParam {
+                    name: "T".to_string(),
+                    bounds: vec![],
+                    span: crate::source::Span::single(crate::source::SourceLocation::initial()),
+                },
+                crate::parser::GenericParam {
+                    name: "E".to_string(),
+                    bounds: vec![],
+                    span: crate::source::Span::single(crate::source::SourceLocation::initial()),
+                },
+            ],
+            span: crate::source::Span::single(crate::source::SourceLocation::initial()),
+        };
+        
+        let result_info = EnumInfo {
+            generic_params: Some(result_generic_params),
+            variants: result_variants,
+            where_clause: None,
+        };
+        
+        self.symbol_table
+            .define_enum(
+                "Result".to_string(),
+                result_info,
+                crate::source::Span::single(crate::source::SourceLocation::initial()),
+            )
+            .map_err(|e| {
+                SemanticError::new(
+                    SemanticErrorKind::DuplicateType(e),
                     crate::source::Span::single(crate::source::SourceLocation::initial()),
                 )
                 .into_error()
@@ -1510,6 +1702,9 @@ impl SemanticAnalyzer {
             } => {
                 self.analyze_enum_constructor(enum_name.as_deref(), variant, args, expr.span)
             }
+            ExprKind::ErrorPropagation { expr: inner } => {
+                self.analyze_error_propagation(inner, expr.span)
+            }
         };
         
         // Record the type information for this expression
@@ -2255,7 +2450,7 @@ impl SemanticAnalyzer {
 
         // Check pattern exhaustiveness
         let exhaustiveness_result =
-            super::pattern_exhaustiveness::check_exhaustiveness(arms, &expr_type, expr.span);
+            super::pattern_exhaustiveness::check_exhaustiveness(arms, &expr_type, expr.span, &self.symbol_table);
 
         if !exhaustiveness_result.is_exhaustive {
             let missing_patterns = exhaustiveness_result.missing_patterns.join(", ");
@@ -2330,6 +2525,95 @@ impl SemanticAnalyzer {
         }
 
         Ok(result_type.unwrap_or(Type::Unknown))
+    }
+
+    /// Analyze an error propagation expression (?)
+    fn analyze_error_propagation(&mut self, expr: &Expr, span: Span) -> Result<Type> {
+        // Analyze the inner expression
+        let expr_type = self.analyze_expr(expr)?;
+        
+        // Get the current function's return type
+        let function_return_type = self.current_function_return_type.clone()
+            .unwrap_or(Type::Unknown);
+        
+        // Check if the expression is a Result or Option type
+        match &expr_type {
+            Type::Result { ok, err } => {
+                // Check if the function returns a Result type
+                match &function_return_type {
+                    Type::Result { err: fn_err, .. } => {
+                        // Check that error types are compatible
+                        if !self.is_assignable_to(err, fn_err) {
+                            self.add_error(
+                                SemanticError::new(
+                                    SemanticErrorKind::TypeMismatch {
+                                        expected: fn_err.as_ref().clone(),
+                                        actual: err.as_ref().clone(),
+                                    },
+                                    span,
+                                )
+                                .with_note(format!(
+                                    "? operator requires function to return Result with compatible error type"
+                                ))
+                            );
+                        }
+                    }
+                    _ => {
+                        self.add_error(
+                            SemanticError::new(
+                                SemanticErrorKind::ErrorPropagationInNonResult,
+                                span,
+                            )
+                            .with_note(format!(
+                                "? operator can only be used in functions that return Result, \
+                                 but this function returns {}",
+                                function_return_type
+                            ))
+                        );
+                    }
+                }
+                // Return the Ok type
+                Ok(ok.as_ref().clone())
+            }
+            Type::Option(inner) => {
+                // Check if the function returns an Option or Result type
+                match &function_return_type {
+                    Type::Option(_) => {
+                        // Option -> Option is OK
+                    }
+                    Type::Result { .. } => {
+                        // Option -> Result is OK (None converts to error)
+                    }
+                    _ => {
+                        self.add_error(
+                            SemanticError::new(
+                                SemanticErrorKind::ErrorPropagationInNonResult,
+                                span,
+                            )
+                            .with_note(format!(
+                                "? operator on Option can only be used in functions that return Option or Result, \
+                                 but this function returns {}",
+                                function_return_type
+                            ))
+                        );
+                    }
+                }
+                // Return the inner type
+                Ok(inner.as_ref().clone())
+            }
+            _ => {
+                self.add_error(
+                    SemanticError::new(
+                        SemanticErrorKind::InvalidErrorPropagation {
+                            actual_type: expr_type.clone(),
+                        },
+                        span,
+                    )
+                    .with_note("? operator can only be used on Result or Option types".to_string())
+                );
+                Ok(Type::Unknown)
+            }
+        }
     }
 
     /// Analyze an await expression
@@ -2427,6 +2711,126 @@ impl SemanticAnalyzer {
                 // Or pattern - all alternatives should bind the same variables
                 for sub_pattern in patterns {
                     self.analyze_pattern(sub_pattern, expected_type)?;
+                }
+                Ok(())
+            }
+            PatternKind::EnumConstructor { enum_name, variant, args } => {
+                // Verify the enum type matches
+                if let Type::Named(type_name) = expected_type {
+                    // If enum_name is specified, verify it matches
+                    if let Some(specified_enum) = enum_name {
+                        if specified_enum != type_name {
+                            self.add_error(
+                                SemanticError::type_mismatch(
+                                    Type::Named(type_name.clone()),
+                                    Type::Named(specified_enum.clone()),
+                                    pattern.span,
+                                )
+                            );
+                            return Ok(());
+                        }
+                    }
+                    
+                    // Look up the enum definition
+                    if let Some(symbol) = self.symbol_table.lookup(type_name) {
+                        if let SymbolKind::Enum(enum_info) = &symbol.kind {
+                            // Find the variant
+                            if let Some(variant_info) = enum_info.variants.iter().find(|v| v.name == *variant) {
+                                // Check argument patterns match the variant type
+                                use crate::semantic::symbol::EnumVariantType;
+                                match (&variant_info.variant_type, args) {
+                                    (EnumVariantType::Unit, None) => {
+                                        // Unit variant with no args - correct
+                                    }
+                                    (EnumVariantType::Unit, Some(_)) => {
+                                        self.add_error(
+                                            SemanticError::new(
+                                                SemanticErrorKind::InvalidOperation {
+                                                    op: "pattern match".to_string(),
+                                                    ty: expected_type.clone(),
+                                                },
+                                                pattern.span,
+                                            )
+                                            .with_note(format!("Variant '{}' is a unit variant and takes no arguments", variant))
+                                        );
+                                    }
+                                    (EnumVariantType::Tuple(types), Some(arg_patterns)) => {
+                                        if types.len() != arg_patterns.len() {
+                                            self.add_error(
+                                                SemanticError::new(
+                                                    SemanticErrorKind::InvalidOperation {
+                                                        op: "pattern match".to_string(),
+                                                        ty: expected_type.clone(),
+                                                    },
+                                                    pattern.span,
+                                                )
+                                                .with_note(format!(
+                                                    "Variant '{}' expects {} arguments, but {} were provided",
+                                                    variant, types.len(), arg_patterns.len()
+                                                ))
+                                            );
+                                        } else {
+                                            // Analyze each argument pattern with its expected type
+                                            for (arg_pattern, arg_type) in arg_patterns.iter().zip(types.iter()) {
+                                                self.analyze_pattern(arg_pattern, arg_type)?;
+                                            }
+                                        }
+                                    }
+                                    (EnumVariantType::Tuple(_), None) => {
+                                        self.add_error(
+                                            SemanticError::new(
+                                                SemanticErrorKind::InvalidOperation {
+                                                    op: "pattern match".to_string(),
+                                                    ty: expected_type.clone(),
+                                                },
+                                                pattern.span,
+                                            )
+                                            .with_note(format!("Variant '{}' is a tuple variant and requires arguments", variant))
+                                        );
+                                    }
+                                    (EnumVariantType::Struct(_), _) => {
+                                        // TODO: Handle struct variant patterns
+                                        self.add_error(
+                                            SemanticError::new(
+                                                SemanticErrorKind::InvalidOperation {
+                                                    op: "pattern match".to_string(),
+                                                    ty: expected_type.clone(),
+                                                },
+                                                pattern.span,
+                                            )
+                                            .with_note("Struct variant patterns are not yet implemented".to_string())
+                                        );
+                                    }
+                                }
+                            } else {
+                                self.add_error(
+                                    SemanticError::new(
+                                        SemanticErrorKind::UndefinedVariable(variant.clone()),
+                                        pattern.span,
+                                    )
+                                    .with_note(format!("No variant '{}' found in enum '{}'", variant, type_name))
+                                );
+                            }
+                        } else {
+                            self.add_error(
+                                SemanticError::type_mismatch(
+                                    expected_type.clone(),
+                                    Type::Unknown,
+                                    pattern.span,
+                                )
+                                .with_note(format!("'{}' is not an enum type", type_name))
+                            );
+                        }
+                    }
+                } else {
+                    self.add_error(
+                        SemanticError::type_mismatch(
+                            expected_type.clone(),
+                            Type::Unknown,
+                            pattern.span,
+                        )
+                        .with_note("Expected an enum type for enum constructor pattern".to_string())
+                    );
                 }
                 Ok(())
             }
@@ -2758,6 +3162,17 @@ impl SemanticAnalyzer {
                         Ok(())
                     }
                 }
+            }
+
+            // Error propagation is not allowed in const functions
+            ExprKind::ErrorPropagation { .. } => {
+                self.add_error(
+                    SemanticError::const_function_violation(
+                        "Error propagation (?) is not allowed in @const functions",
+                        expr.span,
+                    )
+                );
+                Ok(())
             }
         }
     }
@@ -3406,19 +3821,26 @@ impl SemanticAnalyzer {
         span: crate::source::Span,
     ) -> Result<Type> {
         // For qualified variants (EnumName::Variant), use the provided enum name
-        // For unqualified variants, we'd need to search all enums in scope (TODO)
+        // For unqualified variants, check if it's a built-in constructor
         let enum_name = if let Some(name) = enum_name {
             name
         } else {
-            // For now, we don't support unqualified enum variants
-            self.add_error(
-                SemanticError::new(
-                    SemanticErrorKind::UnqualifiedEnumVariant(variant_name.to_string()),
-                    span,
-                )
-                .with_note("enum variants must be qualified with their enum name (e.g., Option::Some)".to_string())
-            );
-            return Ok(Type::Unknown);
+            // Check for built-in constructors
+            match variant_name {
+                "Some" | "None" => "Option",
+                "Ok" | "Err" => "Result",
+                _ => {
+                    // For non-built-in variants, require qualification
+                    self.add_error(
+                        SemanticError::new(
+                            SemanticErrorKind::UnqualifiedEnumVariant(variant_name.to_string()),
+                            span,
+                        )
+                        .with_note("enum variants must be qualified with their enum name (e.g., Color::Red)".to_string())
+                    );
+                    return Ok(Type::Unknown);
+                }
+            }
         };
         
         // Look up the enum definition and clone the info we need
@@ -3644,18 +4066,41 @@ impl SemanticAnalyzer {
     /// Infer generic type arguments for a struct constructor
     fn infer_struct_type_args(
         &mut self,
-        struct_name: &str,
+        _struct_name: &str,
         struct_info: &crate::semantic::symbol::StructInfo,
         provided_fields: &[(String, Expr)],
-        span: crate::source::Span,
+        _span: crate::source::Span,
     ) -> Result<Vec<Type>> {
-        // For now, return empty type args - full type inference would go here
-        // TODO: Implement proper type inference from field values
         if let Some(generic_params) = &struct_info.generic_params {
-            // Return Unknown for each type parameter as placeholder
-            Ok(generic_params.params.iter()
-                .map(|_| Type::Unknown)
-                .collect())
+            // Use the constructor inference engine
+            let mut engine = crate::inference::ConstructorInferenceEngine::new();
+            
+            // Initialize type variables for generic parameters
+            engine.initialize_generic_params(generic_params);
+            
+            // Analyze provided field values and collect their types
+            let mut provided_field_types = Vec::new();
+            for (field_name, field_expr) in provided_fields {
+                let field_type = self.analyze_expr(field_expr)?;
+                provided_field_types.push((field_name.clone(), field_type));
+            }
+            
+            // Convert struct field types to TypeAnn format
+            let expected_fields: Vec<(String, crate::parser::TypeAnn)> = struct_info.fields.iter()
+                .map(|(name, ty)| (name.clone(), type_to_type_ann(ty)))
+                .collect();
+            
+            // Generate constraints
+            engine.constrain_struct_fields(
+                &expected_fields,
+                &provided_field_types,
+                _span,
+            )?;
+            
+            // Infer types
+            let result = engine.infer(generic_params)?;
+            
+            Ok(result.type_args)
         } else {
             Ok(vec![])
         }
@@ -3664,19 +4109,67 @@ impl SemanticAnalyzer {
     /// Infer generic type arguments for an enum constructor
     fn infer_enum_type_args(
         &mut self,
-        enum_name: &str,
+        _enum_name: &str,
         enum_info: &crate::semantic::symbol::EnumInfo,
         variant: &crate::semantic::symbol::EnumVariantInfo,
         args: &crate::parser::EnumConstructorArgs,
-        span: crate::source::Span,
+        _span: crate::source::Span,
     ) -> Result<Vec<Type>> {
-        // For now, return empty type args - full type inference would go here
-        // TODO: Implement proper type inference from variant arguments
         if let Some(generic_params) = &enum_info.generic_params {
-            // Return Unknown for each type parameter as placeholder
-            Ok(generic_params.params.iter()
-                .map(|_| Type::Unknown)
-                .collect())
+            // Use the constructor inference engine
+            let mut engine = crate::inference::ConstructorInferenceEngine::new();
+            
+            // Initialize type variables for generic parameters
+            engine.initialize_generic_params(generic_params);
+            
+            // Collect types based on variant arguments
+            let provided_types = match args {
+                crate::parser::EnumConstructorArgs::Unit => {
+                    // Unit variants have no arguments
+                    vec![]
+                }
+                crate::parser::EnumConstructorArgs::Tuple(exprs) => {
+                    // Analyze each expression and collect types
+                    let mut types = Vec::new();
+                    for expr in exprs {
+                        let ty = self.analyze_expr(expr)?;
+                        types.push(ty);
+                    }
+                    types
+                }
+                crate::parser::EnumConstructorArgs::Struct(fields) => {
+                    // For struct variants, we need to match fields by name
+                    // But for constraint generation, we just need the types
+                    let mut types = Vec::new();
+                    for (_, expr) in fields {
+                        let ty = self.analyze_expr(expr)?;
+                        types.push(ty);
+                    }
+                    types
+                }
+            };
+            
+            // Get expected types from variant definition
+            let expected_types = match &variant.variant_type {
+                crate::semantic::symbol::EnumVariantType::Unit => vec![],
+                crate::semantic::symbol::EnumVariantType::Tuple(types) => types.clone(),
+                crate::semantic::symbol::EnumVariantType::Struct(fields) => {
+                    // Extract types from struct fields
+                    fields.iter().map(|(_, ty)| ty.clone()).collect()
+                }
+            };
+            
+            // Generate constraints
+            engine.constrain_enum_variant_args(
+                &expected_types,
+                &provided_types,
+                _span,
+            )?;
+            
+            // Infer types
+            let result = engine.infer(generic_params)?;
+            
+            Ok(result.type_args)
         } else {
             Ok(vec![])
         }
@@ -3689,9 +4182,86 @@ impl SemanticAnalyzer {
         type_args: &[Type],
         generic_params: &Option<crate::parser::GenericParams>,
     ) -> Type {
-        // Simple substitution for now - would need full implementation
-        // TODO: Implement proper type substitution
-        ty.clone()
+        // If no generic params, nothing to substitute
+        let generic_params = match generic_params {
+            Some(params) => params,
+            None => return ty.clone(),
+        };
+        
+        // Build substitution map from generic parameter names to concrete types
+        let mut substitution = HashMap::new();
+        for (i, param) in generic_params.params.iter().enumerate() {
+            if let Some(concrete_type) = type_args.get(i) {
+                substitution.insert(param.name.as_str(), concrete_type);
+            }
+        }
+        
+        // Recursively substitute type parameters
+        self.substitute_type_with_map(ty, &substitution)
+    }
+    
+    /// Helper function to recursively substitute types using a substitution map
+    fn substitute_type_with_map(
+        &self,
+        ty: &Type,
+        substitution: &HashMap<&str, &Type>,
+    ) -> Type {
+        match ty {
+            Type::TypeParam(name) => {
+                // Substitute if we have a mapping for this parameter
+                if let Some(&concrete_type) = substitution.get(name.as_str()) {
+                    concrete_type.clone()
+                } else {
+                    ty.clone()
+                }
+            }
+            Type::Array(elem) => {
+                Type::Array(Box::new(self.substitute_type_with_map(elem, substitution)))
+            }
+            Type::Tuple(types) => {
+                Type::Tuple(
+                    types.iter()
+                        .map(|t| self.substitute_type_with_map(t, substitution))
+                        .collect()
+                )
+            }
+            Type::Reference { mutable, inner } => {
+                Type::Reference {
+                    mutable: *mutable,
+                    inner: Box::new(self.substitute_type_with_map(inner, substitution)),
+                }
+            }
+            Type::Function { params, ret } => {
+                Type::Function {
+                    params: params.iter()
+                        .map(|p| self.substitute_type_with_map(p, substitution))
+                        .collect(),
+                    ret: Box::new(self.substitute_type_with_map(ret, substitution)),
+                }
+            }
+            Type::Generic { name, args } => {
+                Type::Generic {
+                    name: name.clone(),
+                    args: args.iter()
+                        .map(|a| self.substitute_type_with_map(a, substitution))
+                        .collect(),
+                }
+            }
+            Type::Option(inner) => {
+                Type::Option(Box::new(self.substitute_type_with_map(inner, substitution)))
+            }
+            Type::Result { ok, err } => {
+                Type::Result {
+                    ok: Box::new(self.substitute_type_with_map(ok, substitution)),
+                    err: Box::new(self.substitute_type_with_map(err, substitution)),
+                }
+            }
+            Type::Future(inner) => {
+                Type::Future(Box::new(self.substitute_type_with_map(inner, substitution)))
+            }
+            // Other types remain unchanged
+            _ => ty.clone(),
+        }
     }
 }
 
@@ -3708,7 +4278,7 @@ mod tests {
     use crate::parser::Parser;
 
     fn analyze_program(source: &str) -> Result<SemanticAnalyzer> {
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, errors) = lexer.scan_tokens();
         if !errors.is_empty() {
             return Err(errors[0].clone());

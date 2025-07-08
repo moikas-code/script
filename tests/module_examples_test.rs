@@ -20,7 +20,7 @@ fn test_calculator_example_parses() {
         let source =
             fs::read_to_string(&path).expect(&format!("Failed to read {}", path.display()));
 
-        let lexer = Lexer::new(&source);
+        let lexer = Lexer::new(&source).unwrap();
         let (tokens, lex_errors) = lexer.scan_tokens();
 
         assert!(
@@ -64,7 +64,7 @@ fn test_game_engine_example_parses() {
         let source =
             fs::read_to_string(&path).expect(&format!("Failed to read {}", path.display()));
 
-        let lexer = Lexer::new(&source);
+        let lexer = Lexer::new(&source).unwrap();
         let (tokens, lex_errors) = lexer.scan_tokens();
 
         assert!(
@@ -99,7 +99,7 @@ fn test_module_test_files_parse() {
         let source =
             fs::read_to_string(&path).expect(&format!("Failed to read {}", path.display()));
 
-        let lexer = Lexer::new(&source);
+        let lexer = Lexer::new(&source).unwrap();
         let (tokens, lex_errors) = lexer.scan_tokens();
 
         assert!(
@@ -144,7 +144,7 @@ fn test_modules_example_file() {
     let path = PathBuf::from("examples/modules_example.script");
     let source = fs::read_to_string(&path).expect("Failed to read modules_example.script");
 
-    let lexer = Lexer::new(&source);
+    let lexer = Lexer::new(&source).unwrap();
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     assert!(lex_errors.is_empty(), "Lexer errors: {:?}", lex_errors);

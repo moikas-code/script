@@ -105,6 +105,53 @@ pub enum Instruction {
         value: ValueId,
     },
 
+    /// Allocate memory for a struct
+    AllocStruct {
+        struct_name: String,
+        ty: Type,
+    },
+
+    /// Construct a struct with field values
+    ConstructStruct {
+        struct_name: String,
+        fields: Vec<(String, ValueId)>,
+        ty: Type,
+    },
+
+    /// Allocate memory for an enum
+    AllocEnum {
+        enum_name: String,
+        variant_size: u32,  // Max size of all variants
+        ty: Type,
+    },
+
+    /// Construct an enum variant
+    ConstructEnum {
+        enum_name: String,
+        variant: String,
+        tag: u32,           // Discriminant value
+        args: Vec<ValueId>, // For tuple/struct variants
+        ty: Type,
+    },
+
+    /// Get enum discriminant/tag
+    GetEnumTag {
+        enum_value: ValueId,
+    },
+
+    /// Set enum discriminant/tag
+    SetEnumTag {
+        enum_ptr: ValueId,
+        tag: u32,
+    },
+
+    /// Extract variant data from enum
+    ExtractEnumData {
+        enum_value: ValueId,
+        variant_index: u32,  // Which field of the variant to extract
+        ty: Type,            // Type of the extracted data
+    },
+
     /// Phi node for SSA form
     Phi {
         incoming: Vec<(ValueId, BlockId)>,
@@ -122,6 +169,104 @@ pub enum Instruction {
         condition: ValueId,
         then_block: BlockId,
         else_block: BlockId,
+    },
+
+    /// Suspend async function execution
+    /// Saves state and yields to executor
+    Suspend {
+        /// State to save before suspension
+        state: ValueId,
+        /// Continuation block after resume
+        resume_block: BlockId,
+    },
+
+    /// Poll a future to check if it's ready
+    /// Returns a Result-like type with Ready(T) or Pending
+    PollFuture {
+        /// The future to poll
+        future: ValueId,
+        /// Type of the future's output
+        output_ty: Type,
+    },
+
+    /// Create an async state machine
+    /// Used to transform async functions into state machines
+    CreateAsyncState {
+        /// Initial state value
+        initial_state: u32,
+        /// Size of state storage needed
+        state_size: u32,
+        /// Return type of the async function
+        output_ty: Type,
+    },
+
+    /// Store value in async state
+    StoreAsyncState {
+        /// State machine pointer
+        state_ptr: ValueId,
+        /// Field offset in state
+        offset: u32,
+        /// Value to store
+        value: ValueId,
+    },
+
+    /// Load value from async state
+    LoadAsyncState {
+        /// State machine pointer
+        state_ptr: ValueId,
+        /// Field offset in state
+        offset: u32,
+        /// Type of value to load
+        ty: Type,
+    },
+
+    /// Get current state of async state machine
+    GetAsyncState {
+        /// State machine pointer
+        state_ptr: ValueId,
+    },
+
+    /// Set current state of async state machine
+    SetAsyncState {
+        /// State machine pointer
+        state_ptr: ValueId,
+        /// New state value
+        new_state: u32,
+    },
+
+    /// Bounds check for array indexing (security enhancement)
+    /// Validates that index is within array bounds before access
+    BoundsCheck {
+        /// Array value to check bounds on
+        array: ValueId,
+        /// Index value to validate
+        index: ValueId,
+        /// Array length (if known at compile time) 
+        length: Option<ValueId>,
+        /// Error message for bounds violation
+        error_msg: String,
+    },
+
+    /// Validate field access for type safety (security enhancement)
+    /// Ensures field exists on the type before dynamic access
+    ValidateFieldAccess {
+        /// Object to access field on
+        object: ValueId,
+        /// Name of field to validate
+        field_name: String,
+        /// Type of the object (for validation)
+        object_type: Type,
+    },
+
+    /// Error propagation (? operator)
+    /// Checks if Result/Option is error/None and early returns if so
+    ErrorPropagation {
+        /// The Result or Option value to check
+        value: ValueId,
+        /// The type of the value (Result<T, E> or Option<T>)
+        value_type: Type,
+        /// The success type (T in Result<T, E> or Option<T>)
+        success_type: Type,
     },
 }
 
@@ -192,10 +337,35 @@ impl Instruction {
             }
             Instruction::LoadField { field_ty, .. } => Some(field_ty.clone()),
             Instruction::StoreField { .. } => None,
+            Instruction::AllocStruct { ty, .. } => Some(Type::Named(format!("ptr<{}>", ty))),
+            Instruction::ConstructStruct { ty, .. } => Some(ty.clone()),
+            Instruction::AllocEnum { ty, .. } => Some(Type::Named(format!("ptr<{}>", ty))),
+            Instruction::ConstructEnum { ty, .. } => Some(ty.clone()),
+            Instruction::GetEnumTag { .. } => Some(Type::I32),
+            Instruction::SetEnumTag { .. } => None,
+            Instruction::ExtractEnumData { ty, .. } => Some(ty.clone()),
             Instruction::Phi { ty, .. } => Some(ty.clone()),
             Instruction::Return(_) => None,
             Instruction::Branch(_) => None,
             Instruction::CondBranch { .. } => None,
+            Instruction::Suspend { .. } => None,
+            Instruction::PollFuture { output_ty, .. } => {
+                // Returns Poll<T> which we'll represent as an enum
+                Some(Type::Generic { 
+                    name: "Poll".to_string(),
+                    args: vec![output_ty.clone()]
+                })
+            }
+            Instruction::CreateAsyncState { output_ty, .. } => {
+                // Returns a Future<T>
+                Some(Type::Future(Box::new(output_ty.clone())))
+            }
+            Instruction::StoreAsyncState { .. } => None,
+            Instruction::LoadAsyncState { ty, .. } => Some(ty.clone()),
+            Instruction::GetAsyncState { .. } => Some(Type::I32), // State is represented as u32/i32
+            Instruction::SetAsyncState { .. } => None,
+            Instruction::BoundsCheck { .. } => Some(Type::Bool), // Returns true if bounds check passes
+            Instruction::ValidateFieldAccess { .. } => Some(Type::Bool), // Returns true if field access is valid
         }
     }
 
@@ -203,7 +373,7 @@ impl Instruction {
     pub fn is_terminator(&self) -> bool {
         matches!(
             self,
-            Instruction::Return(_) | Instruction::Branch(_) | Instruction::CondBranch { .. }
+            Instruction::Return(_) | Instruction::Branch(_) | Instruction::CondBranch { .. } | Instruction::Suspend { .. }
         )
     }
 }
@@ -286,6 +456,45 @@ impl fmt::Display for Instruction {
             } => {
                 write!(f, "storefield {}, \"{}\", {}", object, field_name, value)
             }
+            Instruction::AllocStruct { struct_name, ty } => {
+                write!(f, "allocstruct {} : {}", struct_name, ty)
+            }
+            Instruction::ConstructStruct { struct_name, fields, ty } => {
+                write!(f, "constructstruct {} {{ ", struct_name)?;
+                for (i, (name, val)) in fields.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", name, val)?;
+                }
+                write!(f, " }} : {}", ty)
+            }
+            Instruction::AllocEnum { enum_name, variant_size, ty } => {
+                write!(f, "allocenum {} [size={}] : {}", enum_name, variant_size, ty)
+            }
+            Instruction::ConstructEnum { enum_name, variant, tag, args, ty } => {
+                write!(f, "constructenum {}::{} [tag={}]", enum_name, variant, tag)?;
+                if !args.is_empty() {
+                    write!(f, "(")?;
+                    for (i, arg) in args.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", arg)?;
+                    }
+                    write!(f, ")")?;
+                }
+                write!(f, " : {}", ty)
+            }
+            Instruction::GetEnumTag { enum_value } => {
+                write!(f, "getenumtag {}", enum_value)
+            }
+            Instruction::SetEnumTag { enum_ptr, tag } => {
+                write!(f, "setenumtag {}, {}", enum_ptr, tag)
+            }
+            Instruction::ExtractEnumData { enum_value, variant_index, ty } => {
+                write!(f, "extractenumdata {}, [index={}] : {}", enum_value, variant_index, ty)
+            }
             Instruction::Phi { incoming, ty } => {
                 write!(f, "phi ")?;
                 for (i, (val, block)) in incoming.iter().enumerate() {
@@ -305,6 +514,44 @@ impl fmt::Display for Instruction {
                 else_block,
             } => {
                 write!(f, "br {}, {:?}, {:?}", condition, then_block, else_block)
+            }
+            Instruction::Suspend { state, resume_block } => {
+                write!(f, "suspend {}, resume at {:?}", state, resume_block)
+            }
+            Instruction::PollFuture { future, output_ty } => {
+                write!(f, "poll {} : {}", future, output_ty)
+            }
+            Instruction::CreateAsyncState {
+                initial_state,
+                state_size,
+                output_ty,
+            } => {
+                write!(
+                    f,
+                    "create_async_state {}, size={} : Future<{}>",
+                    initial_state, state_size, output_ty
+                )
+            }
+            Instruction::StoreAsyncState { state_ptr, offset, value } => {
+                write!(f, "store_async_state {}, offset={}, {}", state_ptr, offset, value)
+            }
+            Instruction::LoadAsyncState { state_ptr, offset, ty } => {
+                write!(f, "load_async_state {}, offset={} : {}", state_ptr, offset, ty)
+            }
+            Instruction::GetAsyncState { state_ptr } => {
+                write!(f, "get_async_state {}", state_ptr)
+            }
+            Instruction::SetAsyncState { state_ptr, new_state } => {
+                write!(f, "set_async_state {}, {}", state_ptr, new_state)
+            }
+            Instruction::BoundsCheck { array, index, length, error_msg } => {
+                match length {
+                    Some(len) => write!(f, "bounds_check {}, {}, {} : \"{}\"", array, index, len, error_msg),
+                    None => write!(f, "bounds_check {}, {} : \"{}\"", array, index, error_msg),
+                }
+            }
+            Instruction::ValidateFieldAccess { object, field_name, object_type } => {
+                write!(f, "validate_field_access {}, \"{}\" : {}", object, field_name, object_type)
             }
         }
     }

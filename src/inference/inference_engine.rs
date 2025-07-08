@@ -706,7 +706,7 @@ mod tests {
     use crate::parser::Parser;
 
     fn infer_program_str(input: &str) -> Result<InferenceResult, Error> {
-        let lexer = Lexer::new(input);
+        let lexer = Lexer::new(input).unwrap();
         let (tokens, _errors) = lexer.scan_tokens();
         if !_errors.is_empty() {
             return Err(_errors[0].clone());

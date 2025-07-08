@@ -3,12 +3,14 @@ use crate::parser::{TypeAnn, TypeKind};
 use crate::types::{Type, TypeEnv};
 
 mod constraint;
+mod constructor_inference;
 mod inference_engine;
 mod substitution;
 mod trait_checker;
 mod unification;
 
 pub use constraint::{Constraint, ConstraintKind};
+pub use constructor_inference::{ConstructorInferenceEngine, ConstructorInferenceResult};
 pub use inference_engine::{InferenceEngine, InferenceResult};
 pub use substitution::{apply_substitution, Substitution};
 pub use trait_checker::TraitChecker;

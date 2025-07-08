@@ -7,9 +7,11 @@ use crate::error::Error;
 use crate::ir::Function as IrFunction;
 use crate::source::SourceLocation;
 use std::collections::HashMap;
+use self::safe_conversions::{usize_to_u64, validate_file_count};
 
 pub mod dwarf_builder;
 pub mod line_table;
+pub mod safe_conversions;
 pub mod type_info;
 
 pub use dwarf_builder::DwarfBuilder;
@@ -41,21 +43,26 @@ impl DebugContext {
     }
 
     /// Add a source file to the debug context
-    pub fn add_file(&mut self, file_path: &str) -> u64 {
+    pub fn add_file(&mut self, file_path: &str) -> Result<u64, Error> {
         if let Some(&file_id) = self.file_map.get(file_path) {
-            return file_id;
+            return Ok(file_id);
         }
 
-        let file_id = self.file_map.len() as u64;
+        // Validate file count is within limits
+        validate_file_count(self.file_map.len())?;
+        
+        // Safely convert to u64
+        let file_id = usize_to_u64(self.file_map.len())?;
         self.file_map.insert(file_path.to_string(), file_id);
 
-        file_id
+        Ok(file_id)
     }
 
     /// Set current source file
-    pub fn set_current_file(&mut self, file_path: String) {
-        let _file_id = self.add_file(&file_path);
+    pub fn set_current_file(&mut self, file_path: String) -> Result<(), Error> {
+        let _file_id = self.add_file(&file_path)?;
         self.current_file = Some(file_path);
+        Ok(())
     }
 
     /// Add line information for an instruction
@@ -133,6 +140,7 @@ impl DebugFlags {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codegen::debug::safe_conversions;
 
     #[test]
     fn test_debug_context_creation() {
@@ -146,20 +154,21 @@ mod tests {
     }
 
     #[test]
-    fn test_add_file() {
+    fn test_add_file() -> Result<(), Error> {
         let mut debug_ctx = DebugContext::new(
             "/test/project".to_string(),
             "Script Language Compiler 0.1.0".to_string(),
         );
 
-        let file_id1 = debug_ctx.add_file("/test/project/main.script");
-        let file_id2 = debug_ctx.add_file("/test/project/lib.script");
-        let file_id3 = debug_ctx.add_file("/test/project/main.script"); // Should return same ID
+        let file_id1 = debug_ctx.add_file("/test/project/main.script")?;
+        let file_id2 = debug_ctx.add_file("/test/project/lib.script")?;
+        let file_id3 = debug_ctx.add_file("/test/project/main.script")?; // Should return same ID
 
         assert_eq!(file_id1, 0);
         assert_eq!(file_id2, 1);
         assert_eq!(file_id3, 0); // Same file, same ID
         assert_eq!(debug_ctx.file_map.len(), 2);
+        Ok(())
     }
 
     #[test]
@@ -175,5 +184,24 @@ mod tests {
         assert!(!release_flags.line_info);
         assert!(!release_flags.variable_info);
         assert!(release_flags.optimize);
+    }
+
+    #[test]
+    fn test_file_count_limit() {
+        let mut debug_ctx = DebugContext::new(
+            "/test/project".to_string(),
+            "Script Language Compiler 0.1.0".to_string(),
+        );
+
+        // Add files up to near the limit
+        for i in 0..safe_conversions::limits::MAX_SOURCE_FILES {
+            let file_path = format!("/test/file_{}.script", i);
+            debug_ctx.file_map.insert(file_path, i as u64);
+        }
+
+        // This should fail as we're at the limit
+        let result = debug_ctx.add_file("/test/one_more.script");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Too many source files"));
     }
 }

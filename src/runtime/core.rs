@@ -16,6 +16,7 @@ use std::sync::{Arc, RwLock};
 use crate::runtime::gc::CollectionStats;
 use crate::runtime::panic::PanicInfo;
 use crate::runtime::{Result, RuntimeError};
+use crate::error::Error;
 
 /// Global runtime instance
 static RUNTIME: RwLock<Option<Arc<Runtime>>> = RwLock::new(None);
@@ -24,10 +25,10 @@ static RUNTIME: RwLock<Option<Arc<Runtime>>> = RwLock::new(None);
 pub fn runtime() -> Result<Arc<Runtime>> {
     RUNTIME
         .read()
-        .unwrap()
+        .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on runtime"))?
         .as_ref()
         .cloned()
-        .ok_or(RuntimeError::NotInitialized)
+        .ok_or_else(|| Error::runtime("Runtime not initialized"))
 }
 
 /// Configuration for the Script runtime
@@ -141,9 +142,11 @@ impl Runtime {
 
     /// Initialize the runtime with the given configuration
     pub fn initialize_with_config(config: RuntimeConfig) -> Result<()> {
-        let mut runtime_lock = RUNTIME.write().unwrap();
+        let mut runtime_lock = RUNTIME.write().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire write lock on runtime")
+        })?;
         if runtime_lock.is_some() {
-            return Err(RuntimeError::AlreadyInitialized);
+            return Err(Error::runtime("Runtime already initialized"));
         }
 
         let runtime = Arc::new(Runtime::new(config.clone()));
@@ -176,9 +179,12 @@ impl Runtime {
     }
 
     /// Register a type with the runtime
-    pub fn register_type<T: Any>(&self) {
-        let mut registry = self.type_registry.write().unwrap();
+    pub fn register_type<T: Any>(&self) -> Result<()> {
+        let mut registry = self.type_registry.write().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire write lock on type registry")
+        })?;
         registry.register::<T>();
+        Ok(())
     }
 
     /// Get runtime statistics
@@ -192,20 +198,33 @@ impl Runtime {
 
     /// Get runtime uptime
     pub fn uptime(&self) -> std::time::Duration {
-        let metadata = self.metadata.read().unwrap();
-        metadata.start_time.elapsed()
+        let metadata = self.metadata.read().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire read lock on metadata")
+        });
+        match metadata {
+            Ok(data) => data.start_time.elapsed(),
+            Err(_) => std::time::Duration::new(0, 0), // Return zero duration on lock failure
+        }
     }
 
     /// Set custom metadata
-    pub fn set_metadata(&self, key: String, value: String) {
-        let mut metadata = self.metadata.write().unwrap();
+    pub fn set_metadata(&self, key: String, value: String) -> Result<()> {
+        let mut metadata = self.metadata.write().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire write lock on metadata")
+        })?;
         metadata.custom.insert(key, value);
+        Ok(())
     }
 
     /// Get custom metadata
     pub fn get_metadata(&self, key: &str) -> Option<String> {
-        let metadata = self.metadata.read().unwrap();
-        metadata.custom.get(key).cloned()
+        let metadata = self.metadata.read().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire read lock on metadata")
+        });
+        match metadata {
+            Ok(data) => data.custom.get(key).cloned(),
+            Err(_) => None, // Return None on lock failure
+        }
     }
 
     /// Install the panic handler

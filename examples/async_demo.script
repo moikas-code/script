@@ -1,0 +1,86 @@
+// Async/await demonstration in Script
+// This shows the complete async/await implementation
+
+// Simple async function that simulates a delay
+async fn delay(milliseconds: i32) -> i32 {
+    // In a real implementation, this would call the runtime's sleep function
+    // For now, just return the value
+    milliseconds
+}
+
+// Async function that performs sequential operations
+async fn sequential_work() -> i32 {
+    println("Starting sequential work...")
+    
+    let delay1 = await delay(100)
+    println("First delay complete: " + delay1)
+    
+    let delay2 = await delay(200)
+    println("Second delay complete: " + delay2)
+    
+    let delay3 = await delay(300)
+    println("Third delay complete: " + delay3)
+    
+    delay1 + delay2 + delay3
+}
+
+// Async function with control flow
+async fn conditional_async(condition: bool) -> string {
+    if condition {
+        let result = await delay(500)
+        "Delayed for " + result + "ms"
+    } else {
+        "No delay"
+    }
+}
+
+// Async function with loops
+async fn loop_async() -> i32 {
+    let mut total = 0
+    let mut i = 0
+    
+    while i < 5 {
+        let d = await delay(50)
+        total = total + d
+        i = i + 1
+    }
+    
+    total
+}
+
+// Example of async error handling (when Result types are implemented)
+// async fn may_fail(should_fail: bool) -> Result<i32, string> {
+//     if should_fail {
+//         Err("Simulated failure")
+//     } else {
+//         Ok(await delay(100))
+//     }
+// }
+
+// Async main function - the runtime automatically handles this
+async fn main() {
+    println("=== Async/Await Demo ===")
+    
+    // Sequential execution
+    let seq_result = await sequential_work()
+    println("Sequential result: " + seq_result)
+    
+    // Conditional async
+    let cond1 = await conditional_async(true)
+    println("Conditional (true): " + cond1)
+    
+    let cond2 = await conditional_async(false)
+    println("Conditional (false): " + cond2)
+    
+    // Loop with async
+    let loop_result = await loop_async()
+    println("Loop result: " + loop_result)
+    
+    println("=== Demo Complete ===")
+}
+
+// The Script runtime will:
+// 1. Detect that main is async
+// 2. Create an executor
+// 3. Transform async functions into state machines
+// 4. Run the executor until all tasks complete

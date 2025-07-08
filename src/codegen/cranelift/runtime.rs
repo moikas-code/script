@@ -45,9 +45,19 @@ impl AllocationTracker {
 
 /// Initialize the allocation tracker
 fn ensure_tracker_initialized() {
-    let mut tracker = ALLOCATION_TRACKER.lock().unwrap();
-    if tracker.is_none() {
-        *tracker = Some(AllocationTracker::new());
+    match ALLOCATION_TRACKER.lock() {
+        Ok(mut tracker) => {
+            if tracker.is_none() {
+                *tracker = Some(AllocationTracker::new());
+            }
+        }
+        Err(poisoned) => {
+            // If the mutex is poisoned, we can still recover
+            let mut tracker = poisoned.into_inner();
+            if tracker.is_none() {
+                *tracker = Some(AllocationTracker::new());
+            }
+        }
     }
 }
 

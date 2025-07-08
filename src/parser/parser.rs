@@ -1043,6 +1043,11 @@ impl Parser {
                     object: Box::new(expr),
                     property,
                 }, span);
+            } else if self.match_token(&TokenKind::Question) {
+                let span = Span::new(expr.span.start, self.previous_location());
+                expr = self.create_expr(ExprKind::ErrorPropagation {
+                    expr: Box::new(expr),
+                }, span);
             } else {
                 break;
             }
@@ -1436,12 +1441,73 @@ impl Parser {
             });
         }
 
-        // Identifier pattern (variable binding)
+        // Identifier pattern or enum constructor
         if let Some(token) = self.match_token_if(|t| matches!(t, TokenKind::Identifier(_))) {
             if let TokenKind::Identifier(name) = token.kind {
+                // Check if this is an enum constructor pattern
+                // Could be: Some(x), Option::Some(x), or just Some/None
+                
+                let mut enum_name = None;
+                let mut variant = name.clone();
+                
+                // Check for qualified enum pattern like Option::Some
+                if self.match_token(&TokenKind::ColonColon) {
+                    enum_name = Some(name);
+                    
+                    if let Some(token) = self.match_token_if(|t| matches!(t, TokenKind::Identifier(_))) {
+                        if let TokenKind::Identifier(v) = token.kind {
+                            variant = v;
+                        }
+                    } else {
+                        return Err(self.error("Expected variant name after '::'"));
+                    }
+                }
+                
+                // Check if this is a constructor with arguments
+                if self.check(&TokenKind::LeftParen) {
+                    self.advance(); // consume '('
+                    
+                    let mut args = Vec::new();
+                    if !self.check(&TokenKind::RightParen) {
+                        loop {
+                            args.push(self.parse_pattern()?);
+                            if !self.match_token(&TokenKind::Comma) {
+                                break;
+                            }
+                        }
+                    }
+                    
+                    self.consume(&TokenKind::RightParen, "Expected ')' after enum constructor arguments")?;
+                    let span = Span::new(start, self.previous_location());
+                    
+                    return Ok(Pattern {
+                        kind: PatternKind::EnumConstructor {
+                            enum_name,
+                            variant,
+                            args: Some(args),
+                        },
+                        span,
+                    });
+                }
+                
+                // Check if this could be a unit variant (capitalized identifier)
+                // Heuristic: if it starts with uppercase, treat as enum constructor
+                if variant.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                    let span = Span::new(start, self.previous_location());
+                    return Ok(Pattern {
+                        kind: PatternKind::EnumConstructor {
+                            enum_name,
+                            variant,
+                            args: None,
+                        },
+                        span,
+                    });
+                }
+                
+                // Otherwise, it's just a regular identifier pattern
                 let span = Span::new(start, self.previous_location());
                 return Ok(Pattern {
-                    kind: PatternKind::Identifier(name),
+                    kind: PatternKind::Identifier(variant),
                     span,
                 });
             }

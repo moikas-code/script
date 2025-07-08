@@ -1,9 +1,11 @@
 use crate::ir::{Function, FunctionId, Instruction, Module, ValueId};
-use crate::types::{Type, generics::GenericEnv};
+use crate::types::{Type, generics::GenericEnv, definitions::{TypeDefinitionRegistry, StructDefinition, EnumDefinition}};
 use crate::semantic::analyzer::{SemanticAnalyzer, GenericInstantiation};
 use crate::inference::InferenceContext;
 use crate::error::{Error, ErrorKind};
+// Security imports removed - now handled internally
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::time::Instant;
 
 /// Context for monomorphization that tracks instantiated functions
 #[derive(Debug)]
@@ -22,6 +24,18 @@ pub struct MonomorphizationContext {
     inference_ctx: Option<InferenceContext>,
     /// Track monomorphization statistics
     stats: MonomorphizationStats,
+    /// Type definition registry for struct/enum monomorphization
+    type_registry: TypeDefinitionRegistry,
+    /// Work queue for pending struct instantiations
+    struct_work_queue: VecDeque<(String, Vec<Type>)>,
+    /// Work queue for pending enum instantiations
+    enum_work_queue: VecDeque<(String, Vec<Type>)>,
+    /// Track which struct types have been processed
+    processed_structs: HashSet<String>,
+    /// Track which enum types have been processed
+    processed_enums: HashSet<String>,
+    /// Monomorphization start time for timeout detection
+    monomorphization_start: Option<Instant>,
 }
 
 /// Statistics for monomorphization process
@@ -33,9 +47,22 @@ pub struct MonomorphizationStats {
     pub type_instantiations: usize,
     /// Number of duplicate instantiations avoided
     pub duplicates_avoided: usize,
+    /// Number of structs monomorphized
+    pub structs_monomorphized: usize,
+    /// Number of enums monomorphized
+    pub enums_monomorphized: usize,
+    /// Number of duplicate struct instantiations avoided
+    pub struct_duplicates_avoided: usize,
+    /// Number of duplicate enum instantiations avoided
+    pub enum_duplicates_avoided: usize,
 }
 
 impl MonomorphizationContext {
+    /// Security limits for DoS prevention
+    const MAX_SPECIALIZATIONS: usize = 1_000;
+    const MAX_WORK_QUEUE_SIZE: usize = 10_000;
+    const MAX_MONOMORPHIZATION_TIME_SECS: u64 = 30;
+
     /// Create a new monomorphization context
     pub fn new() -> Self {
         MonomorphizationContext {
@@ -46,6 +73,12 @@ impl MonomorphizationContext {
             semantic_analyzer: None,
             inference_ctx: None,
             stats: MonomorphizationStats::default(),
+            type_registry: TypeDefinitionRegistry::new(),
+            struct_work_queue: VecDeque::new(),
+            enum_work_queue: VecDeque::new(),
+            processed_structs: HashSet::new(),
+            processed_enums: HashSet::new(),
+            monomorphization_start: None,
         }
     }
 
@@ -67,12 +100,32 @@ impl MonomorphizationContext {
         generic_instantiations: &[GenericInstantiation],
         type_info: &HashMap<usize, Type>
     ) {
-        // Add all generic instantiations from semantic analysis to the work queue
+        // Process all generic instantiations from semantic analysis
         for instantiation in generic_instantiations {
-            self.add_instantiation(
-                instantiation.function_name.clone(),
-                instantiation.type_args.clone()
-            );
+            // Check if this is a function, struct, or enum instantiation
+            // For now, we assume it's a function if it doesn't match known type patterns
+            
+            // Check if it's a struct instantiation
+            if self.type_registry.get_struct(&instantiation.function_name).is_some() {
+                self.add_struct_instantiation(
+                    instantiation.function_name.clone(),
+                    instantiation.type_args.clone()
+                );
+            }
+            // Check if it's an enum instantiation
+            else if self.type_registry.get_enum(&instantiation.function_name).is_some() {
+                self.add_enum_instantiation(
+                    instantiation.function_name.clone(),
+                    instantiation.type_args.clone()
+                );
+            }
+            // Otherwise, treat it as a function instantiation
+            else {
+                self.add_instantiation(
+                    instantiation.function_name.clone(),
+                    instantiation.type_args.clone()
+                )?;
+            }
         }
         
         // Store type information for use during monomorphization
@@ -100,6 +153,22 @@ impl MonomorphizationContext {
     pub fn stats(&self) -> &MonomorphizationStats {
         &self.stats
     }
+    
+    /// Set type registry for struct/enum definitions
+    pub fn with_type_registry(mut self, registry: TypeDefinitionRegistry) -> Self {
+        self.type_registry = registry;
+        self
+    }
+    
+    /// Get a reference to the type registry
+    pub fn type_registry(&self) -> &TypeDefinitionRegistry {
+        &self.type_registry
+    }
+    
+    /// Get a mutable reference to the type registry
+    pub fn type_registry_mut(&mut self) -> &mut TypeDefinitionRegistry {
+        &mut self.type_registry
+    }
 
     /// Get a mutable reference to the semantic analyzer
     pub fn semantic_analyzer_mut(&mut self) -> Option<&mut SemanticAnalyzer> {
@@ -111,8 +180,74 @@ impl MonomorphizationContext {
         self.inference_ctx.as_mut()
     }
 
+    /// Process struct and enum monomorphization work queues
+    fn process_type_monomorphization(&mut self) -> Result<(), Error> {
+        // Process struct work queue
+        while let Some((struct_name, type_args)) = self.struct_work_queue.pop_front() {
+            // Check if already processed
+            let key = format!("{}_{}", struct_name, self.mangle_type_args(&type_args));
+            if self.processed_structs.contains(&key) {
+                self.stats.struct_duplicates_avoided = self.stats.struct_duplicates_avoided.saturating_add(1);
+                continue;
+            }
+            
+            // Get the generic struct definition
+            if let Some(generic_struct) = self.type_registry.get_struct(&struct_name).cloned() {
+                if generic_struct.generic_params.is_some() && !generic_struct.is_monomorphized {
+                    // Specialize the struct
+                    let specialized_struct = self.specialize_struct(&generic_struct, &type_args)?;
+                    let mangled_name = specialized_struct.name.clone();
+                    
+                    // Register the monomorphized struct
+                    self.type_registry.register_monomorphized_struct(mangled_name.clone(), specialized_struct);
+                    self.stats.structs_monomorphized = self.stats.structs_monomorphized.saturating_add(1);
+                    
+                    // Mark as processed
+                    self.processed_structs.insert(key);
+                    
+                    // Cache the instantiation
+                    self.type_registry.cache_instantiation(struct_name, type_args, mangled_name);
+                }
+            }
+        }
+        
+        // Process enum work queue
+        while let Some((enum_name, type_args)) = self.enum_work_queue.pop_front() {
+            // Check if already processed
+            let key = format!("{}_{}", enum_name, self.mangle_type_args(&type_args));
+            if self.processed_enums.contains(&key) {
+                self.stats.enum_duplicates_avoided = self.stats.enum_duplicates_avoided.saturating_add(1);
+                continue;
+            }
+            
+            // Get the generic enum definition
+            if let Some(generic_enum) = self.type_registry.get_enum(&enum_name).cloned() {
+                if generic_enum.generic_params.is_some() && !generic_enum.is_monomorphized {
+                    // Specialize the enum
+                    let specialized_enum = self.specialize_enum(&generic_enum, &type_args)?;
+                    let mangled_name = specialized_enum.name.clone();
+                    
+                    // Register the monomorphized enum
+                    self.type_registry.register_monomorphized_enum(mangled_name.clone(), specialized_enum);
+                    self.stats.enums_monomorphized = self.stats.enums_monomorphized.saturating_add(1);
+                    
+                    // Mark as processed
+                    self.processed_enums.insert(key);
+                    
+                    // Cache the instantiation
+                    self.type_registry.cache_instantiation(enum_name, type_args, mangled_name);
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
     /// Monomorphize all generic functions in an IR module
     pub fn monomorphize(&mut self, module: &mut Module) -> Result<(), Error> {
+        // SECURITY: Initialize timing for timeout detection
+        self.monomorphization_start = Some(Instant::now());
+        
         // Reset stats for this monomorphization run
         self.stats = MonomorphizationStats::default();
         
@@ -152,25 +287,43 @@ impl MonomorphizationContext {
 
             // Process all generic function instantiations
             for (function_name, type_args) in call_sites {
-                self.add_instantiation(function_name, type_args);
+                self.add_instantiation(function_name, type_args)?;
             }
         }
 
         // Process work queue
         while let Some((function_name, type_args)) = self.work_queue.pop_front() {
+            // SECURITY CHECK: Prevent DoS through excessive specializations
+            if self.instantiated_functions.len() >= Self::MAX_SPECIALIZATIONS {
+                return Err(Error::security_violation(format!(
+                    "Function specialization limit exceeded: {} >= {}. This prevents DoS attacks through exponential code generation.",
+                    self.instantiated_functions.len(), Self::MAX_SPECIALIZATIONS
+                )));
+            }
+
+            // SECURITY CHECK: Prevent DoS through monomorphization timeout
+            if let Some(start_time) = self.monomorphization_start {
+                if start_time.elapsed().as_secs() >= Self::MAX_MONOMORPHIZATION_TIME_SECS {
+                    return Err(Error::security_violation(format!(
+                        "Monomorphization timeout exceeded: {} seconds. This prevents DoS attacks through long-running compilation.",
+                        Self::MAX_MONOMORPHIZATION_TIME_SECS
+                    )));
+                }
+            }
+
             if let Some(generic_function) = self.find_generic_function(&generic_functions, &function_name) {
                 let specialized_function = self.specialize_function(generic_function, &type_args)?;
                 let mangled_name = self.mangle_function_name(&function_name, &type_args);
                 
                 // Check for duplicates
                 if self.instantiated_functions.contains_key(&mangled_name) {
-                    self.stats.duplicates_avoided += 1;
+                    self.stats.duplicates_avoided = self.stats.duplicates_avoided.saturating_add(1);
                     continue;
                 }
                 
                 // Add to instantiated functions
                 self.instantiated_functions.insert(mangled_name, specialized_function);
-                self.stats.functions_monomorphized += 1;
+                self.stats.functions_monomorphized = self.stats.functions_monomorphized.saturating_add(1);
                 
                 // Mark as processed
                 self.processed_functions.insert(format!("{}_{}", function_name, self.mangle_type_args(&type_args)));
@@ -179,6 +332,9 @@ impl MonomorphizationContext {
 
         // Replace generic functions with specialized versions
         self.replace_generic_functions(module)?;
+        
+        // Process any pending struct/enum monomorphizations
+        self.process_type_monomorphization()?;
 
         Ok(())
     }
@@ -272,6 +428,22 @@ impl MonomorphizationContext {
             _ => None,
         }
     }
+    
+    /// Scan module for generic type instantiations (structs and enums)
+    fn scan_for_type_instantiations(&mut self, module: &Module) {
+        // This is a placeholder - in a real implementation, we would scan
+        // the IR for type instantiations. For now, we rely on the semantic
+        // analyzer to provide the instantiations through the work queues.
+        
+        // In the future, we could scan for:
+        // 1. Struct constructor calls
+        // 2. Enum variant constructor calls
+        // 3. Type annotations that reference generic types
+        // 4. Field accesses on generic types
+        
+        // For now, this method is empty as we expect the semantic analyzer
+        // to populate our struct_work_queue and enum_work_queue
+    }
 
     /// Infer type arguments for a generic function call
     fn infer_type_arguments(&self, generic_function: &Function, args: &[ValueId], return_type: &Type, module: &Module) -> Vec<Type> {
@@ -356,10 +528,35 @@ impl MonomorphizationContext {
     }
 
     /// Add a function instantiation to the work queue
-    fn add_instantiation(&mut self, function_name: String, type_args: Vec<Type>) {
+    fn add_instantiation(&mut self, function_name: String, type_args: Vec<Type>) -> Result<(), Error> {
+        // SECURITY CHECK: Prevent DoS through excessive work queue growth
+        if self.work_queue.len() >= Self::MAX_WORK_QUEUE_SIZE {
+            return Err(Error::security_violation(format!(
+                "Work queue size limit exceeded: {} >= {}. This prevents DoS attacks through unbounded queue growth.",
+                self.work_queue.len(), Self::MAX_WORK_QUEUE_SIZE
+            )));
+        }
+
         let key = format!("{}_{}", function_name, self.mangle_type_args(&type_args));
         if !self.processed_functions.contains(&key) {
             self.work_queue.push_back((function_name, type_args));
+        }
+        Ok(())
+    }
+    
+    /// Add a struct instantiation to the work queue
+    pub fn add_struct_instantiation(&mut self, struct_name: String, type_args: Vec<Type>) {
+        let key = format!("{}_{}", struct_name, self.mangle_type_args(&type_args));
+        if !self.processed_structs.contains(&key) {
+            self.struct_work_queue.push_back((struct_name, type_args));
+        }
+    }
+    
+    /// Add an enum instantiation to the work queue
+    pub fn add_enum_instantiation(&mut self, enum_name: String, type_args: Vec<Type>) {
+        let key = format!("{}_{}", enum_name, self.mangle_type_args(&type_args));
+        if !self.processed_enums.contains(&key) {
+            self.enum_work_queue.push_back((enum_name, type_args));
         }
     }
 
@@ -368,9 +565,197 @@ impl MonomorphizationContext {
         functions.iter().find(|f| f.name == name)
     }
 
+    /// Specialize a generic struct with concrete type arguments
+    fn specialize_struct(&mut self, generic_struct: &StructDefinition, type_args: &[Type]) -> Result<StructDefinition, Error> {
+        self.stats.type_instantiations = self.stats.type_instantiations.saturating_add(1);
+        
+        // Create type substitution environment
+        let mut env = self.generic_env.clone();
+        
+        // Add type parameter substitutions
+        if let Some(ref generic_params) = generic_struct.generic_params {
+            let param_count = generic_params.params.len();
+            if param_count != type_args.len() {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    format!("Type argument count mismatch for struct '{}': expected {}, got {}", 
+                        generic_struct.name, param_count, type_args.len())
+                ));
+            }
+            
+            for (param, arg) in generic_params.params.iter().zip(type_args.iter()) {
+                env.add_substitution(param.name.clone(), arg.clone());
+            }
+        }
+        
+        // Clone and specialize the struct
+        let mut specialized = generic_struct.clone();
+        specialized.name = self.mangle_type_name(&generic_struct.name, type_args);
+        specialized.is_monomorphized = true;
+        specialized.original_type = Some(generic_struct.name.clone());
+        
+        // Apply type substitutions to fields
+        for field in &mut specialized.fields {
+            let type_as_type = self.type_ann_to_type(&field.type_ann);
+            let substituted = env.substitute_type(&type_as_type);
+            field.type_ann = self.type_to_type_ann(&substituted);
+        }
+        
+        Ok(specialized)
+    }
+    
+    /// Specialize a generic enum with concrete type arguments
+    fn specialize_enum(&mut self, generic_enum: &EnumDefinition, type_args: &[Type]) -> Result<EnumDefinition, Error> {
+        self.stats.type_instantiations = self.stats.type_instantiations.saturating_add(1);
+        
+        // Create type substitution environment
+        let mut env = self.generic_env.clone();
+        
+        // Add type parameter substitutions
+        if let Some(ref generic_params) = generic_enum.generic_params {
+            let param_count = generic_params.params.len();
+            if param_count != type_args.len() {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    format!("Type argument count mismatch for enum '{}': expected {}, got {}", 
+                        generic_enum.name, param_count, type_args.len())
+                ));
+            }
+            
+            for (param, arg) in generic_params.params.iter().zip(type_args.iter()) {
+                env.add_substitution(param.name.clone(), arg.clone());
+            }
+        }
+        
+        // Clone and specialize the enum
+        let mut specialized = generic_enum.clone();
+        specialized.name = self.mangle_type_name(&generic_enum.name, type_args);
+        specialized.is_monomorphized = true;
+        specialized.original_type = Some(generic_enum.name.clone());
+        
+        // Apply type substitutions to variants
+        for variant in &mut specialized.variants {
+            match &mut variant.fields {
+                crate::parser::EnumVariantFields::Unit => {},
+                crate::parser::EnumVariantFields::Tuple(types) => {
+                    for ty in types {
+                        // Convert TypeAnn to Type for substitution, then back
+                        let type_as_type = self.type_ann_to_type(ty);
+                        let substituted = env.substitute_type(&type_as_type);
+                        *ty = self.type_to_type_ann(&substituted);
+                    }
+                }
+                crate::parser::EnumVariantFields::Struct(fields) => {
+                    for field in fields {
+                        let type_as_type = self.type_ann_to_type(&field.type_ann);
+                        let substituted = env.substitute_type(&type_as_type);
+                        field.type_ann = self.type_to_type_ann(&substituted);
+                    }
+                }
+            }
+        }
+        
+        Ok(specialized)
+    }
+    
+    /// Generate a mangled name for a specialized type
+    fn mangle_type_name(&self, base_name: &str, type_args: &[Type]) -> String {
+        TypeDefinitionRegistry::mangle_type_name(base_name, type_args)
+    }
+    
+    /// Convert a TypeAnn to a Type
+    fn type_ann_to_type(&self, type_ann: &crate::parser::TypeAnn) -> Type {
+        use crate::parser::TypeKind;
+        match &type_ann.kind {
+            TypeKind::Named(name) => {
+                match name.as_str() {
+                    "i32" => Type::I32,
+                    "f32" => Type::F32,
+                    "bool" => Type::Bool,
+                    "string" => Type::String,
+                    _ => Type::Named(name.clone()),
+                }
+            }
+            TypeKind::Array(inner) => {
+                Type::Array(Box::new(self.type_ann_to_type(inner)))
+            }
+            TypeKind::Function { params, ret } => {
+                Type::Function {
+                    params: params.iter().map(|p| self.type_ann_to_type(p)).collect(),
+                    ret: Box::new(self.type_ann_to_type(ret)),
+                }
+            }
+            TypeKind::Generic { name, args } => {
+                Type::Generic {
+                    name: name.clone(),
+                    args: args.iter().map(|a| self.type_ann_to_type(a)).collect(),
+                }
+            }
+            TypeKind::TypeParam(name) => {
+                Type::TypeParam(name.clone())
+            }
+            TypeKind::Tuple(types) => {
+                Type::Tuple(types.iter().map(|t| self.type_ann_to_type(t)).collect())
+            }
+            TypeKind::Reference { mutable, inner } => {
+                Type::Reference {
+                    mutable: *mutable,
+                    inner: Box::new(self.type_ann_to_type(inner)),
+                }
+            }
+        }
+    }
+    
+    /// Convert a Type to a TypeAnn
+    fn type_to_type_ann(&self, ty: &Type) -> crate::parser::TypeAnn {
+        use crate::parser::{TypeAnn, TypeKind};
+        use crate::source::{Span, SourceLocation};
+        
+        let dummy_span = Span::new(
+            SourceLocation::new(0, 0, 0),
+            SourceLocation::new(0, 0, 0),
+        );
+        
+        let kind = match ty {
+            Type::I32 => TypeKind::Named("i32".to_string()),
+            Type::F32 => TypeKind::Named("f32".to_string()),
+            Type::Bool => TypeKind::Named("bool".to_string()),
+            Type::String => TypeKind::Named("string".to_string()),
+            Type::Named(name) => TypeKind::Named(name.clone()),
+            Type::Array(inner) => {
+                TypeKind::Array(Box::new(self.type_to_type_ann(inner)))
+            }
+            Type::Function { params, ret } => {
+                TypeKind::Function {
+                    params: params.iter().map(|p| self.type_to_type_ann(p)).collect(),
+                    ret: Box::new(self.type_to_type_ann(ret)),
+                }
+            }
+            Type::Generic { name, args } => {
+                TypeKind::Generic {
+                    name: name.clone(),
+                    args: args.iter().map(|a| self.type_to_type_ann(a)).collect(),
+                }
+            }
+            Type::TypeParam(name) => TypeKind::TypeParam(name.clone()),
+            Type::Tuple(types) => {
+                TypeKind::Tuple(types.iter().map(|t| self.type_to_type_ann(t)).collect())
+            }
+            Type::Reference { mutable, inner } => {
+                TypeKind::Reference {
+                    mutable: *mutable,
+                    inner: Box::new(self.type_to_type_ann(inner)),
+                }
+            }
+            _ => TypeKind::Named("unknown".to_string()), // For types that don't have direct mapping
+        };
+        
+        TypeAnn { kind, span: dummy_span }
+    }
+
     /// Specialize a generic function with concrete type arguments
     fn specialize_function(&mut self, generic_function: &Function, type_args: &[Type]) -> Result<Function, Error> {
-        self.stats.type_instantiations += 1;
+        self.stats.type_instantiations = self.stats.type_instantiations.saturating_add(1);
         // Create type substitution environment
         let mut env = self.generic_env.clone();
         
@@ -720,6 +1105,7 @@ impl Default for MonomorphizationContext {
 mod tests {
     use super::*;
     use crate::ir::Parameter;
+    use crate::parser::{StructField, EnumVariant, EnumVariantFields, TypeAnn, TypeKind};
     // use crate::semantic::FunctionSignature; // Not needed for current tests
 
     #[test]
@@ -921,5 +1307,217 @@ mod tests {
         } else {
             panic!("Expected Function type");
         }
+    }
+    
+    fn dummy_span() -> crate::source::Span {
+        crate::source::Span::new(
+            crate::source::SourceLocation::new(1, 1, 0),
+            crate::source::SourceLocation::new(1, 1, 0)
+        )
+    }
+    
+    // Helper to convert parser GenericParams to types GenericParams
+    fn parser_to_types_generic_params(params: crate::parser::GenericParams) -> crate::types::generics::GenericParams {
+        use crate::types::generics::{GenericParams, TypeParam, TraitBound};
+        
+        GenericParams {
+            params: params.params.into_iter().map(|p| TypeParam {
+                name: p.name,
+                bounds: p.bounds.into_iter().map(|b| TraitBound {
+                    trait_name: b.trait_name,
+                    span: b.span,
+                }).collect(),
+                span: p.span,
+            }).collect(),
+            where_clause: None, // Parser WhereClause doesn't directly convert
+            span: params.span,
+        }
+    }
+    
+    #[test]
+    fn test_struct_monomorphization() {
+        let mut ctx = MonomorphizationContext::new();
+        
+        // Create a generic struct definition
+        let generic_params = crate::parser::GenericParams {
+            params: vec![crate::parser::GenericParam {
+                name: "T".to_string(),
+                bounds: vec![],
+                span: dummy_span(),
+            }],
+            span: dummy_span(),
+        };
+        
+        let generic_struct = StructDefinition {
+            name: "Box".to_string(),
+            generic_params: Some(parser_to_types_generic_params(generic_params)),
+            fields: vec![StructField {
+                name: "value".to_string(),
+                type_ann: TypeAnn {
+                    kind: TypeKind::TypeParam("T".to_string()),
+                    span: dummy_span(),
+                },
+                span: dummy_span(),
+            }],
+            where_clause: None,
+            span: dummy_span(),
+            is_monomorphized: false,
+            original_type: None,
+        };
+        
+        // Register the generic struct
+        ctx.type_registry.register_struct(generic_struct.clone()).unwrap();
+        
+        // Specialize with i32
+        let type_args = vec![Type::I32];
+        let specialized = ctx.specialize_struct(&generic_struct, &type_args).unwrap();
+        
+        assert_eq!(specialized.name, "Box_i32");
+        assert!(specialized.is_monomorphized);
+        assert_eq!(specialized.original_type, Some("Box".to_string()));
+        assert_eq!(specialized.fields[0].type_ann.kind, TypeKind::Named("i32".to_string()));
+    }
+    
+    #[test]
+    fn test_enum_monomorphization() {
+        let mut ctx = MonomorphizationContext::new();
+        
+        // Create a generic enum definition
+        let generic_params = crate::parser::GenericParams {
+            params: vec![crate::parser::GenericParam {
+                name: "T".to_string(),
+                bounds: vec![],
+                span: dummy_span(),
+            }],
+            span: dummy_span(),
+        };
+        
+        let generic_enum = EnumDefinition {
+            name: "Option".to_string(),
+            generic_params: Some(parser_to_types_generic_params(generic_params)),
+            variants: vec![
+                EnumVariant {
+                    name: "Some".to_string(),
+                    fields: EnumVariantFields::Tuple(vec![TypeAnn {
+                        kind: TypeKind::TypeParam("T".to_string()),
+                        span: dummy_span(),
+                    }]),
+                    span: dummy_span(),
+                },
+                EnumVariant {
+                    name: "None".to_string(),
+                    fields: EnumVariantFields::Unit,
+                    span: dummy_span(),
+                },
+            ],
+            where_clause: None,
+            span: dummy_span(),
+            is_monomorphized: false,
+            original_type: None,
+        };
+        
+        // Register the generic enum
+        ctx.type_registry.register_enum(generic_enum.clone()).unwrap();
+        
+        // Specialize with String
+        let type_args = vec![Type::String];
+        let specialized = ctx.specialize_enum(&generic_enum, &type_args).unwrap();
+        
+        assert_eq!(specialized.name, "Option_string");
+        assert!(specialized.is_monomorphized);
+        assert_eq!(specialized.original_type, Some("Option".to_string()));
+        
+        // Check the Some variant has been specialized
+        if let EnumVariantFields::Tuple(types) = &specialized.variants[0].fields {
+            assert_eq!(types[0].kind, TypeKind::Named("string".to_string()));
+        } else {
+            panic!("Expected Tuple variant for Some");
+        }
+    }
+    
+    #[test]
+    fn test_struct_enum_deduplication() {
+        let mut ctx = MonomorphizationContext::new();
+        
+        // Add the same struct instantiation twice
+        ctx.add_struct_instantiation("Vec".to_string(), vec![Type::I32]);
+        ctx.add_struct_instantiation("Vec".to_string(), vec![Type::I32]);
+        
+        // Only one should be in the queue
+        assert_eq!(ctx.struct_work_queue.len(), 1);
+        
+        // Add the same enum instantiation twice
+        ctx.add_enum_instantiation("Result".to_string(), vec![Type::I32, Type::String]);
+        ctx.add_enum_instantiation("Result".to_string(), vec![Type::I32, Type::String]);
+        
+        // Only one should be in the queue
+        assert_eq!(ctx.enum_work_queue.len(), 1);
+    }
+    
+    #[test]
+    fn test_type_registry_integration() {
+        let mut ctx = MonomorphizationContext::new();
+        
+        // Create and register a generic struct
+        let generic_params = crate::parser::GenericParams {
+            params: vec![
+                crate::parser::GenericParam {
+                    name: "K".to_string(),
+                    bounds: vec![],
+                    span: dummy_span(),
+                },
+                crate::parser::GenericParam {
+                    name: "V".to_string(),
+                    bounds: vec![],
+                    span: dummy_span(),
+                },
+            ],
+            span: dummy_span(),
+        };
+        
+        let generic_struct = StructDefinition {
+            name: "Pair".to_string(),
+            generic_params: Some(parser_to_types_generic_params(generic_params)),
+            fields: vec![
+                StructField {
+                    name: "key".to_string(),
+                    type_ann: TypeAnn {
+                        kind: TypeKind::TypeParam("K".to_string()),
+                        span: dummy_span(),
+                    },
+                    span: dummy_span(),
+                },
+                StructField {
+                    name: "value".to_string(),
+                    type_ann: TypeAnn {
+                        kind: TypeKind::TypeParam("V".to_string()),
+                        span: dummy_span(),
+                    },
+                    span: dummy_span(),
+                },
+            ],
+            where_clause: None,
+            span: dummy_span(),
+            is_monomorphized: false,
+            original_type: None,
+        };
+        
+        ctx.type_registry.register_struct(generic_struct).unwrap();
+        
+        // Add instantiation through semantic analysis simulation
+        let instantiations = vec![
+            GenericInstantiation {
+                function_name: "Pair".to_string(),
+                type_args: vec![Type::String, Type::I32],
+                span: dummy_span(),
+            },
+        ];
+        
+        ctx.initialize_from_semantic_analysis(&instantiations, &HashMap::new());
+        
+        // Check that it was added to the struct work queue
+        assert_eq!(ctx.struct_work_queue.len(), 1);
+        assert_eq!(ctx.work_queue.len(), 0); // Not in function queue
+        assert_eq!(ctx.enum_work_queue.len(), 0); // Not in enum queue
     }
 }

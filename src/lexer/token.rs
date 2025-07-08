@@ -1,5 +1,7 @@
 use crate::source::Span;
+use ahash::AHashMap;
 use std::fmt;
+use std::sync::OnceLock;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
@@ -96,6 +98,7 @@ pub enum TokenKind {
     DoubleArrow,
     DotDot,
     Underscore,
+    Question, // ? for error propagation
 
     // Special
     DocComment(String), // Documentation comments (/// or /** */)
@@ -104,33 +107,41 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
+    /// Get the keyword map (initialized once using OnceLock for thread safety)
+    fn keyword_map() -> &'static AHashMap<&'static str, TokenKind> {
+        static KEYWORD_MAP: OnceLock<AHashMap<&'static str, TokenKind>> = OnceLock::new();
+        KEYWORD_MAP.get_or_init(|| {
+            let mut map = AHashMap::new();
+            map.insert("fn", TokenKind::Fn);
+            map.insert("let", TokenKind::Let);
+            map.insert("mut", TokenKind::Mut);
+            map.insert("if", TokenKind::If);
+            map.insert("else", TokenKind::Else);
+            map.insert("while", TokenKind::While);
+            map.insert("for", TokenKind::For);
+            map.insert("return", TokenKind::Return);
+            map.insert("true", TokenKind::True);
+            map.insert("false", TokenKind::False);
+            map.insert("match", TokenKind::Match);
+            map.insert("async", TokenKind::Async);
+            map.insert("await", TokenKind::Await);
+            map.insert("struct", TokenKind::Struct);
+            map.insert("enum", TokenKind::Enum);
+            map.insert("impl", TokenKind::Impl);
+            map.insert("where", TokenKind::Where);
+            map.insert("import", TokenKind::Import);
+            map.insert("export", TokenKind::Export);
+            map.insert("from", TokenKind::From);
+            map.insert("as", TokenKind::As);
+            map.insert("in", TokenKind::In);
+            // "print" is a built-in function, not a keyword
+            map
+        })
+    }
+    
+    /// O(1) keyword lookup using hash map
     pub fn from_keyword(word: &str) -> Option<Self> {
-        match word {
-            "fn" => Some(TokenKind::Fn),
-            "let" => Some(TokenKind::Let),
-            "mut" => Some(TokenKind::Mut),
-            "if" => Some(TokenKind::If),
-            "else" => Some(TokenKind::Else),
-            "while" => Some(TokenKind::While),
-            "for" => Some(TokenKind::For),
-            "return" => Some(TokenKind::Return),
-            "true" => Some(TokenKind::True),
-            "false" => Some(TokenKind::False),
-            "match" => Some(TokenKind::Match),
-            "async" => Some(TokenKind::Async),
-            "await" => Some(TokenKind::Await),
-            "struct" => Some(TokenKind::Struct),
-            "enum" => Some(TokenKind::Enum),
-            "impl" => Some(TokenKind::Impl),
-            "where" => Some(TokenKind::Where),
-            "import" => Some(TokenKind::Import),
-            "export" => Some(TokenKind::Export),
-            "from" => Some(TokenKind::From),
-            "as" => Some(TokenKind::As),
-            "in" => Some(TokenKind::In),
-            // "print" => Some(TokenKind::Print), // print is a built-in function, not a keyword
-            _ => None,
-        }
+        Self::keyword_map().get(word).cloned()
     }
 }
 
@@ -202,6 +213,7 @@ impl fmt::Display for TokenKind {
             TokenKind::DoubleArrow => write!(f, "=>"),
             TokenKind::DotDot => write!(f, ".."),
             TokenKind::Underscore => write!(f, "_"),
+            TokenKind::Question => write!(f, "?"),
 
             TokenKind::DocComment(s) => write!(f, "DocComment(\"{}\")", s),
             TokenKind::Newline => write!(f, "\\n"),

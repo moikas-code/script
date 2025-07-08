@@ -5,6 +5,7 @@
 
 use crate::runtime::{RuntimeError, ScriptRc};
 use crate::stdlib::{ScriptOption, ScriptString, ScriptValue};
+use crate::error::{Error, Result};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -32,91 +33,129 @@ impl ScriptVec {
 
     /// Get the length of the vector
     pub fn len(&self) -> usize {
-        self.data.read().unwrap().len()
+        self.data.read()
+            .map(|guard| guard.len())
+            .unwrap_or(0) // Return 0 on lock failure rather than panic
     }
 
     /// Check if the vector is empty
     pub fn is_empty(&self) -> bool {
-        self.data.read().unwrap().is_empty()
+        self.data.read()
+            .map(|guard| guard.is_empty())
+            .unwrap_or(true) // Return true on lock failure for safety
     }
 
     /// Push a value to the end of the vector
-    pub fn push(&self, value: ScriptValue) {
-        self.data.write().unwrap().push(value);
+    pub fn push(&self, value: ScriptValue) -> Result<()> {
+        self.data.write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on vector data"))?
+            .push(value);
+        Ok(())
     }
 
     /// Pop a value from the end of the vector
-    pub fn pop(&self) -> Option<ScriptValue> {
-        self.data.write().unwrap().pop()
+    pub fn pop(&self) -> Result<Option<ScriptValue>> {
+        Ok(self.data.write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on vector data"))?
+            .pop())
     }
 
     /// Get a value at an index
-    pub fn get(&self, index: usize) -> Option<ScriptValue> {
-        self.data.read().unwrap().get(index).cloned()
+    pub fn get(&self, index: usize) -> Result<Option<ScriptValue>> {
+        Ok(self.data.read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on vector data"))?
+            .get(index)
+            .cloned())
     }
 
     /// Set a value at an index
     /// Returns true if successful, false if index out of bounds
-    pub fn set(&self, index: usize, value: ScriptValue) -> bool {
-        let mut data = self.data.write().unwrap();
+    pub fn set(&self, index: usize, value: ScriptValue) -> Result<bool> {
+        let mut data = self.data.write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on vector data"))?;
         if index < data.len() {
             data[index] = value;
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 
     /// Insert a value at an index
-    /// Panics if index > len
-    pub fn insert(&self, index: usize, value: ScriptValue) {
-        self.data.write().unwrap().insert(index, value);
+    /// Returns error if index > len or lock fails
+    pub fn insert(&self, index: usize, value: ScriptValue) -> Result<()> {
+        let mut data = self.data.write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on vector data"))?;
+        if index > data.len() {
+            return Err(Error::index_out_of_bounds(index, data.len()));
+        }
+        data.insert(index, value);
+        Ok(())
     }
 
     /// Remove a value at an index
     /// Returns None if index out of bounds
-    pub fn remove(&self, index: usize) -> Option<ScriptValue> {
-        let mut data = self.data.write().unwrap();
+    pub fn remove(&self, index: usize) -> Result<Option<ScriptValue>> {
+        let mut data = self.data.write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on vector data"))?;
         if index < data.len() {
-            Some(data.remove(index))
+            Ok(Some(data.remove(index)))
         } else {
-            None
+            Ok(None)
         }
     }
 
     /// Clear all elements from the vector
-    pub fn clear(&self) {
-        self.data.write().unwrap().clear();
+    pub fn clear(&self) -> Result<()> {
+        self.data.write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on vector data"))?
+            .clear();
+        Ok(())
     }
 
     /// Get the first element
-    pub fn first(&self) -> Option<ScriptValue> {
-        self.data.read().unwrap().first().cloned()
+    pub fn first(&self) -> Result<Option<ScriptValue>> {
+        Ok(self.data.read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on vector data"))?
+            .first()
+            .cloned())
     }
 
     /// Get the last element
-    pub fn last(&self) -> Option<ScriptValue> {
-        self.data.read().unwrap().last().cloned()
+    pub fn last(&self) -> Result<Option<ScriptValue>> {
+        Ok(self.data.read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on vector data"))?
+            .last()
+            .cloned())
     }
 
     /// Check if the vector contains a value
     pub fn contains(&self, value: &ScriptValue) -> bool {
-        self.data.read().unwrap().contains(value)
+        self.data.read()
+            .map(|guard| guard.contains(value))
+            .unwrap_or(false) // Return false on lock failure for safety
     }
 
     /// Find the index of a value
-    pub fn index_of(&self, value: &ScriptValue) -> Option<usize> {
-        self.data.read().unwrap().iter().position(|v| v == value)
+    pub fn index_of(&self, value: &ScriptValue) -> Result<Option<usize>> {
+        Ok(self.data.read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on vector data"))?
+            .iter()
+            .position(|v| v == value))
     }
 
     /// Reverse the vector in place
-    pub fn reverse(&self) {
-        self.data.write().unwrap().reverse();
+    pub fn reverse(&self) -> Result<()> {
+        self.data.write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on vector data"))?
+            .reverse();
+        Ok(())
     }
 
     /// Sort the vector (only works for comparable types)
     pub fn sort(&self) -> Result<(), String> {
-        let mut data = self.data.write().unwrap();
+        let mut data = self.data.write()
+            .map_err(|_| "Failed to acquire write lock on vector data")?;
 
         // Check if all elements are the same comparable type
         if data.is_empty() {
@@ -140,25 +179,32 @@ impl ScriptVec {
         // Sort based on type
         match &data[0] {
             ScriptValue::I32(_) => {
-                data.sort_by(|a, b| a.as_i32().unwrap().cmp(&b.as_i32().unwrap()));
+                data.sort_by(|a, b| {
+                    let a_val = a.as_i32().expect("Type checked to be I32");
+                    let b_val = b.as_i32().expect("Type checked to be I32");
+                    a_val.cmp(&b_val)
+                });
             }
             ScriptValue::F32(_) => {
                 data.sort_by(|a, b| {
-                    a.as_f32()
-                        .unwrap()
-                        .partial_cmp(&b.as_f32().unwrap())
-                        .unwrap()
+                    let a_val = a.as_f32().expect("Type checked to be F32");
+                    let b_val = b.as_f32().expect("Type checked to be F32");
+                    a_val.partial_cmp(&b_val)
+                        .unwrap_or(std::cmp::Ordering::Equal) // Handle NaN gracefully
                 });
             }
             ScriptValue::Bool(_) => {
-                data.sort_by(|a, b| a.as_bool().unwrap().cmp(&b.as_bool().unwrap()));
+                data.sort_by(|a, b| {
+                    let a_val = a.as_bool().expect("Type checked to be Bool");
+                    let b_val = b.as_bool().expect("Type checked to be Bool");
+                    a_val.cmp(&b_val)
+                });
             }
             ScriptValue::String(_) => {
                 data.sort_by(|a, b| {
-                    a.as_string()
-                        .unwrap()
-                        .as_str()
-                        .cmp(&b.as_string().unwrap().as_str())
+                    let a_str = a.as_string().expect("Type checked to be String");
+                    let b_str = b.as_string().expect("Type checked to be String");
+                    a_str.as_str().cmp(&b_str.as_str())
                 });
             }
             _ => return Err("Cannot sort this type".to_string()),
@@ -168,8 +214,10 @@ impl ScriptVec {
     }
 
     /// Convert to a Rust Vec (for internal use)
-    pub fn to_vec(&self) -> Vec<ScriptValue> {
-        self.data.read().unwrap().clone()
+    pub fn to_vec(&self) -> Result<Vec<ScriptValue>> {
+        Ok(self.data.read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on vector data"))?
+            .clone())
     }
 }
 
@@ -181,9 +229,10 @@ impl Default for ScriptVec {
 
 impl PartialEq for ScriptVec {
     fn eq(&self, other: &Self) -> bool {
-        let self_data = self.data.read().unwrap();
-        let other_data = other.data.read().unwrap();
-        *self_data == *other_data
+        match (self.data.read(), other.data.read()) {
+            (Ok(self_data), Ok(other_data)) => *self_data == *other_data,
+            _ => false, // If we can't compare due to lock failure, assume not equal
+        }
     }
 }
 
@@ -205,29 +254,40 @@ impl ScriptHashMap {
 
     /// Get the number of entries
     pub fn len(&self) -> usize {
-        self.data.read().unwrap().len()
+        self.data.read()
+            .map(|guard| guard.len())
+            .unwrap_or(0) // Return 0 on lock failure
     }
 
     /// Check if the map is empty
     pub fn is_empty(&self) -> bool {
-        self.data.read().unwrap().is_empty()
+        self.data.read()
+            .map(|guard| guard.is_empty())
+            .unwrap_or(true) // Return true on lock failure for safety
     }
 
     /// Insert a key-value pair
     /// Returns the previous value if any
-    pub fn insert(&self, key: String, value: ScriptValue) -> Option<ScriptValue> {
-        self.data.write().unwrap().insert(key, value)
+    pub fn insert(&self, key: String, value: ScriptValue) -> Result<Option<ScriptValue>> {
+        Ok(self.data.write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on hash map data"))?
+            .insert(key, value))
     }
 
     /// Get a value by key
-    pub fn get(&self, key: &str) -> Option<ScriptValue> {
-        self.data.read().unwrap().get(key).cloned()
+    pub fn get(&self, key: &str) -> Result<Option<ScriptValue>> {
+        Ok(self.data.read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on hash map data"))?
+            .get(key)
+            .cloned())
     }
 
     /// Remove a key-value pair
     /// Returns the removed value if any
-    pub fn remove(&self, key: &str) -> Option<ScriptValue> {
-        self.data.write().unwrap().remove(key)
+    pub fn remove(&self, key: &str) -> Result<Option<ScriptValue>> {
+        Ok(self.data.write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on hash map data"))?
+            .remove(key))
     }
 
     /// Check if a key exists

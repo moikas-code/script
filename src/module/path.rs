@@ -1,4 +1,5 @@
 use crate::module::{ModuleError, ModuleResult};
+use crate::error::{Error, Result};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -96,7 +97,7 @@ impl ModulePath {
 
     /// Get the module name (last segment)
     pub fn module_name(&self) -> &str {
-        self.segments.last().unwrap()
+        self.segments.last().expect("Module path should have at least one segment - this is guaranteed by constructor validation")
     }
 
     /// Get the parent module path
@@ -227,7 +228,8 @@ impl ImportPath {
         let path = &self.path;
         let mut current = current_module
             .parent()
-            .unwrap_or_else(|| ModulePath::new(vec!["".to_string()], true).unwrap());
+            .unwrap_or_else(|| ModulePath::new(vec!["root".to_string()], true)
+                .expect("Failed to create fallback root module path"));
 
         if path.starts_with("./") {
             let relative_part = &path[2..];
@@ -243,7 +245,8 @@ impl ImportPath {
                 remaining = &remaining[3..];
                 current = current
                     .parent()
-                    .unwrap_or_else(|| ModulePath::new(vec!["".to_string()], true).unwrap());
+                    .unwrap_or_else(|| ModulePath::new(vec!["root".to_string()], true)
+                        .expect("Failed to create fallback root module path"));
             }
 
             if !remaining.is_empty() {
