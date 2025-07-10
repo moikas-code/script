@@ -2,7 +2,7 @@ use super::*;
 use crate::error::Error;
 
 fn scan(input: &str) -> Vec<TokenKind> {
-    let lexer = Lexer::new(input);
+    let lexer = Lexer::new(input).unwrap();
     let (tokens, errors) = lexer.scan_tokens();
 
     assert!(errors.is_empty(), "Unexpected errors: {:?}", errors);
@@ -15,7 +15,7 @@ fn scan(input: &str) -> Vec<TokenKind> {
 }
 
 fn scan_with_errors(input: &str) -> (Vec<TokenKind>, Vec<Error>) {
-    let lexer = Lexer::new(input);
+    let lexer = Lexer::new(input).unwrap();
     let (tokens, errors) = lexer.scan_tokens();
 
     let kinds = tokens
@@ -332,7 +332,7 @@ fn test_whitespace_handling() {
 
 #[test]
 fn test_empty_input() {
-    let lexer = Lexer::new("");
+    let lexer = Lexer::new("").unwrap();
     let (tokens, errors) = lexer.scan_tokens();
 
     assert!(errors.is_empty());
@@ -343,7 +343,7 @@ fn test_empty_input() {
 #[test]
 fn test_source_location_tracking() {
     let input = "let x = 42\nlet y = 3.14";
-    let lexer = Lexer::new(input);
+    let lexer = Lexer::new(input).unwrap();
     let (tokens, _) = lexer.scan_tokens();
 
     // Check first line tokens

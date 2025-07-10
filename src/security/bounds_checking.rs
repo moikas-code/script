@@ -1,12 +1,12 @@
 //! Array bounds checking implementation for Script language
-//! 
+//!
 //! This module provides secure bounds checking for array indexing operations
 //! to prevent buffer overflow vulnerabilities and memory corruption.
 
+use super::{SecurityError, SecurityMetrics};
+use crate::error::{Error, ErrorKind};
 use crate::ir::{Instruction, ValueId};
 use crate::types::Type;
-use crate::error::{Error, ErrorKind};
-use super::{SecurityError, SecurityMetrics};
 
 /// Bounds check configuration with performance optimizations
 #[derive(Debug, Clone)]
@@ -145,10 +145,10 @@ impl BoundsChecker {
     /// Extract array length from type information if available
     fn extract_array_length(&self, array_type: &Type) -> Option<ValueId> {
         match array_type {
-            Type::Array { size, .. } => {
-                // For fixed-size arrays, we can create a constant for the size
-                // This would need to be implemented in the context where ValueId constants are available
-                None // For now, return None - this would be filled in by the caller
+            Type::Array(_element_type) => {
+                // For dynamic arrays, we cannot determine the size from the type alone
+                // The size must be determined at runtime
+                None
             }
             _ => None,
         }
@@ -195,7 +195,9 @@ impl BoundsChecker {
                     // Manage cache size
                     if self.bounds_cache.len() >= self.config.cache_size {
                         // Simple eviction: clear half the cache
-                        let keys_to_remove: Vec<_> = self.bounds_cache.keys()
+                        let keys_to_remove: Vec<_> = self
+                            .bounds_cache
+                            .keys()
                             .take(self.config.cache_size / 2)
                             .cloned()
                             .collect();
@@ -268,7 +270,9 @@ impl BoundsChecker {
         if self.config.enable_fast_path {
             if self.bounds_cache.len() >= self.config.cache_size {
                 // Simple eviction strategy
-                let keys_to_remove: Vec<_> = self.bounds_cache.keys()
+                let keys_to_remove: Vec<_> = self
+                    .bounds_cache
+                    .keys()
                     .take(self.config.cache_size / 2)
                     .cloned()
                     .collect();
@@ -304,7 +308,8 @@ impl BoundsChecker {
 
         if self.config.emit_check_instructions {
             // Generate bounds check instruction
-            let bounds_check = self.generate_bounds_check(array, index, array_type, error_context)?;
+            let bounds_check =
+                self.generate_bounds_check(array, index, array_type, error_context)?;
             instructions.push(bounds_check);
         }
 
@@ -352,24 +357,25 @@ pub fn create_secure_index_instruction(
 
 /// Validate array access safety at compile time
 pub fn validate_array_access_safety(
-    bounds_checker: &BoundsChecker,
+    bounds_checker: &mut BoundsChecker,
     array_size: Option<usize>,
     index_value: Option<i64>,
     context: &str,
 ) -> Result<(), Error> {
     let result = bounds_checker.static_bounds_check(array_size, index_value);
-    
+
     match result {
         BoundsCheckResult::Safe => Ok(()),
-        BoundsCheckResult::OutOfBounds { array_size, attempted_index } => {
-            Err(Error::new(
-                ErrorKind::SecurityViolation,
-                format!(
-                    "Static bounds check failed in {}: index {} out of bounds for array of size {}",
-                    context, attempted_index, array_size
-                ),
-            ))
-        }
+        BoundsCheckResult::OutOfBounds {
+            array_size,
+            attempted_index,
+        } => Err(Error::new(
+            ErrorKind::SecurityViolation,
+            format!(
+                "Static bounds check failed in {}: index {} out of bounds for array of size {}",
+                context, attempted_index, array_size
+            ),
+        )),
         BoundsCheckResult::Unknown => {
             // Cannot determine at compile time - runtime check will be needed
             Ok(())
@@ -428,8 +434,11 @@ mod tests {
         let mut checker = BoundsChecker::new();
         let result = checker.runtime_bounds_check(10, 15, "test");
         assert!(result.is_err());
-        
-        if let Err(SecurityError::BoundsViolation { array_size, index, .. }) = result {
+
+        if let Err(SecurityError::BoundsViolation {
+            array_size, index, ..
+        }) = result
+        {
             assert_eq!(array_size, 10);
             assert_eq!(index, 15);
         } else {
@@ -441,10 +450,10 @@ mod tests {
     fn test_bounds_checker_with_metrics() {
         let metrics = SecurityMetrics::new();
         let mut checker = BoundsChecker::new().with_metrics(metrics);
-        
+
         // Perform a bounds check that should trigger metrics
         let _result = checker.static_bounds_check(Some(10), Some(15));
-        
+
         // The metrics would be recorded in the referenced SecurityMetrics
         // This test mainly verifies the API works
     }
@@ -453,7 +462,7 @@ mod tests {
     fn test_bounds_check_config() {
         let mut config = BoundsCheckConfig::default();
         config.enable_runtime_checks = false;
-        
+
         let checker = BoundsChecker::with_config(config);
         assert!(!checker.config().enable_runtime_checks);
         assert!(checker.config().enable_static_analysis); // Still enabled
@@ -468,11 +477,16 @@ mod tests {
             element: Box::new(Type::I32),
             size: Some(10),
         };
-        
+
         let result = checker.generate_bounds_check(array, index, &array_type, "test context");
         assert!(result.is_ok());
-        
-        if let Ok(Instruction::BoundsCheck { array: check_array, index: check_index, .. }) = result {
+
+        if let Ok(Instruction::BoundsCheck {
+            array: check_array,
+            index: check_index,
+            ..
+        }) = result
+        {
             assert_eq!(check_array, array);
             assert_eq!(check_index, index);
         } else {
@@ -490,15 +504,14 @@ mod tests {
             size: Some(10),
         };
         let element_type = Type::I32;
-        
-        let result = checker.generate_secure_array_access(
-            array, index, &array_type, &element_type, "test"
-        );
+
+        let result =
+            checker.generate_secure_array_access(array, index, &array_type, &element_type, "test");
         assert!(result.is_ok());
-        
+
         let instructions = result.unwrap();
         assert_eq!(instructions.len(), 2); // Bounds check + GetElementPtr
-        
+
         // First instruction should be bounds check
         assert!(matches!(instructions[0], Instruction::BoundsCheck { .. }));
         // Second instruction should be array access

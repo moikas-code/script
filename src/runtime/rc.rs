@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 
 use crate::runtime::gc;
 use crate::runtime::profiler;
-use crate::runtime::type_registry::{self, RegisterableType, TypeId};
+use crate::runtime::type_registry::{self, TypeId};
 
 /// Color states for tri-color marking algorithm
 #[repr(u8)]
@@ -67,7 +67,6 @@ pub struct ScriptWeak<T> {
     ptr: NonNull<RcBox<T>>,
     phantom: PhantomData<RcBox<T>>,
 }
-
 
 impl<T> ScriptRc<T> {
     /// Create a new reference-counted value
@@ -168,7 +167,7 @@ impl<T> ScriptRc<T> {
     /// If there are multiple strong references, this will clone the data.
     pub fn make_mut(&mut self) -> &mut T
     where
-        T: Clone,
+        T: Clone + 'static,
     {
         if self.strong_count() != 1 {
             // Clone the data
@@ -187,7 +186,7 @@ impl<T> ScriptRc<T> {
     }
 
     /// Create a ScriptRc from a raw pointer
-    /// 
+    ///
     /// # Safety
     /// The pointer must have been created by ScriptRc::as_raw and must still be valid.
     /// This increments the reference count.
@@ -195,13 +194,13 @@ impl<T> ScriptRc<T> {
         if ptr.is_null() {
             return None;
         }
-        
+
         let rc_box = ptr as *mut RcBox<T>;
         let non_null = NonNull::new(rc_box)?;
-        
+
         // Increment reference count
         (*rc_box).strong.fetch_add(1, Ordering::Relaxed);
-        
+
         Some(ScriptRc {
             ptr: non_null,
             phantom: PhantomData,
@@ -222,7 +221,10 @@ impl<T> ScriptRc<T> {
     /// Set the color for GC marking
     pub(crate) fn set_color(&self, color: Color) {
         unsafe {
-            self.ptr.as_ref().color.store(color as u8, Ordering::Relaxed);
+            self.ptr
+                .as_ref()
+                .color
+                .store(color as u8, Ordering::Relaxed);
         }
     }
 
@@ -234,7 +236,10 @@ impl<T> ScriptRc<T> {
     /// Mark this object as buffered for cycle detection
     pub(crate) fn set_buffered(&self, buffered: bool) {
         unsafe {
-            self.ptr.as_ref().buffered.store(buffered, Ordering::Relaxed);
+            self.ptr
+                .as_ref()
+                .buffered
+                .store(buffered, Ordering::Relaxed);
         }
     }
 
@@ -280,7 +285,7 @@ impl<T: ?Sized> Drop for ScriptRc<T> {
         unsafe {
             // Use atomic operations to prevent race conditions
             let old_strong = self.ptr.as_ref().strong.fetch_sub(1, Ordering::Release);
-            
+
             if old_strong == 1 {
                 // This was the last strong reference
                 std::sync::atomic::fence(Ordering::Acquire);
@@ -300,13 +305,19 @@ impl<T: ?Sized> Drop for ScriptRc<T> {
                     if current_weak == 0 {
                         break; // Another thread already handled deallocation
                     }
-                    
-                    if self.ptr.as_ref().weak.compare_exchange_weak(
-                        current_weak,
-                        current_weak - 1,
-                        Ordering::Release,
-                        Ordering::Relaxed,
-                    ).is_ok() {
+
+                    if self
+                        .ptr
+                        .as_ref()
+                        .weak
+                        .compare_exchange_weak(
+                            current_weak,
+                            current_weak - 1,
+                            Ordering::Release,
+                            Ordering::Relaxed,
+                        )
+                        .is_ok()
+                    {
                         if current_weak == 1 {
                             // This was the last weak reference too, deallocate
                             std::sync::atomic::fence(Ordering::Acquire);
@@ -314,7 +325,10 @@ impl<T: ?Sized> Drop for ScriptRc<T> {
                             let layout = std::alloc::Layout::for_value(&**self);
 
                             // Notify profiler of deallocation
-                            profiler::record_deallocation(layout.size(), std::any::type_name::<T>());
+                            profiler::record_deallocation(
+                                layout.size(),
+                                std::any::type_name::<T>(),
+                            );
 
                             std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
                         }
@@ -385,6 +399,12 @@ impl<T: ?Sized + Hash> Hash for ScriptRc<T> {
     }
 }
 
+impl<T: ?Sized> AsRef<T> for ScriptRc<T> {
+    fn as_ref(&self) -> &T {
+        &**self
+    }
+}
+
 // Safety: ScriptRc can be Send if T is Send + Sync because we use atomic operations
 // for reference counting and the internal operations are thread-safe
 unsafe impl<T: ?Sized + Send + Sync> Send for ScriptRc<T> {}
@@ -414,10 +434,10 @@ impl<T> ScriptWeak<T> {
         // Use a retry loop with exponential backoff to handle race conditions
         let mut retries = 0;
         const MAX_RETRIES: usize = 10;
-        
+
         loop {
             let strong = inner.strong.load(Ordering::Acquire);
-            
+
             if strong == 0 {
                 return None; // Object has been deallocated
             }
@@ -425,7 +445,7 @@ impl<T> ScriptWeak<T> {
             // Use acquire ordering to synchronize with release in drop
             match inner.strong.compare_exchange_weak(
                 strong,
-                strong.checked_add(1)?,  // Prevent overflow
+                strong.checked_add(1)?, // Prevent overflow
                 Ordering::Acquire,
                 Ordering::Relaxed,
             ) {
@@ -441,7 +461,7 @@ impl<T> ScriptWeak<T> {
                     if retries >= MAX_RETRIES {
                         return None; // Give up after too many retries
                     }
-                    
+
                     // Exponential backoff to reduce contention
                     if retries > 3 {
                         std::thread::yield_now();
@@ -504,12 +524,16 @@ impl<T> Drop for ScriptWeak<T> {
                     break; // Already deallocated by another thread
                 }
 
-                if inner.weak.compare_exchange_weak(
-                    current_weak,
-                    current_weak - 1,
-                    Ordering::Release,
-                    Ordering::Relaxed,
-                ).is_ok() {
+                if inner
+                    .weak
+                    .compare_exchange_weak(
+                        current_weak,
+                        current_weak - 1,
+                        Ordering::Release,
+                        Ordering::Relaxed,
+                    )
+                    .is_ok()
+                {
                     if current_weak == 1 {
                         // This was the last weak reference, check for deallocation
                         std::sync::atomic::fence(Ordering::Acquire);
@@ -520,7 +544,10 @@ impl<T> Drop for ScriptWeak<T> {
                                 let layout = std::alloc::Layout::for_value(&*self.ptr.as_ptr());
 
                                 // Notify profiler of deallocation
-                                profiler::record_deallocation(layout.size(), std::any::type_name::<T>());
+                                profiler::record_deallocation(
+                                    layout.size(),
+                                    std::any::type_name::<T>(),
+                                );
 
                                 std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
                             }

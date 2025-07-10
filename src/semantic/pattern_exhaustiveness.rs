@@ -4,10 +4,10 @@
 //! cover all possible cases, ensuring no runtime panics from missing patterns.
 
 use crate::parser::{Literal, MatchArm, Pattern, PatternKind};
+use crate::semantic::symbol::EnumInfo;
+use crate::semantic::{SymbolKind, SymbolTable};
 use crate::source::Span;
 use crate::types::Type;
-use crate::semantic::{SymbolTable, SymbolKind};
-use crate::semantic::symbol::EnumInfo;
 use std::collections::HashSet;
 
 /// Result of exhaustiveness checking
@@ -64,7 +64,8 @@ pub fn check_exhaustiveness(
 
     // Simple exhaustiveness check for now
     // TODO: Implement full pattern exhaustiveness algorithm
-    let is_exhaustive = has_wildcard || check_simple_exhaustiveness(arms, scrutinee_type, symbol_table);
+    let is_exhaustive =
+        has_wildcard || check_simple_exhaustiveness(arms, scrutinee_type, symbol_table);
 
     // Find redundant patterns
     let redundant_patterns = find_redundant_patterns(arms);
@@ -88,7 +89,11 @@ pub fn check_exhaustiveness(
 }
 
 /// Simple exhaustiveness check for basic types
-fn check_simple_exhaustiveness(arms: &[MatchArm], scrutinee_type: &Type, symbol_table: &SymbolTable) -> bool {
+fn check_simple_exhaustiveness(
+    arms: &[MatchArm],
+    scrutinee_type: &Type,
+    symbol_table: &SymbolTable,
+) -> bool {
     match scrutinee_type {
         Type::Bool => {
             // Check if both true and false are covered
@@ -145,21 +150,19 @@ fn check_simple_exhaustiveness(arms: &[MatchArm], scrutinee_type: &Type, symbol_
 /// Check if enum patterns are exhaustive
 fn check_enum_exhaustiveness(arms: &[MatchArm], enum_name: &str, enum_info: &EnumInfo) -> bool {
     use std::collections::HashSet;
-    
+
     // Collect all variant names
-    let all_variants: HashSet<&str> = enum_info.variants.iter()
-        .map(|v| v.name.as_str())
-        .collect();
-    
+    let all_variants: HashSet<&str> = enum_info.variants.iter().map(|v| v.name.as_str()).collect();
+
     // Track which variants are covered
     let mut covered_variants = HashSet::new();
-    
+
     for arm in arms {
         // Skip patterns with guards as they don't guarantee coverage
         if arm.guard.is_some() {
             continue;
         }
-        
+
         match &arm.pattern.kind {
             PatternKind::EnumConstructor { variant, .. } => {
                 covered_variants.insert(variant.as_str());
@@ -181,7 +184,7 @@ fn check_enum_exhaustiveness(arms: &[MatchArm], enum_name: &str, enum_info: &Enu
             }
         }
     }
-    
+
     // Check if all variants are covered
     all_variants == covered_variants
 }
@@ -190,15 +193,17 @@ fn check_enum_exhaustiveness(arms: &[MatchArm], enum_name: &str, enum_info: &Enu
 fn check_result_exhaustiveness(arms: &[MatchArm]) -> bool {
     let mut has_ok = false;
     let mut has_err = false;
-    
+
     for arm in arms {
         // Skip patterns with guards as they don't guarantee coverage
         if arm.guard.is_some() {
             continue;
         }
-        
+
         match &arm.pattern.kind {
-            PatternKind::EnumConstructor { enum_name, variant, .. } => {
+            PatternKind::EnumConstructor {
+                enum_name, variant, ..
+            } => {
                 // Check if this is a Result variant
                 if enum_name.as_deref() == Some("Result") || variant == "Ok" || variant == "Err" {
                     match variant.as_str() {
@@ -229,7 +234,7 @@ fn check_result_exhaustiveness(arms: &[MatchArm]) -> bool {
             }
         }
     }
-    
+
     has_ok && has_err
 }
 
@@ -237,17 +242,20 @@ fn check_result_exhaustiveness(arms: &[MatchArm]) -> bool {
 fn check_option_exhaustiveness(arms: &[MatchArm]) -> bool {
     let mut has_some = false;
     let mut has_none = false;
-    
+
     for arm in arms {
         // Skip patterns with guards as they don't guarantee coverage
         if arm.guard.is_some() {
             continue;
         }
-        
+
         match &arm.pattern.kind {
-            PatternKind::EnumConstructor { enum_name, variant, .. } => {
+            PatternKind::EnumConstructor {
+                enum_name, variant, ..
+            } => {
                 // Check if this is an Option variant
-                if enum_name.as_deref() == Some("Option") || variant == "Some" || variant == "None" {
+                if enum_name.as_deref() == Some("Option") || variant == "Some" || variant == "None"
+                {
                     match variant.as_str() {
                         "Some" => has_some = true,
                         "None" => has_none = true,
@@ -276,7 +284,7 @@ fn check_option_exhaustiveness(arms: &[MatchArm]) -> bool {
             }
         }
     }
-    
+
     has_some && has_none
 }
 
@@ -337,8 +345,18 @@ fn pattern_subsumes(pattern1: &Pattern, pattern2: &Pattern) -> bool {
         }
 
         // Enum constructor patterns
-        (PatternKind::EnumConstructor { enum_name: en1, variant: v1, args: args1 }, 
-         PatternKind::EnumConstructor { enum_name: en2, variant: v2, args: args2 }) => {
+        (
+            PatternKind::EnumConstructor {
+                enum_name: en1,
+                variant: v1,
+                args: args1,
+            },
+            PatternKind::EnumConstructor {
+                enum_name: en2,
+                variant: v2,
+                args: args2,
+            },
+        ) => {
             // Must be the same variant
             v1 == v2 && en1 == en2 &&
             // And arguments must match
@@ -367,7 +385,11 @@ fn pattern_subsumes(pattern1: &Pattern, pattern2: &Pattern) -> bool {
 }
 
 /// Generate descriptions of missing patterns
-fn generate_missing_patterns(arms: &[MatchArm], scrutinee_type: &Type, symbol_table: &SymbolTable) -> Vec<String> {
+fn generate_missing_patterns(
+    arms: &[MatchArm],
+    scrutinee_type: &Type,
+    symbol_table: &SymbolTable,
+) -> Vec<String> {
     let mut missing = Vec::new();
 
     match scrutinee_type {
@@ -407,20 +429,19 @@ fn generate_missing_patterns(arms: &[MatchArm], scrutinee_type: &Type, symbol_ta
         Type::Result { .. } => {
             let mut has_ok = false;
             let mut has_err = false;
-            
+
             for arm in arms {
                 if arm.guard.is_none() {
                     match &arm.pattern.kind {
-                        PatternKind::EnumConstructor { variant, .. } => {
-                            match variant.as_str() {
-                                "Ok" => has_ok = true,
-                                "Err" => has_err = true,
-                                _ => {}
-                            }
-                        }
+                        PatternKind::EnumConstructor { variant, .. } => match variant.as_str() {
+                            "Ok" => has_ok = true,
+                            "Err" => has_err = true,
+                            _ => {}
+                        },
                         PatternKind::Or(patterns) => {
                             for pattern in patterns {
-                                if let PatternKind::EnumConstructor { variant, .. } = &pattern.kind {
+                                if let PatternKind::EnumConstructor { variant, .. } = &pattern.kind
+                                {
                                     match variant.as_str() {
                                         "Ok" => has_ok = true,
                                         "Err" => has_err = true,
@@ -433,7 +454,7 @@ fn generate_missing_patterns(arms: &[MatchArm], scrutinee_type: &Type, symbol_ta
                     }
                 }
             }
-            
+
             if !has_ok {
                 missing.push("Ok(_)".to_string());
             }
@@ -444,20 +465,19 @@ fn generate_missing_patterns(arms: &[MatchArm], scrutinee_type: &Type, symbol_ta
         Type::Option(_) => {
             let mut has_some = false;
             let mut has_none = false;
-            
+
             for arm in arms {
                 if arm.guard.is_none() {
                     match &arm.pattern.kind {
-                        PatternKind::EnumConstructor { variant, .. } => {
-                            match variant.as_str() {
-                                "Some" => has_some = true,
-                                "None" => has_none = true,
-                                _ => {}
-                            }
-                        }
+                        PatternKind::EnumConstructor { variant, .. } => match variant.as_str() {
+                            "Some" => has_some = true,
+                            "None" => has_none = true,
+                            _ => {}
+                        },
                         PatternKind::Or(patterns) => {
                             for pattern in patterns {
-                                if let PatternKind::EnumConstructor { variant, .. } = &pattern.kind {
+                                if let PatternKind::EnumConstructor { variant, .. } = &pattern.kind
+                                {
                                     match variant.as_str() {
                                         "Some" => has_some = true,
                                         "None" => has_none = true,
@@ -470,7 +490,7 @@ fn generate_missing_patterns(arms: &[MatchArm], scrutinee_type: &Type, symbol_ta
                     }
                 }
             }
-            
+
             if !has_some {
                 missing.push("Some(_)".to_string());
             }
@@ -484,7 +504,7 @@ fn generate_missing_patterns(arms: &[MatchArm], scrutinee_type: &Type, symbol_ta
                 if let SymbolKind::Enum(enum_info) = &symbol.kind {
                     // Find missing enum variants
                     let mut covered_variants = HashSet::new();
-                    
+
                     for arm in arms {
                         if arm.guard.is_none() {
                             match &arm.pattern.kind {
@@ -493,7 +513,9 @@ fn generate_missing_patterns(arms: &[MatchArm], scrutinee_type: &Type, symbol_ta
                                 }
                                 PatternKind::Or(patterns) => {
                                     for pattern in patterns {
-                                        if let PatternKind::EnumConstructor { variant, .. } = &pattern.kind {
+                                        if let PatternKind::EnumConstructor { variant, .. } =
+                                            &pattern.kind
+                                        {
                                             covered_variants.insert(variant.as_str());
                                         }
                                     }
@@ -502,7 +524,7 @@ fn generate_missing_patterns(arms: &[MatchArm], scrutinee_type: &Type, symbol_ta
                             }
                         }
                     }
-                    
+
                     // Generate missing patterns for uncovered variants
                     for variant_info in &enum_info.variants {
                         if !covered_variants.contains(variant_info.name.as_str()) {
@@ -520,7 +542,7 @@ fn generate_missing_patterns(arms: &[MatchArm], scrutinee_type: &Type, symbol_ta
                             missing.push(pattern);
                         }
                     }
-                    
+
                     // If no specific variants are missing, suggest wildcard
                     if missing.is_empty() {
                         missing.push("_ (wildcard pattern)".to_string());
@@ -568,6 +590,7 @@ mod tests {
         Expr {
             kind: ExprKind::Literal(Literal::Number(0.0)),
             span: dummy_span(),
+            id: 0,
         }
     }
 
@@ -676,8 +699,8 @@ mod tests {
 
     #[test]
     fn test_enum_exhaustiveness() {
-        use crate::semantic::symbol::{SymbolId, EnumVariantInfo, EnumVariantType};
-        
+        use crate::semantic::symbol::{EnumVariantInfo, EnumVariantType, SymbolId};
+
         // Create a simple Option enum
         let mut symbol_table = SymbolTable::new();
         let enum_info = EnumInfo {
@@ -694,10 +717,12 @@ mod tests {
             ],
             where_clause: None,
         };
-        
+
         // Register the enum
-        symbol_table.define_enum("Option".to_string(), enum_info, dummy_span()).unwrap();
-        
+        symbol_table
+            .define_enum("Option".to_string(), enum_info, dummy_span())
+            .unwrap();
+
         // Test exhaustive patterns
         let arms = vec![
             MatchArm {
@@ -728,16 +753,21 @@ mod tests {
                 body: dummy_expr(),
             },
         ];
-        
-        let result = check_exhaustiveness(&arms, &Type::Named("Option".to_string()), dummy_span(), &symbol_table);
+
+        let result = check_exhaustiveness(
+            &arms,
+            &Type::Named("Option".to_string()),
+            dummy_span(),
+            &symbol_table,
+        );
         assert!(result.is_exhaustive);
         assert!(result.missing_patterns.is_empty());
     }
 
     #[test]
     fn test_enum_non_exhaustive() {
-        use crate::semantic::symbol::{SymbolId, EnumVariantInfo, EnumVariantType};
-        
+        use crate::semantic::symbol::{EnumVariantInfo, EnumVariantType, SymbolId};
+
         // Create a Result enum
         let mut symbol_table = SymbolTable::new();
         let enum_info = EnumInfo {
@@ -754,29 +784,34 @@ mod tests {
             ],
             where_clause: None,
         };
-        
-        symbol_table.define_enum("Result".to_string(), enum_info, dummy_span()).unwrap();
-        
+
+        symbol_table
+            .define_enum("Result".to_string(), enum_info, dummy_span())
+            .unwrap();
+
         // Test non-exhaustive patterns (only Ok case)
-        let arms = vec![
-            MatchArm {
-                pattern: Pattern {
-                    kind: PatternKind::EnumConstructor {
-                        enum_name: None,
-                        variant: "Ok".to_string(),
-                        args: Some(vec![Pattern {
-                            kind: PatternKind::Identifier("value".to_string()),
-                            span: dummy_span(),
-                        }]),
-                    },
-                    span: dummy_span(),
+        let arms = vec![MatchArm {
+            pattern: Pattern {
+                kind: PatternKind::EnumConstructor {
+                    enum_name: None,
+                    variant: "Ok".to_string(),
+                    args: Some(vec![Pattern {
+                        kind: PatternKind::Identifier("value".to_string()),
+                        span: dummy_span(),
+                    }]),
                 },
-                guard: None,
-                body: dummy_expr(),
+                span: dummy_span(),
             },
-        ];
-        
-        let result = check_exhaustiveness(&arms, &Type::Named("Result".to_string()), dummy_span(), &symbol_table);
+            guard: None,
+            body: dummy_expr(),
+        }];
+
+        let result = check_exhaustiveness(
+            &arms,
+            &Type::Named("Result".to_string()),
+            dummy_span(),
+            &symbol_table,
+        );
         assert!(!result.is_exhaustive);
         assert_eq!(result.missing_patterns.len(), 1);
         assert_eq!(result.missing_patterns[0], "Err(_)");
@@ -784,8 +819,8 @@ mod tests {
 
     #[test]
     fn test_enum_with_or_patterns() {
-        use crate::semantic::symbol::{SymbolId, EnumVariantInfo, EnumVariantType};
-        
+        use crate::semantic::symbol::{EnumVariantInfo, EnumVariantType, SymbolId};
+
         // Create an enum with multiple variants
         let mut symbol_table = SymbolTable::new();
         let enum_info = EnumInfo {
@@ -806,9 +841,11 @@ mod tests {
             ],
             where_clause: None,
         };
-        
-        symbol_table.define_enum("ABC".to_string(), enum_info, dummy_span()).unwrap();
-        
+
+        symbol_table
+            .define_enum("ABC".to_string(), enum_info, dummy_span())
+            .unwrap();
+
         // Test with or-pattern covering multiple variants
         let arms = vec![
             MatchArm {
@@ -849,8 +886,13 @@ mod tests {
                 body: dummy_expr(),
             },
         ];
-        
-        let result = check_exhaustiveness(&arms, &Type::Named("ABC".to_string()), dummy_span(), &symbol_table);
+
+        let result = check_exhaustiveness(
+            &arms,
+            &Type::Named("ABC".to_string()),
+            dummy_span(),
+            &symbol_table,
+        );
         assert!(result.is_exhaustive);
     }
 }

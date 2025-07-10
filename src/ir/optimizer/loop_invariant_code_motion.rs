@@ -224,6 +224,63 @@ impl LoopInvariantCodeMotion {
             }
             // Constants are always loop invariant
             Instruction::Const(_) => true,
+            
+            // Struct operations
+            Instruction::AllocStruct { .. } => false, // Allocation has side effects
+            Instruction::ConstructStruct { fields, .. } => {
+                // Constructor is invariant if all field values are invariant
+                fields.iter().all(|(_, value)| {
+                    self.is_value_loop_invariant(*value, defined_in_loop, current_invariants)
+                })
+            }
+            
+            // Enum operations
+            Instruction::AllocEnum { .. } => false, // Allocation has side effects
+            Instruction::ConstructEnum { args, .. } => {
+                // Enum constructor is invariant if all arguments are invariant
+                args.iter().all(|value| {
+                    self.is_value_loop_invariant(*value, defined_in_loop, current_invariants)
+                })
+            }
+            Instruction::GetEnumTag { enum_value, .. } => {
+                self.is_value_loop_invariant(*enum_value, defined_in_loop, current_invariants)
+            }
+            Instruction::SetEnumTag { .. } => false, // Has side effects
+            Instruction::ExtractEnumData { enum_value, .. } => {
+                self.is_value_loop_invariant(*enum_value, defined_in_loop, current_invariants)
+            }
+            
+            // Async operations - generally not invariant due to state changes
+            Instruction::Suspend { .. } => false,
+            Instruction::PollFuture { .. } => false,
+            Instruction::CreateAsyncState { .. } => false,
+            Instruction::StoreAsyncState { .. } => false,
+            Instruction::LoadAsyncState { state_ptr, .. } => {
+                self.is_value_loop_invariant(*state_ptr, defined_in_loop, current_invariants)
+            }
+            Instruction::GetAsyncState { state_ptr, .. } => {
+                self.is_value_loop_invariant(*state_ptr, defined_in_loop, current_invariants)
+            }
+            Instruction::SetAsyncState { .. } => false,
+            
+            // Security operations
+            Instruction::BoundsCheck { array, index, length, .. } => {
+                self.is_value_loop_invariant(*array, defined_in_loop, current_invariants) &&
+                self.is_value_loop_invariant(*index, defined_in_loop, current_invariants) &&
+                length.map_or(true, |len| self.is_value_loop_invariant(len, defined_in_loop, current_invariants))
+            }
+            Instruction::ValidateFieldAccess { object, .. } => {
+                self.is_value_loop_invariant(*object, defined_in_loop, current_invariants)
+            }
+            
+            // Error handling
+            Instruction::ErrorPropagation { value, .. } => {
+                self.is_value_loop_invariant(*value, defined_in_loop, current_invariants)
+            }
+            
+            // Closure operations
+            Instruction::CreateClosure { .. } => false, // Closure creation has side effects
+            Instruction::InvokeClosure { .. } => false, // Closure invocation has side effects
         }
     }
 
@@ -286,7 +343,7 @@ impl LoopInvariantCodeMotion {
     /// Move an instruction to the preheader
     fn move_instruction_to_preheader(
         &self,
-        function: &mut Function,
+        _function: &mut Function,
         from_block: BlockId,
         value_id: ValueId,
         to_block: BlockId,

@@ -113,6 +113,17 @@ impl DeadCodeElimination {
                     Instruction::CondBranch { condition, .. } => {
                         used.insert(*condition);
                     }
+                    Instruction::CreateClosure { captured_vars, .. } => {
+                        for (_, value) in captured_vars {
+                            used.insert(*value);
+                        }
+                    }
+                    Instruction::InvokeClosure { closure, args, .. } => {
+                        used.insert(*closure);
+                        for arg in args {
+                            used.insert(*arg);
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -144,11 +155,42 @@ impl DeadCodeElimination {
             Instruction::GetElementPtr { .. } => false,
             Instruction::GetFieldPtr { .. } => false, // Field pointer calculation has no side effects
             Instruction::Phi { .. } => false,
+
+            // Struct operations
+            Instruction::AllocStruct { .. } => false, // Allocation has no side effects
+            Instruction::ConstructStruct { .. } => false, // Construction has no side effects
+
+            // Enum operations
+            Instruction::AllocEnum { .. } => false, // Allocation has no side effects
+            Instruction::ConstructEnum { .. } => false, // Construction has no side effects
+            Instruction::GetEnumTag { .. } => false, // Tag reading has no side effects
+            Instruction::SetEnumTag { .. } => true, // Tag modification has side effects
+            Instruction::ExtractEnumData { .. } => false, // Data extraction has no side effects
+
+            // Async operations
+            Instruction::Suspend { .. } => true, // Suspension has side effects (modifies execution state)
+            Instruction::PollFuture { .. } => true, // Polling has side effects (may modify future state)
+            Instruction::CreateAsyncState { .. } => false, // State creation has no side effects
+            Instruction::StoreAsyncState { .. } => true, // State modification has side effects
+            Instruction::LoadAsyncState { .. } => false, // State loading has no side effects
+            Instruction::GetAsyncState { .. } => false, // Getting state has no side effects
+            Instruction::SetAsyncState { .. } => true, // Setting state has side effects
+
+            // Security operations
+            Instruction::BoundsCheck { .. } => false, // Bounds checking has no side effects (just returns bool)
+            Instruction::ValidateFieldAccess { .. } => false, // Field validation has no side effects
+
+            // Error handling
+            Instruction::ErrorPropagation { .. } => true, // Error propagation may cause early return
+
+            // Closure operations
+            Instruction::CreateClosure { .. } => false, // Creating a closure has no side effects
+            Instruction::InvokeClosure { .. } => true, // Invoking a closure has side effects (function call)
         }
     }
 
     /// Remove unreachable blocks from a function
-    fn remove_unreachable_blocks(&mut self, function: &mut Function) -> bool {
+    fn remove_unreachable_blocks(&mut self, _function: &mut Function) -> bool {
         // For now, we can't actually remove blocks because the blocks field is private
         // We'll mark this as a TODO and just return false
         // TODO: Add a public API to remove blocks from Function

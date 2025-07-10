@@ -1,0 +1,23 @@
+// Test error propagation operator (?)
+
+fn may_fail(x: i32) -> Result<i32, string> {
+    if x > 0 {
+        Ok(x * 2)
+    } else {
+        Err("Negative number not allowed")
+    }
+}
+
+fn process_values(a: i32, b: i32) -> Result<i32, string> {
+    let result_a = may_fail(a)?;
+    let result_b = may_fail(b)?;
+    Ok(result_a + result_b)
+}
+
+// Test with positive values
+let success_result = process_values(5, 3);
+println("Success: ", success_result);
+
+// Test with negative value (should propagate error) 
+let error_result = process_values(-1, 3);
+println("Error handling: ", error_result);

@@ -1,12 +1,12 @@
 //! Property-based tests for generic types
-//! 
+//!
 //! These tests use proptest to verify properties of the generic type system
 
 #[path = "../utils/mod.rs"]
 mod utils;
 
-use utils::generic_test_helpers::*;
 use proptest::prelude::*;
+use utils::generic_test_helpers::*;
 
 /// Type representing a simple generic type instantiation
 #[derive(Clone, Debug)]
@@ -37,7 +37,7 @@ impl TypeArg {
 impl GenericTypeInstance {
     fn strategy() -> impl Strategy<Value = Self> {
         let type_names = ["Box", "Option", "Result", "Vec", "Pair"];
-        
+
         prop_oneof![
             Just("Box").prop_map(|name| (name, 1)),
             Just("Option").prop_map(|name| (name, 1)),
@@ -46,11 +46,12 @@ impl GenericTypeInstance {
             Just("Pair").prop_map(|name| (name, 2)),
         ]
         .prop_flat_map(|(type_name, arg_count)| {
-            proptest::collection::vec(TypeArg::strategy(), arg_count)
-                .prop_map(move |type_args| GenericTypeInstance {
+            proptest::collection::vec(TypeArg::strategy(), arg_count).prop_map(move |type_args| {
+                GenericTypeInstance {
                     type_name: type_name.to_string(),
                     type_args,
-                })
+                }
+            })
         })
     }
 }
@@ -87,25 +88,32 @@ fn generate_instance_code(instance: &GenericTypeInstance, var_name: &str, seed: 
             if seed % 2 == 0 {
                 format!("let {} = Option::Some({});", var_name, value)
             } else {
-                format!("let {}: Option<{}> = Option::None;", 
-                    var_name, type_arg_to_script(&instance.type_args[0]))
+                format!(
+                    "let {}: Option<{}> = Option::None;",
+                    var_name,
+                    type_arg_to_script(&instance.type_args[0])
+                )
             }
         }
         "Result" => {
             let ok_value = type_arg_to_value(&instance.type_args[0], seed);
             let err_value = type_arg_to_value(&instance.type_args[1], seed + 1);
             if seed % 2 == 0 {
-                format!("let {}: Result<{}, {}> = Result::Ok({});", 
-                    var_name, 
-                    type_arg_to_script(&instance.type_args[0]),
-                    type_arg_to_script(&instance.type_args[1]),
-                    ok_value)
-            } else {
-                format!("let {}: Result<{}, {}> = Result::Err({});", 
+                format!(
+                    "let {}: Result<{}, {}> = Result::Ok({});",
                     var_name,
                     type_arg_to_script(&instance.type_args[0]),
                     type_arg_to_script(&instance.type_args[1]),
-                    err_value)
+                    ok_value
+                )
+            } else {
+                format!(
+                    "let {}: Result<{}, {}> = Result::Err({});",
+                    var_name,
+                    type_arg_to_script(&instance.type_args[0]),
+                    type_arg_to_script(&instance.type_args[1]),
+                    err_value
+                )
             }
         }
         "Vec" => {
@@ -113,16 +121,22 @@ fn generate_instance_code(instance: &GenericTypeInstance, var_name: &str, seed: 
             let values: Vec<String> = (0..3)
                 .map(|i| type_arg_to_value(&instance.type_args[0], seed + i))
                 .collect();
-            format!("let {} = Vec::<{}> {{ data: [{}], len: 3 }};", 
-                var_name, elem_type, values.join(", "))
+            format!(
+                "let {} = Vec::<{}> {{ data: [{}], len: 3 }};",
+                var_name,
+                elem_type,
+                values.join(", ")
+            )
         }
         "Pair" => {
             let first = type_arg_to_value(&instance.type_args[0], seed);
             let second = type_arg_to_value(&instance.type_args[1], seed + 1);
-            format!("let {} = Pair {{ first: {}, second: {} }};", 
-                var_name, first, second)
+            format!(
+                "let {} = Pair {{ first: {}, second: {} }};",
+                var_name, first, second
+            )
         }
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 
@@ -134,27 +148,27 @@ proptest! {
         if instances.is_empty() {
             return Ok(());
         }
-        
+
         let mut code = String::new();
-        
+
         // Add type definitions
         code.push_str("struct Box<T> { value: T }\n");
         code.push_str("enum Option<T> { Some(T), None }\n");
         code.push_str("enum Result<T, E> { Ok(T), Err(E) }\n");
         code.push_str("struct Vec<T> { data: [T], len: i32 }\n");
         code.push_str("struct Pair<A, B> { first: A, second: B }\n\n");
-        
+
         code.push_str("fn main() {\n");
-        
+
         // Generate instances
         for (i, instance) in instances.iter().enumerate() {
             code.push_str("    ");
             code.push_str(&generate_instance_code(instance, &format!("v{}", i), i));
             code.push_str("\n");
         }
-        
+
         code.push_str("}\n");
-        
+
         // Try to compile
         match compile_generic_program(&code) {
             Ok(program) => prop_assert!(program.errors.is_empty()),
@@ -178,7 +192,7 @@ proptest! {
             type_arg_to_value(&type_arg, 1),
             type_arg_to_value(&type_arg, 2)
         );
-        
+
         match compile_generic_program(&code) {
             Ok(program) => {
                 // Should create only one monomorphized instance
@@ -205,7 +219,7 @@ proptest! {
                 }};
             }}
         "#, type_arg_to_value(&inner, 42));
-        
+
         match compile_generic_program(&code) {
             Ok(program) => prop_assert!(program.errors.is_empty()),
             Err(_) => prop_assert!(false, "Failed to compile nested generics"),
@@ -219,11 +233,11 @@ proptest! {
         if args.is_empty() {
             return Ok(());
         }
-        
+
         let mut code = String::new();
         code.push_str("fn identity<T>(x: T) -> T { x }\n\n");
         code.push_str("fn main() {\n");
-        
+
         for (i, arg) in args.iter().enumerate() {
             code.push_str(&format!(
                 "    let result{} = identity({});\n",
@@ -231,9 +245,9 @@ proptest! {
                 type_arg_to_value(arg, i)
             ));
         }
-        
+
         code.push_str("}\n");
-        
+
         match compile_generic_program(&code) {
             Ok(program) => {
                 // Should create one monomorphization per unique type
@@ -256,7 +270,7 @@ proptest! {
     ) {
         let value = type_arg_to_value(&type_arg, 99);
         let type_name = type_arg_to_script(&type_arg);
-        
+
         let code = if use_annotation {
             format!(r#"
                 struct Wrapper<T> {{ value: T }}
@@ -274,7 +288,7 @@ proptest! {
                 }}
             "#, value)
         };
-        
+
         // Both versions should compile to the same result
         prop_assert!(compile_generic_program(&code).is_ok());
     }
@@ -282,7 +296,7 @@ proptest! {
     #[test]
     fn prop_referential_transparency(seed in 0u32..1000) {
         let value = seed % 100;
-        
+
         let code = format!(r#"
             struct Box<T> {{ value: T }}
             
@@ -296,7 +310,7 @@ proptest! {
                 // b1 and b2 should have the same type
             }}
         "#, value, value);
-        
+
         prop_assert!(compile_generic_program(&code).is_ok());
     }
 }
@@ -308,14 +322,17 @@ fn test_property_tests_work() {
         type_name: "Box".to_string(),
         type_args: vec![TypeArg::I32],
     };
-    
-    let code = format!(r#"
+
+    let code = format!(
+        r#"
         struct Box<T> {{ value: T }}
         
         fn main() {{
             {}
         }}
-    "#, generate_instance_code(&instance, "test", 0));
-    
+    "#,
+        generate_instance_code(&instance, "test", 0)
+    );
+
     assert!(compile_generic_program(&code).is_ok());
 }

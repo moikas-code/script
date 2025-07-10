@@ -28,7 +28,7 @@ impl DocGenerator {
         self.current_module = module_name.to_string();
 
         // Create module entry
-        let module = self
+        let _module = self
             .database
             .modules
             .entry(module_name.to_string())
@@ -79,7 +79,7 @@ impl DocGenerator {
     ) -> Result<()> {
         self.current_module = module_name.to_string();
 
-        let module = self
+        let _module = self
             .database
             .modules
             .entry(module_name.to_string())

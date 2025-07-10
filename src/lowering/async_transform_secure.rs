@@ -448,7 +448,7 @@ fn analyze_local_variables(func: &Function) -> AsyncTransformResult<Vec<(String,
                     let var_name = format!("__local_{}", local_vars.len());
                     local_vars.push((var_name, ty.clone()));
                 }
-                Instruction::Call { function, .. } => {
+                Instruction::Call { func, .. } => {
                     // Function calls might need temporary storage
                     let temp_name = format!("__temp_call_{}", local_vars.len());
                     local_vars.push((temp_name, Type::Unknown));
@@ -817,33 +817,33 @@ fn transform_instruction_values(
     context: &AsyncTransformContext,
 ) -> AsyncTransformResult<Instruction> {
     match inst {
-        Instruction::Binary { op, left, right, ty } => {
+        Instruction::Binary { op, lhs, rhs, ty } => {
             Ok(Instruction::Binary {
                 op: *op,
-                left: context.get_mapped_value(*left),
-                right: context.get_mapped_value(*right),
+                lhs: context.get_mapped_value(*lhs),
+                rhs: context.get_mapped_value(*rhs),
                 ty: ty.clone(),
             })
         }
-        Instruction::Call { function, args } => {
-            let mapped_function = context.get_mapped_value(*function);
+        Instruction::Call { func, args, ty } => {
             let mapped_args: Vec<ValueId> = args.iter()
                 .map(|arg| context.get_mapped_value(*arg))
                 .collect();
             Ok(Instruction::Call {
-                function: mapped_function,
+                func: *func,
                 args: mapped_args,
+                ty: ty.clone(),
             })
         }
-        Instruction::Return { value } => {
+        Instruction::Return(value) => {
             let mapped_value = value.map(|v| context.get_mapped_value(v));
-            Ok(Instruction::Return { value: mapped_value })
+            Ok(Instruction::Return(mapped_value))
         }
-        Instruction::Compare { op, left, right } => {
+        Instruction::Compare { op, lhs, rhs } => {
             Ok(Instruction::Compare {
                 op: *op,
-                left: context.get_mapped_value(*left),
-                right: context.get_mapped_value(*right),
+                lhs: context.get_mapped_value(*lhs),
+                rhs: context.get_mapped_value(*rhs),
             })
         }
         // Add more instruction transformations as needed

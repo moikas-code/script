@@ -1,10 +1,10 @@
 //! Enhanced module context for rich error reporting and debugging
-//! 
+//!
 //! This module provides comprehensive context tracking for module operations,
 //! enabling detailed error messages and import chain visualization.
 
-use crate::module::{ModulePath, ImportPath, ModuleError};
-use crate::source::{Span, SourceLocation};
+use crate::module::{ImportPath, ModuleError, ModulePath};
+use crate::source::Span;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -45,26 +45,26 @@ impl ModuleDependencyChain {
             locations: Vec::new(),
         }
     }
-    
+
     /// Add a new module to the chain
     pub fn push(&mut self, module: ModulePath, import: ImportPath, location: Span) {
         self.chain.push(module);
         self.imports.push(import);
         self.locations.push(location);
     }
-    
+
     /// Create a sub-chain from the current chain
     pub fn extend(&self, module: ModulePath, import: ImportPath, location: Span) -> Self {
         let mut new_chain = self.clone();
         new_chain.push(module, import, location);
         new_chain
     }
-    
+
     /// Check if adding a module would create a cycle
     pub fn would_create_cycle(&self, module: &ModulePath) -> bool {
         self.chain.contains(module)
     }
-    
+
     /// Get a formatted string representation of the chain
     pub fn format_chain(&self) -> String {
         let mut result = String::new();
@@ -108,7 +108,7 @@ impl ModuleContext {
             visibility_context: VisibilityContext::new(),
         }
     }
-    
+
     /// Create a child context for a sub-module
     pub fn create_child(&self, module: ModulePath, import: ImportPath, location: Span) -> Self {
         ModuleContext {
@@ -120,7 +120,7 @@ impl ModuleContext {
             visibility_context: self.visibility_context.clone(),
         }
     }
-    
+
     /// Record an import resolution attempt
     pub fn record_resolution(
         &mut self,
@@ -139,7 +139,7 @@ impl ModuleContext {
             resolution_time: time_us,
         });
     }
-    
+
     /// Get source content with caching
     pub fn get_source_content(&mut self, file: &PathBuf) -> Option<&str> {
         if !self.source_cache.contains_key(file) {
@@ -149,27 +149,27 @@ impl ModuleContext {
         }
         self.source_cache.get(file).map(|s| s.as_str())
     }
-    
+
     /// Format an error with full module context
     pub fn format_error(&mut self, error: &ModuleError, span: Span) -> String {
         let mut output = String::new();
-        
+
         // Error message
         output.push_str(&format!("error: {}\n", error));
-        
+
         // Source location with context
-        if let Some(file) = self.source_files.get(&self.current_module) {
-            if let Some(source) = self.get_source_content(file) {
+        if let Some(file) = self.source_files.get(&self.current_module).cloned() {
+            if let Some(source) = self.get_source_content(&file) {
                 output.push_str(&format_source_context(source, span));
             }
         }
-        
+
         // Import chain if relevant
         if self.dependency_chain.chain.len() > 1 {
             output.push_str("\nImport chain:\n");
             output.push_str(&self.dependency_chain.format_chain());
         }
-        
+
         // Recent resolution attempts if relevant
         if !self.resolution_history.is_empty() {
             output.push_str("\nRecent import resolutions:\n");
@@ -184,7 +184,7 @@ impl ModuleContext {
                 }
             }
         }
-        
+
         output
     }
 }
@@ -205,12 +205,12 @@ impl VisibilityContext {
             access_attempts: Vec::new(),
         }
     }
-    
+
     /// Record exported symbols for a module
     pub fn record_exports(&mut self, module: ModulePath, symbols: Vec<String>) {
         self.exports.insert(module, symbols);
     }
-    
+
     /// Record an attempt to access a private symbol
     pub fn record_private_access(&mut self, attempt: PrivateAccessAttempt) {
         self.access_attempts.push(attempt);
@@ -231,17 +231,17 @@ fn format_source_context(source: &str, span: Span) -> String {
     let lines: Vec<&str> = source.lines().collect();
     let start_line = span.start.line.saturating_sub(1);
     let end_line = (span.end.line as usize).min(lines.len());
-    
+
     let mut output = String::new();
-    
+
     // Show a few lines of context
     let context_start = start_line.saturating_sub(2);
     let context_end = (end_line + 2).min(lines.len());
-    
+
     for (i, line) in lines[context_start..context_end].iter().enumerate() {
         let line_num = context_start + i + 1;
         output.push_str(&format!("{:4} | {}\n", line_num, line));
-        
+
         // Highlight the error span
         if line_num >= span.start.line as usize && line_num <= span.end.line as usize {
             let start_col = if line_num == span.start.line as usize {
@@ -254,14 +254,14 @@ fn format_source_context(source: &str, span: Span) -> String {
             } else {
                 line.len()
             };
-            
+
             output.push_str("     | ");
             output.push_str(&" ".repeat(start_col));
             output.push_str(&"^".repeat((end_col - start_col).max(1)));
             output.push('\n');
         }
     }
-    
+
     output
 }
 
@@ -276,27 +276,27 @@ impl ModuleContextStack {
             contexts: Vec::new(),
         }
     }
-    
+
     /// Push a new context onto the stack
     pub fn push(&mut self, context: ModuleContext) {
         self.contexts.push(context);
     }
-    
+
     /// Pop the current context
     pub fn pop(&mut self) -> Option<ModuleContext> {
         self.contexts.pop()
     }
-    
+
     /// Get the current context
     pub fn current(&self) -> Option<&ModuleContext> {
         self.contexts.last()
     }
-    
+
     /// Get the current context mutably
     pub fn current_mut(&mut self) -> Option<&mut ModuleContext> {
         self.contexts.last_mut()
     }
-    
+
     /// Get the full context stack for debugging
     pub fn stack(&self) -> &[ModuleContext] {
         &self.contexts
@@ -306,42 +306,37 @@ impl ModuleContextStack {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+    use crate::source::SourceLocation;
+
     #[test]
     fn test_dependency_chain() {
         let root = ModulePath::from_string("app.main").unwrap();
         let mut chain = ModuleDependencyChain::new(root.clone());
-        
+
         let utils = ModulePath::from_string("app.utils").unwrap();
         let import = ImportPath::from_string("utils").unwrap();
-        let span = Span::new(
-            SourceLocation::new(1, 1, 0),
-            SourceLocation::new(1, 10, 9),
-        );
-        
+        let span = Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 10, 9));
+
         chain.push(utils.clone(), import, span);
-        
+
         assert_eq!(chain.chain.len(), 2);
         assert!(!chain.would_create_cycle(&ModulePath::from_string("app.helpers").unwrap()));
         assert!(chain.would_create_cycle(&root));
         assert!(chain.would_create_cycle(&utils));
     }
-    
+
     #[test]
     fn test_module_context() {
         let module = ModulePath::from_string("test.module").unwrap();
         let mut ctx = ModuleContext::new(module.clone());
-        
+
         // Record a resolution
         let import = ImportPath::from_string("dependency").unwrap();
         let resolved = ModulePath::from_string("test.dependency").unwrap();
-        let span = Span::new(
-            SourceLocation::new(1, 1, 0),
-            SourceLocation::new(1, 20, 19),
-        );
-        
+        let span = Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 20, 19));
+
         ctx.record_resolution(import, Some(resolved), span, None, 100);
-        
+
         assert_eq!(ctx.resolution_history.len(), 1);
         assert_eq!(ctx.resolution_history[0].resolution_time, 100);
     }

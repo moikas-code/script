@@ -1,5 +1,5 @@
-use super::{Type, generics::GenericParams};
-use crate::parser::{StructField, EnumVariant, WhereClause};
+use super::{generics::GenericParams, Type};
+use crate::parser::{EnumVariant, StructField, WhereClause};
 use crate::source::Span;
 use std::collections::HashMap;
 
@@ -65,7 +65,7 @@ impl TypeDefinitionRegistry {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Register a struct definition
     pub fn register_struct(&mut self, def: StructDefinition) -> Result<(), String> {
         if self.structs.contains_key(&def.name) {
@@ -74,7 +74,7 @@ impl TypeDefinitionRegistry {
         self.structs.insert(def.name.clone(), def);
         Ok(())
     }
-    
+
     /// Register an enum definition
     pub fn register_enum(&mut self, def: EnumDefinition) -> Result<(), String> {
         if self.enums.contains_key(&def.name) {
@@ -83,33 +83,37 @@ impl TypeDefinitionRegistry {
         self.enums.insert(def.name.clone(), def);
         Ok(())
     }
-    
+
     /// Get a struct definition by name
     pub fn get_struct(&self, name: &str) -> Option<&StructDefinition> {
-        self.structs.get(name)
+        self.structs
+            .get(name)
             .or_else(|| self.monomorphized_structs.get(name))
     }
-    
+
     /// Get an enum definition by name
     pub fn get_enum(&self, name: &str) -> Option<&EnumDefinition> {
-        self.enums.get(name)
+        self.enums
+            .get(name)
             .or_else(|| self.monomorphized_enums.get(name))
     }
-    
+
     /// Check if a struct needs monomorphization
     pub fn struct_needs_monomorphization(&self, name: &str) -> bool {
-        self.structs.get(name)
+        self.structs
+            .get(name)
             .map(|def| def.generic_params.is_some() && !def.is_monomorphized)
             .unwrap_or(false)
     }
-    
+
     /// Check if an enum needs monomorphization
     pub fn enum_needs_monomorphization(&self, name: &str) -> bool {
-        self.enums.get(name)
+        self.enums
+            .get(name)
             .map(|def| def.generic_params.is_some() && !def.is_monomorphized)
             .unwrap_or(false)
     }
-    
+
     /// Generate a mangled name for a monomorphized type
     pub fn mangle_type_name(base_name: &str, type_args: &[Type]) -> String {
         let mut name = base_name.to_string();
@@ -124,34 +128,40 @@ impl TypeDefinitionRegistry {
         }
         name
     }
-    
+
     /// Check if a type instantiation has been cached
     pub fn get_cached_instantiation(&self, base_name: &str, type_args: &[Type]) -> Option<&str> {
         self.instantiation_cache
             .get(&(base_name.to_string(), type_args.to_vec()))
             .map(|s| s.as_str())
     }
-    
+
     /// Cache a type instantiation
-    pub fn cache_instantiation(&mut self, base_name: String, type_args: Vec<Type>, mangled_name: String) {
-        self.instantiation_cache.insert((base_name, type_args), mangled_name);
+    pub fn cache_instantiation(
+        &mut self,
+        base_name: String,
+        type_args: Vec<Type>,
+        mangled_name: String,
+    ) {
+        self.instantiation_cache
+            .insert((base_name, type_args), mangled_name);
     }
-    
+
     /// Register a monomorphized struct
     pub fn register_monomorphized_struct(&mut self, mangled_name: String, def: StructDefinition) {
         self.monomorphized_structs.insert(mangled_name, def);
     }
-    
+
     /// Register a monomorphized enum
     pub fn register_monomorphized_enum(&mut self, mangled_name: String, def: EnumDefinition) {
         self.monomorphized_enums.insert(mangled_name, def);
     }
-    
+
     /// Get all struct definitions (generic and monomorphized)
     pub fn all_structs(&self) -> impl Iterator<Item = (&String, &StructDefinition)> {
         self.structs.iter().chain(self.monomorphized_structs.iter())
     }
-    
+
     /// Get all enum definitions (generic and monomorphized)
     pub fn all_enums(&self) -> impl Iterator<Item = (&String, &EnumDefinition)> {
         self.enums.iter().chain(self.monomorphized_enums.iter())
@@ -212,6 +222,7 @@ fn mangle_type(ty: &Type) -> String {
                 format!("ref_{}", mangle_type(inner))
             }
         }
+        Type::Struct { name, .. } => format!("struct_{}", name.replace("::", "_")),
     }
 }
 
@@ -219,39 +230,34 @@ fn mangle_type(ty: &Type) -> String {
 mod tests {
     use super::*;
     use crate::source::SourceLocation;
-    
+
     fn dummy_span() -> Span {
         Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 1, 0))
     }
-    
+
     #[test]
     fn test_mangle_type_name() {
-        let mangled = TypeDefinitionRegistry::mangle_type_name(
-            "Vec",
-            &[Type::I32]
-        );
+        let mangled = TypeDefinitionRegistry::mangle_type_name("Vec", &[Type::I32]);
         assert_eq!(mangled, "Vec_i32");
-        
-        let mangled = TypeDefinitionRegistry::mangle_type_name(
-            "HashMap",
-            &[Type::String, Type::I32]
-        );
+
+        let mangled =
+            TypeDefinitionRegistry::mangle_type_name("HashMap", &[Type::String, Type::I32]);
         assert_eq!(mangled, "HashMap_string_i32");
-        
+
         let mangled = TypeDefinitionRegistry::mangle_type_name(
             "Option",
-            &[Type::Generic { 
+            &[Type::Generic {
                 name: "Vec".to_string(),
-                args: vec![Type::I32]
-            }]
+                args: vec![Type::I32],
+            }],
         );
         assert_eq!(mangled, "Option_Vec_i32");
     }
-    
+
     #[test]
     fn test_registry_operations() {
         let mut registry = TypeDefinitionRegistry::new();
-        
+
         let struct_def = StructDefinition {
             name: "Vec".to_string(),
             generic_params: None, // Would be Some for real generic struct
@@ -261,11 +267,11 @@ mod tests {
             is_monomorphized: false,
             original_type: None,
         };
-        
+
         registry.register_struct(struct_def).unwrap();
         assert!(registry.get_struct("Vec").is_some());
         assert!(registry.get_struct("NonExistent").is_none());
-        
+
         // Test duplicate registration
         let duplicate = StructDefinition {
             name: "Vec".to_string(),
@@ -276,7 +282,7 @@ mod tests {
             is_monomorphized: false,
             original_type: None,
         };
-        
+
         assert!(registry.register_struct(duplicate).is_err());
     }
 }

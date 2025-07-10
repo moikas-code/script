@@ -1,5 +1,5 @@
 //! Async/Await Security Module for Script Language
-//! 
+//!
 //! This module provides comprehensive security mechanisms for async/await operations:
 //! - Secure pointer validation and lifetime tracking
 //! - Memory safety validation for async tasks
@@ -7,14 +7,12 @@
 //! - FFI validation and sanitization
 //! - Race condition detection and prevention
 
-use crate::error::{Error, ErrorKind};
-use super::{SecurityError, SecurityMetrics, SecurityConfig};
-use crate::runtime::async_resource_limits::{AsyncResourceMonitor, AsyncResourceLimits, AsyncResourceViolation};
+use super::{SecurityError, SecurityMetrics};
+use crate::runtime::async_resource_limits::{AsyncResourceLimits, AsyncResourceMonitor};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-use std::ptr::NonNull;
 
 /// Async security configuration
 #[derive(Debug, Clone)]
@@ -53,9 +51,9 @@ impl Default for AsyncSecurityConfig {
             #[cfg(not(debug_assertions))]
             enable_race_detection: false,
             max_tasks: 10_000,
-            max_task_timeout_secs: 300, // 5 minutes
+            max_task_timeout_secs: 300,              // 5 minutes
             max_task_memory_bytes: 10 * 1024 * 1024, // 10MB
-            max_ffi_pointer_lifetime_secs: 3600, // 1 hour
+            max_ffi_pointer_lifetime_secs: 3600,     // 1 hour
             enable_logging: true,
         }
     }
@@ -119,6 +117,8 @@ pub struct SecurePointerRegistry {
     next_id: AtomicU64,
     /// Total memory tracked
     total_memory: AtomicUsize,
+    /// Configuration
+    config: AsyncSecurityConfig,
 }
 
 impl SecurePointerRegistry {
@@ -127,11 +127,16 @@ impl SecurePointerRegistry {
             pointers: RwLock::new(HashMap::new()),
             next_id: AtomicU64::new(1),
             total_memory: AtomicUsize::new(0),
+            config: AsyncSecurityConfig::default(),
         }
     }
 
     /// Register a new pointer with metadata
-    pub fn register_pointer<T>(&self, ptr: *mut T, type_name: String) -> Result<u64, SecurityError> {
+    pub fn register_pointer<T>(
+        &self,
+        ptr: *mut T,
+        type_name: String,
+    ) -> Result<u64, SecurityError> {
         if ptr.is_null() {
             return Err(SecurityError::AsyncPointerViolation {
                 pointer_address: ptr as usize,
@@ -143,17 +148,27 @@ impl SecurePointerRegistry {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let memory_size = std::mem::size_of::<T>();
         let metadata = PointerMetadata::new(id, type_name, memory_size);
-        
+
         let address = ptr as usize;
-        let mut pointers = self.pointers.write().unwrap();
+        let mut pointers = self
+            .pointers
+            .write()
+            .map_err(|_| SecurityError::LockError {
+                resource_name: "pointer registry".to_string(),
+                message: "Failed to acquire write lock".to_string(),
+            })?;
         pointers.insert(address, metadata);
         self.total_memory.fetch_add(memory_size, Ordering::Relaxed);
-        
+
         Ok(id)
     }
 
     /// Validate a pointer and update its metadata
-    pub fn validate_pointer<T>(&self, ptr: *mut T, max_lifetime_secs: u64) -> Result<(), SecurityError> {
+    pub fn validate_pointer<T>(
+        &self,
+        ptr: *mut T,
+        max_lifetime_secs: u64,
+    ) -> Result<(), SecurityError> {
         if ptr.is_null() {
             return Err(SecurityError::AsyncPointerViolation {
                 pointer_address: ptr as usize,
@@ -163,8 +178,14 @@ impl SecurePointerRegistry {
         }
 
         let address = ptr as usize;
-        let mut pointers = self.pointers.write().unwrap();
-        
+        let mut pointers = self
+            .pointers
+            .write()
+            .map_err(|_| SecurityError::LockError {
+                resource_name: "pointer registry".to_string(),
+                message: "Failed to acquire write lock for validation".to_string(),
+            })?;
+
         if let Some(metadata) = pointers.get_mut(&address) {
             if !metadata.is_valid {
                 return Err(SecurityError::AsyncPointerViolation {
@@ -197,16 +218,82 @@ impl SecurePointerRegistry {
     /// Unregister a pointer and clean up metadata
     pub fn unregister_pointer<T>(&self, ptr: *mut T) -> Result<(), SecurityError> {
         let address = ptr as usize;
-        let mut pointers = self.pointers.write().unwrap();
-        
+        let mut pointers = self
+            .pointers
+            .write()
+            .map_err(|_| SecurityError::LockError {
+                resource_name: "pointer registry".to_string(),
+                message: "Failed to acquire write lock for unregistration".to_string(),
+            })?;
+
         if let Some(metadata) = pointers.remove(&address) {
-            self.total_memory.fetch_sub(metadata.memory_size, Ordering::Relaxed);
+            self.total_memory
+                .fetch_sub(metadata.memory_size, Ordering::Relaxed);
             Ok(())
         } else {
             Err(SecurityError::AsyncPointerViolation {
                 pointer_address: address,
                 validation_failed: "unregistered pointer".to_string(),
                 message: "Cannot unregister unknown pointer".to_string(),
+            })
+        }
+    }
+
+    /// Check pointer lifetime and return error if expired
+    pub fn check_pointer_lifetime<T>(&self, ptr: *mut T) -> Result<(), SecurityError> {
+        let address = ptr as usize;
+        let pointers = self.pointers.read().map_err(|_| SecurityError::LockError {
+            resource_name: "pointer registry".to_string(),
+            message: "Failed to acquire read lock for lifetime check".to_string(),
+        })?;
+
+        if let Some(metadata) = pointers.get(&address) {
+            if metadata.is_expired(self.config.max_ffi_pointer_lifetime_secs) {
+                return Err(SecurityError::AsyncPointerViolation {
+                    pointer_address: address,
+                    validation_failed: "pointer expired".to_string(),
+                    message: format!(
+                        "Pointer lifetime exceeded {} seconds",
+                        self.config.max_ffi_pointer_lifetime_secs
+                    ),
+                });
+            }
+            Ok(())
+        } else {
+            Err(SecurityError::AsyncPointerViolation {
+                pointer_address: address,
+                validation_failed: "unregistered pointer".to_string(),
+                message: "Pointer not found in registry".to_string(),
+            })
+        }
+    }
+
+    /// Mark pointer as consumed to prevent double-free
+    pub fn mark_pointer_consumed<T>(&self, ptr: *mut T) -> Result<(), SecurityError> {
+        let address = ptr as usize;
+        let mut pointers = self
+            .pointers
+            .write()
+            .map_err(|_| SecurityError::LockError {
+                resource_name: "pointer registry".to_string(),
+                message: "Failed to acquire write lock for marking consumed".to_string(),
+            })?;
+
+        if let Some(metadata) = pointers.get_mut(&address) {
+            if !metadata.is_valid {
+                return Err(SecurityError::AsyncPointerViolation {
+                    pointer_address: address,
+                    validation_failed: "double consumption".to_string(),
+                    message: "Pointer already consumed - potential double-free attempt".to_string(),
+                });
+            }
+            metadata.is_valid = false;
+            Ok(())
+        } else {
+            Err(SecurityError::AsyncPointerViolation {
+                pointer_address: address,
+                validation_failed: "unregistered pointer".to_string(),
+                message: "Cannot consume unregistered pointer".to_string(),
             })
         }
     }
@@ -218,23 +305,27 @@ impl SecurePointerRegistry {
 
     /// Get pointer count
     pub fn pointer_count(&self) -> usize {
-        self.pointers.read().unwrap().len()
+        self.pointers.read().map(|guard| guard.len()).unwrap_or(0)
     }
 
     /// Clean up expired pointers
     pub fn cleanup_expired_pointers(&self, max_lifetime_secs: u64) -> usize {
-        let mut pointers = self.pointers.write().unwrap();
+        let mut pointers = match self.pointers.write() {
+            Ok(pointers) => pointers,
+            Err(_) => return 0, // Return 0 cleaned on lock failure
+        };
         let initial_count = pointers.len();
-        
+
         pointers.retain(|_, metadata| {
             if metadata.is_expired(max_lifetime_secs) {
-                self.total_memory.fetch_sub(metadata.memory_size, Ordering::Relaxed);
+                self.total_memory
+                    .fetch_sub(metadata.memory_size, Ordering::Relaxed);
                 false
             } else {
                 true
             }
         });
-        
+
         initial_count - pointers.len()
     }
 }
@@ -315,19 +406,25 @@ impl AsyncTaskManager {
         }
 
         let task_id = self.next_task_id.fetch_add(1, Ordering::SeqCst);
-        let timeout = timeout_override.unwrap_or_else(|| {
-            Duration::from_secs(self.config.max_task_timeout_secs)
-        });
+        let timeout = timeout_override
+            .unwrap_or_else(|| Duration::from_secs(self.config.max_task_timeout_secs));
 
         let metadata = AsyncTaskMetadata::new(task_id, timeout);
-        let mut tasks = self.tasks.write().unwrap();
+        let mut tasks = self.tasks.write().map_err(|_| SecurityError::LockError {
+            resource_name: "task registry".to_string(),
+            message: "Failed to acquire write lock for task creation".to_string(),
+        })?;
         tasks.insert(task_id, metadata);
-        
+
         Ok(task_id)
     }
 
     /// Validate task memory usage
-    pub fn validate_task_memory(&self, task_id: usize, memory_usage: usize) -> Result<(), SecurityError> {
+    pub fn validate_task_memory(
+        &self,
+        task_id: usize,
+        memory_usage: usize,
+    ) -> Result<(), SecurityError> {
         if !self.config.enable_memory_safety {
             return Ok(());
         }
@@ -341,11 +438,14 @@ impl AsyncTaskManager {
             });
         }
 
-        let tasks = self.tasks.read().unwrap();
+        let tasks = self.tasks.read().map_err(|_| SecurityError::LockError {
+            resource_name: "task registry".to_string(),
+            message: "Failed to acquire read lock for memory validation".to_string(),
+        })?;
         if let Some(metadata) = tasks.get(&task_id) {
             let old_usage = metadata.get_memory_usage();
             metadata.update_memory_usage(memory_usage);
-            
+
             // Update total memory tracking
             self.total_memory.fetch_add(memory_usage, Ordering::Relaxed);
             self.total_memory.fetch_sub(old_usage, Ordering::Relaxed);
@@ -356,7 +456,10 @@ impl AsyncTaskManager {
 
     /// Remove completed task and clean up resources
     pub fn remove_task(&self, task_id: usize) -> Result<(), SecurityError> {
-        let mut tasks = self.tasks.write().unwrap();
+        let mut tasks = self.tasks.write().map_err(|_| SecurityError::LockError {
+            resource_name: "task registry".to_string(),
+            message: "Failed to acquire write lock for task removal".to_string(),
+        })?;
         if let Some(metadata) = tasks.remove(&task_id) {
             let memory_usage = metadata.get_memory_usage();
             self.total_memory.fetch_sub(memory_usage, Ordering::Relaxed);
@@ -372,7 +475,7 @@ impl AsyncTaskManager {
 
     /// Get current task count
     pub fn task_count(&self) -> usize {
-        self.tasks.read().unwrap().len()
+        self.tasks.read().map(|guard| guard.len()).unwrap_or(0)
     }
 
     /// Get total memory usage across all tasks
@@ -382,9 +485,12 @@ impl AsyncTaskManager {
 
     /// Clean up timed out tasks
     pub fn cleanup_timed_out_tasks(&self) -> usize {
-        let mut tasks = self.tasks.write().unwrap();
+        let mut tasks = match self.tasks.write() {
+            Ok(tasks) => tasks,
+            Err(_) => return 0, // Return 0 cleaned on lock failure
+        };
         let initial_count = tasks.len();
-        
+
         tasks.retain(|_, metadata| {
             if metadata.is_timed_out() {
                 let memory_usage = metadata.get_memory_usage();
@@ -394,7 +500,7 @@ impl AsyncTaskManager {
                 true
             }
         });
-        
+
         initial_count - tasks.len()
     }
 }
@@ -426,14 +532,22 @@ impl AsyncFFIValidator {
         };
 
         // Add safe functions to whitelist
-        validator.allowed_functions.insert("strlen".to_string(), "read-only".to_string());
-        validator.allowed_functions.insert("strncmp".to_string(), "read-only".to_string());
-        
+        validator
+            .allowed_functions
+            .insert("strlen".to_string(), "read-only".to_string());
+        validator
+            .allowed_functions
+            .insert("strncmp".to_string(), "read-only".to_string());
+
         validator
     }
 
     /// Validate FFI function call
-    pub fn validate_ffi_call(&self, function_name: &str, args: &[usize]) -> Result<(), SecurityError> {
+    pub fn validate_ffi_call(
+        &self,
+        function_name: &str,
+        args: &[usize],
+    ) -> Result<(), SecurityError> {
         if !self.config.enable_ffi_validation {
             return Ok(());
         }
@@ -478,7 +592,8 @@ impl AsyncFFIValidator {
 
     /// Add function to allowed list
     pub fn allow_function(&mut self, function_name: String, security_policy: String) {
-        self.allowed_functions.insert(function_name, security_policy);
+        self.allowed_functions
+            .insert(function_name, security_policy);
     }
 
     /// Block function pattern
@@ -510,15 +625,24 @@ impl AsyncRaceDetector {
         }
 
         let now = Instant::now();
-        let mut access_map = self.resource_access.write().unwrap();
-        
-        let accesses = access_map.entry(resource_name.to_string()).or_insert_with(Vec::new);
-        
+        let mut access_map =
+            self.resource_access
+                .write()
+                .map_err(|_| SecurityError::LockError {
+                    resource_name: "race detector".to_string(),
+                    message: "Failed to acquire write lock for race detection".to_string(),
+                })?;
+
+        let accesses = access_map
+            .entry(resource_name.to_string())
+            .or_insert_with(Vec::new);
+
         // Clean up old accesses (older than 1 second)
         accesses.retain(|(_, timestamp)| now.duration_since(*timestamp) < Duration::from_secs(1));
-        
+
         // Check for concurrent access
-        let concurrent_threads: Vec<u64> = accesses.iter()
+        let concurrent_threads: Vec<u64> = accesses
+            .iter()
             .filter(|(tid, timestamp)| {
                 *tid != thread_id && now.duration_since(*timestamp) < Duration::from_millis(100)
             })
@@ -528,7 +652,7 @@ impl AsyncRaceDetector {
         if !concurrent_threads.is_empty() {
             let mut all_threads = concurrent_threads;
             all_threads.push(thread_id);
-            
+
             return Err(SecurityError::AsyncRaceCondition {
                 resource_name: resource_name.to_string(),
                 thread_ids: all_threads,
@@ -578,9 +702,9 @@ impl AsyncSecurityManager {
             max_pointer_registration_rate: 50_000.0, // 50k registrations/second
             ..Default::default()
         };
-        
+
         let resource_monitor = AsyncResourceMonitor::new(async_limits);
-        
+
         AsyncSecurityManager {
             pointer_registry: SecurePointerRegistry::new(),
             task_manager: AsyncTaskManager::new(config.clone()),
@@ -600,91 +724,112 @@ impl AsyncSecurityManager {
     }
 
     /// Register pointer with security validation
-    pub fn register_pointer<T>(&self, ptr: *mut T, type_name: String) -> Result<u64, SecurityError> {
+    pub fn register_pointer<T>(
+        &self,
+        ptr: *mut T,
+        type_name: String,
+    ) -> Result<u64, SecurityError> {
         // Check rate limits first
-        self.resource_monitor.record_pointer_registration()
+        self.resource_monitor
+            .record_pointer_registration()
             .map_err(|e| SecurityError::from(e))?;
-        
+
         let result = self.pointer_registry.register_pointer(ptr, type_name);
-        
+
         if let Some(ref metrics) = self.metrics {
             metrics.record_async_pointer_validation(result.is_err());
         }
-        
+
         result
     }
 
     /// Validate pointer with comprehensive checks
     pub fn validate_pointer<T>(&self, ptr: *mut T) -> Result<(), SecurityError> {
-        let result = self.pointer_registry.validate_pointer(
-            ptr, 
-            self.config.max_ffi_pointer_lifetime_secs
-        );
-        
+        let result = self
+            .pointer_registry
+            .validate_pointer(ptr, self.config.max_ffi_pointer_lifetime_secs);
+
         if let Some(ref metrics) = self.metrics {
             metrics.record_async_pointer_validation(result.is_err());
         }
-        
+
         result
     }
 
     /// Create secure async task
     pub fn create_task(&self, timeout_override: Option<Duration>) -> Result<usize, SecurityError> {
         // Check resource limits first
-        self.resource_monitor.record_task_spawn()
+        self.resource_monitor
+            .record_task_spawn()
             .map_err(|e| SecurityError::from(e))?;
-        
+
         let result = self.task_manager.create_task(timeout_override);
-        
+
         if let Some(ref metrics) = self.metrics {
             if result.is_err() {
                 metrics.record_async_task_limit_violation();
             }
         }
-        
+
         result
     }
 
     /// Validate task memory usage
-    pub fn validate_task_memory(&self, task_id: usize, memory_usage: usize) -> Result<(), SecurityError> {
+    pub fn validate_task_memory(
+        &self,
+        task_id: usize,
+        memory_usage: usize,
+    ) -> Result<(), SecurityError> {
         // Check resource limits first
-        self.resource_monitor.record_task_memory_allocation(task_id, memory_usage)
+        self.resource_monitor
+            .record_task_memory_allocation(task_id, memory_usage)
             .map_err(|e| SecurityError::from(e))?;
-        
-        let result = self.task_manager.validate_task_memory(task_id, memory_usage);
-        
+
+        let result = self
+            .task_manager
+            .validate_task_memory(task_id, memory_usage);
+
         if let Some(ref metrics) = self.metrics {
             metrics.record_async_memory_check(result.is_err());
         }
-        
+
         result
     }
 
     /// Validate FFI call
-    pub fn validate_ffi_call(&self, function_name: &str, args: &[usize]) -> Result<(), SecurityError> {
+    pub fn validate_ffi_call(
+        &self,
+        function_name: &str,
+        args: &[usize],
+    ) -> Result<(), SecurityError> {
         // Check rate limits first
-        self.resource_monitor.record_ffi_call()
+        self.resource_monitor
+            .record_ffi_call()
             .map_err(|e| SecurityError::from(e))?;
-        
+
         let result = self.ffi_validator.validate_ffi_call(function_name, args);
-        
+
         if let Some(ref metrics) = self.metrics {
             metrics.record_async_ffi_validation(result.is_err());
         }
-        
+
         result
     }
 
     /// Record resource access for race detection
-    pub fn record_resource_access(&self, resource_name: &str, thread_id: u64) -> Result<(), SecurityError> {
+    pub fn record_resource_access(
+        &self,
+        resource_name: &str,
+        thread_id: u64,
+    ) -> Result<(), SecurityError> {
         let result = self.race_detector.record_access(resource_name, thread_id);
-        
+
         if let Some(ref metrics) = self.metrics {
             if result.is_err() {
                 metrics.record_async_race_condition();
             }
         }
-        
+
         result
     }
 
@@ -699,49 +844,65 @@ impl AsyncSecurityManager {
     }
 
     /// Complete a task and update resource tracking
-    pub fn complete_task(&self, task_id: usize, execution_time: Duration) -> Result<(), SecurityError> {
+    pub fn complete_task(
+        &self,
+        task_id: usize,
+        execution_time: Duration,
+    ) -> Result<(), SecurityError> {
         // Update resource monitor
-        self.resource_monitor.record_task_completion(task_id, execution_time)
+        self.resource_monitor
+            .record_task_completion(task_id, execution_time)
             .map_err(|e| SecurityError::from(e))?;
-        
+
         // Remove from task manager
         let _ = self.task_manager.remove_task(task_id);
-        
+
         Ok(())
     }
-    
+
     /// Mark a task as failed and update resource tracking
     pub fn fail_task(&self, task_id: usize) {
         self.resource_monitor.record_task_failure(task_id);
         let _ = self.task_manager.remove_task(task_id);
     }
-    
+
     /// Check system health and throttling requirements
     pub fn check_system_health(&self) -> Result<(), SecurityError> {
-        self.resource_monitor.check_system_health()
+        self.resource_monitor
+            .check_system_health()
             .map_err(|e| SecurityError::from(e))
     }
-    
+
     /// Get current system throttling level
     pub fn get_throttling_level(&self) -> f64 {
         self.resource_monitor.get_throttling_level()
     }
-    
+
     /// Perform cleanup of expired resources
     pub fn cleanup_expired_resources(&self) -> AsyncCleanupStats {
         // Cleanup base resources
-        let expired_pointers = self.pointer_registry.cleanup_expired_pointers(
-            self.config.max_ffi_pointer_lifetime_secs
-        );
+        let expired_pointers = self
+            .pointer_registry
+            .cleanup_expired_pointers(self.config.max_ffi_pointer_lifetime_secs);
         let timed_out_tasks = self.task_manager.cleanup_timed_out_tasks();
-        
+
         // Cleanup resource monitor
         self.resource_monitor.cleanup_resources();
-        
+
         AsyncCleanupStats {
             expired_pointers,
             timed_out_tasks,
         }
+    }
+
+    /// Check pointer lifetime through pointer registry
+    pub fn check_pointer_lifetime<T>(&self, ptr: *mut T) -> Result<(), SecurityError> {
+        self.pointer_registry.check_pointer_lifetime(ptr)
+    }
+
+    /// Mark pointer as consumed through pointer registry
+    pub fn mark_pointer_consumed<T>(&self, ptr: *mut T) -> Result<(), SecurityError> {
+        self.pointer_registry.mark_pointer_consumed(ptr)
     }
 }
 
@@ -778,13 +939,15 @@ mod tests {
     fn test_pointer_registry() {
         let registry = SecurePointerRegistry::new();
         let mut test_value = 42i32;
-        
-        let id = registry.register_pointer(&mut test_value, "i32".to_string()).unwrap();
+
+        let id = registry
+            .register_pointer(&mut test_value, "i32".to_string())
+            .unwrap();
         assert!(id > 0);
-        
+
         let result = registry.validate_pointer(&mut test_value, 3600);
         assert!(result.is_ok());
-        
+
         registry.unregister_pointer(&mut test_value).unwrap();
     }
 
@@ -792,13 +955,13 @@ mod tests {
     fn test_task_manager() {
         let config = AsyncSecurityConfig::default();
         let manager = AsyncTaskManager::new(config);
-        
+
         let task_id = manager.create_task(None).unwrap();
         assert!(task_id > 0);
-        
+
         let result = manager.validate_task_memory(task_id, 1024);
         assert!(result.is_ok());
-        
+
         manager.remove_task(task_id).unwrap();
     }
 
@@ -806,11 +969,11 @@ mod tests {
     fn test_ffi_validator() {
         let config = AsyncSecurityConfig::default();
         let validator = AsyncFFIValidator::new(config);
-        
+
         // Should block dangerous functions
         let result = validator.validate_ffi_call("system", &[]);
         assert!(result.is_err());
-        
+
         // Should allow safe functions
         let result = validator.validate_ffi_call("strlen", &[]);
         assert!(result.is_ok());
@@ -820,11 +983,11 @@ mod tests {
     fn test_race_detector() {
         let config = AsyncSecurityConfig::default();
         let detector = AsyncRaceDetector::new(config);
-        
+
         // Single access should be fine
         let result = detector.record_access("resource1", 1);
         assert!(result.is_ok());
-        
+
         // Concurrent access should trigger detection
         let result = detector.record_access("resource1", 2);
         assert!(result.is_err());
@@ -833,23 +996,25 @@ mod tests {
     #[test]
     fn test_async_security_manager() {
         let manager = AsyncSecurityManager::new();
-        
+
         let mut test_value = 42i32;
-        let id = manager.register_pointer(&mut test_value, "i32".to_string()).unwrap();
+        let id = manager
+            .register_pointer(&mut test_value, "i32".to_string())
+            .unwrap();
         assert!(id > 0);
-        
+
         let result = manager.validate_pointer(&mut test_value);
         assert!(result.is_ok());
-        
+
         let task_id = manager.create_task(None).unwrap();
         assert!(task_id > 0);
-        
+
         let result = manager.validate_task_memory(task_id, 1024);
         assert!(result.is_ok());
-        
+
         let result = manager.validate_ffi_call("strlen", &[]);
         assert!(result.is_ok());
-        
+
         let stats = manager.get_security_stats();
         assert_eq!(stats.pointer_count, 1);
         assert_eq!(stats.task_count, 1);

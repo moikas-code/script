@@ -36,7 +36,9 @@ pub async fn execute(name: Option<String>, lib: bool, bin: bool, yes: bool) -> P
                 .with_prompt("Package name")
                 .default(default_name)
                 .interact_text()
-                .map_err(|e| PackageError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+                .map_err(|e| {
+                    PackageError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+                })?;
             validate_package_name(&name)?;
             name
         }
@@ -58,7 +60,9 @@ pub async fn execute(name: Option<String>, lib: bool, bin: bool, yes: bool) -> P
             .items(&options)
             .default(0)
             .interact()
-            .map_err(|e| PackageError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            .map_err(|e| {
+                PackageError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+            })?;
 
         match selection {
             0 => PackageType::Library,
@@ -77,7 +81,9 @@ pub async fn execute(name: Option<String>, lib: bool, bin: bool, yes: bool) -> P
             .with_prompt("Author")
             .default(default_author)
             .interact_text()
-            .map_err(|e| PackageError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?
+            .map_err(|e| {
+                PackageError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+            })?
     };
 
     // Get description
@@ -88,7 +94,9 @@ pub async fn execute(name: Option<String>, lib: bool, bin: bool, yes: bool) -> P
             .with_prompt("Description (optional)")
             .allow_empty(true)
             .interact_text()
-            .map_err(|e| PackageError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            .map_err(|e| {
+                PackageError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+            })?;
         if desc.is_empty() {
             None
         } else {
@@ -143,7 +151,9 @@ pub async fn execute(name: Option<String>, lib: bool, bin: bool, yes: bool) -> P
             .with_prompt("Initialize git repository?")
             .default(true)
             .interact()
-            .map_err(|e| PackageError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?
+            .map_err(|e| {
+                PackageError::Io(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+            })?
         {
             init_git_repo()?;
             print_success("Initialized git repository");
@@ -280,7 +290,7 @@ fn init_git_repo() -> PackageResult<()> {
 
     if !output.status.success() {
         return Err(PackageError::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
+            std::io::ErrorKind::InvalidInput,
             "Failed to initialize git repository",
         )));
     }

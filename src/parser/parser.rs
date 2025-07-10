@@ -13,20 +13,20 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { 
-            tokens, 
-            current: 0, 
-            next_expr_id: 0 
+        Self {
+            tokens,
+            current: 0,
+            next_expr_id: 0,
         }
     }
-    
+
     /// Generate a unique expression ID
     fn next_expr_id(&mut self) -> usize {
         let id = self.next_expr_id;
         self.next_expr_id += 1;
         id
     }
-    
+
     /// Helper function to create an expression with auto-generated ID
     fn create_expr(&mut self, kind: ExprKind, span: Span) -> Expr {
         Expr {
@@ -559,7 +559,7 @@ impl Parser {
 
         // Parse the type name (potentially with generic arguments)
         let type_name = self.consume_identifier("Expected type name after 'impl'")?;
-        
+
         // NOTE: Generic parsing for impl blocks is not yet implemented
         // Currently only simple type names are supported
 
@@ -596,7 +596,11 @@ impl Parser {
 
         self.consume(&TokenKind::RightBrace, "Expected '}' after impl methods")?;
 
-        let impl_start = self.tokens.get(0).map(|t| t.span.start).unwrap_or_else(|| SourceLocation::initial());
+        let impl_start = self
+            .tokens
+            .get(0)
+            .map(|t| t.span.start)
+            .unwrap_or_else(|| SourceLocation::initial());
         let impl_block = ImplBlock {
             type_name,
             generic_params,
@@ -732,7 +736,7 @@ impl Parser {
 
     fn parse_method(&mut self) -> Result<Method> {
         let start = self.current_location();
-        
+
         // Check for async
         let is_async = self.match_token(&TokenKind::Async);
         if is_async {
@@ -753,7 +757,7 @@ impl Parser {
         self.consume(&TokenKind::LeftParen, "Expected '(' after method name")?;
 
         let mut params = Vec::new();
-        
+
         // Parse parameters (including self parameter)
         if !self.check(&TokenKind::RightParen) {
             loop {
@@ -761,7 +765,7 @@ impl Parser {
                 if let Some(token) = self.peek_identifier() {
                     if token == "self" {
                         self.advance(); // consume "self"
-                        
+
                         // For now, treat self as a special parameter with type "Self"
                         params.push(Param {
                             name: "self".to_string(),
@@ -892,10 +896,13 @@ impl Parser {
         if self.match_token(&TokenKind::Equals) {
             let value = self.parse_assignment()?;
             let span = Span::new(expr.span.start, value.span.end);
-            return Ok(self.create_expr(ExprKind::Assign {
-                target: Box::new(expr),
-                value: Box::new(value),
-            }, span));
+            return Ok(self.create_expr(
+                ExprKind::Assign {
+                    target: Box::new(expr),
+                    value: Box::new(value),
+                },
+                span,
+            ));
         }
 
         Ok(expr)
@@ -908,11 +915,14 @@ impl Parser {
             let op = BinaryOp::Or;
             let right = self.parse_and()?;
             let span = Span::new(expr.span.start, right.span.end);
-            expr = self.create_expr(ExprKind::Binary {
-                left: Box::new(expr),
-                op,
-                right: Box::new(right),
-            }, span);
+            expr = self.create_expr(
+                ExprKind::Binary {
+                    left: Box::new(expr),
+                    op,
+                    right: Box::new(right),
+                },
+                span,
+            );
         }
 
         Ok(expr)
@@ -925,11 +935,14 @@ impl Parser {
             let op = BinaryOp::And;
             let right = self.parse_equality()?;
             let span = Span::new(expr.span.start, right.span.end);
-            expr = self.create_expr(ExprKind::Binary {
-                left: Box::new(expr),
-                op,
-                right: Box::new(right),
-            }, span);
+            expr = self.create_expr(
+                ExprKind::Binary {
+                    left: Box::new(expr),
+                    op,
+                    right: Box::new(right),
+                },
+                span,
+            );
         }
 
         Ok(expr)
@@ -942,11 +955,14 @@ impl Parser {
         {
             let right = self.parse_comparison()?;
             let span = Span::new(expr.span.start, right.span.end);
-            expr = self.create_expr(ExprKind::Binary {
-                left: Box::new(expr),
-                op,
-                right: Box::new(right),
-            }, span);
+            expr = self.create_expr(
+                ExprKind::Binary {
+                    left: Box::new(expr),
+                    op,
+                    right: Box::new(right),
+                },
+                span,
+            );
         }
 
         Ok(expr)
@@ -963,11 +979,14 @@ impl Parser {
         ]) {
             let right = self.parse_addition()?;
             let span = Span::new(expr.span.start, right.span.end);
-            expr = self.create_expr(ExprKind::Binary {
-                left: Box::new(expr),
-                op,
-                right: Box::new(right),
-            }, span);
+            expr = self.create_expr(
+                ExprKind::Binary {
+                    left: Box::new(expr),
+                    op,
+                    right: Box::new(right),
+                },
+                span,
+            );
         }
 
         Ok(expr)
@@ -979,11 +998,14 @@ impl Parser {
         while let Some(op) = self.match_binary_op(&[TokenKind::Plus, TokenKind::Minus]) {
             let right = self.parse_multiplication()?;
             let span = Span::new(expr.span.start, right.span.end);
-            expr = self.create_expr(ExprKind::Binary {
-                left: Box::new(expr),
-                op,
-                right: Box::new(right),
-            }, span);
+            expr = self.create_expr(
+                ExprKind::Binary {
+                    left: Box::new(expr),
+                    op,
+                    right: Box::new(right),
+                },
+                span,
+            );
         }
 
         Ok(expr)
@@ -997,11 +1019,14 @@ impl Parser {
         {
             let right = self.parse_unary()?;
             let span = Span::new(expr.span.start, right.span.end);
-            expr = self.create_expr(ExprKind::Binary {
-                left: Box::new(expr),
-                op,
-                right: Box::new(right),
-            }, span);
+            expr = self.create_expr(
+                ExprKind::Binary {
+                    left: Box::new(expr),
+                    op,
+                    right: Box::new(right),
+                },
+                span,
+            );
         }
 
         Ok(expr)
@@ -1013,10 +1038,13 @@ impl Parser {
         if let Some(op) = self.match_unary_op(&[TokenKind::Bang, TokenKind::Minus]) {
             let expr = self.parse_unary()?;
             let span = Span::new(start, expr.span.end);
-            return Ok(self.create_expr(ExprKind::Unary {
-                op,
-                expr: Box::new(expr),
-            }, span));
+            return Ok(self.create_expr(
+                ExprKind::Unary {
+                    op,
+                    expr: Box::new(expr),
+                },
+                span,
+            ));
         }
 
         self.parse_postfix()
@@ -1032,22 +1060,31 @@ impl Parser {
                 let index = self.parse_expression()?;
                 self.consume(&TokenKind::RightBracket, "Expected ']' after array index")?;
                 let span = Span::new(expr.span.start, self.previous_location());
-                expr = self.create_expr(ExprKind::Index {
-                    object: Box::new(expr),
-                    index: Box::new(index),
-                }, span);
+                expr = self.create_expr(
+                    ExprKind::Index {
+                        object: Box::new(expr),
+                        index: Box::new(index),
+                    },
+                    span,
+                );
             } else if self.match_token(&TokenKind::Dot) {
                 let property = self.consume_identifier("Expected property name after '.'")?;
                 let span = Span::new(expr.span.start, self.previous_location());
-                expr = self.create_expr(ExprKind::Member {
-                    object: Box::new(expr),
-                    property,
-                }, span);
+                expr = self.create_expr(
+                    ExprKind::Member {
+                        object: Box::new(expr),
+                        property,
+                    },
+                    span,
+                );
             } else if self.match_token(&TokenKind::Question) {
                 let span = Span::new(expr.span.start, self.previous_location());
-                expr = self.create_expr(ExprKind::ErrorPropagation {
-                    expr: Box::new(expr),
-                }, span);
+                expr = self.create_expr(
+                    ExprKind::ErrorPropagation {
+                        expr: Box::new(expr),
+                    },
+                    span,
+                );
             } else {
                 break;
             }
@@ -1071,10 +1108,13 @@ impl Parser {
         self.consume(&TokenKind::RightParen, "Expected ')' after arguments")?;
         let span = Span::new(callee.span.start, self.previous_location());
 
-        Ok(self.create_expr(ExprKind::Call {
-            callee: Box::new(callee),
-            args,
-        }, span))
+        Ok(self.create_expr(
+            ExprKind::Call {
+                callee: Box::new(callee),
+                args,
+            },
+            span,
+        ))
     }
 
     fn parse_primary(&mut self) -> Result<Expr> {
@@ -1115,7 +1155,9 @@ impl Parser {
                     // This is a generic constructor like Vec<i32>
                     let type_args = self.parse_generic_args()?;
                     let span = Span::new(start, self.previous_location());
-                    return Ok(self.create_expr(ExprKind::GenericConstructor { name, type_args }, span));
+                    return Ok(
+                        self.create_expr(ExprKind::GenericConstructor { name, type_args }, span)
+                    );
                 } else {
                     // Regular identifier
                     let span = Span::new(start, self.previous_location());
@@ -1129,6 +1171,11 @@ impl Parser {
             let expr = self.parse_expression()?;
             self.consume(&TokenKind::RightParen, "Expected ')' after expression")?;
             return Ok(expr);
+        }
+
+        // Closure expressions (|param| body)
+        if self.match_token(&TokenKind::Pipe) {
+            return self.parse_closure_expression(start);
         }
 
         // If expressions
@@ -1146,6 +1193,11 @@ impl Parser {
             let expr = Box::new(self.parse_expression()?);
             let span = Span::new(start, self.previous_location());
             return Ok(self.create_expr(ExprKind::Await { expr }, span));
+        }
+
+        // Try-catch expressions
+        if self.match_token(&TokenKind::Try) {
+            return self.parse_try_catch_expression();
         }
 
         // Block expressions
@@ -1182,12 +1234,15 @@ impl Parser {
                         "Expected ']' after list comprehension",
                     )?;
                     let span = Span::new(start, self.previous_location());
-                    return Ok(self.create_expr(ExprKind::ListComprehension {
-                        element: Box::new(first_expr),
-                        variable,
-                        iterable,
-                        condition,
-                    }, span));
+                    return Ok(self.create_expr(
+                        ExprKind::ListComprehension {
+                            element: Box::new(first_expr),
+                            variable,
+                            iterable,
+                            condition,
+                        },
+                        span,
+                    ));
                 } else {
                     // It's a regular array literal
                     let mut elements = vec![first_expr];
@@ -1228,11 +1283,13 @@ impl Parser {
 
         // Parse the then branch as a block
         let block = self.parse_block()?;
-        let then_branch = Box::new(self.create_expr(ExprKind::Block(block), 
+        let then_branch = Box::new(self.create_expr(
+            ExprKind::Block(block),
             Span::new(
                 self.tokens[self.current - 1].span.start,
                 self.previous_location(),
-            )));
+            ),
+        ));
 
         let else_branch = if self.match_token(&TokenKind::Else) {
             if self.match_token(&TokenKind::If) {
@@ -1241,11 +1298,13 @@ impl Parser {
             } else {
                 self.consume(&TokenKind::LeftBrace, "Expected '{' after else")?;
                 let block = self.parse_block()?;
-                Some(Box::new(self.create_expr(ExprKind::Block(block),
+                Some(Box::new(self.create_expr(
+                    ExprKind::Block(block),
                     Span::new(
                         self.tokens[self.current - 1].span.start,
                         self.previous_location(),
-                    ))))
+                    ),
+                )))
             }
         } else {
             None
@@ -1253,11 +1312,14 @@ impl Parser {
 
         let span = Span::new(start, self.previous_location());
 
-        Ok(self.create_expr(ExprKind::If {
-            condition,
-            then_branch,
-            else_branch,
-        }, span))
+        Ok(self.create_expr(
+            ExprKind::If {
+                condition,
+                then_branch,
+                else_branch,
+            },
+            span,
+        ))
     }
 
     fn parse_match_expression(&mut self) -> Result<Expr> {
@@ -1307,6 +1369,92 @@ impl Parser {
         let span = Span::new(start, self.previous_location());
 
         Ok(self.create_expr(ExprKind::Match { expr, arms }, span))
+    }
+
+    fn parse_try_catch_expression(&mut self) -> Result<Expr> {
+        let start = self.tokens[self.current - 1].span.start; // 'try' was already consumed
+
+        // Parse the try block
+        self.consume(&TokenKind::LeftBrace, "Expected '{' after 'try'")?;
+        let try_block = self.parse_block()?;
+        let try_expr = Box::new(self.create_expr(
+            ExprKind::Block(try_block),
+            Span::new(start, self.previous_location()),
+        ));
+
+        let mut catch_clauses = Vec::new();
+
+        // Parse catch clauses
+        while self.match_token(&TokenKind::Catch) {
+            catch_clauses.push(self.parse_catch_clause()?);
+        }
+
+        // Parse optional finally block
+        let finally_block = if self.match_token(&TokenKind::Finally) {
+            self.consume(&TokenKind::LeftBrace, "Expected '{' after 'finally'")?;
+            Some(self.parse_block()?)
+        } else {
+            None
+        };
+
+        // Require at least one catch clause if no finally block
+        if catch_clauses.is_empty() && finally_block.is_none() {
+            return Err(
+                self.error("try expression must have at least one catch clause or a finally block")
+            );
+        }
+
+        let span = Span::new(start, self.previous_location());
+        Ok(self.create_expr(
+            ExprKind::TryCatch {
+                try_expr,
+                catch_clauses,
+                finally_block,
+            },
+            span,
+        ))
+    }
+
+    fn parse_catch_clause(&mut self) -> Result<CatchClause> {
+        let start = self.current_location();
+
+        let mut var = None;
+        let mut error_type = None;
+        let mut condition = None;
+
+        // Parse optional variable binding and type constraint
+        if self.match_token(&TokenKind::LeftParen) {
+            // Parse variable name
+            var = Some(self.consume_identifier("Expected variable name in catch clause")?);
+
+            // Parse optional type constraint
+            if self.match_token(&TokenKind::Colon) {
+                error_type = Some(self.parse_type_annotation()?);
+            }
+
+            self.consume(
+                &TokenKind::RightParen,
+                "Expected ')' after catch parameters",
+            )?;
+        }
+
+        // Parse optional condition
+        if self.match_token(&TokenKind::If) {
+            condition = Some(self.parse_expression()?);
+        }
+
+        // Parse catch body
+        self.consume(&TokenKind::LeftBrace, "Expected '{' after catch clause")?;
+        let handler = self.parse_block()?;
+
+        let span = Span::new(start, self.previous_location());
+        Ok(CatchClause {
+            var,
+            error_type,
+            condition,
+            handler,
+            span,
+        })
     }
 
     fn parse_pattern(&mut self) -> Result<Pattern> {
@@ -1446,15 +1594,17 @@ impl Parser {
             if let TokenKind::Identifier(name) = token.kind {
                 // Check if this is an enum constructor pattern
                 // Could be: Some(x), Option::Some(x), or just Some/None
-                
+
                 let mut enum_name = None;
                 let mut variant = name.clone();
-                
+
                 // Check for qualified enum pattern like Option::Some
                 if self.match_token(&TokenKind::ColonColon) {
                     enum_name = Some(name);
-                    
-                    if let Some(token) = self.match_token_if(|t| matches!(t, TokenKind::Identifier(_))) {
+
+                    if let Some(token) =
+                        self.match_token_if(|t| matches!(t, TokenKind::Identifier(_)))
+                    {
                         if let TokenKind::Identifier(v) = token.kind {
                             variant = v;
                         }
@@ -1462,11 +1612,11 @@ impl Parser {
                         return Err(self.error("Expected variant name after '::'"));
                     }
                 }
-                
+
                 // Check if this is a constructor with arguments
                 if self.check(&TokenKind::LeftParen) {
                     self.advance(); // consume '('
-                    
+
                     let mut args = Vec::new();
                     if !self.check(&TokenKind::RightParen) {
                         loop {
@@ -1476,10 +1626,13 @@ impl Parser {
                             }
                         }
                     }
-                    
-                    self.consume(&TokenKind::RightParen, "Expected ')' after enum constructor arguments")?;
+
+                    self.consume(
+                        &TokenKind::RightParen,
+                        "Expected ')' after enum constructor arguments",
+                    )?;
                     let span = Span::new(start, self.previous_location());
-                    
+
                     return Ok(Pattern {
                         kind: PatternKind::EnumConstructor {
                             enum_name,
@@ -1489,10 +1642,15 @@ impl Parser {
                         span,
                     });
                 }
-                
+
                 // Check if this could be a unit variant (capitalized identifier)
                 // Heuristic: if it starts with uppercase, treat as enum constructor
-                if variant.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                if variant
+                    .chars()
+                    .next()
+                    .map(|c| c.is_uppercase())
+                    .unwrap_or(false)
+                {
                     let span = Span::new(start, self.previous_location());
                     return Ok(Pattern {
                         kind: PatternKind::EnumConstructor {
@@ -1503,7 +1661,7 @@ impl Parser {
                         span,
                     });
                 }
-                
+
                 // Otherwise, it's just a regular identifier pattern
                 let span = Span::new(start, self.previous_location());
                 return Ok(Pattern {
@@ -1560,11 +1718,8 @@ impl Parser {
                 }
             }
 
-            self.consume(
-                &TokenKind::RightParen,
-                "Expected ')' after types",
-            )?;
-            
+            self.consume(&TokenKind::RightParen, "Expected ')' after types")?;
+
             // Check if this is a function type (has arrow)
             if self.check(&TokenKind::Arrow) {
                 self.advance(); // consume arrow
@@ -1914,6 +2069,45 @@ impl Parser {
         };
 
         Error::new(ErrorKind::ParseError, message).with_location(location)
+    }
+
+    /// Parse a closure expression: |param1, param2| body
+    fn parse_closure_expression(&mut self, start: SourceLocation) -> Result<Expr> {
+        let mut parameters = Vec::new();
+
+        // Parse parameters
+        if !self.check(&TokenKind::Pipe) {
+            loop {
+                // Parse parameter name
+                let param_name = self.consume_identifier("Expected parameter name")?;
+
+                // Check for optional type annotation
+                let type_ann = if self.match_token(&TokenKind::Colon) {
+                    Some(self.parse_type_annotation()?)
+                } else {
+                    None
+                };
+
+                parameters.push(ClosureParam {
+                    name: param_name,
+                    type_ann,
+                });
+
+                // Check for more parameters
+                if !self.match_token(&TokenKind::Comma) {
+                    break;
+                }
+            }
+        }
+
+        // Consume closing pipe
+        self.consume(&TokenKind::Pipe, "Expected '|' after closure parameters")?;
+
+        // Parse closure body
+        let body = Box::new(self.parse_expression()?);
+
+        let span = Span::new(start, self.previous_location());
+        Ok(self.create_expr(ExprKind::Closure { parameters, body }, span))
     }
 
     // Error recovery

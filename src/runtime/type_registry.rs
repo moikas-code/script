@@ -7,8 +7,8 @@
 
 use std::any::{Any, TypeId as StdTypeId};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, RwLock};
 
 /// Unique identifier for registered types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -83,7 +83,7 @@ impl TypeRegistry {
 
     /// Look up type info by name
     pub fn get_by_name(&self, name: &str) -> Option<&TypeInfo> {
-        self.by_name.get(&name)
+        self.by_name.get(name)
     }
 }
 
@@ -100,7 +100,7 @@ pub fn shutdown() {
 }
 
 /// Register a type with the global registry
-/// 
+///
 /// This is typically called automatically when creating a ScriptRc<T>.
 /// Returns the assigned TypeId.
 pub fn register_type<T: Any + 'static>(
@@ -109,7 +109,7 @@ pub fn register_type<T: Any + 'static>(
     drop_fn: fn(*mut u8),
 ) -> TypeId {
     let std_type_id = StdTypeId::of::<T>();
-    
+
     // Check if already registered
     {
         let registry = TYPE_REGISTRY.read().unwrap();
@@ -119,10 +119,10 @@ pub fn register_type<T: Any + 'static>(
             }
         }
     }
-    
+
     // Generate new type ID
     let type_id = TypeId(NEXT_TYPE_ID.fetch_add(1, Ordering::Relaxed));
-    
+
     // Create type info
     let info = TypeInfo {
         type_id,
@@ -132,13 +132,13 @@ pub fn register_type<T: Any + 'static>(
         trace_fn,
         drop_fn,
     };
-    
+
     // Register the type
     let mut registry = TYPE_REGISTRY.write().unwrap();
     if let Some(reg) = registry.as_mut() {
         Arc::get_mut(reg).unwrap().register_type(info);
     }
-    
+
     type_id
 }
 
@@ -158,21 +158,17 @@ pub fn get_type_info_by_std_id(id: &StdTypeId) -> Option<TypeInfo> {
 pub trait RegisterableType: Any + 'static {
     /// Get the type name
     fn type_name() -> &'static str;
-    
+
     /// Trace references in this type
     fn trace_refs(ptr: *const u8, visitor: &mut dyn FnMut(&dyn Any));
-    
+
     /// Drop the value
     fn drop_value(ptr: *mut u8);
 }
 
 /// Register a type using the RegisterableType trait
 pub fn register_with_trait<T: RegisterableType>() -> TypeId {
-    register_type::<T>(
-        T::type_name(),
-        T::trace_refs,
-        T::drop_value,
-    )
+    register_type::<T>(T::type_name(), T::trace_refs, T::drop_value)
 }
 
 /// Safe downcasting using the type registry
@@ -188,14 +184,14 @@ impl TypedPointer {
     pub fn new(ptr: *const u8, type_id: TypeId) -> Self {
         TypedPointer { ptr, type_id }
     }
-    
+
     /// Try to downcast to a specific type
     pub fn downcast<T: Any + 'static>(&self) -> Option<&T> {
         let target_type_id = StdTypeId::of::<T>();
-        
+
         // Get type info
         let info = get_type_info(self.type_id)?;
-        
+
         // Check if types match
         if info.std_type_id == target_type_id {
             unsafe { Some(&*(self.ptr as *const T)) }
@@ -203,12 +199,12 @@ impl TypedPointer {
             None
         }
     }
-    
+
     /// Get the raw pointer
     pub fn as_ptr(&self) -> *const u8 {
         self.ptr
     }
-    
+
     /// Get the type ID
     pub fn type_id(&self) -> TypeId {
         self.type_id
@@ -219,59 +215,56 @@ impl TypedPointer {
 mod tests {
     use super::*;
     use crate::runtime::traceable::Traceable;
-    
+
     struct TestType {
         value: i32,
     }
-    
+
     impl RegisterableType for TestType {
         fn type_name() -> &'static str {
             "TestType"
         }
-        
+
         fn trace_refs(_ptr: *const u8, _visitor: &mut dyn FnMut(&dyn Any)) {
             // No references to trace
         }
-        
+
         fn drop_value(ptr: *mut u8) {
             unsafe {
                 std::ptr::drop_in_place(ptr as *mut TestType);
             }
         }
     }
-    
+
     #[test]
     fn test_type_registration() {
         initialize();
-        
+
         let type_id = register_with_trait::<TestType>();
         assert!(type_id.0 > 0);
-        
+
         let info = get_type_info(type_id).unwrap();
         assert_eq!(info.name, "TestType");
         assert_eq!(info.size, std::mem::size_of::<TestType>());
-        
+
         shutdown();
     }
-    
+
     #[test]
     fn test_typed_pointer() {
         initialize();
-        
+
         let value = TestType { value: 42 };
         let type_id = register_with_trait::<TestType>();
-        
-        let typed_ptr = TypedPointer::new(
-            &value as *const _ as *const u8,
-            type_id,
-        );
-        
+
+        let typed_ptr = TypedPointer::new(&value as *const _ as *const u8, type_id);
+
         let downcasted = typed_ptr.downcast::<TestType>().unwrap();
         assert_eq!(downcasted.value, 42);
-        
+
         // Wrong type should fail
         assert!(typed_ptr.downcast::<String>().is_none());
-        
+
         shutdown();
     }
 }

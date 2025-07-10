@@ -1,17 +1,17 @@
 use crate::error::{Error, ErrorKind, Result};
 use std::path::{Path, PathBuf};
 
-/// Represents a module path in Script
+/// Represents a module path in Script compilation context
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ModulePath {
+pub struct CompilationModulePath {
     /// The components of the module path (e.g., ["std", "io"])
     pub components: Vec<String>,
 }
 
-impl ModulePath {
+impl CompilationModulePath {
     /// Create a module path from a string like "std.io"
     pub fn from_str(s: &str) -> Self {
-        ModulePath {
+        CompilationModulePath {
             components: s.split('.').map(|s| s.to_string()).collect(),
         }
     }
@@ -33,6 +33,7 @@ impl ModulePath {
 }
 
 /// Resolves and loads Script modules
+#[derive(Debug)]
 pub struct ModuleLoader {
     /// Search paths for modules
     search_paths: Vec<PathBuf>,
@@ -67,7 +68,7 @@ impl ModuleLoader {
         }
 
         // Handle absolute imports
-        let module_path = ModulePath::from_str(import_path);
+        let module_path = CompilationModulePath::from_str(import_path);
         let fs_path = module_path.to_fs_path();
 
         // Search in all search paths
@@ -174,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_module_path() {
-        let path = ModulePath::from_str("std.io.file");
+        let path = CompilationModulePath::from_str("std.io.file");
         assert_eq!(path.components, vec!["std", "io", "file"]);
         assert_eq!(path.module_name(), "file");
         assert_eq!(path.to_fs_path(), PathBuf::from("std/io/file.script"));
@@ -182,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_simple_module_path() {
-        let path = ModulePath::from_str("math");
+        let path = CompilationModulePath::from_str("math");
         assert_eq!(path.components, vec!["math"]);
         assert_eq!(path.module_name(), "math");
         assert_eq!(path.to_fs_path(), PathBuf::from("math.script"));

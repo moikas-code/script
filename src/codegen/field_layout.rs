@@ -1,11 +1,11 @@
 //! Type-safe field layout management for object field access
-//! 
+//!
 //! This module provides secure field offset calculation to prevent
 //! memory corruption from hash-based field access.
 
-use std::collections::HashMap;
-use crate::types::Type;
 use crate::error::{Error, ErrorKind};
+use crate::types::Type;
+use std::collections::HashMap;
 
 /// Field layout information for a struct or object type
 #[derive(Debug, Clone)]
@@ -31,13 +31,13 @@ impl FieldLayout {
         // Calculate offsets with proper alignment
         for (name, ty) in fields {
             let (size, align) = Self::get_type_size_and_align(ty);
-            
+
             // Align current offset
             current_offset = Self::align_offset(current_offset, align);
-            
+
             field_offsets.insert(name.clone(), current_offset);
             field_types.insert(name.clone(), ty.clone());
-            
+
             current_offset += size;
             max_alignment = max_alignment.max(align);
         }
@@ -55,23 +55,22 @@ impl FieldLayout {
 
     /// Get the offset of a field by name
     pub fn get_field_offset(&self, field_name: &str) -> Result<usize, Error> {
-        self.field_offsets
-            .get(field_name)
-            .copied()
-            .ok_or_else(|| Error::new(
-                ErrorKind::CodegenError,
-                format!("Field '{}' not found in struct layout", field_name)
-            ))
+        self.field_offsets.get(field_name).copied().ok_or_else(|| {
+            Error::new(
+                ErrorKind::CompilationError,
+                format!("Field '{}' not found in struct layout", field_name),
+            )
+        })
     }
 
     /// Get the type of a field by name
     pub fn get_field_type(&self, field_name: &str) -> Result<&Type, Error> {
-        self.field_types
-            .get(field_name)
-            .ok_or_else(|| Error::new(
-                ErrorKind::CodegenError,
-                format!("Field '{}' not found in struct layout", field_name)
-            ))
+        self.field_types.get(field_name).ok_or_else(|| {
+            Error::new(
+                ErrorKind::CompilationError,
+                format!("Field '{}' not found in struct layout", field_name),
+            )
+        })
     }
 
     /// Get total size of the struct
@@ -90,9 +89,9 @@ impl FieldLayout {
             Type::I32 => (4, 4),
             Type::F32 => (4, 4),
             Type::Bool => (1, 1),
-            Type::String => (16, 8), // String struct: ptr + len
+            Type::String => (16, 8),          // String struct: ptr + len
             Type::Reference { .. } => (8, 8), // Pointer
-            Type::Array(_) => (16, 8), // Array struct: ptr + len
+            Type::Array(_) => (16, 8),        // Array struct: ptr + len
             Type::Tuple(types) => {
                 let mut size = 0;
                 let mut align = 1;
@@ -106,12 +105,23 @@ impl FieldLayout {
             Type::Generic { .. } => (8, 8), // Assume pointer-sized for now
             Type::Function { .. } => (8, 8), // Function pointer
             Type::Never => (0, 1),
-            Type::Unknown => (8, 8), // Conservative estimate
-            Type::Named(_) => (8, 8), // Will be resolved later
-            Type::Option(_) => (12, 4), // Tag + payload
+            Type::Unknown => (8, 8),        // Conservative estimate
+            Type::Named(_) => (8, 8),       // Will be resolved later
+            Type::Option(_) => (12, 4),     // Tag + payload
             Type::Result { .. } => (12, 4), // Tag + payload
-            Type::Future(_) => (8, 8), // Future pointer
+            Type::Future(_) => (8, 8),      // Future pointer
             Type::TypeVar(_) | Type::TypeParam(_) => (8, 8), // Should be resolved
+            Type::Struct { fields, .. } => {
+                // Calculate struct layout with proper field alignment
+                let mut size = 0;
+                let mut align = 1;
+                for (_field_name, field_type) in fields {
+                    let (field_size, field_align) = Self::get_type_size_and_align(field_type);
+                    size = Self::align_offset(size, field_align) + field_size;
+                    align = align.max(field_align);
+                }
+                (Self::align_offset(size, align), align)
+            }
         }
     }
 
@@ -156,8 +166,8 @@ mod tests {
     #[test]
     fn test_simple_struct_layout() {
         let fields = vec![
-            ("x".to_string(), Type::Int),
-            ("y".to_string(), Type::Float),
+            ("x".to_string(), Type::I32),
+            ("y".to_string(), Type::F32),
             ("active".to_string(), Type::Bool),
         ];
 
@@ -173,7 +183,7 @@ mod tests {
     fn test_mixed_alignment() {
         let fields = vec![
             ("flag".to_string(), Type::Bool),
-            ("value".to_string(), Type::Int),
+            ("value".to_string(), Type::I32),
             ("flag2".to_string(), Type::Bool),
         ];
 
@@ -186,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_field_not_found() {
-        let fields = vec![("x".to_string(), Type::Int)];
+        let fields = vec![("x".to_string(), Type::I32)];
         let layout = FieldLayout::new(&fields);
 
         assert!(layout.get_field_offset("y").is_err());

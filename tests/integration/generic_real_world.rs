@@ -1,5 +1,5 @@
 //! Real-world scenario tests for generic types
-//! 
+//!
 //! These tests demonstrate practical usage patterns of generic structs
 //! and enums that would be common in real applications.
 
@@ -53,18 +53,24 @@ fn test_linked_list() {
             list2.push("world");
         }
     "#;
-    
+
     let program = compile_generic_program(code);
     // Recursive types and impl blocks might have issues
-    
+
     if let Ok(ref prog) = program {
         // Should have LinkedList<i32> and LinkedList<string>
         let list_instances = count_monomorphized_instances(prog, "LinkedList");
-        assert!(list_instances >= 2, "Should have at least 2 LinkedList instantiations");
-        
+        assert!(
+            list_instances >= 2,
+            "Should have at least 2 LinkedList instantiations"
+        );
+
         // Should also have Node and Box instantiations
         let node_instances = count_monomorphized_instances(prog, "Node");
-        assert!(node_instances >= 2, "Should have at least 2 Node instantiations");
+        assert!(
+            node_instances >= 2,
+            "Should have at least 2 Node instantiations"
+        );
     }
 }
 
@@ -121,17 +127,23 @@ fn test_simple_hashmap() {
             map2.insert(2, "two");
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     if let Ok(ref prog) = program {
         // Should have HashMap<string, string> and HashMap<i32, string>
         let map_instances = count_monomorphized_instances(prog, "HashMap");
-        assert!(map_instances >= 2, "Should have at least 2 HashMap instantiations");
-        
+        assert!(
+            map_instances >= 2,
+            "Should have at least 2 HashMap instantiations"
+        );
+
         // Should also have Entry instantiations
         let entry_instances = count_monomorphized_instances(prog, "Entry");
-        assert!(entry_instances >= 2, "Should have at least 2 Entry instantiations");
+        assert!(
+            entry_instances >= 2,
+            "Should have at least 2 Entry instantiations"
+        );
     }
 }
 
@@ -189,9 +201,9 @@ fn test_vec_implementation() {
             vec3.push(false);
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should have Vec<i32>, Vec<string>, and Vec<bool>
     let vec_instances = count_monomorphized_instances(&program, "Vec");
     assert_eq!(vec_instances, 3, "Should have 3 Vec instantiations");
@@ -229,13 +241,16 @@ fn test_iterator_pattern() {
             let iter2 = ArrayIter::new(["a", "b", "c"]);
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     if let Ok(ref prog) = program {
         // Should have ArrayIter<i32> and ArrayIter<string>
         let iter_instances = count_monomorphized_instances(prog, "ArrayIter");
-        assert!(iter_instances >= 2, "Should have at least 2 ArrayIter instantiations");
+        assert!(
+            iter_instances >= 2,
+            "Should have at least 2 ArrayIter instantiations"
+        );
     }
 }
 
@@ -289,9 +304,9 @@ fn test_smart_pointers() {
             let arc1 = Arc { value: [1, 2, 3], ref_count: 1 };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Check various smart pointer instantiations
     assert!(count_monomorphized_instances(&program, "Box") >= 2);
     assert!(count_monomorphized_instances(&program, "Rc") >= 1);
@@ -347,13 +362,13 @@ fn test_graph_structure() {
             graph2.add_node(2);
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should have Graph<string> and Graph<i32>
     let graph_instances = count_monomorphized_instances(&program, "Graph");
     assert_eq!(graph_instances, 2, "Should have 2 Graph instantiations");
-    
+
     // Should also have Node instantiations
     let node_instances = count_monomorphized_instances(&program, "Node");
     assert_eq!(node_instances, 2, "Should have 2 Node instantiations");
@@ -409,17 +424,23 @@ fn test_channel_communication() {
             tx2.send("hello");
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     if let Ok(ref prog) = program {
         // Should have Sender<i32>, Sender<string>
         let sender_instances = count_monomorphized_instances(prog, "Sender");
-        assert!(sender_instances >= 2, "Should have at least 2 Sender instantiations");
-        
+        assert!(
+            sender_instances >= 2,
+            "Should have at least 2 Sender instantiations"
+        );
+
         // Should have Receiver<i32>, Receiver<string>
         let receiver_instances = count_monomorphized_instances(prog, "Receiver");
-        assert!(receiver_instances >= 2, "Should have at least 2 Receiver instantiations");
+        assert!(
+            receiver_instances >= 2,
+            "Should have at least 2 Receiver instantiations"
+        );
     }
 }
 
@@ -459,12 +480,15 @@ fn test_binary_tree() {
             let t4 = Tree::leaf("root");
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     if let Ok(ref prog) = program {
         // Should have Tree<i32> and Tree<string>
         let tree_instances = count_monomorphized_instances(prog, "Tree");
-        assert!(tree_instances >= 2, "Should have at least 2 Tree instantiations");
+        assert!(
+            tree_instances >= 2,
+            "Should have at least 2 Tree instantiations"
+        );
     }
 }

@@ -31,15 +31,21 @@ fn test_error_propagation_semantic_analysis() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should succeed - valid error propagation
-    assert!(result.is_ok(), "Error propagation analysis should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Error propagation analysis should succeed: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -59,20 +65,21 @@ fn test_error_propagation_invalid_context() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should fail - ? operator used in non-Result function
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| matches!(
-        e.kind, 
-        SemanticErrorKind::ErrorPropagationInNonResult
-    )));
+    assert!(errors
+        .iter()
+        .any(|e| matches!(e.kind, SemanticErrorKind::ErrorPropagationInNonResult)));
 }
 
 #[test]
@@ -98,20 +105,21 @@ fn test_error_propagation_type_mismatch() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should fail - incompatible error types
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| matches!(
-        e.kind, 
-        SemanticErrorKind::TypeMismatch { .. }
-    )));
+    assert!(errors
+        .iter()
+        .any(|e| matches!(e.kind, SemanticErrorKind::TypeMismatch { .. })));
 }
 
 #[test]
@@ -133,15 +141,21 @@ fn test_option_error_propagation() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should succeed - valid Option error propagation
-    assert!(result.is_ok(), "Option error propagation analysis should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Option error propagation analysis should succeed: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -163,15 +177,21 @@ fn test_result_pattern_exhaustiveness() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should succeed - exhaustive Result pattern matching
-    assert!(result.is_ok(), "Exhaustive Result pattern matching should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Exhaustive Result pattern matching should succeed: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -193,21 +213,22 @@ fn test_result_pattern_non_exhaustive() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should fail or warn - non-exhaustive Result pattern matching
     // Depending on implementation, this might be an error or warning
     if result.is_err() {
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(
-            e.kind, 
-            SemanticErrorKind::NonExhaustivePatterns
-        )));
+        assert!(errors
+            .iter()
+            .any(|e| matches!(e.kind, SemanticErrorKind::NonExhaustivePatterns)));
     }
 }
 
@@ -238,20 +259,21 @@ fn test_option_pattern_exhaustiveness() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should fail or warn due to non-exhaustive Option pattern in second function
     if result.is_err() {
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(
-            e.kind, 
-            SemanticErrorKind::NonExhaustivePatterns
-        )));
+        assert!(errors
+            .iter()
+            .any(|e| matches!(e.kind, SemanticErrorKind::NonExhaustivePatterns)));
     }
 }
 
@@ -283,15 +305,21 @@ fn test_nested_error_propagation() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should succeed - valid nested error propagation
-    assert!(result.is_ok(), "Nested error propagation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Nested error propagation should succeed: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -321,15 +349,21 @@ fn test_mixed_result_option_propagation() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should succeed - valid mixed Option/Result propagation with conversion
-    assert!(result.is_ok(), "Mixed Option/Result propagation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Mixed Option/Result propagation should succeed: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -345,26 +379,27 @@ fn test_error_propagation_invalid_type() {
         }
     "#;
 
-    let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Failed to parse");
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze(&ast);
-    
+
     // Should fail - ? operator used on non-Result/Option type
     assert!(result.is_err());
     let errors = result.unwrap_err();
-    assert!(errors.iter().any(|e| matches!(
-        e.kind, 
-        SemanticErrorKind::InvalidErrorPropagation { .. }
-    )));
+    assert!(errors
+        .iter()
+        .any(|e| matches!(e.kind, SemanticErrorKind::InvalidErrorPropagation { .. })));
 }
 
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    
+
     #[test]
     fn test_full_result_workflow() {
         let source = r#"
@@ -397,14 +432,20 @@ mod integration_tests {
             }
         "#;
 
-        let tokens = Lexer::new(source).tokenize().expect("Failed to tokenize");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Failed to parse");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let result = analyzer.analyze(&ast);
-        
+
         // Should succeed - complete Result workflow with error propagation and pattern matching
-        assert!(result.is_ok(), "Full Result workflow should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Full Result workflow should succeed: {:?}",
+            result.err()
+        );
     }
 }

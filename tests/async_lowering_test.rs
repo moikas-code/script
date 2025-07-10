@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod async_lowering_tests {
     use script::lexer::Scanner;
+    use script::lowering::AstLowerer;
     use script::parser::Parser;
     use script::semantic::analyzer::SemanticAnalyzer;
-    use script::lowering::AstLowerer;
     use script::types::Type;
 
     #[test]
@@ -33,7 +33,7 @@ mod async_lowering_tests {
         // Check that async function was created
         let func = ir_module.get_function_by_name("simple_async").unwrap();
         assert!(func.is_async);
-        
+
         // Check that return type is wrapped in Future
         match &func.return_type {
             Type::Future(inner) => {

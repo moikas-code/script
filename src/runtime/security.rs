@@ -5,10 +5,10 @@
 //! safe operation under adversarial conditions.
 
 use std::collections::{HashMap, VecDeque};
+use std::fmt;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use std::fmt;
 
 /// Security monitoring configuration
 #[derive(Debug, Clone)]
@@ -44,7 +44,7 @@ impl Default for SecurityConfig {
 }
 
 /// Security event types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SecurityEventType {
     /// Memory corruption detected
     MemoryCorruption,
@@ -163,7 +163,7 @@ impl AlertLimiter {
     /// Check if alert should be rate limited
     fn should_limit(&mut self, config: &SecurityConfig) -> bool {
         let now = Instant::now();
-        
+
         // Check if we've moved to a new minute
         if now.duration_since(self.current_minute_start) >= Duration::from_secs(60) {
             self.current_minute_alerts.clear();
@@ -232,7 +232,9 @@ impl MemoryValidator {
             last_validated: Instant::now(),
         };
 
-        let mut regions = self.regions.write()
+        let mut regions = self
+            .regions
+            .write()
             .map_err(|_| SecurityError::LockPoisoned)?;
         regions.insert(address, region);
         Ok(())
@@ -240,9 +242,11 @@ impl MemoryValidator {
 
     /// Validate a memory region
     fn validate_region(&self, address: usize) -> Result<bool, SecurityError> {
-        let regions = self.regions.read()
+        let regions = self
+            .regions
+            .read()
             .map_err(|_| SecurityError::LockPoisoned)?;
-        
+
         if let Some(region) = regions.get(&address) {
             let current_checksum = self.calculate_checksum(region.start, region.size)?;
             if current_checksum != region.checksum {
@@ -250,7 +254,7 @@ impl MemoryValidator {
                 return Ok(false);
             }
         }
-        
+
         Ok(true)
     }
 
@@ -301,9 +305,11 @@ impl TypeValidator {
     /// Validate a type cast operation
     fn validate_cast(&self, from_type: u64, to_type: u64) -> Result<bool, SecurityError> {
         // Check if this combination has been validated before
-        let combinations = self.validated_combinations.read()
+        let combinations = self
+            .validated_combinations
+            .read()
             .map_err(|_| SecurityError::LockPoisoned)?;
-        
+
         if combinations.contains(&(from_type, to_type)) {
             return Ok(true);
         }
@@ -311,10 +317,12 @@ impl TypeValidator {
 
         // Perform validation logic
         let is_valid = self.is_valid_cast(from_type, to_type);
-        
+
         if is_valid {
             // Cache valid combination
-            let mut combinations = self.validated_combinations.write()
+            let mut combinations = self
+                .validated_combinations
+                .write()
                 .map_err(|_| SecurityError::LockPoisoned)?;
             combinations.insert((from_type, to_type));
         } else {
@@ -425,9 +433,11 @@ impl SecurityMonitor {
         self.update_metrics(&event)?;
 
         // Add to history
-        let mut history = self.event_history.write()
+        let mut history = self
+            .event_history
+            .write()
             .map_err(|_| SecurityError::LockPoisoned)?;
-        
+
         history.push_back(event.clone());
 
         // Trim old events
@@ -448,18 +458,24 @@ impl SecurityMonitor {
 
     /// Update security metrics
     fn update_metrics(&self, event: &SecurityEvent) -> Result<(), SecurityError> {
-        let mut metrics = self.metrics.write()
+        let mut metrics = self
+            .metrics
+            .write()
             .map_err(|_| SecurityError::LockPoisoned)?;
 
         metrics.total_events += 1;
-        *metrics.events_by_type.entry(event.event_type.clone()).or_insert(0) += 1;
+        *metrics
+            .events_by_type
+            .entry(event.event_type.clone())
+            .or_insert(0) += 1;
 
         if event.severity > 0.8 {
             metrics.high_severity_events += 1;
         }
 
         // Update average severity
-        let total_severity = metrics.average_severity * (metrics.total_events - 1) as f64 + event.severity;
+        let total_severity =
+            metrics.average_severity * (metrics.total_events - 1) as f64 + event.severity;
         metrics.average_severity = total_severity / metrics.total_events as f64;
 
         // Update component-specific metrics
@@ -477,7 +493,10 @@ impl SecurityMonitor {
     }
 
     /// Detect attack patterns in event history
-    fn detect_attack_patterns(&self, history: &VecDeque<SecurityEvent>) -> Result<(), SecurityError> {
+    fn detect_attack_patterns(
+        &self,
+        history: &VecDeque<SecurityEvent>,
+    ) -> Result<(), SecurityError> {
         if !self.config.enable_attack_detection {
             return Ok(());
         }
@@ -486,15 +505,17 @@ impl SecurityMonitor {
             let matching_events: Vec<_> = history
                 .iter()
                 .filter(|event| {
-                    pattern.event_types.contains(&event.event_type) &&
-                    SystemTime::now().duration_since(event.timestamp)
-                        .unwrap_or(Duration::MAX) <= pattern.window
+                    pattern.event_types.contains(&event.event_type)
+                        && SystemTime::now()
+                            .duration_since(event.timestamp)
+                            .unwrap_or(Duration::MAX)
+                            <= pattern.window
                 })
                 .collect();
 
             if matching_events.len() >= pattern.min_events {
                 let confidence = self.calculate_pattern_confidence(&matching_events, pattern);
-                
+
                 if confidence >= pattern.confidence_threshold {
                     // Attack pattern detected
                     let attack_event = SecurityEvent {
@@ -504,9 +525,15 @@ impl SecurityMonitor {
                         timestamp: SystemTime::now(),
                         context: [
                             ("pattern_name".to_string(), pattern.name.clone()),
-                            ("matching_events".to_string(), matching_events.len().to_string()),
+                            (
+                                "matching_events".to_string(),
+                                matching_events.len().to_string(),
+                            ),
                             ("confidence".to_string(), confidence.to_string()),
-                        ].iter().cloned().collect(),
+                        ]
+                        .iter()
+                        .cloned()
+                        .collect(),
                         source: "SecurityMonitor".to_string(),
                         event_id: 0, // Will be assigned
                     };
@@ -523,30 +550,36 @@ impl SecurityMonitor {
     }
 
     /// Calculate confidence score for an attack pattern
-    fn calculate_pattern_confidence(&self, events: &[&SecurityEvent], pattern: &AttackPattern) -> f64 {
+    fn calculate_pattern_confidence(
+        &self,
+        events: &[&SecurityEvent],
+        pattern: &AttackPattern,
+    ) -> f64 {
         if events.is_empty() {
             return 0.0;
         }
 
         // Base confidence from event count
         let count_factor = (events.len() as f64 / pattern.min_events as f64).min(1.0);
-        
+
         // Severity factor
         let avg_severity = events.iter().map(|e| e.severity).sum::<f64>() / events.len() as f64;
-        
+
         // Time clustering factor (events close in time are more suspicious)
         let time_factor = if events.len() > 1 {
-            let time_span = events.iter()
+            let time_span = events
+                .iter()
                 .map(|e| e.timestamp.duration_since(UNIX_EPOCH).unwrap_or_default())
                 .max()
                 .unwrap_or_default()
                 .saturating_sub(
-                    events.iter()
+                    events
+                        .iter()
                         .map(|e| e.timestamp.duration_since(UNIX_EPOCH).unwrap_or_default())
                         .min()
-                        .unwrap_or_default()
+                        .unwrap_or_default(),
                 );
-            
+
             if time_span <= Duration::from_secs(10) {
                 1.0 // Very clustered
             } else if time_span <= Duration::from_secs(60) {
@@ -574,7 +607,7 @@ impl SecurityMonitor {
         }
 
         let is_valid = self.memory_validator.validate_region(address)?;
-        
+
         if !is_valid {
             let event = SecurityEvent {
                 event_type: SecurityEventType::MemoryCorruption,
@@ -584,11 +617,14 @@ impl SecurityMonitor {
                 context: [
                     ("address".to_string(), format!("0x{:x}", address)),
                     ("size".to_string(), size.to_string()),
-                ].iter().cloned().collect(),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
                 source: "MemoryValidator".to_string(),
                 event_id: 0,
             };
-            
+
             let _ = self.record_event(event);
         }
 
@@ -602,7 +638,7 @@ impl SecurityMonitor {
         }
 
         let is_valid = self.type_validator.validate_cast(from_type, to_type)?;
-        
+
         if !is_valid {
             let event = SecurityEvent {
                 event_type: SecurityEventType::TypeConfusion,
@@ -612,11 +648,14 @@ impl SecurityMonitor {
                 context: [
                     ("from_type".to_string(), from_type.to_string()),
                     ("to_type".to_string(), to_type.to_string()),
-                ].iter().cloned().collect(),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
                 source: "TypeValidator".to_string(),
                 event_id: 0,
             };
-            
+
             let _ = self.record_event(event);
         }
 
@@ -625,28 +664,27 @@ impl SecurityMonitor {
 
     /// Get current security metrics
     pub fn get_metrics(&self) -> Result<SecurityMetrics, SecurityError> {
-        let metrics = self.metrics.read()
+        let metrics = self
+            .metrics
+            .read()
             .map_err(|_| SecurityError::LockPoisoned)?;
         Ok(metrics.clone())
     }
 
     /// Get recent events
     pub fn get_recent_events(&self, limit: usize) -> Result<Vec<SecurityEvent>, SecurityError> {
-        let history = self.event_history.read()
+        let history = self
+            .event_history
+            .read()
             .map_err(|_| SecurityError::LockPoisoned)?;
-        
-        Ok(history.iter()
-            .rev()
-            .take(limit)
-            .cloned()
-            .collect())
+
+        Ok(history.iter().rev().take(limit).cloned().collect())
     }
 
     /// Check if system is under attack
     pub fn is_under_attack(&self) -> bool {
         if let Ok(metrics) = self.metrics.read() {
-            metrics.attack_indicators > 0 || 
-            metrics.average_severity > self.config.alert_threshold
+            metrics.attack_indicators > 0 || metrics.average_severity > self.config.alert_threshold
         } else {
             false
         }
@@ -659,7 +697,8 @@ static SECURITY_MONITOR: RwLock<Option<Arc<SecurityMonitor>>> = RwLock::new(None
 /// Initialize global security monitor
 pub fn initialize_security_monitor(config: SecurityConfig) -> Result<(), SecurityError> {
     let monitor = Arc::new(SecurityMonitor::new(config));
-    let mut global_monitor = SECURITY_MONITOR.write()
+    let mut global_monitor = SECURITY_MONITOR
+        .write()
         .map_err(|_| SecurityError::LockPoisoned)?;
     *global_monitor = Some(monitor);
     Ok(())
@@ -667,10 +706,14 @@ pub fn initialize_security_monitor(config: SecurityConfig) -> Result<(), Securit
 
 /// Get global security monitor
 pub fn get_security_monitor() -> Result<Arc<SecurityMonitor>, SecurityError> {
-    let monitor = SECURITY_MONITOR.read()
+    let monitor = SECURITY_MONITOR
+        .read()
         .map_err(|_| SecurityError::LockPoisoned)?;
-    monitor.as_ref()
-        .ok_or(SecurityError::ConfigurationError("Security monitor not initialized".to_string()))
+    monitor
+        .as_ref()
+        .ok_or(SecurityError::ConfigurationError(
+            "Security monitor not initialized".to_string(),
+        ))
         .map(Arc::clone)
 }
 
@@ -707,7 +750,7 @@ mod tests {
         };
 
         assert!(monitor.record_event(event).is_ok());
-        
+
         let metrics = monitor.get_metrics().unwrap();
         assert_eq!(metrics.total_events, 1);
     }
@@ -730,8 +773,8 @@ mod tests {
 
         // Test valid type cast
         assert!(monitor.validate_type_cast(1, 1).unwrap());
-        
-        // Test invalid type cast  
+
+        // Test invalid type cast
         assert!(!monitor.validate_type_cast(0, 1).unwrap());
     }
 }

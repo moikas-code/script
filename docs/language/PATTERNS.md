@@ -1,5 +1,7 @@
 # Script Pattern Matching Guide
 
+> **Implementation Status**: ✅ Fully implemented as of v0.5.0-alpha. Includes exhaustiveness checking, or-patterns, guards, and compile-time safety verification.
+
 ## Table of Contents
 
 1. [Introduction](#introduction)

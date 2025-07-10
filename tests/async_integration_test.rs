@@ -4,14 +4,14 @@
 //! source code through transformation, compilation, and runtime execution
 //! with all security mechanisms active.
 
+use script::codegen::CodeGenerator;
 use script::lexer::Lexer;
 use script::parser::Parser;
-use script::semantic::SemanticAnalyzer;
-use script::codegen::CodeGenerator;
-use script::runtime::{Runtime, RuntimeConfig, initialize, shutdown};
 use script::runtime::async_ffi::*;
 use script::runtime::value::Value;
+use script::runtime::{initialize, shutdown, Runtime, RuntimeConfig};
 use script::security::{SecurityConfig, SecurityMetrics};
+use script::semantic::SemanticAnalyzer;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -21,23 +21,23 @@ fn compile_and_run_async(source: &str) -> Result<Value, Box<dyn std::error::Erro
     if !script::runtime::is_initialized() {
         initialize()?;
     }
-    
+
     // Lexical analysis
     let mut lexer = Lexer::new(source);
     let tokens = lexer.scan_tokens()?;
-    
+
     // Parsing
     let mut parser = Parser::new(tokens);
     let ast = parser.parse()?;
-    
+
     // Semantic analysis with security validation
     let mut analyzer = SemanticAnalyzer::new();
     let analyzed_ast = analyzer.analyze(ast)?;
-    
+
     // Code generation with async transformation
     let mut codegen = CodeGenerator::new();
     let module = codegen.generate(analyzed_ast)?;
-    
+
     // Create runtime with security configuration
     let security_config = SecurityConfig {
         enable_async_pointer_validation: true,
@@ -47,12 +47,11 @@ fn compile_and_run_async(source: &str) -> Result<Value, Box<dyn std::error::Erro
         enable_async_ffi_validation: true,
         ..Default::default()
     };
-    
-    let runtime_config = RuntimeConfig::default()
-        .with_security(security_config);
-    
+
+    let runtime_config = RuntimeConfig::default().with_security(security_config);
+
     let mut runtime = Runtime::new(runtime_config)?;
-    
+
     // Execute the module
     runtime.execute_module(module)
 }
@@ -70,7 +69,7 @@ fn test_simple_async_function() {
             return result;
         }
     "#;
-    
+
     let result = compile_and_run_async(source).expect("Failed to run async code");
     assert_eq!(result, Value::I32(8));
 }
@@ -94,7 +93,7 @@ fn test_multiple_await_security() {
             return await process_values();
         }
     "#;
-    
+
     let result = compile_and_run_async(source).expect("Failed to run async code");
     assert_eq!(result, Value::I32(12)); // (1*2) + (2*2) + (3*2) = 12
 }
@@ -117,13 +116,13 @@ fn test_async_memory_limits() {
             return await allocate_memory();
         }
     "#;
-    
+
     // Should enforce memory limits
     let result = compile_and_run_async(source);
     // Either succeeds with limited allocations or fails with memory error
     match result {
         Ok(Value::I32(count)) => assert!(count <= 100),
-        Err(_) => {}, // Memory limit enforced
+        Err(_) => {} // Memory limit enforced
         _ => panic!("Unexpected result"),
     }
 }
@@ -148,13 +147,13 @@ fn test_async_timeout_enforcement() {
             return await_timeout(infinite_loop(), 100);
         }
     "#;
-    
+
     let result = compile_and_run_async(source);
     // Should timeout and return error or default value
     match result {
-        Ok(Value::I32(0)) => {}, // Timeout returned default
-        Ok(Value::Null) => {}, // Timeout returned null
-        Err(_) => {}, // Timeout error
+        Ok(Value::I32(0)) => {} // Timeout returned default
+        Ok(Value::Null) => {}   // Timeout returned null
+        Err(_) => {}            // Timeout error
         Ok(other) => panic!("Expected timeout, got {:?}", other),
     }
 }
@@ -191,7 +190,7 @@ fn test_concurrent_async_tasks() {
             return await run_concurrent();
         }
     "#;
-    
+
     let result = compile_and_run_async(source).expect("Failed to run concurrent async");
     assert_eq!(result, Value::I32(55)); // 1 + 4 + 9 + 16 + 25 = 55
 }
@@ -218,7 +217,7 @@ fn test_async_error_propagation() {
             return await handle_errors();
         }
     "#;
-    
+
     let result = compile_and_run_async(source).expect("Failed to run async error handling");
     assert_eq!(result, Value::I32(42));
 }
@@ -239,7 +238,7 @@ fn test_async_recursion_limits() {
             return await recursive_async(10);
         }
     "#;
-    
+
     let result = compile_and_run_async(source).expect("Failed to run async recursion");
     assert_eq!(result, Value::I32(10));
 }
@@ -267,7 +266,7 @@ fn test_async_with_closures() {
             return sum;
         }
     "#;
-    
+
     let result = compile_and_run_async(source).expect("Failed to run async with closures");
     assert_eq!(result, Value::I32(30)); // 2 + 4 + 6 + 8 + 10 = 30
 }
@@ -307,7 +306,7 @@ fn test_async_resource_cleanup() {
             return await leak_test();
         }
     "#;
-    
+
     let result = compile_and_run_async(source).expect("Failed to run resource cleanup test");
     assert_eq!(result, Value::I32(12300)); // 123 * 100
 }
@@ -345,7 +344,7 @@ fn test_async_pattern_matching() {
             return await handle_results();
         }
     "#;
-    
+
     let result = compile_and_run_async(source).expect("Failed to run pattern matching");
     assert_eq!(result, Value::I32(100));
 }
@@ -369,7 +368,7 @@ fn test_async_generics() {
             return await use_generic_async();
         }
     "#;
-    
+
     let result = compile_and_run_async(source).expect("Failed to run async generics");
     assert_eq!(result, Value::I32(42));
 }
@@ -378,7 +377,7 @@ fn test_async_generics() {
 fn test_async_security_metrics() {
     // Initialize metrics
     let metrics = Arc::new(SecurityMetrics::new());
-    
+
     let source = r#"
         async fn monitored_function() -> i32 {
             await sleep_ms(10);
@@ -389,11 +388,11 @@ fn test_async_security_metrics() {
             return await monitored_function();
         }
     "#;
-    
+
     // Run with metrics collection
     let result = compile_and_run_async(source).expect("Failed to run with metrics");
     assert_eq!(result, Value::I32(42));
-    
+
     // Verify metrics were collected
     // Note: Actual metric verification would need runtime access
 }
@@ -430,11 +429,11 @@ fn test_async_cancellation() {
             return await test_cancel();
         }
     "#;
-    
+
     let result = compile_and_run_async(source);
     match result {
         Ok(Value::I32(n)) => assert!(n < 1000), // Should be cancelled early
-        _ => {}, // Cancellation might return error
+        _ => {}                                 // Cancellation might return error
     }
 }
 
@@ -443,7 +442,7 @@ fn test_async_cancellation() {
 fn test_cleanup() {
     // Ensure executor is shutdown properly
     script_shutdown_executor();
-    
+
     // Shutdown runtime if initialized
     if script::runtime::is_initialized() {
         let _ = shutdown();

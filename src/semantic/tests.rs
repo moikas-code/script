@@ -4,7 +4,7 @@ use crate::parser::Parser;
 use crate::types::Type;
 
 fn parse_and_analyze(source: &str) -> Result<SemanticAnalyzer> {
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source)?;
     let (tokens, errors) = lexer.scan_tokens();
     if !errors.is_empty() {
         return Err(errors[0].clone());
@@ -22,7 +22,7 @@ fn expect_semantic_error(source: &str, expected_kind: SemanticErrorKind) {
     assert!(result.is_err());
 
     // Parse again to get the analyzer with errors
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -393,7 +393,7 @@ fn test_if_non_boolean_condition() {
         r#"
         if 42 { 1 } else { 2 }
     "#,
-    );
+    ).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -418,7 +418,7 @@ fn test_if_incompatible_branch_types() {
         r#"
         let x = if true { 42 } else { "hello" };
     "#,
-    );
+    ).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -499,7 +499,7 @@ fn test_if_expression_with_string_condition() {
         r#"
         if "not a boolean" { 1 } else { 2 }
     "#,
-    );
+    ).unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -655,7 +655,7 @@ fn test_complex_expression() {
 
 #[test]
 fn test_unused_variable_detection() {
-    let lexer = Lexer::new("let x: i32 = 42;");
+    let lexer = Lexer::new("let x: i32 = 42;").unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();

@@ -1,9 +1,9 @@
 use script::error::{Error, ErrorKind};
 use script::lexer::Lexer;
-use script::parser::Parser;
-use script::semantic::SemanticAnalyzer;
 use script::lowering::AstLowerer;
+use script::parser::Parser;
 use script::runtime::{Runtime, RuntimeConfig};
+use script::semantic::SemanticAnalyzer;
 use script::types::Type;
 use std::time::Duration;
 
@@ -24,27 +24,32 @@ mod memory_bounds_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
         let result = lowerer.lower_program(&analyzed);
         assert!(result.is_ok(), "Should compile with bounds checking");
-        
+
         // Verify bounds check IR instructions are generated
         let module = result.unwrap();
         let functions = module.functions();
-        let bounds_checks = functions.iter()
+        let bounds_checks = functions
+            .iter()
             .flat_map(|func| func.body().instructions())
             .filter(|instr| matches!(instr, script::ir::Instruction::BoundsCheck { .. }))
             .count();
-        
-        assert!(bounds_checks > 0, "Should generate bounds check instructions");
+
+        assert!(
+            bounds_checks > 0,
+            "Should generate bounds check instructions"
+        );
     }
 
     #[test]
@@ -57,18 +62,22 @@ mod memory_bounds_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
         let result = lowerer.lower_program(&analyzed);
-        assert!(result.is_ok(), "Should compile with negative index protection");
-        
+        assert!(
+            result.is_ok(),
+            "Should compile with negative index protection"
+        );
+
         // Verify bounds check handles negative indices
         let module = result.unwrap();
         let functions = module.functions();
@@ -81,8 +90,11 @@ mod memory_bounds_tests {
                 }
             })
         });
-        
-        assert!(has_bounds_check, "Should have bounds checking for negative indices");
+
+        assert!(
+            has_bounds_check,
+            "Should have bounds checking for negative indices"
+        );
     }
 
     #[test]
@@ -94,28 +106,38 @@ mod memory_bounds_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
         let result = lowerer.lower_program(&analyzed);
         assert!(result.is_ok(), "Should compile with length validation");
-        
+
         // Verify bounds check compares against actual array length
         let module = result.unwrap();
         let functions = module.functions();
         let has_length_check = functions.iter().any(|func| {
             func.body().instructions().iter().any(|instr| {
-                matches!(instr, script::ir::Instruction::BoundsCheck { length: Some(_), .. })
+                matches!(
+                    instr,
+                    script::ir::Instruction::BoundsCheck {
+                        length: Some(_),
+                        ..
+                    }
+                )
             })
         });
-        
-        assert!(has_length_check, "Should validate against actual array length");
+
+        assert!(
+            has_length_check,
+            "Should validate against actual array length"
+        );
     }
 }
 
@@ -142,18 +164,19 @@ mod type_safety_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
         let result = lowerer.lower_program(&analyzed);
         assert!(result.is_ok(), "Should compile with field validation");
-        
+
         // Verify field validation instructions
         let module = result.unwrap();
         let functions = module.functions();
@@ -166,7 +189,7 @@ mod type_safety_tests {
                 }
             })
         });
-        
+
         assert!(has_field_validation, "Should validate field access");
     }
 
@@ -182,32 +205,44 @@ mod type_safety_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
         let result = lowerer.lower_program(&analyzed);
-        assert!(result.is_ok(), "Should compile with generic field validation");
-        
+        assert!(
+            result.is_ok(),
+            "Should compile with generic field validation"
+        );
+
         // Verify field validation for generic types
         let module = result.unwrap();
         let functions = module.functions();
         let has_generic_field_validation = functions.iter().any(|func| {
             func.body().instructions().iter().any(|instr| {
-                if let script::ir::Instruction::ValidateFieldAccess { field_name, object_type, .. } = instr {
+                if let script::ir::Instruction::ValidateFieldAccess {
+                    field_name,
+                    object_type,
+                    ..
+                } = instr
+                {
                     field_name == "value" && matches!(object_type, Type::Generic { .. })
                 } else {
                     false
                 }
             })
         });
-        
-        assert!(has_generic_field_validation, "Should validate generic field access");
+
+        assert!(
+            has_generic_field_validation,
+            "Should validate generic field access"
+        );
     }
 
     #[test]
@@ -226,18 +261,22 @@ mod type_safety_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
         let result = lowerer.lower_program(&analyzed);
-        assert!(result.is_ok(), "Should compile with enum variant validation");
-        
+        assert!(
+            result.is_ok(),
+            "Should compile with enum variant validation"
+        );
+
         // Verify enum variant validation
         let module = result.unwrap();
         let functions = module.functions();
@@ -247,7 +286,7 @@ mod type_safety_tests {
                 matches!(instr, script::ir::Instruction::Match { .. })
             })
         });
-        
+
         assert!(has_enum_validation, "Should validate enum variant access");
     }
 }
@@ -268,30 +307,32 @@ mod memory_corruption_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
         let result = lowerer.lower_program(&analyzed);
         assert!(result.is_ok(), "Should compile with memory safety checks");
-        
+
         // Verify safety instructions are generated
         let module = result.unwrap();
         let functions = module.functions();
         let has_safety_checks = functions.iter().any(|func| {
             func.body().instructions().iter().any(|instr| {
-                matches!(instr, 
-                    script::ir::Instruction::BoundsCheck { .. } |
-                    script::ir::Instruction::ValidateFieldAccess { .. }
+                matches!(
+                    instr,
+                    script::ir::Instruction::BoundsCheck { .. }
+                        | script::ir::Instruction::ValidateFieldAccess { .. }
                 )
             })
         });
-        
+
         assert!(has_safety_checks, "Should have memory safety checks");
     }
 
@@ -307,18 +348,19 @@ mod memory_corruption_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
         let result = lowerer.lower_program(&analyzed);
         assert!(result.is_ok(), "Should compile with double-free prevention");
-        
+
         // Verify memory management instructions
         let module = result.unwrap();
         let functions = module.functions();
@@ -328,8 +370,11 @@ mod memory_corruption_tests {
                 matches!(instr, script::ir::Instruction::Call { .. })
             })
         });
-        
-        assert!(has_memory_management, "Should have memory management checks");
+
+        assert!(
+            has_memory_management,
+            "Should have memory management checks"
+        );
     }
 
     #[test]
@@ -342,27 +387,29 @@ mod memory_corruption_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
         let result = lowerer.lower_program(&analyzed);
         assert!(result.is_ok(), "Should compile with underflow prevention");
-        
+
         // Verify bounds checking handles underflow
         let module = result.unwrap();
         let functions = module.functions();
         let has_underflow_check = functions.iter().any(|func| {
-            func.body().instructions().iter().any(|instr| {
-                matches!(instr, script::ir::Instruction::BoundsCheck { .. })
-            })
+            func.body()
+                .instructions()
+                .iter()
+                .any(|instr| matches!(instr, script::ir::Instruction::BoundsCheck { .. }))
         });
-        
+
         assert!(has_underflow_check, "Should prevent buffer underflow");
     }
 }
@@ -381,24 +428,30 @@ mod runtime_safety_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
-        let module = lowerer.lower_program(&analyzed).expect("Lowering should succeed");
-        
+        let module = lowerer
+            .lower_program(&analyzed)
+            .expect("Lowering should succeed");
+
         // Verify runtime will perform bounds checking
         let config = RuntimeConfig::default();
         let runtime = Runtime::new(config);
-        
+
         // The runtime should be able to handle the module with bounds checks
         // In a real scenario, this would trigger a runtime error when executed
-        assert!(runtime.load_module(module).is_ok(), "Runtime should handle bounds checking");
+        assert!(
+            runtime.load_module(module).is_ok(),
+            "Runtime should handle bounds checking"
+        );
     }
 
     #[test]
@@ -415,22 +468,28 @@ mod runtime_safety_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
-        let module = lowerer.lower_program(&analyzed).expect("Lowering should succeed");
-        
+        let module = lowerer
+            .lower_program(&analyzed)
+            .expect("Lowering should succeed");
+
         // Verify runtime field validation
         let config = RuntimeConfig::default();
         let runtime = Runtime::new(config);
-        
-        assert!(runtime.load_module(module).is_ok(), "Runtime should handle field validation");
+
+        assert!(
+            runtime.load_module(module).is_ok(),
+            "Runtime should handle field validation"
+        );
     }
 
     #[test]
@@ -450,22 +509,28 @@ mod runtime_safety_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
-        let module = lowerer.lower_program(&analyzed).expect("Lowering should succeed");
-        
+        let module = lowerer
+            .lower_program(&analyzed)
+            .expect("Lowering should succeed");
+
         // Verify runtime type safety
         let config = RuntimeConfig::default();
         let runtime = Runtime::new(config);
-        
-        assert!(runtime.load_module(module).is_ok(), "Runtime should enforce type safety");
+
+        assert!(
+            runtime.load_module(module).is_ok(),
+            "Runtime should enforce type safety"
+        );
     }
 }
 
@@ -504,38 +569,46 @@ mod integration_memory_tests {
         }
         "#;
 
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+        assert!(_errors.is_empty(), "Lexer should not produce errors");
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Parsing should succeed");
-        
+
         let mut analyzer = SemanticAnalyzer::new();
         let analyzed = analyzer.analyze(&program).expect("Analysis should succeed");
-        
+
         let mut lowerer = AstLowerer::new();
-        let module = lowerer.lower_program(&analyzed).expect("Lowering should succeed");
-        
+        let module = lowerer
+            .lower_program(&analyzed)
+            .expect("Lowering should succeed");
+
         // Verify all safety features are present
         let functions = module.functions();
-        
+
         let has_bounds_check = functions.iter().any(|func| {
-            func.body().instructions().iter().any(|instr| {
-                matches!(instr, script::ir::Instruction::BoundsCheck { .. })
-            })
+            func.body()
+                .instructions()
+                .iter()
+                .any(|instr| matches!(instr, script::ir::Instruction::BoundsCheck { .. }))
         });
-        
+
         let has_field_validation = functions.iter().any(|func| {
-            func.body().instructions().iter().any(|instr| {
-                matches!(instr, script::ir::Instruction::ValidateFieldAccess { .. })
-            })
+            func.body()
+                .instructions()
+                .iter()
+                .any(|instr| matches!(instr, script::ir::Instruction::ValidateFieldAccess { .. }))
         });
-        
+
         assert!(has_bounds_check, "Should have bounds checking");
         assert!(has_field_validation, "Should have field validation");
-        
+
         // Verify runtime integration
         let config = RuntimeConfig::default();
         let runtime = Runtime::new(config);
-        assert!(runtime.load_module(module).is_ok(), "Runtime should handle comprehensive safety");
+        assert!(
+            runtime.load_module(module).is_ok(),
+            "Runtime should handle comprehensive safety"
+        );
     }
 }

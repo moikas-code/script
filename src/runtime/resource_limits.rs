@@ -3,10 +3,10 @@
 //! This module provides comprehensive resource limiting to prevent denial of service
 //! attacks and ensure stable operation under adversarial conditions.
 
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 /// Resource limits configuration
 #[derive(Debug, Clone)]
@@ -140,11 +140,19 @@ impl ResourceMonitor {
     /// Record memory allocation
     pub fn record_allocation(&self, size: usize) -> Result<(), ResourceViolation> {
         let new_memory = self.usage.current_memory.fetch_add(size, Ordering::Relaxed) + size;
-        let new_allocs = self.usage.current_allocations.fetch_add(1, Ordering::Relaxed) + 1;
+        let new_allocs = self
+            .usage
+            .current_allocations
+            .fetch_add(1, Ordering::Relaxed)
+            + 1;
 
         // Update peaks
-        self.usage.peak_memory.fetch_max(new_memory, Ordering::Relaxed);
-        self.usage.peak_allocations.fetch_max(new_allocs, Ordering::Relaxed);
+        self.usage
+            .peak_memory
+            .fetch_max(new_memory, Ordering::Relaxed);
+        self.usage
+            .peak_allocations
+            .fetch_max(new_allocs, Ordering::Relaxed);
 
         // Check limits
         if new_memory > self.limits.max_memory_bytes {
@@ -175,13 +183,15 @@ impl ResourceMonitor {
 
     /// Record memory deallocation
     pub fn record_deallocation(&self, size: usize) {
-        self.usage.current_memory.fetch_sub(size.min(
-            self.usage.current_memory.load(Ordering::Relaxed)
-        ), Ordering::Relaxed);
-        
-        self.usage.current_allocations.fetch_sub(1.min(
-            self.usage.current_allocations.load(Ordering::Relaxed)
-        ), Ordering::Relaxed);
+        self.usage.current_memory.fetch_sub(
+            size.min(self.usage.current_memory.load(Ordering::Relaxed)),
+            Ordering::Relaxed,
+        );
+
+        self.usage.current_allocations.fetch_sub(
+            1.min(self.usage.current_allocations.load(Ordering::Relaxed)),
+            Ordering::Relaxed,
+        );
     }
 
     /// Start a collection with time tracking
@@ -266,7 +276,7 @@ impl ResourceMonitor {
 
         if let Ok(mut throttling) = self.throttling.lock() {
             let now = Instant::now();
-            
+
             // Check cooldown period
             if now.duration_since(throttling.last_adjustment) < throttling.adjustment_cooldown {
                 return;
@@ -274,9 +284,11 @@ impl ResourceMonitor {
 
             // Calculate pressure indicators
             let memory_pressure = self.memory_usage_percent();
-            let time_pressure = metrics.duration.as_secs_f64() / self.limits.max_collection_time.as_secs_f64();
-            
-            let is_high_pressure = memory_pressure > self.limits.memory_pressure_threshold || time_pressure > 0.8;
+            let time_pressure =
+                metrics.duration.as_secs_f64() / self.limits.max_collection_time.as_secs_f64();
+
+            let is_high_pressure =
+                memory_pressure > self.limits.memory_pressure_threshold || time_pressure > 0.8;
 
             if is_high_pressure {
                 throttling.pressure_streak += 1;
@@ -302,7 +314,7 @@ impl ResourceMonitor {
             peak_allocations: self.usage.peak_allocations.load(Ordering::Relaxed),
             total_collections: self.usage.total_collections.load(Ordering::Relaxed),
             total_collection_time: Duration::from_nanos(
-                self.usage.total_collection_time.load(Ordering::Relaxed)
+                self.usage.total_collection_time.load(Ordering::Relaxed),
             ),
             memory_usage_percent: self.memory_usage_percent(),
             throttling_level: self.get_throttling_level(),
@@ -338,11 +350,14 @@ impl<'a> CollectionTracker<'a> {
         let memory_freed = self.initial_memory.saturating_sub(final_memory);
 
         // Update global stats
-        self.monitor.usage.total_collections.fetch_add(1, Ordering::Relaxed);
-        self.monitor.usage.total_collection_time.fetch_add(
-            duration.as_nanos() as u64, 
-            Ordering::Relaxed
-        );
+        self.monitor
+            .usage
+            .total_collections
+            .fetch_add(1, Ordering::Relaxed);
+        self.monitor
+            .usage
+            .total_collection_time
+            .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
 
         // Create metrics
         let metrics = CollectionMetrics {
@@ -355,7 +370,7 @@ impl<'a> CollectionTracker<'a> {
         // Update collection history
         if let Ok(mut history) = self.monitor.usage.collection_history.lock() {
             history.push_back(metrics.clone());
-            
+
             // Keep only recent history (last 100 collections)
             while history.len() > 100 {
                 history.pop_front();
@@ -492,7 +507,7 @@ mod tests {
     fn test_time_budget() {
         let budget = TimeBudget::new(Duration::from_millis(10));
         assert!(!budget.is_exhausted());
-        
+
         std::thread::sleep(Duration::from_millis(15));
         assert!(budget.is_exhausted());
         assert!(budget.check().is_err());
@@ -502,13 +517,13 @@ mod tests {
     fn test_work_budget() {
         let mut budget = WorkBudget::new(10);
         assert!(!budget.is_exhausted());
-        
+
         assert!(budget.try_consume(5));
         assert_eq!(budget.remaining(), 5);
-        
+
         assert!(budget.try_consume(5));
         assert!(budget.is_exhausted());
-        
+
         assert!(!budget.try_consume(1));
     }
 
@@ -516,10 +531,10 @@ mod tests {
     fn test_collection_tracker() {
         let limits = ResourceLimits::default();
         let monitor = ResourceMonitor::new(limits);
-        
+
         let tracker = monitor.start_collection();
         assert!(tracker.should_continue().is_ok());
-        
+
         tracker.finish();
         let stats = monitor.get_stats();
         assert_eq!(stats.total_collections, 1);
@@ -535,7 +550,7 @@ mod tests {
         let monitor = ResourceMonitor::new(limits);
 
         assert!(!monitor.is_under_memory_pressure());
-        
+
         // Allocate to 90% capacity
         let _ = monitor.record_allocation(900);
         assert!(monitor.is_under_memory_pressure());

@@ -9,12 +9,11 @@
 
 use crate::error::{Error, ErrorKind};
 use crate::ir::{
-    BasicBlock, BlockId, Function, FunctionId, IrBuilder, Instruction, Module, Parameter, ValueId,
-    Constant, ComparisonOp,
+    BasicBlock, BlockId, ComparisonOp, Constant, Function, FunctionId, Instruction, IrBuilder,
+    Module, Parameter, ValueId,
 };
 use crate::parser::Stmt;
 use crate::types::Type;
-use crate::security::{SecurityError, SecurityConfig};
 use std::collections::HashMap;
 
 /// Information about an async function's transformation
@@ -60,7 +59,7 @@ pub struct AsyncTransformContext {
 impl AsyncTransformContext {
     fn new() -> Self {
         AsyncTransformContext {
-            current_offset: 8, // Reserve first 8 bytes for state enum
+            current_offset: 8,   // Reserve first 8 bytes for state enum
             current_state_id: 1, // State 0 is initial state
             suspend_points: Vec::new(),
             state_offsets: HashMap::new(),
@@ -68,13 +67,33 @@ impl AsyncTransformContext {
         }
     }
 
-    /// Allocate space for a variable in the state struct
+    /// Allocate space for a variable in the state struct with bounds checking
     fn allocate_variable(&mut self, name: String, size: u32) -> u32 {
+        // SECURITY: Prevent integer overflow in state allocation
+        const MAX_STATE_SIZE: u32 = 1024 * 1024; // 1MB max state size
+
+        if size > MAX_STATE_SIZE || self.current_offset > MAX_STATE_SIZE - size {
+            // Return error offset to indicate allocation failure
+            // In production, this should propagate an error
+            return u32::MAX;
+        }
+
         let offset = self.current_offset;
         self.state_offsets.insert(name, offset);
-        self.current_offset += size;
-        // Align to 8 bytes
-        self.current_offset = (self.current_offset + 7) & !7;
+
+        // SECURITY: Safe addition with overflow check
+        match self.current_offset.checked_add(size) {
+            Some(new_offset) => {
+                self.current_offset = new_offset;
+                // Align to 8 bytes with bounds check
+                self.current_offset = (self.current_offset + 7) & !7;
+            }
+            None => {
+                // Overflow detected
+                return u32::MAX;
+            }
+        }
+
         offset
     }
 
@@ -97,12 +116,9 @@ pub fn transform_async_function(
         .clone();
 
     if !func.is_async {
-        return Err(Error::new(
-            ErrorKind::RuntimeError,
-            "Function is not async",
-        ));
+        return Err(Error::new(ErrorKind::RuntimeError, "Function is not async"));
     }
-    
+
     // Security validation before transformation
     validate_async_function_security(&func)?;
 
@@ -147,27 +163,30 @@ pub fn transform_async_function(
 }
 
 /// Calculate the size needed for the state struct
-fn calculate_state_size(func: &Function, context: &mut AsyncTransformContext) -> Result<u32, Error> {
+fn calculate_state_size(
+    func: &Function,
+    context: &mut AsyncTransformContext,
+) -> Result<u32, Error> {
     // Reserve space for control variables
     context.allocate_variable("__state".to_string(), 4); // State enum
     context.allocate_variable("__result".to_string(), 8); // Result storage
     context.allocate_variable("__waker".to_string(), 8); // Waker reference
-    
+
     // Add function parameters to state
     for param in &func.params {
         let size = estimate_type_size(&param.ty);
         context.allocate_variable(param.name.clone(), size);
     }
-    
+
     // Analyze function body to find local variables and temporaries
     let mut local_vars = analyze_local_variables(func)?;
-    
+
     // Allocate space for each local variable
     for (var_name, var_type) in local_vars.drain() {
         let size = estimate_type_size(&var_type);
         context.allocate_variable(var_name, size);
     }
-    
+
     // Add space for future storage at each await point
     let await_count = count_await_points(func)?;
     for i in 0..await_count {
@@ -181,7 +200,15 @@ fn calculate_state_size(func: &Function, context: &mut AsyncTransformContext) ->
 /// Estimate the size of a type in bytes
 fn estimate_type_size(ty: &Type) -> u32 {
     match ty {
-        Type::Unknown => 8, // Default pointer size
+        Type::I32 => 4,
+        Type::F32 => 4,
+        Type::Bool => 1,
+        Type::String => 8,          // String is a pointer to heap data
+        Type::Unknown => 8,         // Default pointer size
+        Type::Array(_) => 8,        // Arrays are pointers to heap data
+        Type::Function { .. } => 8, // Function pointers
+        Type::Result { .. } => 8,   // Result types typically contain pointers
+        Type::Future(_) => 8,       // Future types are complex async structures
         Type::Named(name) => match name.as_str() {
             "i32" | "u32" | "f32" => 4,
             "i64" | "u64" | "f64" | "ptr" => 8,
@@ -189,22 +216,30 @@ fn estimate_type_size(ty: &Type) -> u32 {
             "u16" | "i16" => 2,
             _ => 8, // Default for complex types
         },
+        Type::TypeVar(_) => 8,     // Type variables are typically pointers
+        Type::Option(_) => 8,      // Option types contain pointers
+        Type::Never => 0,          // Never type has no size
         Type::Generic { .. } => 8, // Generic types typically contain pointers
-        Type::Function { .. } => 8, // Function pointers
+        Type::TypeParam(_) => 8,   // Type parameters are typically pointers
+        Type::Tuple(types) => types.iter().map(estimate_type_size).sum(),
+        Type::Reference { .. } => 8, // References are pointers
+        Type::Struct { fields, .. } => fields.iter().map(|(_, ty)| estimate_type_size(ty)).sum(),
     }
 }
 
 /// Analyze function blocks to find local variable declarations
 fn analyze_local_variables(func: &Function) -> Result<HashMap<String, Type>, Error> {
     let mut locals = HashMap::new();
-    
+
     // Walk through all blocks and instructions
     for (_, block) in func.blocks() {
         for (value_id, inst_with_loc) in &block.instructions {
             let inst = &inst_with_loc.instruction;
             match inst {
-                Instruction::CreateLocal { name, ty, .. } => {
-                    locals.insert(name.clone(), ty.clone());
+                Instruction::Alloc { ty } => {
+                    // Allocate local variable storage
+                    let local_name = format!("__local_{}", value_id.0);
+                    locals.insert(local_name, ty.clone());
                 }
                 Instruction::Store { .. } | Instruction::Load { .. } => {
                     // These might reference locals we haven't seen declared
@@ -221,14 +256,14 @@ fn analyze_local_variables(func: &Function) -> Result<HashMap<String, Type>, Err
             }
         }
     }
-    
+
     Ok(locals)
 }
 
 /// Count the number of await points in a function
 fn count_await_points(func: &Function) -> Result<usize, Error> {
     let mut count = 0;
-    
+
     for (_, block) in func.blocks() {
         for (_, inst_with_loc) in &block.instructions {
             if let Instruction::PollFuture { .. } = inst_with_loc.instruction {
@@ -236,22 +271,21 @@ fn count_await_points(func: &Function) -> Result<usize, Error> {
             }
         }
     }
-    
+
     Ok(count)
 }
 
 /// Check if an instruction creates a significant temporary value
 fn is_significant_instruction(inst: &Instruction) -> bool {
-    matches!(inst, 
-        Instruction::Call { .. } |
-        Instruction::Add { .. } |
-        Instruction::Sub { .. } |
-        Instruction::Mul { .. } |
-        Instruction::Div { .. } |
-        Instruction::Compare { .. } |
-        Instruction::GetField { .. } |
-        Instruction::CreateStruct { .. } |
-        Instruction::CreateArray { .. }
+    matches!(
+        inst,
+        Instruction::Call { .. }
+            | Instruction::Binary { .. }
+            | Instruction::Unary { .. }
+            | Instruction::Compare { .. }
+            | Instruction::LoadField { .. }
+            | Instruction::ConstructStruct { .. }
+            | Instruction::ConstructEnum { .. }
     )
 }
 
@@ -269,7 +303,7 @@ fn validate_async_function_security(func: &Function) -> Result<(), Error> {
             ),
         ));
     }
-    
+
     // Check for excessive await points that could cause stack overflow
     let await_count = count_await_points(func)?;
     const MAX_AWAIT_POINTS: usize = 100;
@@ -282,13 +316,13 @@ fn validate_async_function_security(func: &Function) -> Result<(), Error> {
             ),
         ));
     }
-    
+
     // Check for potentially unsafe patterns
     validate_unsafe_patterns(func)?;
-    
+
     // Check for recursive async calls that could cause infinite loops
     validate_recursion_safety(func)?;
-    
+
     Ok(())
 }
 
@@ -306,12 +340,12 @@ fn validate_unsafe_patterns(func: &Function) -> Result<(), Error> {
         for (_, inst_with_loc) in &block.instructions {
             let inst = &inst_with_loc.instruction;
             match inst {
-                Instruction::Call { function, .. } => {
+                Instruction::Call { func, .. } => {
                     // Check for dangerous function calls in async context
-                    if is_dangerous_async_call(function) {
+                    if is_dangerous_async_call(func) {
                         return Err(Error::new(
                             ErrorKind::SecurityViolation,
-                            format!("Dangerous function call in async context: {:?}", function),
+                            format!("Dangerous function call in async context: {:?}", func),
                         ));
                     }
                 }
@@ -327,7 +361,7 @@ fn validate_unsafe_patterns(func: &Function) -> Result<(), Error> {
 }
 
 /// Check if a function call is dangerous in async context
-fn is_dangerous_async_call(function: &ValueId) -> bool {
+fn is_dangerous_async_call(function: &FunctionId) -> bool {
     // This would check against a list of known dangerous functions
     // For now, we'll do basic validation
     false // Placeholder - would be more sophisticated
@@ -338,7 +372,7 @@ fn validate_recursion_safety(func: &Function) -> Result<(), Error> {
     // Check for direct recursive calls
     for (_, block) in func.blocks() {
         for (_, inst_with_loc) in &block.instructions {
-            if let Instruction::Call { function, .. } = &inst_with_loc.instruction {
+            if let Instruction::Call { func, .. } = &inst_with_loc.instruction {
                 // In a real implementation, we'd resolve the function ID
                 // and check if it matches the current function
                 // For now, we'll do basic validation
@@ -389,14 +423,14 @@ fn transform_function_body(
 
     // Create blocks for each state
     builder.set_current_block(dispatch_block);
-    
+
     // Initial state (0) - start of function
     let initial_block = poll_func.create_block("state_0".to_string());
-    
+
     // Create blocks for each suspend point (we'll detect these as we transform)
     let mut state_blocks = vec![initial_block];
     let mut block_mapping: HashMap<BlockId, BlockId> = HashMap::new();
-    
+
     // Map original entry block to initial state block
     if let Some(orig_entry) = original_func.entry_block {
         block_mapping.insert(orig_entry, initial_block);
@@ -405,7 +439,7 @@ fn transform_function_body(
     // First pass: analyze the function to find suspend points
     let mut suspend_points = Vec::new();
     let mut next_state_id = 1u32;
-    
+
     for (orig_block_id, orig_block) in &original_blocks {
         for (_, inst_with_loc) in &orig_block.instructions {
             let inst = &inst_with_loc.instruction;
@@ -425,36 +459,38 @@ fn transform_function_body(
 
     // Generate dispatch table
     builder.set_current_block(dispatch_block);
-    
+
     // Create a switch-like structure using comparisons and branches
     for (i, state_block) in state_blocks.iter().enumerate() {
         let state_val = builder.const_value(Constant::I32(i as i32));
         let is_state = builder
             .build_compare(ComparisonOp::Eq, current_state, state_val)
             .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to compare state"))?;
-        
+
         let next_check = if i < state_blocks.len() - 1 {
             poll_func.create_block(format!("check_state_{}", i + 1))
         } else {
             // Invalid state - return error or panic
             poll_func.create_block("invalid_state".to_string())
         };
-        
+
         builder.build_cond_branch(is_state, *state_block, next_check);
         builder.set_current_block(next_check);
     }
-    
+
     // Invalid state handler - for now just return an error
     // In a complete implementation, this would panic or return an error
     let error_result = builder.const_value(Constant::I32(2)); // Error state
     builder.build_return(Some(error_result));
-    
+
     // Transform each state
     builder.set_current_block(initial_block);
-    
+
     // Load function parameters from state
     for (i, param) in original_func.params.iter().enumerate() {
-        let offset = context.state_offsets.get(&param.name)
+        let offset = context
+            .state_offsets
+            .get(&param.name)
             .copied()
             .unwrap_or(8 + (i as u32) * 8);
         let loaded_param = builder
@@ -463,7 +499,7 @@ fn transform_function_body(
         // Map parameter ValueId to loaded value
         // This would need proper value mapping in a complete implementation
     }
-    
+
     // Transform the original function body
     transform_blocks(
         &mut builder,
@@ -477,7 +513,7 @@ fn transform_function_body(
     // Add final return for completed state
     let completed_block = poll_func.create_block("completed".to_string());
     builder.set_current_block(completed_block);
-    
+
     // Return Poll::Ready with the result
     // This would need to construct the proper Poll enum value
     let result = builder.const_value(Constant::Null); // Placeholder
@@ -499,7 +535,7 @@ fn transform_blocks(
     for (orig_block_id, orig_block) in original_blocks {
         if let Some(&new_block_id) = block_mapping.get(orig_block_id) {
             builder.set_current_block(new_block_id);
-            
+
             // Transform each instruction
             for (value_id, inst_with_loc) in &orig_block.instructions {
                 let inst = &inst_with_loc.instruction;
@@ -508,53 +544,60 @@ fn transform_blocks(
                     Instruction::PollFuture { future, output_ty } => {
                         // This is an await point - generate suspend logic
                         let state_id = context.next_state_id();
-                        
+
                         // Store the future in state
-                        let future_offset = context.allocate_variable(
-                            format!("__future_{}", state_id),
-                            8
-                        );
+                        let future_offset =
+                            context.allocate_variable(format!("__future_{}", state_id), 8);
                         builder.build_store_async_state(state_ptr, future_offset, *future);
-                        
+
                         // Update state
                         builder.build_set_async_state(state_ptr, state_id);
-                        
+
                         // Return Poll::Pending
                         let pending = builder.const_value(Constant::I32(1)); // Poll::Pending
                         builder.build_return(Some(pending));
-                        
+
                         // Create resume block
                         let resume_block = poll_func.create_block(format!("resume_{}", state_id));
                         builder.set_current_block(resume_block);
-                        
+
                         // Load and poll the future again
                         let loaded_future = builder
                             .build_load_async_state(state_ptr, future_offset, Type::Unknown)
-                            .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to load future"))?;
-                        
+                            .ok_or_else(|| {
+                                Error::new(ErrorKind::RuntimeError, "Failed to load future")
+                            })?;
+
                         let poll_result = builder
                             .build_poll_future(loaded_future, output_ty.clone())
-                            .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to poll future"))?;
-                        
+                            .ok_or_else(|| {
+                                Error::new(ErrorKind::RuntimeError, "Failed to poll future")
+                            })?;
+
                         // Check if ready
-                        let is_ready = builder
-                            .build_get_enum_tag(poll_result)
-                            .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to get poll tag"))?;
-                        
+                        let is_ready =
+                            builder.build_get_enum_tag(poll_result).ok_or_else(|| {
+                                Error::new(ErrorKind::RuntimeError, "Failed to get poll tag")
+                            })?;
+
                         let ready_tag = builder.const_value(Constant::I32(0));
                         let is_ready_cond = builder
                             .build_compare(ComparisonOp::Eq, is_ready, ready_tag)
-                            .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to compare"))?;
-                        
-                        let continue_block = poll_func.create_block(format!("continue_{}", state_id));
-                        let still_pending = poll_func.create_block(format!("still_pending_{}", state_id));
-                        
+                            .ok_or_else(|| {
+                                Error::new(ErrorKind::RuntimeError, "Failed to compare")
+                            })?;
+
+                        let continue_block =
+                            poll_func.create_block(format!("continue_{}", state_id));
+                        let still_pending =
+                            poll_func.create_block(format!("still_pending_{}", state_id));
+
                         builder.build_cond_branch(is_ready_cond, continue_block, still_pending);
-                        
+
                         // Still pending - return Poll::Pending again
                         builder.set_current_block(still_pending);
                         builder.build_return(Some(pending));
-                        
+
                         // Ready - continue execution
                         builder.set_current_block(continue_block);
                         // Extract value from Poll::Ready and continue
@@ -568,7 +611,7 @@ fn transform_blocks(
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -588,7 +631,7 @@ fn create_async_wrapper(
 
     // Create new entry block
     let entry_block = original_func.create_block("async_wrapper_entry".to_string());
-    
+
     let mut builder = IrBuilder::new();
     builder.set_current_function(original_fn_id);
     builder.set_current_block(entry_block);
@@ -599,10 +642,25 @@ fn create_async_wrapper(
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create async state"))?;
 
     // Store function parameters in the state
-    for (i, _param) in original_func.params.iter().enumerate() {
+    let mut wrapper_context = AsyncTransformContext::new();
+    for (i, param) in original_func.params.iter().enumerate() {
         let param_value = ValueId(i as u32);
-        // TODO: Use actual offsets from context
-        let offset = 8 + (i as u32) * 8;
+        // SECURITY: Properly allocate space for each parameter with bounds checking
+        let param_size = match &param.ty {
+            Type::I32 | Type::F32 => 4,
+            Type::Bool => 1,
+            Type::String => 16, // Pointer + length
+            _ => 8,             // Default pointer size
+        };
+
+        let offset = wrapper_context.allocate_variable(param.name.clone(), param_size);
+        if offset == u32::MAX {
+            return Err(Error::new(
+                ErrorKind::RuntimeError,
+                "Async state size overflow - parameter allocation failed",
+            ));
+        }
+
         builder.build_store_async_state(state, offset, param_value);
     }
 
@@ -615,58 +673,50 @@ fn create_async_wrapper(
 /// Find all await expressions in a function
 pub fn find_await_expressions(stmts: &[Stmt]) -> Vec<usize> {
     let mut await_positions = Vec::new();
-    
+
     for (stmt_index, stmt) in stmts.iter().enumerate() {
         find_await_in_stmt(stmt, stmt_index, &mut await_positions);
     }
-    
+
     await_positions
 }
 
 /// Recursively find await expressions in a statement
-fn find_await_in_stmt(stmt: &crate::parser::Stmt, base_index: usize, await_positions: &mut Vec<usize>) {
+fn find_await_in_stmt(
+    stmt: &crate::parser::Stmt,
+    base_index: usize,
+    await_positions: &mut Vec<usize>,
+) {
     use crate::parser::StmtKind;
-    
+
     match &stmt.kind {
-        StmtKind::Expression { expr } => {
+        StmtKind::Expression(expr) => {
             find_await_in_expr(expr, base_index, await_positions);
         }
-        StmtKind::Let { value, .. } => {
-            if let Some(expr) = value {
+        StmtKind::Let { init, .. } => {
+            if let Some(expr) = init {
                 find_await_in_expr(expr, base_index, await_positions);
             }
         }
-        StmtKind::If { condition, then_branch, else_branch } => {
-            find_await_in_expr(condition, base_index, await_positions);
-            for stmt in then_branch {
-                find_await_in_stmt(stmt, base_index, await_positions);
-            }
-            if let Some(else_stmts) = else_branch {
-                for stmt in else_stmts {
-                    find_await_in_stmt(stmt, base_index, await_positions);
-                }
-            }
-        }
+        // If statements are handled in expressions, not statements
         StmtKind::While { condition, body } => {
             find_await_in_expr(condition, base_index, await_positions);
-            for stmt in body {
+            for stmt in &body.statements {
                 find_await_in_stmt(stmt, base_index, await_positions);
             }
         }
         StmtKind::For { iterable, body, .. } => {
             find_await_in_expr(iterable, base_index, await_positions);
-            for stmt in body {
+            for stmt in &body.statements {
                 find_await_in_stmt(stmt, base_index, await_positions);
             }
         }
-        StmtKind::Return { value } => {
+        StmtKind::Return(value) => {
             if let Some(expr) = value {
                 find_await_in_expr(expr, base_index, await_positions);
             }
         }
-        StmtKind::Assignment { value, .. } => {
-            find_await_in_expr(value, base_index, await_positions);
-        }
+        // Assignment statements are handled in expressions, not statements
         _ => {
             // Other statement types that don't contain expressions
         }
@@ -674,10 +724,13 @@ fn find_await_in_stmt(stmt: &crate::parser::Stmt, base_index: usize, await_posit
 }
 
 /// Recursively find await expressions in an expression
-fn find_await_in_expr(expr: &crate::parser::Expr, base_index: usize, await_positions: &mut Vec<usize>) {
-    
+fn find_await_in_expr(
+    expr: &crate::parser::Expr,
+    base_index: usize,
+    await_positions: &mut Vec<usize>,
+) {
     use crate::parser::ExprKind;
-    
+
     match &expr.kind {
         ExprKind::Await { expr: inner_expr } => {
             // Found an await expression
@@ -695,38 +748,40 @@ fn find_await_in_expr(expr: &crate::parser::Expr, base_index: usize, await_posit
             find_await_in_expr(left, base_index, await_positions);
             find_await_in_expr(right, base_index, await_positions);
         }
-        ExprKind::Unary { operand, .. } => {
-            find_await_in_expr(operand, base_index, await_positions);
+        ExprKind::Unary { expr, .. } => {
+            find_await_in_expr(expr, base_index, await_positions);
         }
         ExprKind::Index { object, index } => {
             find_await_in_expr(object, base_index, await_positions);
             find_await_in_expr(index, base_index, await_positions);
         }
-        ExprKind::FieldAccess { object, .. } => {
+        ExprKind::Member { object, .. } => {
             find_await_in_expr(object, base_index, await_positions);
         }
-        ExprKind::MethodCall { object, args, .. } => {
-            find_await_in_expr(object, base_index, await_positions);
-            for arg in args {
-                find_await_in_expr(arg, base_index, await_positions);
-            }
-        }
-        ExprKind::Array { elements } => {
+        // MethodCall is handled as Call expressions in this AST
+        ExprKind::Array(elements) => {
             for element in elements {
                 find_await_in_expr(element, base_index, await_positions);
             }
         }
-        ExprKind::StructInit { fields, .. } => {
+        ExprKind::StructConstructor { fields, .. } => {
             for (_, field_expr) in fields {
                 find_await_in_expr(field_expr, base_index, await_positions);
             }
         }
-        ExprKind::Block { statements } => {
-            for stmt in statements {
+        ExprKind::Block(block) => {
+            for stmt in &block.statements {
                 find_await_in_stmt(stmt, base_index, await_positions);
             }
+            if let Some(final_expr) = &block.final_expr {
+                find_await_in_expr(final_expr, base_index, await_positions);
+            }
         }
-        ExprKind::If { condition, then_branch, else_branch } => {
+        ExprKind::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
             find_await_in_expr(condition, base_index, await_positions);
             find_await_in_expr(then_branch, base_index, await_positions);
             if let Some(else_expr) = else_branch {
@@ -746,22 +801,22 @@ mod tests {
     #[test]
     fn test_async_transform_context() {
         let mut context = AsyncTransformContext::new();
-        
+
         // Test variable allocation
         let offset1 = context.allocate_variable("x".to_string(), 4);
         assert_eq!(offset1, 8); // After state enum
-        
+
         let offset2 = context.allocate_variable("y".to_string(), 8);
         assert_eq!(offset2, 16); // Aligned to 8 bytes
-        
+
         // Test state ID generation
         let state1 = context.next_state_id();
         assert_eq!(state1, 1);
-        
+
         let state2 = context.next_state_id();
         assert_eq!(state2, 2);
     }
-    
+
     #[test]
     fn test_type_size_estimation() {
         assert_eq!(estimate_type_size(&Type::Named("i32".to_string())), 4);
@@ -769,7 +824,7 @@ mod tests {
         assert_eq!(estimate_type_size(&Type::Named("bool".to_string())), 1);
         assert_eq!(estimate_type_size(&Type::Unknown), 8);
     }
-    
+
     #[test]
     fn test_instruction_counting() {
         // This would require creating a test function
@@ -778,7 +833,7 @@ mod tests {
         let count = count_instructions(&func);
         assert!(count >= 0);
     }
-    
+
     fn create_test_function() -> Function {
         let mut func = Function::new(
             FunctionId(0),
@@ -789,25 +844,25 @@ mod tests {
         func.is_async = true;
         func
     }
-    
+
     #[test]
     fn test_find_await_expressions() {
         // Test with empty statement list
         let empty_stmts = vec![];
         let awaits = find_await_expressions(&empty_stmts);
         assert_eq!(awaits.len(), 0);
-        
+
         // More comprehensive tests would require creating actual AST nodes
         // which would need the parser types to be fully available
     }
-    
+
     #[test]
     fn test_security_validation() {
         let func = create_test_function();
-        
+
         // Should pass validation for empty function
         assert!(validate_async_function_security(&func).is_ok());
-        
+
         // Test instruction count validation would require a function with many instructions
     }
 }

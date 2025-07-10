@@ -1,11 +1,10 @@
-use super::{Token, TokenKind};
 use super::lru_cache::LruCache;
+use super::{Token, TokenKind};
 use crate::{
     error::{Error, Result},
     source::{SourceLocation, Span},
 };
 use ahash::{AHashMap, AHashSet};
-use std::borrow::Cow;
 use unicode_normalization::UnicodeNormalization;
 
 // Type aliases for fast hash collections
@@ -98,7 +97,7 @@ impl StringInterner {
             string_map: HashMap::new(),
         }
     }
-    
+
     /// Intern a string and return its index
     fn intern(&mut self, s: String) -> usize {
         if let Some(&index) = self.string_map.get(&s) {
@@ -116,7 +115,7 @@ impl StringInterner {
             index
         }
     }
-    
+
     /// Get a string by its index
     fn get(&self, index: usize) -> Option<&str> {
         self.strings.get(index).map(|s| s.as_str())
@@ -126,11 +125,11 @@ impl StringInterner {
 pub struct Lexer {
     input: String,
     input_bytes: Vec<u8>,
-    current: usize,        // Byte offset
-    current_char: usize,   // Character offset for location tracking
+    current: usize,      // Byte offset
+    current_char: usize, // Character offset for location tracking
     location: SourceLocation,
     start_location: SourceLocation,
-    start_index: usize,    // Byte offset
+    start_index: usize,      // Byte offset
     start_char_index: usize, // Character offset
     tokens: Vec<Token>,
     errors: Vec<Error>,
@@ -143,7 +142,7 @@ impl Lexer {
     pub fn new(input: &str) -> Result<Self> {
         Self::with_unicode_config(input, UnicodeSecurityConfig::default())
     }
-    
+
     pub fn with_unicode_config(input: &str, unicode_config: UnicodeSecurityConfig) -> Result<Self> {
         // Check input size limit
         if input.len() > MAX_INPUT_SIZE {
@@ -152,11 +151,12 @@ impl Lexer {
             } else {
                 return Err(Error::lexer(&format!(
                     "Input size {} exceeds maximum allowed size of {} bytes",
-                    input.len(), MAX_INPUT_SIZE
+                    input.len(),
+                    MAX_INPUT_SIZE
                 )));
             }
         }
-        
+
         Ok(Self {
             input: input.to_string(),
             input_bytes: input.as_bytes().to_vec(),
@@ -173,12 +173,12 @@ impl Lexer {
             unicode_cache: UnicodeCache::new(),
         })
     }
-    
+
     /// Get the current Unicode security configuration
     pub fn unicode_config(&self) -> &UnicodeSecurityConfig {
         &self.unicode_config
     }
-    
+
     /// Set the Unicode security configuration
     pub fn set_unicode_config(&mut self, config: UnicodeSecurityConfig) {
         self.unicode_config = config;
@@ -349,7 +349,7 @@ impl Lexer {
 
             // Metaprogramming
             '@' => self.add_token(TokenKind::At),
-            
+
             // Error propagation
             '?' => self.add_token(TokenKind::Question),
 
@@ -373,7 +373,7 @@ impl Lexer {
                             &format!(
                                 "Comment nesting depth exceeds maximum allowed depth of {}",
                                 MAX_COMMENT_NESTING_DEPTH
-                            )
+                            ),
                         );
                         return;
                     }
@@ -402,12 +402,13 @@ impl Lexer {
                     "String literal exceeds maximum allowed size",
                     &format!(
                         "String literal length {} exceeds maximum allowed size of {} bytes",
-                        value.len(), MAX_STRING_LITERAL_SIZE
-                    )
+                        value.len(),
+                        MAX_STRING_LITERAL_SIZE
+                    ),
                 );
                 return;
             }
-            
+
             if self.peek() == '\n' {
                 self.error("Unterminated string");
                 return;
@@ -463,7 +464,8 @@ impl Lexer {
             }
         }
 
-        let value: String = if self.start_index <= self.current && self.current <= self.input.len() {
+        let value: String = if self.start_index <= self.current && self.current <= self.input.len()
+        {
             self.input[self.start_index..self.current].to_string()
         } else {
             String::new() // Safe fallback for invalid indices
@@ -474,35 +476,41 @@ impl Lexer {
             Err(_) => self.error("Invalid number format"),
         }
     }
-    
+
     /// Normalize an identifier using Unicode NFKC normalization
     fn normalize_identifier(&mut self, identifier: &str) -> String {
         // Fast path for ASCII-only identifiers (common case)
         if identifier.is_ascii() {
             return identifier.to_string();
         }
-        
+
         // Check cache first
-        if let Some(normalized) = self.unicode_cache.normalization_cache.get(&identifier.to_string()) {
+        if let Some(normalized) = self
+            .unicode_cache
+            .normalization_cache
+            .get(&identifier.to_string())
+        {
             return normalized;
         }
-        
+
         // Perform NFKC normalization
         let normalized: String = identifier.nfkc().collect();
-        
+
         // Cache the result for performance
-        self.unicode_cache.normalization_cache.insert(identifier.to_string(), normalized.clone());
-        
+        self.unicode_cache
+            .normalization_cache
+            .insert(identifier.to_string(), normalized.clone());
+
         normalized
     }
-    
+
     /// Enhanced confusable detection with more comprehensive coverage
     fn simple_confusable_skeleton(&self, s: &str) -> String {
         s.chars()
             .map(|c| match c {
                 // Latin/Cyrillic confusables
-                'а' | 'а' => 'a', // Cyrillic small letter a -> Latin a
-                'А' | 'А' => 'A', // Cyrillic capital letter a -> Latin A  
+                'а' => 'a', // Cyrillic small letter a -> Latin a
+                'А' => 'A', // Cyrillic capital letter a -> Latin A
                 'е' => 'e', // Cyrillic small letter e -> Latin e
                 'Е' => 'E', // Cyrillic capital letter e -> Latin E
                 'о' => 'o', // Cyrillic small letter o -> Latin o
@@ -515,7 +523,7 @@ impl Lexer {
                 'Х' => 'X', // Cyrillic capital letter x -> Latin X
                 'у' => 'y', // Cyrillic small letter y -> Latin y
                 'У' => 'Y', // Cyrillic capital letter y -> Latin Y
-                
+
                 // Greek confusables
                 'α' => 'a', // Greek small letter alpha -> Latin a
                 'Α' => 'A', // Greek capital letter alpha -> Latin A
@@ -529,7 +537,7 @@ impl Lexer {
                 'Χ' => 'X', // Greek capital letter chi -> Latin X
                 'υ' => 'y', // Greek small letter upsilon -> Latin y
                 'Υ' => 'Y', // Greek capital letter upsilon -> Latin Y
-                
+
                 // Mathematical Alphanumeric Symbols
                 '𝐚'..='𝐳' => (b'a' + (c as u32 - '𝐚' as u32) as u8) as char,
                 '𝐀'..='𝐙' => (b'A' + (c as u32 - '𝐀' as u32) as u8) as char,
@@ -537,63 +545,99 @@ impl Lexer {
                 '𝐴'..='𝑍' => (b'A' + (c as u32 - '𝐴' as u32) as u8) as char,
                 '𝒂'..='𝒛' => (b'a' + (c as u32 - '𝒂' as u32) as u8) as char,
                 '𝑨'..='𝒁' => (b'A' + (c as u32 - '𝑨' as u32) as u8) as char,
-                
+
                 // Fullwidth Forms
                 'ａ'..='ｚ' => (b'a' + (c as u32 - 'ａ' as u32) as u8) as char,
                 'Ａ'..='Ｚ' => (b'A' + (c as u32 - 'Ａ' as u32) as u8) as char,
                 '０'..='９' => (b'0' + (c as u32 - '０' as u32) as u8) as char,
-                
+
                 // Subscript and Superscript
                 '₀'..='₉' => (b'0' + (c as u32 - '₀' as u32) as u8) as char,
-                '⁰' => '0', '¹' => '1', '²' => '2', '³' => '3', '⁴' => '4',
-                '⁵' => '5', '⁶' => '6', '⁷' => '7', '⁸' => '8', '⁹' => '9',
-                
+                '⁰' => '0',
+                '¹' => '1',
+                '²' => '2',
+                '³' => '3',
+                '⁴' => '4',
+                '⁵' => '5',
+                '⁶' => '6',
+                '⁷' => '7',
+                '⁸' => '8',
+                '⁹' => '9',
+
                 // Small Form Variants
-                'ᴀ' => 'A', 'ʙ' => 'B', 'ᴄ' => 'C', 'ᴅ' => 'D', 'ᴇ' => 'E',
-                'ꜰ' => 'F', 'ɢ' => 'G', 'ʜ' => 'H', 'ɪ' => 'I', 'ᴊ' => 'J',
-                'ᴋ' => 'K', 'ʟ' => 'L', 'ᴍ' => 'M', 'ɴ' => 'N', 'ᴏ' => 'O',
-                'ᴘ' => 'P', 'ʀ' => 'R', 'ꜱ' => 'S', 'ᴛ' => 'T', 'ᴜ' => 'U',
-                'ᴠ' => 'V', 'ᴡ' => 'W', 'ʏ' => 'Y', 'ᴢ' => 'Z',
-                
+                'ᴀ' => 'A',
+                'ʙ' => 'B',
+                'ᴄ' => 'C',
+                'ᴅ' => 'D',
+                'ᴇ' => 'E',
+                'ꜰ' => 'F',
+                'ɢ' => 'G',
+                'ʜ' => 'H',
+                'ɪ' => 'I',
+                'ᴊ' => 'J',
+                'ᴋ' => 'K',
+                'ʟ' => 'L',
+                'ᴍ' => 'M',
+                'ɴ' => 'N',
+                'ᴏ' => 'O',
+                'ᴘ' => 'P',
+                'ʀ' => 'R',
+                'ꜱ' => 'S',
+                'ᴛ' => 'T',
+                'ᴜ' => 'U',
+                'ᴠ' => 'V',
+                'ᴡ' => 'W',
+                'ʏ' => 'Y',
+                'ᴢ' => 'Z',
+
                 // Keep other characters as-is
                 c => c,
             })
             .collect()
     }
-    
+
     /// Check for confusable characters and handle according to security level
     fn check_confusable_identifier(&mut self, identifier: &str, normalized: &str) -> bool {
         if !self.unicode_config.detect_confusables {
             return true; // Confusable detection disabled
         }
-        
+
         // Fast path for ASCII-only identifiers
         if identifier.is_ascii() {
             return true;
         }
-        
+
         // Get or compute skeleton using our simple method
-        let skeleton = if let Some(cached_skeleton) = self.unicode_cache.skeleton_cache.get(&normalized.to_string()) {
+        let skeleton = if let Some(cached_skeleton) = self
+            .unicode_cache
+            .skeleton_cache
+            .get(&normalized.to_string())
+        {
             cached_skeleton
         } else {
             let skeleton = self.simple_confusable_skeleton(normalized);
-            self.unicode_cache.skeleton_cache.insert(normalized.to_string(), skeleton.clone());
+            self.unicode_cache
+                .skeleton_cache
+                .insert(normalized.to_string(), skeleton.clone());
             skeleton
         };
-        
+
         // Check if this skeleton has been seen before (indicating potential confusables)
-        let is_potentially_confusable = self.unicode_cache.skeleton_cache
+        let is_potentially_confusable = self
+            .unicode_cache
+            .skeleton_cache
             .values()
             .filter(|&s| s == &skeleton)
-            .count() > 1;
-            
+            .count()
+            > 1;
+
         if is_potentially_confusable {
             let warning_key = format!("{}:{}", skeleton, normalized);
-            
+
             // Only warn once per confusable pair
             if !self.unicode_cache.warned_confusables.contains(&warning_key) {
                 self.unicode_cache.warned_confusables.insert(warning_key);
-                
+
                 match self.unicode_config.level {
                     UnicodeSecurityLevel::Strict => {
                         self.error(&format!(
@@ -616,7 +660,7 @@ impl Lexer {
                 }
             }
         }
-        
+
         true
     }
 
@@ -636,19 +680,18 @@ impl Lexer {
 
         // Process the identifier (normalization and confusable check)
         let final_identifier = self.process_identifier(original_string);
-        
+
         if let Some(identifier) = final_identifier {
             // Use normalized value for keyword lookup and token creation
-            let token_kind = TokenKind::from_keyword(&identifier)
-                .unwrap_or_else(|| {
-                    // Intern the identifier for memory efficiency
-                    let _interned_index = self.string_interner.intern(identifier.clone());
-                    TokenKind::Identifier(identifier)
-                });
+            let token_kind = TokenKind::from_keyword(&identifier).unwrap_or_else(|| {
+                // Intern the identifier for memory efficiency
+                let _interned_index = self.string_interner.intern(identifier.clone());
+                TokenKind::Identifier(identifier)
+            });
             self.add_token(token_kind);
         }
     }
-    
+
     /// Extract the current lexeme as an owned String
     fn extract_current_lexeme(&self) -> String {
         if self.start_index <= self.current && self.current <= self.input.len() {
@@ -657,7 +700,7 @@ impl Lexer {
             String::new() // Safe fallback for invalid indices
         }
     }
-    
+
     /// Process identifier for normalization and confusable checking
     /// Returns None if the identifier should be rejected
     fn process_identifier(&mut self, original: String) -> Option<String> {
@@ -667,13 +710,13 @@ impl Lexer {
         } else {
             original.clone()
         };
-        
+
         // Check for confusable characters
         if !self.check_confusable_identifier(&original, &normalized) {
             // In strict mode, confusable identifiers are rejected
             return None;
         }
-        
+
         Some(normalized)
     }
 
@@ -681,9 +724,9 @@ impl Lexer {
         if self.is_at_end() {
             return '\0'; // Safe default for EOF
         }
-        
+
         let ch = self.current_char();
-        
+
         // Advance to next UTF-8 character
         let char_byte_len = ch.len_utf8();
         self.current = match self.current.checked_add(char_byte_len) {
@@ -693,7 +736,7 @@ impl Lexer {
                 return '\0';
             }
         };
-        
+
         self.current_char = match self.current_char.checked_add(1) {
             Some(next) => next,
             None => {
@@ -701,7 +744,7 @@ impl Lexer {
                 return '\0';
             }
         };
-        
+
         self.location.advance(ch);
         ch
     }
@@ -730,7 +773,7 @@ impl Lexer {
         if self.is_at_end() {
             return '\0';
         }
-        
+
         let current_char_len = self.char_byte_len_at(self.current);
         match self.current.checked_add(current_char_len) {
             Some(next_byte_offset) => self.char_at_byte_offset(next_byte_offset),
@@ -741,25 +784,25 @@ impl Lexer {
     fn is_at_end(&self) -> bool {
         self.current >= self.input_bytes.len()
     }
-    
+
     /// Get the current character at the current byte position
     fn current_char(&self) -> char {
         self.char_at_byte_offset(self.current)
     }
-    
+
     /// Safely decode UTF-8 character at given byte offset
     fn char_at_byte_offset(&self, byte_offset: usize) -> char {
         if byte_offset >= self.input_bytes.len() {
             return '\0';
         }
-        
+
         // Use string slice for proper UTF-8 decoding
         match self.input[byte_offset..].chars().next() {
             Some(ch) => ch,
             None => '\0', // Should not happen with valid UTF-8
         }
     }
-    
+
     /// Get the byte length of the character at the given byte offset
     fn char_byte_len_at(&self, byte_offset: usize) -> usize {
         self.char_at_byte_offset(byte_offset).len_utf8()
@@ -772,12 +815,13 @@ impl Lexer {
                 "Token count exceeds maximum allowed limit",
                 &format!(
                     "Token count {} exceeds maximum allowed count of {}",
-                    self.tokens.len(), MAX_TOKEN_COUNT
-                )
+                    self.tokens.len(),
+                    MAX_TOKEN_COUNT
+                ),
             );
             return;
         }
-        
+
         let span = Span::new(self.start_location, self.location);
         let lexeme_slice = if self.start_index <= self.current && self.current <= self.input.len() {
             &self.input[self.start_index..self.current]
@@ -787,7 +831,9 @@ impl Lexer {
 
         // Intern lexeme for memory efficiency
         let interned_index = self.string_interner.intern(lexeme_slice.to_string());
-        let lexeme = self.string_interner.get(interned_index)
+        let lexeme = self
+            .string_interner
+            .get(interned_index)
             .map(|s| s.to_string())
             .unwrap_or_default();
         self.tokens.push(Token::new(kind, span, lexeme));
@@ -812,7 +858,8 @@ impl Lexer {
             if content.len() >= MAX_STRING_LITERAL_SIZE {
                 self.error(&format!(
                     "Doc comment length {} exceeds maximum allowed size of {} bytes",
-                    content.len(), MAX_STRING_LITERAL_SIZE
+                    content.len(),
+                    MAX_STRING_LITERAL_SIZE
                 ));
                 return;
             }
@@ -843,11 +890,12 @@ impl Lexer {
             if content.len() >= MAX_STRING_LITERAL_SIZE {
                 self.error(&format!(
                     "Doc comment length {} exceeds maximum allowed size of {} bytes",
-                    content.len(), MAX_STRING_LITERAL_SIZE
+                    content.len(),
+                    MAX_STRING_LITERAL_SIZE
                 ));
                 return;
             }
-            
+
             // Check for end of comment
             if self.peek() == '*' && self.peek_next() == '/' {
                 self.advance(); // consume *
@@ -893,7 +941,7 @@ impl Lexer {
         self.errors
             .push(Error::lexer(message).with_location(self.location));
     }
-    
+
     /// Error with optional debug information
     fn error_with_details(&mut self, production_msg: &str, debug_msg: &str) {
         if PRODUCTION_ERRORS {

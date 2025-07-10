@@ -1,6 +1,10 @@
 # Script Language User Guide
 
+**Version: 0.5.0-alpha** | **Status: ~90% Complete**
+
 Welcome to Script - a modern programming language designed to be simple enough for beginners while powerful enough for production applications. This guide will help you get started with Script and explore its features.
+
+> **Note**: Script is currently in alpha (v0.5.0-alpha) with ~90% of features complete. Most core features are production-ready, including the module system, standard library, pattern matching, and generics. Some advanced features like type aliases are still in development.
 
 ## Table of Contents
 1. [Getting Started](#getting-started)
@@ -267,7 +271,7 @@ type Point2D = { x: f32, y: f32 }
 type GameState = "menu" | "playing" | "paused" | "game_over"
 ```
 
-### Structs (Future Feature)
+### Structs
 
 ```script
 struct Player {
@@ -497,7 +501,7 @@ let squares = [x * x for x in 1..10]
 let even_squares = [x * x for x in 1..10 if x % 2 == 0]
 ```
 
-### HashMaps (Future Feature)
+### HashMaps
 
 ```script
 // Create a HashMap

@@ -1,14 +1,18 @@
 pub mod analyzer;
+mod capture_analysis;
 mod error;
 pub mod memory_safety;
+mod module_loader_integration;
 mod pattern_exhaustiveness;
 mod symbol;
 mod symbol_table;
 
-pub use analyzer::{SemanticAnalyzer, GenericInstantiation};
+pub use analyzer::{GenericInstantiation, SemanticAnalyzer};
 pub use error::{SemanticError, SemanticErrorKind};
 pub use memory_safety::{MemorySafetyContext, MemorySafetyViolation};
-pub use symbol::{FunctionSignature, Symbol, SymbolKind, StructInfo, EnumInfo, EnumVariantInfo, EnumVariantType};
+pub use symbol::{
+    EnumInfo, EnumVariantInfo, EnumVariantType, FunctionSignature, StructInfo, Symbol, SymbolKind,
+};
 pub use symbol_table::{ScopeId, SymbolTable};
 
 use crate::parser::Program;

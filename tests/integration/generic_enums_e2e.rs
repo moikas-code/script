@@ -1,13 +1,13 @@
 //! End-to-end integration tests for generic enums
-//! 
+//!
 //! These tests verify the complete pipeline from parsing through execution
 //! for generic enum definitions and usage.
 
 #[path = "../utils/mod.rs"]
 mod utils;
 
-use utils::generic_test_helpers::*;
 use script::types::Type;
+use utils::generic_test_helpers::*;
 
 #[test]
 fn test_option_enum() {
@@ -25,14 +25,17 @@ fn test_option_enum() {
             let opt5 = Option::<string>::None;
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should have multiple Option instantiations
     let option_instances = count_monomorphized_instances(&program, "Option");
-    assert!(option_instances >= 3, "Should have at least 3 Option instantiations");
-    
+    assert!(
+        option_instances >= 3,
+        "Should have at least 3 Option instantiations"
+    );
+
     // Verify specific instantiations
     assert!(assert_type_instantiated(&program, "Option_i32"));
     assert!(assert_type_instantiated(&program, "Option_string"));
@@ -58,13 +61,16 @@ fn test_result_enum() {
             let r6 = Result::<bool, string>::Err("failed");
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should have multiple Result instantiations
     let result_instances = count_monomorphized_instances(&program, "Result");
-    assert!(result_instances >= 3, "Should have at least 3 Result instantiations");
+    assert!(
+        result_instances >= 3,
+        "Should have at least 3 Result instantiations"
+    );
 }
 
 #[test]
@@ -98,13 +104,16 @@ fn test_enum_pattern_matching() {
             }
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     // Pattern matching might have some errors but enum instantiation should work
-    
+
     // Should have Option<i32> and Option<string>
     let option_instances = count_monomorphized_instances(&program, "Option");
-    assert!(option_instances >= 2, "Should have at least 2 Option instantiations");
+    assert!(
+        option_instances >= 2,
+        "Should have at least 2 Option instantiations"
+    );
 }
 
 #[test]
@@ -134,16 +143,22 @@ fn test_nested_enum_constructors() {
             let double_opt = Option::Some(Option::Some(true));
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should have multiple instantiations of both types
     let option_instances = count_monomorphized_instances(&program, "Option");
-    assert!(option_instances >= 3, "Should have at least 3 Option instantiations");
-    
+    assert!(
+        option_instances >= 3,
+        "Should have at least 3 Option instantiations"
+    );
+
     let result_instances = count_monomorphized_instances(&program, "Result");
-    assert!(result_instances >= 2, "Should have at least 2 Result instantiations");
+    assert!(
+        result_instances >= 2,
+        "Should have at least 2 Result instantiations"
+    );
 }
 
 #[test]
@@ -172,16 +187,22 @@ fn test_enum_with_multiple_type_params() {
             let t3 = Triple::Third(3.0);
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Check instantiations
     let either_instances = count_monomorphized_instances(&program, "Either");
-    assert!(either_instances >= 2, "Should have at least 2 Either instantiations");
-    
+    assert!(
+        either_instances >= 2,
+        "Should have at least 2 Either instantiations"
+    );
+
     let triple_instances = count_monomorphized_instances(&program, "Triple");
-    assert!(triple_instances >= 1, "Should have at least 1 Triple instantiation");
+    assert!(
+        triple_instances >= 1,
+        "Should have at least 1 Triple instantiation"
+    );
 }
 
 #[test]
@@ -207,13 +228,16 @@ fn test_enum_with_struct_variants() {
             let m3 = Message::<bool>::Empty;
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     // Struct variants might have some implementation issues
-    
+
     // Should have multiple Message instantiations
     let message_instances = count_monomorphized_instances(&program, "Message");
-    assert!(message_instances >= 2, "Should have at least 2 Message instantiations");
+    assert!(
+        message_instances >= 2,
+        "Should have at least 2 Message instantiations"
+    );
 }
 
 #[test]
@@ -236,12 +260,15 @@ fn test_enum_with_tuple_variants() {
             // Would test Branch but recursive types might have issues
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should have Tree<i32> instantiation
     let tree_instances = count_monomorphized_instances(&program, "Tree");
-    assert!(tree_instances >= 1, "Should have at least 1 Tree instantiation");
+    assert!(
+        tree_instances >= 1,
+        "Should have at least 1 Tree instantiation"
+    );
 }
 
 #[test]
@@ -276,13 +303,16 @@ fn test_enum_method_implementation() {
             let value = opt2.unwrap();
         }
     "#;
-    
+
     let program = compile_generic_program(code);
     // Impl blocks might have errors but enum instantiation should work
-    
+
     if let Ok(ref prog) = program {
         let option_instances = count_monomorphized_instances(prog, "Option");
-        assert!(option_instances >= 2, "Should have at least 2 Option instantiations");
+        assert!(
+            option_instances >= 2,
+            "Should have at least 2 Option instantiations"
+        );
     }
 }
 
@@ -316,17 +346,20 @@ fn test_enum_in_function_params() {
             let ok = process_any(r2);
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should have multiple Result instantiations
     let result_instances = count_monomorphized_instances(&program, "Result");
-    assert!(result_instances >= 2, "Should have at least 2 Result instantiations");
+    assert!(
+        result_instances >= 2,
+        "Should have at least 2 Result instantiations"
+    );
 }
 
 #[test]
 fn test_unit_enum_variants() {
-    let code = r#"
+    let code = r##"
         enum Color<T> {
             Red,
             Green,
@@ -340,13 +373,13 @@ fn test_unit_enum_variants() {
             let c3 = Color::Custom(255);
             
             let c4 = Color::<string>::Blue;
-            let c5 = Color::Custom(\"#FF0000\");
+            let c5 = Color::Custom("#FF0000");
         }
-    "#;
-    
+    "##;
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should have Color<i32> and Color<string>
     let color_instances = count_monomorphized_instances(&program, "Color");
     assert_eq!(color_instances, 2, "Should have 2 Color instantiations");
@@ -369,7 +402,7 @@ fn test_enum_with_generic_constraints() {
             let d = Displayable::<i32>::Empty;
         }
     "#;
-    
+
     let program = compile_generic_program(code);
     // This might have errors due to trait bound implementation
     // but we're testing that it at least attempts to compile
@@ -393,11 +426,14 @@ fn test_enum_variant_inference() {
             let opt4 = Option::<bool>::None;
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should infer different types from constructor arguments
     let option_instances = count_monomorphized_instances(&program, "Option");
-    assert!(option_instances >= 4, "Should have at least 4 Option instantiations");
+    assert!(
+        option_instances >= 4,
+        "Should have at least 4 Option instantiations"
+    );
 }

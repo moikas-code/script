@@ -4,8 +4,8 @@
 //! secure async/await implementation, validating that all components
 //! work together correctly and securely.
 
-use script::runtime::async_runtime_secure::*;
 use script::runtime::async_ffi_secure::*;
+use script::runtime::async_runtime_secure::*;
 use script::runtime::async_security_tests::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -70,11 +70,11 @@ impl AsyncIntegrationTestSuite {
     fn test_basic_future_creation(&mut self) {
         self.run_integration_test("Basic Future Creation", || {
             let executor = Executor::new();
-            
+
             // Create a simple future
             let future = ImmediateFuture::new(42);
             let task_id = Executor::spawn(executor.clone(), Box::new(future))?;
-            
+
             // Verify task was created
             if task_id.0 == 0 {
                 return Err("Invalid task ID returned".into());
@@ -133,7 +133,7 @@ impl AsyncIntegrationTestSuite {
             // Test basic blocking execution
             let future = ImmediateFuture::new(123);
             let result = BlockingExecutor::block_on(Box::new(future))?;
-            
+
             if result != 123 {
                 return Err(format!("Expected 123, got {}", result).into());
             }
@@ -142,9 +142,9 @@ impl AsyncIntegrationTestSuite {
             let future = DelayedFuture::new(456, 2);
             let result = BlockingExecutor::block_on_with_timeout(
                 Box::new(future),
-                Duration::from_millis(500)
+                Duration::from_millis(500),
             )?;
-            
+
             if result != 456 {
                 return Err(format!("Expected 456, got {}", result).into());
             }
@@ -153,9 +153,9 @@ impl AsyncIntegrationTestSuite {
             let future = NeverCompleteFuture::new();
             let result = BlockingExecutor::block_on_with_timeout(
                 Box::new(future),
-                Duration::from_millis(50)
+                Duration::from_millis(50),
             );
-            
+
             if !matches!(result, Err(AsyncRuntimeError::OperationTimeout)) {
                 return Err("Timeout not properly handled".into());
             }
@@ -168,13 +168,13 @@ impl AsyncIntegrationTestSuite {
     fn test_timer_functionality(&mut self) {
         self.run_integration_test("Timer Functionality", || {
             let start_time = Instant::now();
-            
+
             // Create a timer for 100ms
             let timer = Timer::new(Duration::from_millis(100))?;
             let result = BlockingExecutor::block_on(Box::new(timer))?;
-            
+
             let elapsed = start_time.elapsed();
-            
+
             // Verify timing (allow some variance)
             if elapsed < Duration::from_millis(90) || elapsed > Duration::from_millis(200) {
                 return Err(format!("Timer inaccurate: {:?}", elapsed).into());
@@ -193,7 +193,11 @@ impl AsyncIntegrationTestSuite {
             // Spawn futures with different completion times
             for i in 0..3 {
                 let results_clone = results.clone();
-                let future = ResultCollectorFuture::new(i, Duration::from_millis(50 * (i + 1)), results_clone);
+                let future = ResultCollectorFuture::new(
+                    i,
+                    Duration::from_millis(50 * (i + 1)),
+                    results_clone,
+                );
                 Executor::spawn(executor.clone(), Box::new(future))?;
             }
 
@@ -230,8 +234,9 @@ impl AsyncIntegrationTestSuite {
             // Test nested blocking operations
             let outer_future = NestedAsyncFuture::new(3);
             let result = BlockingExecutor::block_on(Box::new(outer_future))?;
-            
-            if result != 6 { // 3 * 2 from nested operation
+
+            if result != 6 {
+                // 3 * 2 from nested operation
                 return Err(format!("Expected 6, got {}", result).into());
             }
 
@@ -244,9 +249,7 @@ impl AsyncIntegrationTestSuite {
         self.run_integration_test("Error Propagation", || {
             // Test error in future
             let future = ErrorFuture::new("Test error");
-            let result = std::panic::catch_unwind(|| {
-                BlockingExecutor::block_on(Box::new(future))
-            });
+            let result = std::panic::catch_unwind(|| BlockingExecutor::block_on(Box::new(future)));
 
             // Should handle error gracefully, not panic
             if result.is_err() {
@@ -261,10 +264,10 @@ impl AsyncIntegrationTestSuite {
     fn test_resource_cleanup(&mut self) {
         self.run_integration_test("Resource Cleanup", || {
             let resource_counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            
+
             {
                 let executor = Executor::new();
-                
+
                 // Create futures that track resource usage
                 for _ in 0..5 {
                     let counter_clone = resource_counter.clone();
@@ -328,11 +331,15 @@ impl AsyncIntegrationTestSuite {
                 return Err(format!("Performance too slow: {:?}", elapsed).into());
             }
 
-            if completed < 90 { // Allow some tasks to not complete due to shutdown
+            if completed < 90 {
+                // Allow some tasks to not complete due to shutdown
                 return Err(format!("Too few tasks completed: {}", completed).into());
             }
 
-            Ok(format!("Performance test passed: {} tasks in {:?}", completed, elapsed))
+            Ok(format!(
+                "Performance test passed: {} tasks in {:?}",
+                completed, elapsed
+            ))
         });
     }
 
@@ -341,10 +348,10 @@ impl AsyncIntegrationTestSuite {
         self.run_integration_test("Memory Usage Patterns", || {
             // Test that memory usage doesn't grow unbounded
             let initial_memory = get_memory_usage();
-            
+
             for iteration in 0..10 {
                 let executor = Executor::new();
-                
+
                 // Create and run tasks
                 for _ in 0..20 {
                     let future = ImmediateFuture::new(iteration);
@@ -369,7 +376,10 @@ impl AsyncIntegrationTestSuite {
                 return Err(format!("Excessive memory growth: {} bytes", memory_growth).into());
             }
 
-            Ok(format!("Memory usage stable: {} bytes growth", memory_growth))
+            Ok(format!(
+                "Memory usage stable: {} bytes growth",
+                memory_growth
+            ))
         });
     }
 
@@ -380,18 +390,21 @@ impl AsyncIntegrationTestSuite {
             let results = Arc::new(Mutex::new(Vec::new()));
 
             // Spawn concurrent tasks from multiple threads
-            let handles: Vec<_> = (0..5).map(|thread_id| {
-                let exec = executor.clone();
-                let results_clone = results.clone();
-                
-                thread::spawn(move || {
-                    for task_id in 0..10 {
-                        let result_clone = results_clone.clone();
-                        let future = ConcurrentFuture::new(thread_id * 10 + task_id, result_clone);
-                        let _ = Executor::spawn(exec.clone(), Box::new(future));
-                    }
+            let handles: Vec<_> = (0..5)
+                .map(|thread_id| {
+                    let exec = executor.clone();
+                    let results_clone = results.clone();
+
+                    thread::spawn(move || {
+                        for task_id in 0..10 {
+                            let result_clone = results_clone.clone();
+                            let future =
+                                ConcurrentFuture::new(thread_id * 10 + task_id, result_clone);
+                            let _ = Executor::spawn(exec.clone(), Box::new(future));
+                        }
+                    })
                 })
-            }).collect();
+                .collect();
 
             // Wait for all spawning to complete
             for handle in handles {
@@ -410,11 +423,19 @@ impl AsyncIntegrationTestSuite {
 
             // Verify concurrent execution
             let final_results = results.lock().unwrap();
-            if final_results.len() < 40 { // Allow some tasks to not complete
-                return Err(format!("Not enough concurrent tasks completed: {}", final_results.len()).into());
+            if final_results.len() < 40 {
+                // Allow some tasks to not complete
+                return Err(format!(
+                    "Not enough concurrent tasks completed: {}",
+                    final_results.len()
+                )
+                .into());
             }
 
-            Ok(format!("Concurrent execution successful: {} tasks", final_results.len()))
+            Ok(format!(
+                "Concurrent execution successful: {} tasks",
+                final_results.len()
+            ))
         });
     }
 
@@ -444,7 +465,7 @@ impl AsyncIntegrationTestSuite {
     fn test_input_validation_integration(&mut self) {
         self.run_integration_test("Input Validation Integration", || {
             // Test that invalid inputs are properly handled at all levels
-            
+
             // FFI level validation
             let invalid_sleep = script_sleep_secure(u64::MAX);
             if !invalid_sleep.is_null() {
@@ -476,8 +497,13 @@ impl AsyncIntegrationTestSuite {
                 }
             }
 
-            if successful_spawns > 7 { // Allow some variance
-                return Err(format!("Task limit not enforced: {} spawns succeeded", successful_spawns).into());
+            if successful_spawns > 7 {
+                // Allow some variance
+                return Err(format!(
+                    "Task limit not enforced: {} spawns succeeded",
+                    successful_spawns
+                )
+                .into());
             }
 
             Executor::shutdown(executor)?;
@@ -497,10 +523,8 @@ impl AsyncIntegrationTestSuite {
 
             // Test zero timeout
             let never = NeverCompleteFuture::new();
-            let result = BlockingExecutor::block_on_with_timeout(
-                Box::new(never),
-                Duration::from_millis(0)
-            );
+            let result =
+                BlockingExecutor::block_on_with_timeout(Box::new(never), Duration::from_millis(0));
             if !matches!(result, Err(AsyncRuntimeError::OperationTimeout)) {
                 return Err("Zero timeout not handled properly".into());
             }
@@ -560,7 +584,7 @@ impl AsyncIntegrationTestSuite {
             // Shutdown quickly
             thread::sleep(Duration::from_millis(100));
             Executor::shutdown(executor)?;
-            
+
             // Executor should shut down gracefully
             let join_result = handle.join();
             if join_result.is_err() {
@@ -656,16 +680,19 @@ impl IntegrationTestSummary {
         println!("Failed: {} ❌", self.failed_tests);
         println!("Total Time: {:?}", self.total_execution_time);
         println!("Average Time: {:?}", self.average_test_time);
-        
+
         if self.all_passed {
             println!("\n🎉 ALL INTEGRATION TESTS PASSED ✅");
         } else {
             println!("\n⚠️ SOME INTEGRATION TESTS FAILED ❌");
-            
+
             println!("\n📋 FAILED TESTS:");
             for result in &self.results {
                 if !result.passed {
-                    println!("  • {} ({:?}): {}", result.name, result.execution_time, result.details);
+                    println!(
+                        "  • {} ({:?}): {}",
+                        result.name, result.execution_time, result.details
+                    );
                 }
             }
         }
@@ -711,7 +738,11 @@ struct CountingFuture {
 
 impl CountingFuture {
     fn new(id: usize, counter: Arc<std::sync::atomic::AtomicUsize>) -> Self {
-        CountingFuture { id, counter, completed: false }
+        CountingFuture {
+            id,
+            counter,
+            completed: false,
+        }
     }
 }
 
@@ -720,7 +751,8 @@ impl ScriptFuture for CountingFuture {
 
     fn poll(&mut self, _waker: &std::task::Waker) -> std::task::Poll<Self::Output> {
         if !self.completed {
-            self.counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.counter
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             self.completed = true;
         }
         std::task::Poll::Ready(())
@@ -763,7 +795,9 @@ struct NeverCompleteFuture {
 
 impl NeverCompleteFuture {
     fn new() -> Self {
-        NeverCompleteFuture { _phantom: std::marker::PhantomData }
+        NeverCompleteFuture {
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
@@ -785,7 +819,12 @@ struct ResultCollectorFuture {
 
 impl ResultCollectorFuture {
     fn new(id: usize, delay: Duration, results: Arc<Mutex<Vec<usize>>>) -> Self {
-        ResultCollectorFuture { id, delay, results, start_time: None }
+        ResultCollectorFuture {
+            id,
+            delay,
+            results,
+            start_time: None,
+        }
     }
 }
 
@@ -828,10 +867,8 @@ impl ScriptFuture for NestedAsyncFuture {
                 self.stage = 1;
                 std::task::Poll::Pending
             }
-            1 => {
-                std::task::Poll::Ready(self.value * 2)
-            }
-            _ => std::task::Poll::Ready(self.value)
+            1 => std::task::Poll::Ready(self.value * 2),
+            _ => std::task::Poll::Ready(self.value),
         }
     }
 }
@@ -842,7 +879,9 @@ struct ErrorFuture {
 
 impl ErrorFuture {
     fn new(message: &str) -> Self {
-        ErrorFuture { message: message.to_string() }
+        ErrorFuture {
+            message: message.to_string(),
+        }
     }
 }
 
@@ -864,13 +903,17 @@ struct ResourceTrackingFuture {
 impl ResourceTrackingFuture {
     fn new(counter: Arc<std::sync::atomic::AtomicUsize>) -> Self {
         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        ResourceTrackingFuture { counter, completed: false }
+        ResourceTrackingFuture {
+            counter,
+            completed: false,
+        }
     }
 }
 
 impl Drop for ResourceTrackingFuture {
     fn drop(&mut self) {
-        self.counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+        self.counter
+            .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -894,7 +937,10 @@ struct FastCompletionFuture {
 
 impl FastCompletionFuture {
     fn new(counter: Arc<std::sync::atomic::AtomicUsize>) -> Self {
-        FastCompletionFuture { counter, completed: false }
+        FastCompletionFuture {
+            counter,
+            completed: false,
+        }
     }
 }
 
@@ -903,7 +949,8 @@ impl ScriptFuture for FastCompletionFuture {
 
     fn poll(&mut self, _waker: &std::task::Waker) -> std::task::Poll<Self::Output> {
         if !self.completed {
-            self.counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.counter
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             self.completed = true;
         }
         std::task::Poll::Ready(())
@@ -918,7 +965,11 @@ struct ConcurrentFuture {
 
 impl ConcurrentFuture {
     fn new(id: usize, results: Arc<Mutex<Vec<usize>>>) -> Self {
-        ConcurrentFuture { id, results, completed: false }
+        ConcurrentFuture {
+            id,
+            results,
+            completed: false,
+        }
     }
 }
 
@@ -941,7 +992,10 @@ struct LongRunningFuture {
 
 impl LongRunningFuture {
     fn new(duration: Duration) -> Self {
-        LongRunningFuture { duration, start_time: None }
+        LongRunningFuture {
+            duration,
+            start_time: None,
+        }
     }
 }
 
@@ -985,11 +1039,11 @@ mod tests {
     fn test_delayed_future() {
         let mut future = DelayedFuture::new(123, 2);
         let waker = futures::task::noop_waker();
-        
+
         // First two polls should be pending
         assert!(matches!(future.poll(&waker), std::task::Poll::Pending));
         assert!(matches!(future.poll(&waker), std::task::Poll::Pending));
-        
+
         // Third poll should be ready
         assert!(matches!(future.poll(&waker), std::task::Poll::Ready(123)));
     }
@@ -998,7 +1052,7 @@ mod tests {
     fn test_never_complete_future() {
         let mut future = NeverCompleteFuture::new();
         let waker = futures::task::noop_waker();
-        
+
         // Should always be pending
         assert!(matches!(future.poll(&waker), std::task::Poll::Pending));
         assert!(matches!(future.poll(&waker), std::task::Poll::Pending));

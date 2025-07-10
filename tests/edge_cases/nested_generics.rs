@@ -1,5 +1,5 @@
 //! Edge case tests for deeply nested generic types
-//! 
+//!
 //! These tests push the limits of the generic type system with
 //! complex nesting, mutual recursion, and type aliases.
 
@@ -59,10 +59,10 @@ fn test_deeply_nested_generics() {
             );
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should handle all the nested instantiations
     assert!(count_monomorphized_instances(&program, "Box") >= 2);
     assert!(count_monomorphized_instances(&program, "Option") >= 3);
@@ -109,9 +109,9 @@ fn test_mutual_recursion() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     if let Ok(ref prog) = program {
         // Should handle mutually recursive types
         assert!(count_monomorphized_instances(prog, "A") >= 1);
@@ -164,9 +164,9 @@ fn test_generic_type_aliases() {
             );
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     if let Ok(ref prog) = program {
         // Even if type aliases don't work, the underlying types should
         assert!(count_monomorphized_instances(prog, "HashMap") >= 1);
@@ -198,10 +198,10 @@ fn test_extremely_long_type_chain() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should handle the chain of wrappers
     assert_eq!(count_monomorphized_instances(&program, "W1"), 1);
     assert_eq!(count_monomorphized_instances(&program, "W2"), 1);
@@ -231,10 +231,10 @@ fn test_generic_array_nesting() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should handle nested array types
     assert_eq!(count_monomorphized_instances(&program, "Matrix"), 1);
     assert_eq!(count_monomorphized_instances(&program, "Tensor"), 1);
@@ -271,9 +271,9 @@ fn test_circular_type_reference() {
             // Would create a cycle if we could mutate c1.next = Some(Box(c2))
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should handle self-referential types
     assert!(count_monomorphized_instances(&program, "Cycle") >= 1);
 }
@@ -311,10 +311,10 @@ fn test_mixed_generic_concrete_nesting() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should have Generic<string> and correct Mixed instantiation
     assert!(count_monomorphized_instances(&program, "Generic") >= 1);
     assert!(count_monomorphized_instances(&program, "Mixed") >= 1);
@@ -343,9 +343,9 @@ fn test_function_type_in_generic() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     if let Ok(ref prog) = program {
         // Should handle function types in generics
         assert!(count_monomorphized_instances(prog, "FnWrapper") >= 2);
@@ -365,9 +365,9 @@ fn test_phantom_type_parameter() {
             let p2 = Phantom::<bool> { value: 100 };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should handle phantom type parameters
     assert_eq!(count_monomorphized_instances(&program, "Phantom"), 2);
 }
@@ -394,9 +394,9 @@ fn test_generic_const_expressions() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Even if const generics fail, regular generics should work
     if let Ok(ref prog) = program {
         let array_instances = count_monomorphized_instances(prog, "Array");

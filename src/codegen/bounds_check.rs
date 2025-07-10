@@ -1,12 +1,12 @@
 //! Array bounds checking for safe memory access
-//! 
+//!
 //! This module provides bounds checking infrastructure to prevent
 //! buffer overflow vulnerabilities in array indexing operations.
 
-use cranelift::prelude::*;
-use cranelift_module::{Module, FuncId};
 use crate::codegen::CodegenResult;
 use crate::error::{Error, ErrorKind};
+use cranelift::prelude::*;
+use cranelift_module::FuncId;
 
 /// Bounds checking mode
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -58,7 +58,7 @@ impl BoundsChecker {
     pub fn check_array_bounds(
         &self,
         builder: &mut FunctionBuilder,
-        array_ptr: Value,
+        _array_ptr: Value,
         index: Value,
         array_length: Value,
     ) -> CodegenResult<()> {
@@ -75,8 +75,10 @@ impl BoundsChecker {
             // Check for negative index first
             let zero = builder.ins().iconst(types::I32, 0);
             let is_negative = builder.ins().icmp(IntCC::SignedLessThan, index, zero);
-            builder.ins().brif(is_negative, bounds_fail, &[], bounds_ok, &[]);
-            
+            builder
+                .ins()
+                .brif(is_negative, bounds_fail, &[], bounds_ok, &[]);
+
             // In bounds_ok block, convert to unsigned
             builder.switch_to_block(bounds_ok);
             builder.seal_block(bounds_ok);
@@ -85,17 +87,23 @@ impl BoundsChecker {
             // Already i64, check if negative
             let zero = builder.ins().iconst(types::I64, 0);
             let is_negative = builder.ins().icmp(IntCC::SignedLessThan, index, zero);
-            builder.ins().brif(is_negative, bounds_fail, &[], bounds_ok, &[]);
-            
+            builder
+                .ins()
+                .brif(is_negative, bounds_fail, &[], bounds_ok, &[]);
+
             builder.switch_to_block(bounds_ok);
             builder.seal_block(bounds_ok);
             index
         };
 
         // Check upper bound
-        let in_bounds = builder.ins().icmp(IntCC::UnsignedLessThan, index_unsigned, array_length);
+        let in_bounds = builder
+            .ins()
+            .icmp(IntCC::UnsignedLessThan, index_unsigned, array_length);
         let continue_block = builder.create_block();
-        builder.ins().brif(in_bounds, continue_block, &[], bounds_fail, &[]);
+        builder
+            .ins()
+            .brif(in_bounds, continue_block, &[], bounds_fail, &[]);
 
         // Handle bounds failure
         builder.switch_to_block(bounds_fail);
@@ -113,18 +121,13 @@ impl BoundsChecker {
     fn generate_bounds_panic(
         &self,
         builder: &mut FunctionBuilder,
-        index: Value,
-        length: Value,
+        _index: Value,
+        _length: Value,
     ) -> CodegenResult<()> {
-        if let Some(panic_handler) = self.panic_handler {
-            // Call panic handler with index and length
-            let panic_ref = builder.func.dfg.ext_funcs[panic_handler];
-            builder.ins().call(panic_ref, &[index, length]);
-        } else {
-            // Generate a trap instruction if no panic handler
-            builder.ins().trap(TrapCode::OutOfBounds);
-        }
-        
+        // For now, always generate a trap for bounds violations
+        // TODO: Implement proper panic handler support
+        builder.ins().trap(TrapCode::HeapOutOfBounds);
+
         // This block never returns
         builder.ins().return_(&[]);
         Ok(())
@@ -144,30 +147,34 @@ impl BoundsChecker {
         // Check for negative constant
         if index < 0 {
             return Err(Error::new(
-                ErrorKind::CodegenError,
-                format!("Array index {} is negative", index)
+                ErrorKind::CompilationError,
+                format!("Array index {} is negative", index),
             ));
         }
 
         // For constant indices, we can sometimes prove bounds at compile time
         // But we still need runtime check against array length
         let index_val = builder.ins().iconst(types::I64, index);
-        let in_bounds = builder.ins().icmp(IntCC::UnsignedLessThan, index_val, array_length);
-        
+        let in_bounds = builder
+            .ins()
+            .icmp(IntCC::UnsignedLessThan, index_val, array_length);
+
         let bounds_fail = builder.create_block();
         let continue_block = builder.create_block();
-        
-        builder.ins().brif(in_bounds, continue_block, &[], bounds_fail, &[]);
-        
+
+        builder
+            .ins()
+            .brif(in_bounds, continue_block, &[], bounds_fail, &[]);
+
         // Handle bounds failure
         builder.switch_to_block(bounds_fail);
         builder.seal_block(bounds_fail);
         self.generate_bounds_panic(builder, index_val, array_length)?;
-        
+
         // Continue with normal execution
         builder.switch_to_block(continue_block);
         builder.seal_block(continue_block);
-        
+
         Ok(())
     }
 }
@@ -178,13 +185,15 @@ pub fn insert_array_bounds_check(
     checker: &BoundsChecker,
     array_ptr: Value,
     index: Value,
-    array_type: &crate::types::Type,
+    _array_type: &crate::types::Type,
 ) -> CodegenResult<()> {
     // Get array length based on array representation
     // For now, assume arrays store length at offset 8
     let length_ptr = builder.ins().iadd_imm(array_ptr, 8);
-    let array_length = builder.ins().load(types::I64, MemFlags::new(), length_ptr, 0);
-    
+    let array_length = builder
+        .ins()
+        .load(types::I64, MemFlags::new(), length_ptr, 0);
+
     checker.check_array_bounds(builder, array_ptr, index, array_length)
 }
 

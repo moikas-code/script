@@ -1,0 +1,431 @@
+// Functional Programming Patterns for Error Handling in Script
+// Demonstrating functional approaches to error handling with closures
+
+// Example 1: Using map with closures for error handling
+fn transform_numbers(numbers: [string]) -> [Result<i32, string>] {
+    // Map each string to a Result using a closure
+    numbers.map(|s| {
+        if s.is_empty() {
+            Err("Empty string")
+        } else if s == "invalid" {
+            Err("Invalid format")
+        } else {
+            Ok(s.len() as i32)  // Simplified parsing
+        }
+    })
+}
+
+// Example 2: Chaining operations with and_then
+fn process_pipeline(input: string) -> Result<string, string> {
+    parse_number(input)
+        .and_then(|num| validate_positive(num))
+        .and_then(|num| double_value(num))
+        .and_then(|num| format_result(num))
+}
+
+fn parse_number(s: string) -> Result<i32, string> {
+    if s.is_empty() {
+        Err("Cannot parse empty string")
+    } else {
+        Ok(s.len() as i32)
+    }
+}
+
+fn validate_positive(num: i32) -> Result<i32, string> {
+    if num > 0 {
+        Ok(num)
+    } else {
+        Err("Number must be positive")
+    }
+}
+
+fn double_value(num: i32) -> Result<i32, string> {
+    Ok(num * 2)
+}
+
+fn format_result(num: i32) -> Result<string, string> {
+    Ok(format!("Result: {}", num))
+}
+
+// Example 3: Using map to transform success values
+fn process_optional_values(values: [Option<i32>]) -> [Option<string>] {
+    values.map(|opt| {
+        opt.map(|val| format!("Value: {}", val))
+    })
+}
+
+// Example 4: Combining multiple Results with functional patterns
+fn combine_results(a: Result<i32, string>, b: Result<i32, string>) -> Result<i32, string> {
+    a.and_then(|val_a| {
+        b.map(|val_b| val_a + val_b)
+    })
+}
+
+// Example 5: Error transformation with map_err
+fn transform_errors(input: string) -> Result<i32, string> {
+    parse_number(input)
+        .map_err(|e| format!("Parse error: {}", e))
+        .and_then(|num| {
+            if num > 100 {
+                Err("Value too large".to_string())
+            } else {
+                Ok(num)
+            }
+        })
+        .map_err(|e| format!("Validation error: {}", e))
+}
+
+// Example 6: Using filter and map together
+fn process_valid_numbers(inputs: [string]) -> [i32] {
+    inputs
+        .map(|s| parse_number(s))
+        .filter(|result| result.is_ok())
+        .map(|result| result.unwrap())
+}
+
+// Example 7: Functional approach to collecting Results
+fn collect_results(inputs: [string]) -> Result<[i32], string> {
+    let mut results = [];
+    
+    for input in inputs {
+        match parse_number(input) {
+            Ok(val) => results.push(val),
+            Err(e) => return Err(e),
+        }
+    }
+    
+    Ok(results)
+}
+
+// Example 8: Using fold for accumulation
+fn sum_results(inputs: [string]) -> Result<i32, string> {
+    inputs.fold(Ok(0), |acc, input| {
+        acc.and_then(|sum| {
+            parse_number(input).map(|val| sum + val)
+        })
+    })
+}
+
+// Example 9: Option chaining with functional style
+fn chain_optional_operations(input: Option<string>) -> Option<i32> {
+    input
+        .and_then(|s| {
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
+        })
+        .map(|s| s.len() as i32)
+        .and_then(|len| {
+            if len > 10 {
+                None
+            } else {
+                Some(len * 2)
+            }
+        })
+}
+
+// Example 10: Creating higher-order functions for error handling
+fn with_error_context<T>(operation: fn() -> Result<T, string>, context: string) -> Result<T, string> {
+    operation().map_err(|e| format!("{}: {}", context, e))
+}
+
+fn risky_operation() -> Result<i32, string> {
+    Err("Something went wrong")
+}
+
+fn safe_operation() -> Result<i32, string> {
+    Ok(42)
+}
+
+// Example 11: Composing error-handling functions
+fn compose_error_handlers() -> Result<string, string> {
+    with_error_context(safe_operation, "Safe operation")
+        .and_then(|val| {
+            with_error_context(
+                || format_number(val),
+                "Number formatting"
+            )
+        })
+}
+
+fn format_number(num: i32) -> Result<string, string> {
+    Ok(format!("Number: {}", num))
+}
+
+// Example 12: Using unwrap_or with functional style
+fn safe_defaults(inputs: [string]) -> [i32] {
+    inputs.map(|s| {
+        parse_number(s).unwrap_or(0)
+    })
+}
+
+// Example 13: Conditional error handling with functional patterns
+fn conditional_processing(input: string, strict_mode: bool) -> Result<i32, string> {
+    let result = parse_number(input);
+    
+    if strict_mode {
+        result
+    } else {
+        result.or_else(|_| Ok(0))
+    }
+}
+
+// Example 14: Creating a Result monad-like interface
+struct ResultMonad<T> {
+    value: Result<T, string>,
+}
+
+impl<T> ResultMonad<T> {
+    fn new(value: Result<T, string>) -> Self {
+        ResultMonad { value }
+    }
+    
+    fn map<U>(self, f: fn(T) -> U) -> ResultMonad<U> {
+        ResultMonad::new(self.value.map(f))
+    }
+    
+    fn and_then<U>(self, f: fn(T) -> Result<U, string>) -> ResultMonad<U> {
+        ResultMonad::new(self.value.and_then(f))
+    }
+    
+    fn unwrap(self) -> Result<T, string> {
+        self.value
+    }
+}
+
+// Example 15: Using the Result monad
+fn monad_example(input: string) -> Result<string, string> {
+    ResultMonad::new(parse_number(input))
+        .map(|num| num * 2)
+        .and_then(|num| {
+            if num > 50 {
+                Ok(num)
+            } else {
+                Err("Value too small after doubling")
+            }
+        })
+        .map(|num| format!("Final: {}", num))
+        .unwrap()
+}
+
+// Example 16: Parallel error handling (conceptual)
+fn parallel_processing(inputs: [string]) -> Result<[i32], string> {
+    // In a real implementation, this would process in parallel
+    let results = inputs.map(|input| parse_number(input));
+    
+    // Check if all succeeded
+    let mut values = [];
+    for result in results {
+        values.push(result?);
+    }
+    
+    Ok(values)
+}
+
+// Example 17: Creating custom combinators
+fn try_all<T>(operations: [fn() -> Result<T, string>]) -> Result<T, string> {
+    for operation in operations {
+        match operation() {
+            Ok(val) => return Ok(val),
+            Err(_) => continue,
+        }
+    }
+    Err("All operations failed")
+}
+
+// Example 18: Using try_all combinator
+fn resilient_parsing(input: string) -> Result<i32, string> {
+    try_all([
+        || parse_as_decimal(input),
+        || parse_as_hexadecimal(input),
+        || parse_as_binary(input),
+        || parse_as_length(input),
+    ])
+}
+
+fn parse_as_decimal(s: string) -> Result<i32, string> {
+    if s.starts_with("0x") {
+        Err("Not decimal")
+    } else {
+        Ok(s.len() as i32)
+    }
+}
+
+fn parse_as_hexadecimal(s: string) -> Result<i32, string> {
+    if s.starts_with("0x") {
+        Ok((s.len() - 2) as i32)
+    } else {
+        Err("Not hexadecimal")
+    }
+}
+
+fn parse_as_binary(s: string) -> Result<i32, string> {
+    if s.starts_with("0b") {
+        Ok((s.len() - 2) as i32)
+    } else {
+        Err("Not binary")
+    }
+}
+
+fn parse_as_length(s: string) -> Result<i32, string> {
+    Ok(s.len() as i32)
+}
+
+// Example 19: Lazy evaluation with error handling
+fn lazy_computation(input: string) -> Result<i32, string> {
+    // Only compute if needed
+    if input.is_empty() {
+        return Err("Empty input");
+    }
+    
+    // Lazy evaluation using closures
+    let compute = || {
+        let step1 = parse_number(input)?;
+        let step2 = validate_positive(step1)?;
+        let step3 = double_value(step2)?;
+        Ok(step3)
+    };
+    
+    compute()
+}
+
+// Example 20: Error handling with retry logic
+fn with_retry<T>(operation: fn() -> Result<T, string>, max_attempts: i32) -> Result<T, string> {
+    let mut attempts = 0;
+    
+    while attempts < max_attempts {
+        match operation() {
+            Ok(val) => return Ok(val),
+            Err(e) => {
+                attempts += 1;
+                if attempts >= max_attempts {
+                    return Err(format!("Failed after {} attempts: {}", max_attempts, e));
+                }
+            }
+        }
+    }
+    
+    Err("Max attempts reached")
+}
+
+// Main function demonstrating functional error handling
+fn main() -> Result<(), string> {
+    println("=== Functional Error Handling Examples ===");
+    
+    // Example 1: Transform numbers
+    println("\n1. Transforming numbers with map:");
+    let numbers = ["hello", "world", "invalid"];
+    let results = transform_numbers(numbers);
+    for result in results {
+        match result {
+            Ok(val) => println("  Parsed: {}", val),
+            Err(e) => println("  Error: {}", e),
+        }
+    }
+    
+    // Example 2: Processing pipeline
+    println("\n2. Processing pipeline:");
+    match process_pipeline("test") {
+        Ok(result) => println("  Pipeline result: {}", result),
+        Err(e) => println("  Pipeline error: {}", e),
+    }
+    
+    // Example 3: Optional values
+    println("\n3. Processing optional values:");
+    let opts = [Some(1), None, Some(3)];
+    let processed = process_optional_values(opts);
+    for opt in processed {
+        match opt {
+            Some(s) => println("  {}", s),
+            None => println("  None"),
+        }
+    }
+    
+    // Example 4: Combining results
+    println("\n4. Combining results:");
+    let a = Ok(10);
+    let b = Ok(20);
+    match combine_results(a, b) {
+        Ok(sum) => println("  Combined: {}", sum),
+        Err(e) => println("  Error: {}", e),
+    }
+    
+    // Example 5: Error transformation
+    println("\n5. Error transformation:");
+    match transform_errors("test") {
+        Ok(val) => println("  Transformed: {}", val),
+        Err(e) => println("  Error: {}", e),
+    }
+    
+    // Example 6: Processing valid numbers
+    println("\n6. Processing valid numbers:");
+    let inputs = ["hello", "world", "test"];
+    let valid = process_valid_numbers(inputs);
+    println("  Valid numbers: {:?}", valid);
+    
+    // Example 7: Collecting results
+    println("\n7. Collecting results:");
+    match collect_results(["a", "bb", "ccc"]) {
+        Ok(results) => println("  Collected: {:?}", results),
+        Err(e) => println("  Error: {}", e),
+    }
+    
+    // Example 8: Summing results
+    println("\n8. Summing results:");
+    match sum_results(["a", "bb", "ccc"]) {
+        Ok(sum) => println("  Sum: {}", sum),
+        Err(e) => println("  Error: {}", e),
+    }
+    
+    // Example 9: Option chaining
+    println("\n9. Option chaining:");
+    match chain_optional_operations(Some("test")) {
+        Some(result) => println("  Chained result: {}", result),
+        None => println("  Chain failed"),
+    }
+    
+    // Example 10: Error context
+    println("\n10. Error context:");
+    match compose_error_handlers() {
+        Ok(result) => println("  Composed result: {}", result),
+        Err(e) => println("  Error: {}", e),
+    }
+    
+    // Example 11: Safe defaults
+    println("\n11. Safe defaults:");
+    let defaults = safe_defaults(["hello", "world"]);
+    println("  With defaults: {:?}", defaults);
+    
+    // Example 12: Conditional processing
+    println("\n12. Conditional processing:");
+    match conditional_processing("test", false) {
+        Ok(result) => println("  Conditional result: {}", result),
+        Err(e) => println("  Error: {}", e),
+    }
+    
+    // Example 13: Monad example
+    println("\n13. Result monad:");
+    match monad_example("test") {
+        Ok(result) => println("  Monad result: {}", result),
+        Err(e) => println("  Error: {}", e),
+    }
+    
+    // Example 14: Resilient parsing
+    println("\n14. Resilient parsing:");
+    match resilient_parsing("0x1234") {
+        Ok(result) => println("  Parsed: {}", result),
+        Err(e) => println("  Error: {}", e),
+    }
+    
+    // Example 15: Lazy computation
+    println("\n15. Lazy computation:");
+    match lazy_computation("test") {
+        Ok(result) => println("  Lazy result: {}", result),
+        Err(e) => println("  Error: {}", e),
+    }
+    
+    println("\n=== All functional examples completed! ===");
+    Ok(())
+}

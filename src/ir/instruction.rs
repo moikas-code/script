@@ -106,10 +106,7 @@ pub enum Instruction {
     },
 
     /// Allocate memory for a struct
-    AllocStruct {
-        struct_name: String,
-        ty: Type,
-    },
+    AllocStruct { struct_name: String, ty: Type },
 
     /// Construct a struct with field values
     ConstructStruct {
@@ -121,7 +118,7 @@ pub enum Instruction {
     /// Allocate memory for an enum
     AllocEnum {
         enum_name: String,
-        variant_size: u32,  // Max size of all variants
+        variant_size: u32, // Max size of all variants
         ty: Type,
     },
 
@@ -135,21 +132,16 @@ pub enum Instruction {
     },
 
     /// Get enum discriminant/tag
-    GetEnumTag {
-        enum_value: ValueId,
-    },
+    GetEnumTag { enum_value: ValueId },
 
     /// Set enum discriminant/tag
-    SetEnumTag {
-        enum_ptr: ValueId,
-        tag: u32,
-    },
+    SetEnumTag { enum_ptr: ValueId, tag: u32 },
 
     /// Extract variant data from enum
     ExtractEnumData {
         enum_value: ValueId,
-        variant_index: u32,  // Which field of the variant to extract
-        ty: Type,            // Type of the extracted data
+        variant_index: u32, // Which field of the variant to extract
+        ty: Type,           // Type of the extracted data
     },
 
     /// Phi node for SSA form
@@ -241,7 +233,7 @@ pub enum Instruction {
         array: ValueId,
         /// Index value to validate
         index: ValueId,
-        /// Array length (if known at compile time) 
+        /// Array length (if known at compile time)
         length: Option<ValueId>,
         /// Error message for bounds violation
         error_msg: String,
@@ -267,6 +259,28 @@ pub enum Instruction {
         value_type: Type,
         /// The success type (T in Result<T, E> or Option<T>)
         success_type: Type,
+    },
+
+    /// Create a closure with captured variables
+    CreateClosure {
+        /// Unique identifier for the closure function
+        function_id: String,
+        /// Parameter names for the closure
+        parameters: Vec<String>,
+        /// Captured variables (name -> ValueId)
+        captured_vars: Vec<(String, ValueId)>,
+        /// Whether the closure captures by reference
+        captures_by_ref: bool,
+    },
+
+    /// Invoke a closure with arguments
+    InvokeClosure {
+        /// The closure to invoke
+        closure: ValueId,
+        /// Arguments to pass to the closure
+        args: Vec<ValueId>,
+        /// Return type of the closure
+        return_type: Type,
     },
 }
 
@@ -351,9 +365,9 @@ impl Instruction {
             Instruction::Suspend { .. } => None,
             Instruction::PollFuture { output_ty, .. } => {
                 // Returns Poll<T> which we'll represent as an enum
-                Some(Type::Generic { 
+                Some(Type::Generic {
                     name: "Poll".to_string(),
-                    args: vec![output_ty.clone()]
+                    args: vec![output_ty.clone()],
                 })
             }
             Instruction::CreateAsyncState { output_ty, .. } => {
@@ -366,6 +380,9 @@ impl Instruction {
             Instruction::SetAsyncState { .. } => None,
             Instruction::BoundsCheck { .. } => Some(Type::Bool), // Returns true if bounds check passes
             Instruction::ValidateFieldAccess { .. } => Some(Type::Bool), // Returns true if field access is valid
+            Instruction::ErrorPropagation { success_type, .. } => Some(success_type.clone()),
+            Instruction::CreateClosure { .. } => Some(Type::Named("Closure".to_string())),
+            Instruction::InvokeClosure { return_type, .. } => Some(return_type.clone()),
         }
     }
 
@@ -373,7 +390,10 @@ impl Instruction {
     pub fn is_terminator(&self) -> bool {
         matches!(
             self,
-            Instruction::Return(_) | Instruction::Branch(_) | Instruction::CondBranch { .. } | Instruction::Suspend { .. }
+            Instruction::Return(_)
+                | Instruction::Branch(_)
+                | Instruction::CondBranch { .. }
+                | Instruction::Suspend { .. }
         )
     }
 }
@@ -459,7 +479,11 @@ impl fmt::Display for Instruction {
             Instruction::AllocStruct { struct_name, ty } => {
                 write!(f, "allocstruct {} : {}", struct_name, ty)
             }
-            Instruction::ConstructStruct { struct_name, fields, ty } => {
+            Instruction::ConstructStruct {
+                struct_name,
+                fields,
+                ty,
+            } => {
                 write!(f, "constructstruct {} {{ ", struct_name)?;
                 for (i, (name, val)) in fields.iter().enumerate() {
                     if i > 0 {
@@ -469,10 +493,24 @@ impl fmt::Display for Instruction {
                 }
                 write!(f, " }} : {}", ty)
             }
-            Instruction::AllocEnum { enum_name, variant_size, ty } => {
-                write!(f, "allocenum {} [size={}] : {}", enum_name, variant_size, ty)
+            Instruction::AllocEnum {
+                enum_name,
+                variant_size,
+                ty,
+            } => {
+                write!(
+                    f,
+                    "allocenum {} [size={}] : {}",
+                    enum_name, variant_size, ty
+                )
             }
-            Instruction::ConstructEnum { enum_name, variant, tag, args, ty } => {
+            Instruction::ConstructEnum {
+                enum_name,
+                variant,
+                tag,
+                args,
+                ty,
+            } => {
                 write!(f, "constructenum {}::{} [tag={}]", enum_name, variant, tag)?;
                 if !args.is_empty() {
                     write!(f, "(")?;
@@ -492,8 +530,16 @@ impl fmt::Display for Instruction {
             Instruction::SetEnumTag { enum_ptr, tag } => {
                 write!(f, "setenumtag {}, {}", enum_ptr, tag)
             }
-            Instruction::ExtractEnumData { enum_value, variant_index, ty } => {
-                write!(f, "extractenumdata {}, [index={}] : {}", enum_value, variant_index, ty)
+            Instruction::ExtractEnumData {
+                enum_value,
+                variant_index,
+                ty,
+            } => {
+                write!(
+                    f,
+                    "extractenumdata {}, [index={}] : {}",
+                    enum_value, variant_index, ty
+                )
             }
             Instruction::Phi { incoming, ty } => {
                 write!(f, "phi ")?;
@@ -515,7 +561,10 @@ impl fmt::Display for Instruction {
             } => {
                 write!(f, "br {}, {:?}, {:?}", condition, then_block, else_block)
             }
-            Instruction::Suspend { state, resume_block } => {
+            Instruction::Suspend {
+                state,
+                resume_block,
+            } => {
                 write!(f, "suspend {}, resume at {:?}", state, resume_block)
             }
             Instruction::PollFuture { future, output_ty } => {
@@ -532,26 +581,100 @@ impl fmt::Display for Instruction {
                     initial_state, state_size, output_ty
                 )
             }
-            Instruction::StoreAsyncState { state_ptr, offset, value } => {
-                write!(f, "store_async_state {}, offset={}, {}", state_ptr, offset, value)
+            Instruction::StoreAsyncState {
+                state_ptr,
+                offset,
+                value,
+            } => {
+                write!(
+                    f,
+                    "store_async_state {}, offset={}, {}",
+                    state_ptr, offset, value
+                )
             }
-            Instruction::LoadAsyncState { state_ptr, offset, ty } => {
-                write!(f, "load_async_state {}, offset={} : {}", state_ptr, offset, ty)
+            Instruction::LoadAsyncState {
+                state_ptr,
+                offset,
+                ty,
+            } => {
+                write!(
+                    f,
+                    "load_async_state {}, offset={} : {}",
+                    state_ptr, offset, ty
+                )
             }
             Instruction::GetAsyncState { state_ptr } => {
                 write!(f, "get_async_state {}", state_ptr)
             }
-            Instruction::SetAsyncState { state_ptr, new_state } => {
+            Instruction::SetAsyncState {
+                state_ptr,
+                new_state,
+            } => {
                 write!(f, "set_async_state {}, {}", state_ptr, new_state)
             }
-            Instruction::BoundsCheck { array, index, length, error_msg } => {
-                match length {
-                    Some(len) => write!(f, "bounds_check {}, {}, {} : \"{}\"", array, index, len, error_msg),
-                    None => write!(f, "bounds_check {}, {} : \"{}\"", array, index, error_msg),
-                }
+            Instruction::BoundsCheck {
+                array,
+                index,
+                length,
+                error_msg,
+            } => match length {
+                Some(len) => write!(
+                    f,
+                    "bounds_check {}, {}, {} : \"{}\"",
+                    array, index, len, error_msg
+                ),
+                None => write!(f, "bounds_check {}, {} : \"{}\"", array, index, error_msg),
+            },
+            Instruction::ValidateFieldAccess {
+                object,
+                field_name,
+                object_type,
+            } => {
+                write!(
+                    f,
+                    "validate_field_access {}, \"{}\" : {}",
+                    object, field_name, object_type
+                )
             }
-            Instruction::ValidateFieldAccess { object, field_name, object_type } => {
-                write!(f, "validate_field_access {}, \"{}\" : {}", object, field_name, object_type)
+            Instruction::ErrorPropagation {
+                value,
+                value_type,
+                success_type,
+            } => {
+                write!(
+                    f,
+                    "error_propagation {} : {} -> {}",
+                    value, value_type, success_type
+                )
+            }
+            Instruction::CreateClosure {
+                function_id,
+                parameters,
+                captured_vars,
+                captures_by_ref,
+            } => {
+                write!(
+                    f,
+                    "create_closure {} [params: {:?}] [captures: {} vars] [by_ref: {}]",
+                    function_id,
+                    parameters,
+                    captured_vars.len(),
+                    captures_by_ref
+                )
+            }
+            Instruction::InvokeClosure {
+                closure,
+                args,
+                return_type,
+            } => {
+                write!(f, "invoke_closure {} (", closure)?;
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", arg)?;
+                }
+                write!(f, ") : {}", return_type)
             }
         }
     }

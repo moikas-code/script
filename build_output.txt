@@ -1,0 +1,991 @@
+    Blocking waiting for file lock on build directory
+   Compiling script v0.3.0 (/home/moika/code/script)
+error[E0412]: cannot find type `ClosureParam` in this scope
+    --> src/lowering/expr.rs:1647:19
+     |
+1647 |     parameters: &[ClosureParam],
+     |                   ^^^^^^^^^^^^ not found in this scope
+     |
+help: consider importing this struct through its public re-export
+     |
+1    + use crate::parser::ClosureParam;
+     |
+
+error[E0603]: module `ast` is private
+    --> src/lowering/expr.rs:1651:24
+     |
+1651 |     use crate::parser::ast::ClosureParam;
+     |                        ^^^ private module
+     |
+note: the module `ast` is defined here
+    --> src/parser/mod.rs:1:1
+     |
+1    | mod ast;
+     | ^^^^^^^^
+
+error[E0609]: no field `type_annotation` on type `&ast::ClosureParam`
+   --> src/inference/inference_engine.rs:610:59
+    |
+610 |                         if let Some(ref type_ann) = param.type_annotation {
+    |                                                           ^^^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `name`, `type_ann`
+
+error[E0282]: type annotations needed
+   --> src/inference/inference_engine.rs:611:41
+    |
+611 | ...                   Ok(type_ann.to_type())
+    |                                   ^^^^^^^ cannot infer type for type parameter `T` declared on the enum `Option`
+
+error[E0559]: variant `types::Type::Function` has no field named `returns`
+   --> src/inference/inference_engine.rs:624:21
+    |
+624 |                     returns: Box::new(return_type),
+    |                     ^^^^^^^ `types::Type::Function` does not have this field
+    |
+    = note: available fields are: `ret`
+
+error[E0282]: type annotations needed
+    --> src/lowering/expr.rs:1664:26
+     |
+1664 |                 type_ann.to_type()
+     |                          ^^^^^^^ cannot infer type for type parameter `T` declared on the enum `Option`
+
+warning: unused variable: `array_ptr`
+  --> src/codegen/bounds_check.rs:61:9
+   |
+61 |         array_ptr: Value,
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_array_ptr`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `index`
+   --> src/codegen/bounds_check.rs:124:9
+    |
+124 |         index: Value,
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_index`
+
+warning: unused variable: `length`
+   --> src/codegen/bounds_check.rs:125:9
+    |
+125 |         length: Value,
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_length`
+
+warning: unused variable: `array_type`
+   --> src/codegen/bounds_check.rs:188:5
+    |
+188 |     array_type: &crate::types::Type,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_array_type`
+
+warning: unused variable: `resume_block`
+   --> src/codegen/cranelift/translator.rs:380:17
+    |
+380 |                 resume_block,
+    |                 ^^^^^^^^^^^^ help: try ignoring the field: `resume_block: _`
+
+warning: unused variable: `state_val`
+   --> src/codegen/cranelift/translator.rs:383:21
+    |
+383 |                 let state_val = self.get_value(*state)?;
+    |                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_state_val`
+
+warning: unused variable: `output_ty`
+   --> src/codegen/cranelift/translator.rs:390:47
+    |
+390 |             Instruction::PollFuture { future, output_ty } => {
+    |                                               ^^^^^^^^^ help: try ignoring the field: `output_ty: _`
+
+warning: unused variable: `future_val`
+   --> src/codegen/cranelift/translator.rs:393:21
+    |
+393 |                 let future_val = self.get_value(*future)?;
+    |                     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_future_val`
+
+warning: unused variable: `output_ty`
+   --> src/codegen/cranelift/translator.rs:406:17
+    |
+406 |                 output_ty,
+    |                 ^^^^^^^^^ help: try ignoring the field: `output_ty: _`
+
+warning: unused variable: `size_val`
+   --> src/codegen/cranelift/translator.rs:410:21
+    |
+410 |                 let size_val = builder.ins().iconst(types::I64, size_bytes);
+    |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_size_val`
+
+warning: unused variable: `struct_name`
+   --> src/codegen/cranelift/translator.rs:520:40
+    |
+520 |             Instruction::AllocStruct { struct_name, ty } => {
+    |                                        ^^^^^^^^^^^ help: try ignoring the field: `struct_name: _`
+
+warning: unused variable: `struct_name`
+   --> src/codegen/cranelift/translator.rs:526:17
+    |
+526 |                 struct_name,
+    |                 ^^^^^^^^^^^ help: try ignoring the field: `struct_name: _`
+
+warning: unused variable: `enum_name`
+   --> src/codegen/cranelift/translator.rs:545:17
+    |
+545 |                 enum_name,
+    |                 ^^^^^^^^^ help: try ignoring the field: `enum_name: _`
+
+warning: unused variable: `ty`
+   --> src/codegen/cranelift/translator.rs:547:17
+    |
+547 |                 ty,
+    |                 ^^ help: try ignoring the field: `ty: _`
+
+warning: unused variable: `field_ty`
+    --> src/codegen/cranelift/translator.rs:1049:9
+     |
+1049 |         field_ty: &crate::types::Type,
+     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_field_ty`
+
+warning: unused variable: `module`
+   --> src/codegen/monomorphization.rs:474:48
+    |
+474 |     fn scan_for_type_instantiations(&mut self, module: &Module) {
+    |                                                ^^^^^^ help: if this is intentional, prefix it with an underscore: `_module`
+
+warning: unused variable: `func`
+   --> src/codegen/monomorphization.rs:950:37
+    |
+950 |             Instruction::Call { ty, func, .. } => {
+    |                                     ^^^^-
+    |                                     |
+    |                                     help: try removing the field
+
+warning: unused variable: `future_ptr`
+   --> src/codegen/mod.rs:213:21
+    |
+213 |                 let future_ptr = async_main_fn();
+    |                     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_future_ptr`
+
+warning: unused variable: `type_env`
+   --> src/compilation/optimized_context.rs:263:9
+    |
+263 |         type_env: &TypeEnv,
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_type_env`
+
+warning: unused variable: `substitution`
+   --> src/compilation/optimized_context.rs:264:9
+    |
+264 |         substitution: &OptimizedSubstitution,
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_substitution`
+
+warning: unused variable: `files`
+   --> src/compilation/optimized_context.rs:347:43
+    |
+347 |     fn update_dependency_graph(&mut self, files: &[PathBuf]) -> Result<()> {
+    |                                           ^^^^^ help: if this is intentional, prefix it with an underscore: `_files`
+
+warning: unused variable: `module`
+  --> src/doc/generator.rs:31:13
+   |
+31 |         let module = self
+   |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_module`
+
+warning: unused variable: `module`
+  --> src/doc/generator.rs:82:13
+   |
+82 |         let module = self
+   |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_module`
+
+warning: unused variable: `variant`
+   --> src/inference/inference_engine.rs:723:55
+    |
+723 |             PatternKind::EnumConstructor { enum_name, variant, args } => {
+    |                                                       ^^^^^^^ help: try ignoring the field: `variant: _`
+
+warning: unused variable: `func`
+   --> src/ir/optimizer/analysis/data_flow.rs:214:9
+    |
+214 |         func: &Function,
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_func`
+
+warning: unused variable: `ty`
+   --> src/ir/optimizer/constant_folding.rs:190:53
+    |
+190 |                 Instruction::Binary { op, lhs, rhs, ty } => {
+    |                                                     ^^ help: try ignoring the field: `ty: _`
+
+warning: unused variable: `ty`
+   --> src/ir/optimizer/constant_folding.rs:208:51
+    |
+208 |                 Instruction::Unary { op, operand, ty } => {
+    |                                                   ^^ help: try ignoring the field: `ty: _`
+
+warning: unused variable: `function`
+   --> src/ir/optimizer/dead_code_elimination.rs:193:45
+    |
+193 |     fn remove_unreachable_blocks(&mut self, function: &mut Function) -> bool {
+    |                                             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_function`
+
+warning: unused variable: `loop_info`
+   --> src/ir/optimizer/loop_invariant_code_motion.rs:304:9
+    |
+304 |         loop_info: &LoopInfo,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_loop_info`
+
+warning: unused variable: `function`
+   --> src/ir/optimizer/loop_invariant_code_motion.rs:346:9
+    |
+346 |         function: &mut Function,
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_function`
+
+warning: unused variable: `from_block`
+   --> src/ir/optimizer/loop_invariant_code_motion.rs:347:9
+    |
+347 |         from_block: BlockId,
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_from_block`
+
+warning: unused variable: `value_id`
+   --> src/ir/optimizer/loop_invariant_code_motion.rs:348:9
+    |
+348 |         value_id: ValueId,
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_value_id`
+
+warning: unused variable: `function`
+   --> src/ir/optimizer/loop_unrolling.rs:143:9
+    |
+143 |         function: &Function,
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_function`
+
+warning: unused variable: `induction_var`
+   --> src/ir/optimizer/loop_unrolling.rs:145:9
+    |
+145 |         induction_var: &super::loop_analysis::InductionVariable,
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_induction_var`
+
+warning: unreachable pattern
+   --> src/lexer/scanner.rs:512:23
+    |
+512 |                 'а' | 'а' => 'a', // Cyrillic small letter a -> Latin a
+    |                 ---   ^^^ no value can reach this
+    |                 |
+    |                 matches all the relevant values
+    |
+    = note: `#[warn(unreachable_patterns)]` on by default
+
+warning: unreachable pattern
+   --> src/lexer/scanner.rs:513:23
+    |
+513 |                 'А' | 'А' => 'A', // Cyrillic capital letter a -> Latin A
+    |                 ---   ^^^ no value can reach this
+    |                 |
+    |                 matches all the relevant values
+
+warning: variable `first_line` is assigned to, but never used
+   --> src/lexer/scanner.rs:878:17
+    |
+878 |         let mut first_line = true;
+    |                 ^^^^^^^^^^
+    |
+    = note: consider using `_first_line` instead
+
+warning: value assigned to `first_line` is never read
+   --> src/lexer/scanner.rs:914:17
+    |
+914 |                 first_line = false;
+    |                 ^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: unused variable: `function`
+   --> src/lowering/async_transform.rs:344:28
+    |
+344 | fn is_dangerous_async_call(function: &FunctionId) -> bool {
+    |                            ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_function`
+
+warning: unused variable: `func`
+   --> src/lowering/async_transform.rs:355:40
+    |
+355 |             if let Instruction::Call { func, .. } = &inst_with_loc.instruction {
+    |                                        ^^^^-
+    |                                        |
+    |                                        help: try removing the field
+
+warning: unused variable: `orig_block_id`
+   --> src/lowering/async_transform.rs:423:10
+    |
+423 |     for (orig_block_id, orig_block) in &original_blocks {
+    |          ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_orig_block_id`
+
+warning: unused variable: `loaded_param`
+   --> src/lowering/async_transform.rs:476:13
+    |
+476 |         let loaded_param = builder
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_loaded_param`
+
+warning: unused variable: `value_id`
+   --> src/lowering/async_transform.rs:522:21
+    |
+522 |                 let value_id = *value_id; // Copy the value ID
+    |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_value_id`
+
+warning: unused variable: `poll_fn_id`
+   --> src/lowering/async_transform.rs:602:5
+    |
+602 |     poll_fn_id: FunctionId,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_poll_fn_id`
+
+warning: unused variable: `bounds_check`
+   --> src/lowering/expr.rs:658:9
+    |
+658 |     let bounds_check = lowerer
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bounds_check`
+
+warning: unused variable: `field_validation`
+   --> src/lowering/expr.rs:763:17
+    |
+763 |             let field_validation = lowerer
+    |                 ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_field_validation`
+
+warning: unused variable: `enum_name`
+    --> src/lowering/expr.rs:1273:40
+     |
+1273 |         PatternKind::EnumConstructor { enum_name, variant, args } => {
+     |                                        ^^^^^^^^^ help: try ignoring the field: `enum_name: _`
+
+warning: unused variable: `variant`
+    --> src/lowering/expr.rs:1273:51
+     |
+1273 |         PatternKind::EnumConstructor { enum_name, variant, args } => {
+     |                                                   ^^^^^^^ help: try ignoring the field: `variant: _`
+
+warning: unused variable: `args`
+    --> src/lowering/expr.rs:1273:60
+     |
+1273 |         PatternKind::EnumConstructor { enum_name, variant, args } => {
+     |                                                            ^^^^ help: try ignoring the field: `args: _`
+
+warning: unused variable: `enum_name`
+    --> src/lowering/expr.rs:1407:40
+     |
+1407 |         PatternKind::EnumConstructor { enum_name, variant, args } => {
+     |                                        ^^^^^^^^^ help: try ignoring the field: `enum_name: _`
+
+warning: unused variable: `variant`
+    --> src/lowering/expr.rs:1407:51
+     |
+1407 |         PatternKind::EnumConstructor { enum_name, variant, args } => {
+     |                                                   ^^^^^^^ help: try ignoring the field: `variant: _`
+
+warning: unused variable: `i`
+    --> src/lowering/expr.rs:1410:22
+     |
+1410 |                 for (i, arg_pattern) in pattern_args.iter().enumerate() {
+     |                      ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+error[E0004]: non-exhaustive patterns: `&ast::ExprKind::Closure { .. }` not covered
+   --> src/lowering/mod.rs:759:15
+    |
+759 |         match &expr.kind {
+    |               ^^^^^^^^^^ pattern `&ast::ExprKind::Closure { .. }` not covered
+    |
+note: `ast::ExprKind` defined here
+   --> src/parser/ast.rs:168:10
+    |
+168 | pub enum ExprKind {
+    |          ^^^^^^^^
+...
+243 |     Closure {
+    |     ------- not covered
+    = note: the matched value is of type `&ast::ExprKind`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+    |
+952 ~             },
+953 +             &ast::ExprKind::Closure { .. } => todo!()
+    |
+
+warning: unused variable: `position`
+   --> src/lsp/completion.rs:213:5
+    |
+213 |     position: Position,
+    |     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_position`
+
+error[E0004]: non-exhaustive patterns: `&ast::ExprKind::Closure { .. }` not covered
+   --> src/lsp/definition.rs:209:11
+    |
+209 |     match &expr.kind {
+    |           ^^^^^^^^^^ pattern `&ast::ExprKind::Closure { .. }` not covered
+    |
+note: `ast::ExprKind` defined here
+   --> src/parser/ast.rs:168:10
+    |
+168 | pub enum ExprKind {
+    |          ^^^^^^^^
+...
+243 |     Closure {
+    |     ------- not covered
+    = note: the matched value is of type `&ast::ExprKind`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+    |
+367 ~         ExprKind::Literal(_) => None,
+368 ~         &ast::ExprKind::Closure { .. } => todo!(),
+    |
+
+warning: unused variable: `func`
+   --> src/metaprogramming/const_eval.rs:170:48
+    |
+170 |     fn evaluate_const_function_call(&mut self, func: &Stmt, args: &[Expr]) -> Result<ConstValue> {
+    |                                                ^^^^ help: if this is intentional, prefix it with an underscore: `_func`
+
+warning: unused variable: `args`
+   --> src/metaprogramming/const_eval.rs:170:61
+    |
+170 |     fn evaluate_const_function_call(&mut self, func: &Stmt, args: &[Expr]) -> Result<ConstValue> {
+    |                                                             ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
+
+warning: unused variable: `stmt`
+   --> src/metaprogramming/const_eval.rs:179:39
+    |
+179 |     fn validate_const_function(&self, stmt: &Stmt) -> Result<()> {
+    |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_stmt`
+
+warning: unused variable: `original`
+  --> src/metaprogramming/derive.rs:67:41
+   |
+67 |     fn generate(&self, type_name: &str, original: &Stmt) -> Result<Vec<Stmt>> {
+   |                                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_original`
+
+warning: unused variable: `original`
+   --> src/metaprogramming/derive.rs:107:41
+    |
+107 |     fn generate(&self, type_name: &str, original: &Stmt) -> Result<Vec<Stmt>> {
+    |                                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_original`
+
+warning: unused variable: `table_name`
+  --> src/metaprogramming/generate.rs:73:13
+   |
+73 |         let table_name = &args[0];
+   |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_table_name`
+
+warning: unused variable: `stmt`
+  --> src/metaprogramming/generate.rs:64:24
+   |
+64 |     fn generate(&self, stmt: &Stmt, args: &[String]) -> Result<Vec<Stmt>> {
+   |                        ^^^^ help: if this is intentional, prefix it with an underscore: `_stmt`
+
+warning: unused variable: `spec_file`
+  --> src/metaprogramming/generate.rs:98:13
+   |
+98 |         let spec_file = &args[0];
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_spec_file`
+
+warning: unused variable: `stmt`
+  --> src/metaprogramming/generate.rs:89:24
+   |
+89 |     fn generate(&self, stmt: &Stmt, args: &[String]) -> Result<Vec<Stmt>> {
+   |                        ^^^^ help: if this is intentional, prefix it with an underscore: `_stmt`
+
+warning: variable does not need to be mutable
+   --> src/module/integration.rs:578:13
+    |
+578 |         let mut module_scope = self.create_module_scope(&resolved_module, &ast)?;
+    |             ----^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `module_path`
+    --> src/module/integration.rs:1487:9
+     |
+1487 |         module_path: &ModulePath,
+     |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_module_path`
+
+warning: unused variable: `module_path`
+    --> src/module/integration.rs:1506:9
+     |
+1506 |         module_path: &ModulePath,
+     |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_module_path`
+
+warning: unused variable: `registry_path`
+   --> src/module/integrity.rs:292:33
+    |
+292 |     pub fn load_registry(&self, registry_path: &Path) -> ModuleResult<()> {
+    |                                 ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_registry_path`
+
+warning: unused variable: `module_path`
+   --> src/module/resource_monitor.rs:125:37
+    |
+125 |     pub fn check_module_load(&self, module_path: &ModulePath, size: usize) -> ModuleResult<()> {
+    |                                     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_module_path`
+
+warning: unused variable: `args`
+   --> src/module/sandbox.rs:124:9
+    |
+124 |         args: Vec<Value>,
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
+
+warning: unused variable: `args`
+   --> src/module/sandbox.rs:219:26
+    |
+219 |     fn intercept_fs_read(args: &[Value]) -> Result<Value, Error> {
+    |                          ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
+
+warning: unused variable: `args`
+   --> src/module/sandbox.rs:227:27
+    |
+227 |     fn intercept_fs_write(args: &[Value]) -> Result<Value, Error> {
+    |                           ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
+
+warning: unused variable: `args`
+   --> src/module/sandbox.rs:235:30
+    |
+235 |     fn intercept_net_connect(args: &[Value]) -> Result<Value, Error> {
+    |                              ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
+
+warning: unused variable: `args`
+   --> src/module/sandbox.rs:243:32
+    |
+243 |     fn intercept_process_spawn(args: &[Value]) -> Result<Value, Error> {
+    |                                ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
+
+warning: unused variable: `base_path`
+   --> src/module/secure_resolver.rs:188:9
+    |
+188 |         base_path: &Path,
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_base_path`
+
+warning: variable does not need to be mutable
+  --> src/package/cache.rs:46:13
+   |
+46 |         let mut cache = Self {
+   |             ----^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: unused variable: `registry`
+  --> src/package/dependency.rs:90:17
+   |
+90 |                 registry,
+   |                 ^^^^^^^^ help: try ignoring the field: `registry: _`
+
+warning: unused variable: `name`
+   --> src/package/dependency.rs:530:9
+    |
+530 |         name: &str,
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `version`
+   --> src/package/dependency.rs:531:9
+    |
+531 |         version: &Version,
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_version`
+
+warning: unused variable: `old_token`
+   --> src/package/registry.rs:200:13
+    |
+200 |         let old_token = self.auth_token.clone();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_old_token`
+
+warning: variable does not need to be mutable
+   --> src/package/registry.rs:201:13
+    |
+201 |         let mut client = RegistryClient {
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `name`
+   --> src/package/resolver.rs:348:30
+    |
+348 |     fn package_exists(&self, name: &str, version: &Version) -> PackageResult<bool> {
+    |                              ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `version`
+   --> src/package/resolver.rs:348:42
+    |
+348 |     fn package_exists(&self, name: &str, version: &Version) -> PackageResult<bool> {
+    |                                          ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_version`
+
+warning: unused variable: `name`
+   --> src/package/resolver.rs:353:28
+    |
+353 |     fn get_versions(&self, name: &str) -> PackageResult<Vec<Version>> {
+    |                            ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `package_info`
+   --> src/package/mod.rs:323:21
+    |
+323 |                 let package_info = self.registry.get_package_info(name)?;
+    |                     ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_package_info`
+
+warning: unused variable: `dependency`
+   --> src/package/mod.rs:343:9
+    |
+343 |         dependency: &Dependency,
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dependency`
+
+warning: unused variable: `dependency`
+   --> src/package/mod.rs:436:9
+    |
+436 |         dependency: &Dependency,
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dependency`
+
+error[E0004]: non-exhaustive patterns: `&ast::ExprKind::Closure { .. }` not covered
+   --> src/parser/ast.rs:713:15
+    |
+713 |         match &self.kind {
+    |               ^^^^^^^^^^ pattern `&ast::ExprKind::Closure { .. }` not covered
+    |
+note: `ast::ExprKind` defined here
+   --> src/parser/ast.rs:168:10
+    |
+168 | pub enum ExprKind {
+    |          ^^^^^^^^
+...
+243 |     Closure {
+    |     ------- not covered
+    = note: the matched value is of type `&ast::ExprKind`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+    |
+859 ~             },
+860 +             &ast::ExprKind::Closure { .. } => todo!()
+    |
+
+warning: unused variable: `checkpoint`
+    --> src/parser/parser.rs:1213:17
+     |
+1213 |             let checkpoint = self.current;
+     |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_checkpoint`
+
+warning: unused variable: `arg_start`
+    --> src/parser/parser.rs:1933:21
+     |
+1933 |                 let arg_start = self.current;
+     |                     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_arg_start`
+
+warning: unused variable: `token`
+    --> src/parser/parser.rs:2043:21
+     |
+2043 |         if let Some(token) =
+     |                     ^^^^^ help: if this is intentional, prefix it with an underscore: `_token`
+
+warning: unused variable: `task_id`
+   --> src/runtime/async_ffi.rs:318:9
+    |
+318 |     let task_id = {
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_task_id`
+
+warning: unused variable: `task_id`
+   --> src/runtime/async_ffi.rs:583:9
+    |
+583 |     let task_id = {
+    |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_task_id`
+
+warning: unused variable: `cutoff`
+   --> src/runtime/async_resource_limits.rs:578:17
+    |
+578 |             let cutoff = now - Duration::from_secs(300); // Keep 5 minutes of history
+    |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_cutoff`
+
+warning: variable does not need to be mutable
+   --> src/runtime/async_runtime.rs:757:41
+    |
+757 | ...                   let mut i = 0;
+    |                           ----^
+    |                           |
+    |                           help: remove this `mut`
+
+warning: unused variable: `task_id`
+   --> src/runtime/async_runtime.rs:952:13
+    |
+952 |         let task_id = {
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_task_id`
+
+warning: variable does not need to be mutable
+   --> src/runtime/async_runtime_secure.rs:629:33
+    |
+629 | ...                   let mut i = 0;
+    |                           ----^
+    |                           |
+    |                           help: remove this `mut`
+
+warning: unused variable: `data`
+   --> src/runtime/method_dispatch.rs:179:43
+    |
+179 |         Value::Enum { type_name, variant, data } if type_name == "Option" => {
+    |                                           ^^^^ help: try ignoring the field: `data: _`
+
+warning: variable does not need to be mutable
+   --> src/runtime/panic.rs:589:9
+    |
+589 |     let mut info = PanicInfo {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/runtime/panic.rs:626:9
+    |
+626 |     let mut info = PanicInfo {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `data`
+   --> src/runtime/recovery.rs:320:33
+    |
+320 |     fn deserialize_state(&self, data: &[u8]) -> Result<RuntimeState> {
+    |                                 ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+
+warning: value assigned to `collected` is never read
+   --> src/runtime/safe_gc.rs:561:17
+    |
+561 |         let mut collected = 0;
+    |                 ^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `worker`
+   --> src/runtime/scheduler.rs:151:13
+    |
+151 |         for worker in &self.workers {
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_worker`
+
+warning: unused variable: `attack_event`
+   --> src/runtime/security.rs:521:25
+    |
+521 |                     let attack_event = SecurityEvent {
+    |                         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_attack_event`
+
+warning: variable does not need to be mutable
+  --> src/runtime/value_conversion.rs:39:17
+   |
+39 |             let mut vec = ScriptVec::new();
+   |                 ----^^^
+   |                 |
+   |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/runtime/value_conversion.rs:47:17
+   |
+47 |             let mut hashmap = ScriptHashMap::new();
+   |                 ----^^^^^^^
+   |                 |
+   |                 help: remove this `mut`
+
+warning: unused variable: `policy`
+   --> src/security/async_security.rs:510:21
+    |
+510 |         if let Some(policy) = self.allowed_functions.get(function_name) {
+    |                     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_policy`
+
+warning: unused variable: `error_context`
+   --> src/security/field_validation.rs:185:9
+    |
+185 |         error_context: &str,
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_error_context`
+
+warning: unused variable: `struct_type`
+   --> src/semantic/analyzer.rs:482:13
+    |
+482 |         let struct_type = if let Some(generics) = generic_params {
+    |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_struct_type`
+
+warning: unused variable: `enum_type`
+   --> src/semantic/analyzer.rs:603:13
+    |
+603 |         let enum_type = if let Some(generics) = generic_params {
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_enum_type`
+
+warning: unused variable: `err`
+   --> src/semantic/analyzer.rs:964:32
+    |
+964 |                     if let Err(err) = self.memory_safety_ctx.define_variable(
+    |                                ^^^ help: if this is intentional, prefix it with an underscore: `_err`
+
+warning: unused variable: `err`
+    --> src/semantic/analyzer.rs:1165:36
+     |
+1165 |                         if let Err(err) = self.memory_safety_ctx.define_variable(
+     |                                    ^^^ help: if this is intentional, prefix it with an underscore: `_err`
+
+warning: unused variable: `err`
+    --> src/semantic/analyzer.rs:1175:36
+     |
+1175 |                         if let Err(err) = self
+     |                                    ^^^ help: if this is intentional, prefix it with an underscore: `_err`
+
+warning: unused variable: `err`
+    --> src/semantic/analyzer.rs:1330:36
+     |
+1330 |                         if let Err(err) = self.memory_safety_ctx.define_variable(
+     |                                    ^^^ help: if this is intentional, prefix it with an underscore: `_err`
+
+warning: unused variable: `err`
+    --> src/semantic/analyzer.rs:1340:36
+     |
+1340 |                         if let Err(err) = self
+     |                                    ^^^ help: if this is intentional, prefix it with an underscore: `_err`
+
+warning: unused variable: `symbol`
+    --> src/semantic/analyzer.rs:1684:29
+     |
+1684 |                 if let Some(symbol) = self.symbol_table.lookup(name) {
+     |                             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_symbol`
+
+warning: unused variable: `body`
+    --> src/semantic/analyzer.rs:1711:45
+     |
+1711 |             ExprKind::Closure { parameters, body } => {
+     |                                             ^^^^ help: try ignoring the field: `body: _`
+
+warning: unused variable: `span`
+    --> src/semantic/analyzer.rs:2181:9
+     |
+2181 |         span: crate::source::Span,
+     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_span`
+
+warning: unused variable: `var`
+    --> src/semantic/analyzer.rs:2674:25
+     |
+2674 |             if let Some(var) = &clause.var {
+     |                         ^^^ help: if this is intentional, prefix it with an underscore: `_var`
+
+warning: unused variable: `span`
+    --> src/semantic/analyzer.rs:2637:9
+     |
+2637 |         span: crate::source::Span,
+     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_span`
+
+warning: unused variable: `generic_params`
+    --> src/semantic/analyzer.rs:3301:13
+     |
+3301 |         let generic_params = signature.generic_params.as_ref().unwrap();
+     |             ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_generic_params`
+
+warning: unused variable: `param_name`
+    --> src/semantic/analyzer.rs:3308:18
+     |
+3308 |         for (i, (param_name, param_type)) in signature.params.iter().enumerate() {
+     |                  ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_param_name`
+
+warning: unused variable: `err`
+    --> src/semantic/analyzer.rs:3579:32
+     |
+3579 |                     if let Err(err) = self.memory_safety_ctx.define_variable(
+     |                                ^^^ help: if this is intentional, prefix it with an underscore: `_err`
+
+warning: unused variable: `err`
+    --> src/semantic/analyzer.rs:3589:32
+     |
+3589 |                     if let Err(err) = self
+     |                                ^^^ help: if this is intentional, prefix it with an underscore: `_err`
+
+warning: unused variable: `init_span`
+   --> src/semantic/memory_safety.rs:282:55
+    |
+282 |     pub fn initialize_variable(&mut self, name: &str, init_span: Span) -> Result<(), String> {
+    |                                                       ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_init_span`
+
+warning: unused variable: `var_info`
+   --> src/semantic/memory_safety.rs:354:21
+    |
+354 |         if let Some(var_info) = self.variables.get_mut(name) {
+    |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_var_info`
+
+warning: unused variable: `e`
+   --> src/semantic/memory_safety.rs:540:28
+    |
+540 |                 if let Err(e) = self.define_variable(
+    |                            ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `scrutinee_span`
+  --> src/semantic/pattern_exhaustiveness.rs:47:5
+   |
+47 |     scrutinee_span: Span,
+   |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_scrutinee_span`
+
+warning: unused variable: `enum_name`
+   --> src/semantic/pattern_exhaustiveness.rs:151:49
+    |
+151 | fn check_enum_exhaustiveness(arms: &[MatchArm], enum_name: &str, enum_info: &EnumInfo) -> bool {
+    |                                                 ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_enum_name`
+
+warning: unused variable: `fields`
+   --> src/semantic/pattern_exhaustiveness.rs:538:57
+    |
+538 | ...                   EnumVariantType::Struct(fields) => {
+    |                                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+
+warning: unused variable: `a`
+   --> src/stdlib/core_types.rs:220:33
+    |
+220 |             (ScriptOption::Some(a), ScriptOption::Some(b)) => {
+    |                                 ^ help: if this is intentional, prefix it with an underscore: `_a`
+
+warning: unused variable: `b`
+   --> src/stdlib/core_types.rs:220:56
+    |
+220 |             (ScriptOption::Some(a), ScriptOption::Some(b)) => {
+    |                                                        ^ help: if this is intentional, prefix it with an underscore: `_b`
+
+warning: variable does not need to be mutable
+   --> src/stdlib/core_types.rs:245:21
+    |
+245 |                 let mut vec = crate::stdlib::collections::ScriptVec::new();
+    |                     ----^^^
+    |                     |
+    |                     help: remove this `mut`
+
+warning: unused variable: `f`
+   --> src/stdlib/core_types.rs:265:29
+    |
+265 |     pub fn reduce<F>(&self, f: F) -> ScriptOption
+    |                             ^ help: if this is intentional, prefix it with an underscore: `_f`
+
+warning: variable does not need to be mutable
+   --> src/stdlib/core_types.rs:537:21
+    |
+537 |                 let mut vec = crate::stdlib::collections::ScriptVec::new();
+    |                     ----^^^
+    |                     |
+    |                     help: remove this `mut`
+
+warning: unused variable: `f`
+   --> src/stdlib/core_types.rs:557:29
+    |
+557 |     pub fn reduce<F>(&self, f: F) -> ScriptResult
+    |                             ^ help: if this is intentional, prefix it with an underscore: `_f`
+
+warning: unused variable: `val`
+   --> src/stdlib/core_types.rs:782:40
+    |
+782 |                 ScriptOption::Some(ref val) => {
+    |                                        ^^^ help: if this is intentional, prefix it with an underscore: `_val`
+
+warning: unused variable: `error_map`
+  --> src/stdlib/error.rs:44:13
+   |
+44 |         let error_map = std::collections::HashMap::from([
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_error_map`
+
+warning: unused variable: `test_program`
+   --> src/testing/test_runner.rs:206:13
+    |
+206 |         let test_program = self.create_test_program(test);
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_test_program`
+
+warning: unused variable: `test_clone`
+   --> src/testing/test_runner.rs:212:13
+    |
+212 |         let test_clone = test.clone();
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_test_clone`
+
+warning: unused variable: `stmt`
+   --> src/testing/test_runner.rs:292:42
+    |
+292 |     fn execute_setup_teardown(&mut self, stmt: &Stmt) -> Result<()> {
+    |                                          ^^^^ help: if this is intentional, prefix it with an underscore: `_stmt`
+
+Some errors have detailed explanations: E0004, E0282, E0412, E0559, E0603, E0609.
+For more information about an error, try `rustc --explain E0004`.
+warning: `script` (lib) generated 138 warnings
+error: could not compile `script` (lib) due to 9 previous errors; 138 warnings emitted

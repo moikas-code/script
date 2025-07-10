@@ -1,32 +1,32 @@
 //! Tests for Result/Option error handling functionality
 
-use script::{Lexer, Parser, SemanticAnalyzer};
 use script::types::Type;
+use script::{Lexer, Parser, SemanticAnalyzer};
 
 fn compile_and_analyze(source: &str) -> Result<Vec<Type>, Vec<script::Error>> {
     let lexer = Lexer::new(source).unwrap();
     let (tokens, lexer_errors) = lexer.scan_tokens();
-    
+
     if !lexer_errors.is_empty() {
         return Err(lexer_errors);
     }
-    
+
     let mut parser = Parser::new(tokens);
     let program = match parser.parse() {
         Ok(prog) => prog,
         Err(e) => return Err(vec![e]),
     };
-    
+
     let mut analyzer = SemanticAnalyzer::new();
     if let Err(e) = analyzer.analyze(&program) {
         return Err(vec![e]);
     }
-    
+
     let errors = analyzer.errors();
     if !errors.is_empty() {
         return Err(errors.into_iter().map(|e| e.into_error()).collect());
     }
-    
+
     Ok(vec![])
 }
 
@@ -37,9 +37,13 @@ fn test_option_constructors() {
         let y = None;
         let z = Option::Some(3.14);
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_ok(), "Failed to compile Option constructors: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to compile Option constructors: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -49,9 +53,13 @@ fn test_result_constructors() {
         let y = Err("error");
         let z = Result::Ok("success");
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_ok(), "Failed to compile Result constructors: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to compile Result constructors: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -66,9 +74,13 @@ fn test_question_operator_on_result() {
             Ok(x + 1)
         }
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_ok(), "Failed to compile ? operator on Result: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to compile ? operator on Result: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -83,9 +95,13 @@ fn test_question_operator_on_option() {
             Some(x + 1)
         }
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_ok(), "Failed to compile ? operator on Option: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to compile ? operator on Option: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -100,9 +116,13 @@ fn test_question_operator_error_propagation() {
             Ok(x + 1)
         }
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_ok(), "Failed to compile error propagation: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to compile error propagation: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -117,13 +137,17 @@ fn test_question_operator_in_non_result_function() {
             x + 1
         }
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_err(), "Should fail when using ? in non-Result function");
-    
+    assert!(
+        result.is_err(),
+        "Should fail when using ? in non-Result function"
+    );
+
     if let Err(errors) = result {
         assert!(errors.iter().any(|e| {
-            e.to_string().contains("? operator can only be used in functions that return Result or Option")
+            e.to_string()
+                .contains("? operator can only be used in functions that return Result or Option")
         }));
     }
 }
@@ -137,13 +161,17 @@ fn test_question_operator_on_non_result_type() {
             Ok(y)
         }
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_err(), "Should fail when using ? on non-Result type");
-    
+    assert!(
+        result.is_err(),
+        "Should fail when using ? on non-Result type"
+    );
+
     if let Err(errors) = result {
         assert!(errors.iter().any(|e| {
-            e.to_string().contains("? operator can only be applied to Result or Option types")
+            e.to_string()
+                .contains("? operator can only be applied to Result or Option types")
         }));
     }
 }
@@ -158,9 +186,13 @@ fn test_pattern_matching_on_result() {
             }
         }
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_ok(), "Failed to compile pattern matching on Result: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to compile pattern matching on Result: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -173,9 +205,13 @@ fn test_pattern_matching_on_option() {
             }
         }
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_ok(), "Failed to compile pattern matching on Option: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to compile pattern matching on Option: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -195,9 +231,13 @@ fn test_nested_error_propagation() {
             Ok(y + 10)
         }
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_ok(), "Failed to compile nested error propagation: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to compile nested error propagation: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -212,7 +252,11 @@ fn test_option_to_result_conversion() {
             Ok(x)
         }
     "#;
-    
+
     let result = compile_and_analyze(source);
-    assert!(result.is_ok(), "Failed to compile Option to Result conversion: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to compile Option to Result conversion: {:?}",
+        result
+    );
 }

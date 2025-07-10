@@ -167,7 +167,7 @@ impl ConstEvaluator {
         }
     }
 
-    fn evaluate_const_function_call(&mut self, func: &Stmt, args: &[Expr]) -> Result<ConstValue> {
+    fn evaluate_const_function_call(&mut self, _func: &Stmt, _args: &[Expr]) -> Result<ConstValue> {
         // Simple const function evaluation - in a real implementation,
         // this would need to handle parameters, local variables, etc.
         Err(Error::new(
@@ -176,7 +176,7 @@ impl ConstEvaluator {
         ))
     }
 
-    fn validate_const_function(&self, stmt: &Stmt) -> Result<()> {
+    fn validate_const_function(&self, _stmt: &Stmt) -> Result<()> {
         // Validate that the function only uses const-evaluable expressions
         // For now, we'll accept all functions and validate during evaluation
         Ok(())

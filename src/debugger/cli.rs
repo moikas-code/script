@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 
 /// Result type for debug operations
-pub type DebugResult<T> = std::result::Result<T, DebuggerError>;
+pub type DebugResult<T> = DebuggerResult<T>;
 
 /// Available debug commands
 #[derive(Debug, Clone, PartialEq)]
@@ -102,10 +102,10 @@ impl Debugger {
     /// Main command processing loop
     fn command_loop(&mut self) -> DebugResult<()> {
         print!("{} ", "(debug)".cyan().bold());
-        io::stdout().flush().unwrap();
+        io::stdout().flush().map_err(|e| DebuggerError::IoError(e.to_string()))?;
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin().read_line(&mut input).map_err(|e| DebuggerError::IoError(e.to_string()))?;
         let input = input.trim();
 
         if input.is_empty() {
@@ -238,8 +238,11 @@ impl Debugger {
         // Check if we hit a breakpoint
         if let Some(location) = self.execution_state.current_location() {
             if let Some(bp_id) = self.breakpoint_manager.should_break_at(location) {
-                let bp = self.breakpoint_manager.get_breakpoint(bp_id).unwrap();
-                println!("{} {}", "Breakpoint hit:".yellow().bold(), bp);
+                if let Some(bp) = self.breakpoint_manager.get_breakpoint(bp_id) {
+                    println!("{} {}", "Breakpoint hit:".yellow().bold(), bp);
+                } else {
+                    println!("{}", "Warning: Breakpoint reference is invalid".yellow());
+                }
             }
         }
 
@@ -251,8 +254,11 @@ impl Debugger {
     fn handle_break(&mut self, location_str: String) -> DebugResult<()> {
         let location = self.breakpoint_manager.parse_location(&location_str)?;
         let bp_id = self.breakpoint_manager.add_breakpoint(location);
-        let bp = self.breakpoint_manager.get_breakpoint(bp_id).unwrap();
-        println!("{} {}", "Breakpoint set:".green().bold(), bp);
+        if let Some(bp) = self.breakpoint_manager.get_breakpoint(bp_id) {
+            println!("{} {}", "Breakpoint set:".green().bold(), bp);
+        } else {
+            return Err(DebuggerError::BreakpointNotFound(bp_id));
+        }
         Ok(())
     }
 
@@ -422,10 +428,13 @@ impl Debugger {
             if let Some(location) = self.execution_state.current_location() {
                 // Check if we should break at this location
                 if let Some(bp_id) = self.breakpoint_manager.should_break_at(&location) {
-                    let bp = self.breakpoint_manager.get_breakpoint(bp_id).unwrap();
-                    println!("{} {}", "Breakpoint hit:".yellow().bold(), bp);
-                    self.execution_state.pause()?;
-                    break;
+                    if let Some(bp) = self.breakpoint_manager.get_breakpoint(bp_id) {
+                        println!("{} {}", "Breakpoint hit:".yellow().bold(), bp);
+                        self.execution_state.pause()?;
+                        break;
+                    } else {
+                        println!("{}", "Warning: Breakpoint reference is invalid".yellow());
+                    }
                 }
             }
 

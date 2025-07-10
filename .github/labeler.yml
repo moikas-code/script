@@ -1,0 +1,76 @@
+# Add 'documentation' label to any change in docs files
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - docs/**
+      - '*.md'
+      - kb/**/*.md
+
+# Add 'tests' label to any change in test files
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - tests/**
+      - '**/*_test.rs'
+      - '**/*_tests.rs'
+      - '**/tests.rs'
+
+# Add 'ci' label to any change in GitHub Actions
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - .github/workflows/**
+      - .github/actions/**
+      - .github/dependabot.yml
+
+# Add language component labels
+lexer:
+  - changed-files:
+    - any-glob-to-any-file: src/lexer/**
+
+parser:
+  - changed-files:
+    - any-glob-to-any-file: src/parser/**
+
+type-system:
+  - changed-files:
+    - any-glob-to-any-file:
+      - src/types/**
+      - src/inference/**
+
+codegen:
+  - changed-files:
+    - any-glob-to-any-file: src/codegen/**
+
+runtime:
+  - changed-files:
+    - any-glob-to-any-file: src/runtime/**
+
+stdlib:
+  - changed-files:
+    - any-glob-to-any-file: src/stdlib/**
+
+mcp:
+  - changed-files:
+    - any-glob-to-any-file:
+      - src/mcp/**
+      - script-kb-mcp/**
+
+# Add 'dependencies' label
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - Cargo.toml
+      - Cargo.lock
+
+# Add 'examples' label
+examples:
+  - changed-files:
+    - any-glob-to-any-file: examples/**
+
+# Add 'benchmarks' label
+benchmarks:
+  - changed-files:
+    - any-glob-to-any-file:
+      - benches/**
+      - '**/*_bench.rs'

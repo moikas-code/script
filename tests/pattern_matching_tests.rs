@@ -4,7 +4,7 @@ use script::{
 };
 
 fn parse_program(input: &str) -> Result<Program> {
-    let lexer = Lexer::new(input);
+    let lexer = Lexer::new(input)?;
     let (tokens, errors) = lexer.scan_tokens();
 
     if !errors.is_empty() {
@@ -503,14 +503,14 @@ fn test_or_patterns_implemented() {
     // This should parse successfully now
     let program = parse_program(input).unwrap();
     assert_eq!(program.statements.len(), 2);
-    
+
     if let StmtKind::Let {
         init: Some(expr), ..
     } = &program.statements[1].kind
     {
         if let ExprKind::Match { arms, .. } = &expr.kind {
             assert_eq!(arms.len(), 2);
-            
+
             // Check first arm has or-pattern
             assert!(matches!(
                 arms[0].pattern.kind,
@@ -534,14 +534,14 @@ fn test_match_guards_implemented() {
 
     let program = parse_program(input).unwrap();
     assert_eq!(program.statements.len(), 2);
-    
+
     if let StmtKind::Let {
         init: Some(expr), ..
     } = &program.statements[1].kind
     {
         if let ExprKind::Match { arms, .. } = &expr.kind {
             assert_eq!(arms.len(), 3);
-            
+
             // Check first two arms have guards
             assert!(arms[0].guard.is_some());
             assert!(arms[1].guard.is_some());
@@ -563,11 +563,11 @@ fn test_non_exhaustive_match_error() {
 
     // Parse should succeed
     let program = parse_program(input).unwrap();
-    
+
     // But semantic analysis should fail due to non-exhaustive patterns
     let result = parse_and_analyze(input);
     assert!(result.is_err());
-    
+
     if let Err(err) = result {
         let error_msg = format!("{}", err);
         assert!(error_msg.contains("exhaustive") || error_msg.contains("missing"));
@@ -608,7 +608,7 @@ fn test_enum_pattern_parsing() {
 
     let program = parse_program(input).unwrap();
     assert_eq!(program.statements.len(), 3);
-    
+
     // Check the match expression
     if let StmtKind::Let {
         init: Some(expr), ..
@@ -616,13 +616,13 @@ fn test_enum_pattern_parsing() {
     {
         if let ExprKind::Match { arms, .. } = &expr.kind {
             assert_eq!(arms.len(), 2);
-            
+
             // Check first arm has enum constructor pattern
             assert!(matches!(
                 arms[0].pattern.kind,
                 PatternKind::EnumConstructor { variant, args: Some(_), .. } if variant == "Some"
             ));
-            
+
             // Check second arm has unit enum constructor pattern
             assert!(matches!(
                 arms[1].pattern.kind,
@@ -649,7 +649,7 @@ fn test_qualified_enum_patterns() {
     "#;
 
     let program = parse_program(input).unwrap();
-    
+
     // Check qualified patterns
     if let StmtKind::Let {
         init: Some(expr), ..
@@ -657,7 +657,10 @@ fn test_qualified_enum_patterns() {
     {
         if let ExprKind::Match { arms, .. } = &expr.kind {
             // Check first arm has qualified enum pattern
-            if let PatternKind::EnumConstructor { enum_name, variant, .. } = &arms[0].pattern.kind {
+            if let PatternKind::EnumConstructor {
+                enum_name, variant, ..
+            } = &arms[0].pattern.kind
+            {
                 assert_eq!(enum_name.as_ref().unwrap(), "Result");
                 assert_eq!(variant, "Ok");
             }
@@ -683,11 +686,11 @@ fn test_enum_non_exhaustive_error() {
 
     // Parse should succeed
     let program = parse_program(input).unwrap();
-    
+
     // But semantic analysis should fail due to non-exhaustive patterns
     let result = parse_and_analyze(input);
     assert!(result.is_err());
-    
+
     if let Err(err) = result {
         let error_msg = format!("{}", err);
         assert!(error_msg.contains("exhaustive") || error_msg.contains("None"));
@@ -712,7 +715,7 @@ fn test_enum_or_patterns() {
     "#;
 
     let program = parse_program(input).unwrap();
-    
+
     // Check or-pattern with enum constructors
     if let StmtKind::Let {
         init: Some(expr), ..
@@ -758,7 +761,7 @@ fn test_nested_enum_patterns() {
     "#;
 
     let program = parse_program(input).unwrap();
-    
+
     // Check nested pattern
     if let StmtKind::Let {
         init: Some(expr), ..
@@ -766,12 +769,21 @@ fn test_nested_enum_patterns() {
     {
         if let ExprKind::Match { arms, .. } = &expr.kind {
             // Check first arm has nested enum pattern
-            if let PatternKind::EnumConstructor { variant, args: Some(args), .. } = &arms[0].pattern.kind {
+            if let PatternKind::EnumConstructor {
+                variant,
+                args: Some(args),
+                ..
+            } = &arms[0].pattern.kind
+            {
                 assert_eq!(variant, "Ok");
                 assert_eq!(args.len(), 1);
-                
+
                 // Check nested Some pattern
-                if let PatternKind::EnumConstructor { variant: inner_variant, .. } = &args[0].kind {
+                if let PatternKind::EnumConstructor {
+                    variant: inner_variant,
+                    ..
+                } = &args[0].kind
+                {
                     assert_eq!(inner_variant, "Some");
                 }
             }

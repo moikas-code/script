@@ -9,15 +9,13 @@
 //! - Graceful error handling without panics
 
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
-use std::thread;
-use std::time::{Duration, Instant};
 use std::ptr::NonNull;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
+use std::time::{Duration, Instant};
 
-use crate::runtime::profiler;
 use crate::runtime::rc::{Color, ScriptRc};
-use crate::runtime::traceable::{AsScriptRc, Traceable};
+use crate::runtime::traceable::AsScriptRc;
 use crate::runtime::type_registry;
 
 /// Security configuration for garbage collection
@@ -217,7 +215,7 @@ impl SecureRcWrapper {
     fn validate_type(&self) -> Result<(), SecurityError> {
         // Read type ID from object
         let actual_type_id: type_registry::TypeId = self.read_atomic(32)?;
-        
+
         if actual_type_id != self.type_id {
             return Err(SecurityError::TypeMismatch {
                 expected: self.type_id,
@@ -229,7 +227,7 @@ impl SecureRcWrapper {
     }
 
     /// Trace children with security checks
-    pub fn trace_children<F>(&self, visitor: F) -> Result<(), SecurityError>
+    pub fn trace_children<F>(&self, mut visitor: F) -> Result<(), SecurityError>
     where
         F: FnMut(usize),
     {
@@ -238,12 +236,12 @@ impl SecureRcWrapper {
         }
 
         // Get type info for safe tracing
-        let type_info = type_registry::get_type_info(self.type_id)
-            .ok_or(SecurityError::TypeNotFound)?;
+        let type_info =
+            type_registry::get_type_info(self.type_id).ok_or(SecurityError::TypeNotFound)?;
 
         // Calculate value offset (after RcBox header)
         let value_offset = 40; // Size of RcBox header
-        
+
         if value_offset >= self.object_size {
             return Err(SecurityError::OutOfBounds);
         }
@@ -252,7 +250,10 @@ impl SecureRcWrapper {
         unsafe {
             let value_ptr = self.ptr.as_ptr().add(value_offset);
             (type_info.trace_fn)(value_ptr, &mut |any| {
-                if let Some(rc) = any.downcast_ref::<dyn AsScriptRc>() {
+                // Try to extract ScriptRc addresses from the Any
+                // We need to try different concrete types that implement AsScriptRc
+                use crate::runtime::value::Value;
+                if let Some(rc) = any.downcast_ref::<ScriptRc<Value>>() {
                     if let Some(addr) = rc.as_script_rc() {
                         visitor(addr);
                     }
@@ -297,7 +298,11 @@ impl std::fmt::Display for SecurityError {
                 write!(f, "Resource limit exceeded: {}", msg)
             }
             SecurityError::TypeMismatch { expected, actual } => {
-                write!(f, "Type mismatch: expected {:?}, got {:?}", expected, actual)
+                write!(
+                    f,
+                    "Type mismatch: expected {:?}, got {:?}",
+                    expected, actual
+                )
             }
             SecurityError::TypeNotFound => write!(f, "Type not found in registry"),
             SecurityError::InvalidAlignment => write!(f, "Invalid memory alignment"),
@@ -364,9 +369,10 @@ where
 
     fn insert(&mut self, item: T) -> Result<bool, SecurityError> {
         if self.inner.len() >= self.max_size {
-            return Err(SecurityError::ResourceLimitExceeded(
-                format!("Maximum set size {} exceeded", self.max_size)
-            ));
+            return Err(SecurityError::ResourceLimitExceeded(format!(
+                "Maximum set size {} exceeded",
+                self.max_size
+            )));
         }
         Ok(self.inner.insert(item))
     }
@@ -426,16 +432,25 @@ impl SecurityEventHandler for DefaultSecurityHandler {
     fn handle_event(&self, event: SecurityEvent) {
         match event {
             SecurityEvent::ResourceLimitExceeded { limit, value } => {
-                eprintln!("Security Alert: Resource limit exceeded - {} = {}", limit, value);
+                eprintln!(
+                    "Security Alert: Resource limit exceeded - {} = {}",
+                    limit, value
+                );
             }
             SecurityEvent::TypeValidationFailure { expected, actual } => {
-                eprintln!("Security Alert: Type validation failed - expected {}, got {}", expected, actual);
+                eprintln!(
+                    "Security Alert: Type validation failed - expected {}, got {}",
+                    expected, actual
+                );
             }
             SecurityEvent::CollectionTimeout { duration } => {
                 eprintln!("Security Alert: Collection timeout - {:?}", duration);
             }
             SecurityEvent::AttackDetected { description } => {
-                eprintln!("Security Alert: Potential attack detected - {}", description);
+                eprintln!(
+                    "Security Alert: Potential attack detected - {}",
+                    description
+                );
             }
             SecurityEvent::MemoryCorruption { details } => {
                 eprintln!("Security Alert: Memory corruption detected - {}", details);
@@ -488,17 +503,20 @@ impl SecureCycleCollector {
         };
 
         // Acquire write lock with timeout
-        let mut registered = self.registered.write()
+        let mut registered = self
+            .registered
+            .write()
             .map_err(|_| SecurityError::MemoryCorruption("Lock poisoned".to_string()))?;
 
         // Check for resource limits
         if registered.len() >= self.config.max_possible_roots {
-            self.security_handler.handle_event(SecurityEvent::ResourceLimitExceeded {
-                limit: "registered_objects".to_string(),
-                value: registered.len(),
-            });
+            self.security_handler
+                .handle_event(SecurityEvent::ResourceLimitExceeded {
+                    limit: "registered_objects".to_string(),
+                    value: registered.len(),
+                });
             return Err(SecurityError::ResourceLimitExceeded(
-                "Too many registered objects".to_string()
+                "Too many registered objects".to_string(),
             ));
         }
 
@@ -510,12 +528,16 @@ impl SecureCycleCollector {
     /// Unregister an object
     pub fn unregister(&self, address: usize) -> Result<(), SecurityError> {
         // Remove from registered
-        let mut registered = self.registered.write()
+        let mut registered = self
+            .registered
+            .write()
             .map_err(|_| SecurityError::MemoryCorruption("Lock poisoned".to_string()))?;
         registered.remove(&address);
 
         // Remove from possible roots
-        let mut possible_roots = self.possible_roots.lock()
+        let mut possible_roots = self
+            .possible_roots
+            .lock()
             .map_err(|_| SecurityError::MemoryCorruption("Lock poisoned".to_string()))?;
         possible_roots.remove(&address);
 
@@ -524,9 +546,11 @@ impl SecureCycleCollector {
 
     /// Add a possible cycle root with security checks
     pub fn add_possible_root(&self, address: usize) -> Result<(), SecurityError> {
-        let mut possible_roots = self.possible_roots.lock()
+        let mut possible_roots = self
+            .possible_roots
+            .lock()
             .map_err(|_| SecurityError::MemoryCorruption("Lock poisoned".to_string()))?;
-        
+
         possible_roots.insert(address)?;
         Ok(())
     }
@@ -539,9 +563,10 @@ impl SecureCycleCollector {
         // Check for timeout
         let timeout_check = || {
             if start_time.elapsed() > self.config.max_collection_time {
-                self.security_handler.handle_event(SecurityEvent::CollectionTimeout {
-                    duration: start_time.elapsed(),
-                });
+                self.security_handler
+                    .handle_event(SecurityEvent::CollectionTimeout {
+                        duration: start_time.elapsed(),
+                    });
                 return Err(SecurityError::CollectionTimeout);
             }
             Ok(())
@@ -549,7 +574,9 @@ impl SecureCycleCollector {
 
         // Take snapshot of possible roots
         let roots = {
-            let mut possible_roots = self.possible_roots.lock()
+            let mut possible_roots = self
+                .possible_roots
+                .lock()
                 .map_err(|_| SecurityError::MemoryCorruption("Lock poisoned".to_string()))?;
             let roots: Vec<_> = possible_roots.iter().cloned().collect();
             possible_roots.clear();
@@ -584,11 +611,15 @@ impl SecureCycleCollector {
         while let Some(addr) = to_scan.pop() {
             depth += 1;
             if depth > self.config.max_graph_depth {
-                self.security_handler.handle_event(SecurityEvent::AttackDetected {
-                    description: format!("Graph depth limit {} exceeded", self.config.max_graph_depth),
-                });
+                self.security_handler
+                    .handle_event(SecurityEvent::AttackDetected {
+                        description: format!(
+                            "Graph depth limit {} exceeded",
+                            self.config.max_graph_depth
+                        ),
+                    });
                 return Err(SecurityError::ResourceLimitExceeded(
-                    "Graph depth limit exceeded".to_string()
+                    "Graph depth limit exceeded".to_string(),
                 ));
             }
 
@@ -602,7 +633,9 @@ impl SecureCycleCollector {
         collected = self.secure_collect_white(&roots)?;
 
         // Update statistics
-        let mut stats = self.stats.lock()
+        let mut stats = self
+            .stats
+            .lock()
             .map_err(|_| SecurityError::MemoryCorruption("Lock poisoned".to_string()))?;
         stats.collections += 1;
         stats.objects_collected += collected;
@@ -613,14 +646,18 @@ impl SecureCycleCollector {
     }
 
     /// Create a secure wrapper for an address
-    fn create_secure_wrapper(&self, address: usize) -> Result<Option<SecureRcWrapper>, SecurityError> {
-        let registered = self.registered.read()
+    fn create_secure_wrapper(
+        &self,
+        address: usize,
+    ) -> Result<Option<SecureRcWrapper>, SecurityError> {
+        let registered = self
+            .registered
+            .read()
             .map_err(|_| SecurityError::MemoryCorruption("Lock poisoned".to_string()))?;
-        
+
         if let Some(reg_obj) = registered.get(&address) {
             let wrapper = SecureRcWrapper::new(
-                NonNull::new(address as *mut u8)
-                    .ok_or(SecurityError::InvalidAlignment)?,
+                NonNull::new(address as *mut u8).ok_or(SecurityError::InvalidAlignment)?,
                 reg_obj.type_id,
                 reg_obj.generation,
                 reg_obj.object_size,
@@ -701,7 +738,9 @@ impl SecureCycleCollector {
 
     /// Get statistics
     pub fn stats(&self) -> Result<SecureCollectionStats, SecurityError> {
-        let stats = self.stats.lock()
+        let stats = self
+            .stats
+            .lock()
             .map_err(|_| SecurityError::MemoryCorruption("Lock poisoned".to_string()))?;
         Ok(stats.clone())
     }
@@ -719,21 +758,26 @@ static SECURE_CYCLE_COLLECTOR: RwLock<Option<Arc<SecureCycleCollector>>> = RwLoc
 pub fn initialize_secure_gc() -> Result<(), SecurityError> {
     let config = GcSecurityConfig::default();
     let collector = Arc::new(SecureCycleCollector::new(config));
-    
-    let mut global_collector = SECURE_CYCLE_COLLECTOR.write()
+
+    let mut global_collector = SECURE_CYCLE_COLLECTOR
+        .write()
         .map_err(|_| SecurityError::MemoryCorruption("Global lock poisoned".to_string()))?;
-    
+
     *global_collector = Some(collector);
     Ok(())
 }
 
 /// Get the global secure collector
 pub fn get_secure_collector() -> Result<Arc<SecureCycleCollector>, SecurityError> {
-    let collector = SECURE_CYCLE_COLLECTOR.read()
+    let collector = SECURE_CYCLE_COLLECTOR
+        .read()
         .map_err(|_| SecurityError::MemoryCorruption("Global lock poisoned".to_string()))?;
-    
-    collector.as_ref()
-        .ok_or(SecurityError::MemoryCorruption("Collector not initialized".to_string()))
+
+    collector
+        .as_ref()
+        .ok_or(SecurityError::MemoryCorruption(
+            "Collector not initialized".to_string(),
+        ))
         .map(Arc::clone)
 }
 

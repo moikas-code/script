@@ -1,16 +1,15 @@
 //! Module sandbox for executing untrusted code safely
-//! 
+//!
 //! This module provides a sandboxed execution environment for untrusted modules,
 //! with capability-based security, resource monitoring, and system call interception.
 
-use crate::module::{ModulePath, ModuleSecurityContext, TrustLevel, ModuleCapability};
-use crate::runtime::Value;
 use crate::error::{Error, ErrorKind};
-use crate::security::SecurityViolation;
+use crate::module::{ModuleCapability, ModulePath, ModuleSecurityContext, TrustLevel};
+use crate::runtime::Value;
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::path::PathBuf;
 
 /// Sandbox configuration
 #[derive(Debug, Clone)]
@@ -78,7 +77,7 @@ impl ModuleSandbox {
         } else {
             None
         };
-        
+
         ModuleSandbox {
             module,
             security_context,
@@ -89,7 +88,7 @@ impl ModuleSandbox {
             trace,
         }
     }
-    
+
     /// Execute a function in the sandbox
     pub fn execute_function(
         &mut self,
@@ -98,45 +97,45 @@ impl ModuleSandbox {
     ) -> Result<Value, Error> {
         // Start monitoring
         self.monitor.start_execution();
-        
-        // Set up execution guard
-        let _guard = SandboxGuard::new(self);
-        
+
         // Check if function execution is allowed
         self.check_function_capability(function_name)?;
-        
+
         // Execute with timeout
         let start = Instant::now();
         let result = self.execute_with_timeout(function_name, args);
         let duration = start.elapsed();
-        
-        // Check resource usage
+
+        // Check resource usage after execution
         self.monitor.check_limits(&self.config)?;
-        
+
         // Record execution if tracing
         if let Some(trace) = &mut self.trace {
             trace.record_execution(function_name, duration, result.is_ok());
         }
-        
+
         result
     }
-    
+
     /// Execute with timeout enforcement
     fn execute_with_timeout(
         &mut self,
         function_name: &str,
-        args: Vec<Value>,
+        _args: Vec<Value>,
     ) -> Result<Value, Error> {
         // In a real implementation, this would use OS-level timeout mechanisms
         // For now, we'll return a placeholder
-        
+
         // TODO: Integrate with actual runtime execution when available
         Err(Error::new(
             ErrorKind::RuntimeError,
-            format!("Sandbox execution for function '{}' not yet implemented", function_name),
+            format!(
+                "Sandbox execution for function '{}' not yet implemented",
+                function_name
+            ),
         ))
     }
-    
+
     /// Check if function execution is allowed
     fn check_function_capability(&self, function_name: &str) -> Result<(), Error> {
         // Check if module has permission to execute functions
@@ -145,22 +144,22 @@ impl ModuleSandbox {
             let allowed_functions = ["main", "init", "cleanup"];
             if !allowed_functions.contains(&function_name) {
                 return Err(Error::new(
-                    ErrorKind::SecurityViolation(SecurityViolation::UnauthorizedAccess {
-                        resource: format!("function {}", function_name),
-                        operation: "execute".to_string(),
-                    }),
-                    format!("Sandboxed module cannot execute function '{}'", function_name),
+                    ErrorKind::SecurityViolation,
+                    format!(
+                        "Sandboxed module cannot execute function '{}' - unauthorized access",
+                        function_name
+                    ),
                 ));
             }
         }
         Ok(())
     }
-    
+
     /// Get execution trace
     pub fn get_trace(&self) -> Option<&ExecutionTrace> {
         self.trace.as_ref()
     }
-    
+
     /// Get resource usage statistics
     pub fn get_resource_usage(&self) -> ResourceUsage {
         self.monitor.get_usage()
@@ -190,21 +189,21 @@ impl SystemCallInterceptor {
             intercepted_calls: Arc::new(Mutex::new(Vec::new())),
         }
     }
-    
+
     /// Install system call hooks
     fn install_hooks(&mut self) {
         // In a real implementation, this would hook into the runtime's system call mechanism
         // For now, we'll just track that hooks were installed
         self.log_intercepted_call("install_hooks", vec![], true);
     }
-    
+
     /// Remove system call hooks  
     fn remove_hooks(&mut self) {
         // In a real implementation, this would restore original handlers
         // For now, we'll just track that hooks were removed
         self.log_intercepted_call("remove_hooks", vec![], true);
     }
-    
+
     /// Log an intercepted call
     fn log_intercepted_call(&self, syscall: &str, args: Vec<String>, allowed: bool) {
         let mut calls = self.intercepted_calls.lock().unwrap();
@@ -215,67 +214,51 @@ impl SystemCallInterceptor {
             allowed,
         });
     }
-    
+
     /// Intercept file system read
     fn intercept_fs_read(args: &[Value]) -> Result<Value, Error> {
         Err(Error::new(
-            ErrorKind::SecurityViolation(SecurityViolation::UnauthorizedAccess {
-                resource: "filesystem".to_string(),
-                operation: "read".to_string(),
-            }),
-            "File system access denied in sandbox",
+            ErrorKind::SecurityViolation,
+            "File system read access denied in sandbox",
         ))
     }
-    
+
     /// Intercept file system write
     fn intercept_fs_write(args: &[Value]) -> Result<Value, Error> {
         Err(Error::new(
-            ErrorKind::SecurityViolation(SecurityViolation::UnauthorizedAccess {
-                resource: "filesystem".to_string(),
-                operation: "write".to_string(),
-            }),
+            ErrorKind::SecurityViolation,
             "File system access denied in sandbox",
         ))
     }
-    
+
     /// Intercept network connection
     fn intercept_net_connect(args: &[Value]) -> Result<Value, Error> {
         Err(Error::new(
-            ErrorKind::SecurityViolation(SecurityViolation::UnauthorizedAccess {
-                resource: "network".to_string(),
-                operation: "connect".to_string(),
-            }),
+            ErrorKind::SecurityViolation,
             "Network access denied in sandbox",
         ))
     }
-    
+
     /// Intercept process spawn
     fn intercept_process_spawn(args: &[Value]) -> Result<Value, Error> {
         Err(Error::new(
-            ErrorKind::SecurityViolation(SecurityViolation::UnauthorizedAccess {
-                resource: "process".to_string(),
-                operation: "spawn".to_string(),
-            }),
+            ErrorKind::SecurityViolation,
             "Process spawning denied in sandbox",
         ))
     }
-    
+
     /// Intercept memory allocation
     fn intercept_mem_alloc(args: &[Value]) -> Result<Value, Error> {
         // Check allocation size
         if let Some(Value::I32(size)) = args.get(0) {
             if *size > 1_000_000 {
                 return Err(Error::new(
-                    ErrorKind::SecurityViolation(SecurityViolation::ResourceLimitExceeded {
-                        resource: "memory".to_string(),
-                        limit: 1_000_000,
-                        used: *size as usize,
-                    }),
+                    ErrorKind::SecurityViolation,
                     "Memory allocation exceeds sandbox limit",
                 ));
             }
         }
-        
+
         // Allow small allocations
         Ok(Value::Bool(true))
     }
@@ -298,58 +281,46 @@ impl ResourceMonitor {
             syscall_count: Arc::new(Mutex::new(0)),
         }
     }
-    
+
     fn start_execution(&mut self) {
         self.start_time = Some(Instant::now());
         *self.memory_allocated.lock().unwrap() = 0;
         *self.stack_depth.lock().unwrap() = 0;
         *self.syscall_count.lock().unwrap() = 0;
     }
-    
+
     fn check_limits(&self, config: &SandboxConfig) -> Result<(), Error> {
         // Check execution time
         if let Some(start) = self.start_time {
             if start.elapsed() > config.max_execution_time {
                 return Err(Error::new(
-                    ErrorKind::SecurityViolation(SecurityViolation::ResourceLimitExceeded {
-                        resource: "execution_time".to_string(),
-                        limit: config.max_execution_time.as_millis() as usize,
-                        used: start.elapsed().as_millis() as usize,
-                    }),
+                    ErrorKind::SecurityViolation,
                     "Execution time limit exceeded",
                 ));
             }
         }
-        
+
         // Check memory usage
         let memory_used = *self.memory_allocated.lock().unwrap();
         if memory_used > config.max_memory {
             return Err(Error::new(
-                ErrorKind::SecurityViolation(SecurityViolation::ResourceLimitExceeded {
-                    resource: "memory".to_string(),
-                    limit: config.max_memory,
-                    used: memory_used,
-                }),
+                ErrorKind::SecurityViolation,
                 "Memory limit exceeded",
             ));
         }
-        
+
         // Check stack depth
         let depth = *self.stack_depth.lock().unwrap();
         if depth > config.max_stack_depth {
             return Err(Error::new(
-                ErrorKind::SecurityViolation(SecurityViolation::ResourceLimitExceeded {
-                    resource: "stack_depth".to_string(),
-                    limit: config.max_stack_depth,
-                    used: depth,
-                }),
+                ErrorKind::SecurityViolation,
                 "Stack depth limit exceeded",
             ));
         }
-        
+
         Ok(())
     }
-    
+
     fn get_usage(&self) -> ResourceUsage {
         ResourceUsage {
             execution_time: self.start_time.map(|s| s.elapsed()).unwrap_or_default(),
@@ -380,11 +351,11 @@ impl CapabilityEnforcer {
             granted_capabilities: HashSet::new(),
         }
     }
-    
+
     fn grant_capability(&mut self, capability: ModuleCapability) {
         self.granted_capabilities.insert(capability);
     }
-    
+
     fn check_capability(&self, capability: &ModuleCapability) -> bool {
         self.granted_capabilities.contains(capability)
     }
@@ -414,11 +385,9 @@ enum TraceEventType {
 
 impl ExecutionTrace {
     fn new() -> Self {
-        ExecutionTrace {
-            events: Vec::new(),
-        }
+        ExecutionTrace { events: Vec::new() }
     }
-    
+
     fn record_execution(&mut self, function: &str, duration: Duration, success: bool) {
         self.events.push(TraceEvent {
             timestamp: Instant::now(),
@@ -430,34 +399,18 @@ impl ExecutionTrace {
             details: format!("Function '{}' executed in {:?}", function, duration),
         });
     }
-    
+
     pub fn get_events(&self) -> &[TraceEvent] {
         &self.events
     }
 }
 
-/// RAII guard for sandbox cleanup
-struct SandboxGuard<'a> {
-    sandbox: &'a mut ModuleSandbox,
-}
-
-impl<'a> SandboxGuard<'a> {
-    fn new(sandbox: &'a mut ModuleSandbox) -> Self {
-        SandboxGuard { sandbox }
-    }
-}
-
-impl<'a> Drop for SandboxGuard<'a> {
-    fn drop(&mut self) {
-        // Cleanup any resources
-        // This ensures cleanup happens even on panic
-    }
-}
+// SandboxGuard removed - was causing borrowing issues and wasn't providing essential functionality
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_sandbox_config() {
         let config = SandboxConfig::default();
@@ -465,15 +418,15 @@ mod tests {
         assert_eq!(config.max_memory, 50_000_000);
         assert_eq!(config.max_stack_depth, 1000);
     }
-    
+
     #[test]
     fn test_resource_monitor() {
         let monitor = ResourceMonitor::new();
         let config = SandboxConfig::default();
-        
+
         // Should pass with no usage
         assert!(monitor.check_limits(&config).is_ok());
-        
+
         // Simulate memory allocation
         *monitor.memory_allocated.lock().unwrap() = config.max_memory + 1;
         assert!(monitor.check_limits(&config).is_err());

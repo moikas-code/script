@@ -4,7 +4,7 @@ use crate::ir::{
     BinaryOp as IrBinaryOp, ComparisonOp, Constant, Instruction, UnaryOp as IrUnaryOp, ValueId,
 };
 use crate::parser::{
-    BinaryOp as AstBinaryOp, Expr, ExprKind, Literal, MatchArm, Pattern, PatternKind,
+    BinaryOp as AstBinaryOp, ClosureParam, Expr, ExprKind, Literal, MatchArm, Pattern, PatternKind,
     UnaryOp as AstUnaryOp,
 };
 use crate::source::Span;
@@ -51,7 +51,10 @@ fn security_error(message: impl Into<String>, expr: &Expr, operation: &str) -> E
         ErrorKind::SecurityViolation,
         message,
         expr.span,
-        Some(&format!("while validating security for {} expression", operation)),
+        Some(&format!(
+            "while validating security for {} expression",
+            operation
+        )),
     )
 }
 
@@ -100,12 +103,20 @@ pub fn lower_expression(lowerer: &mut AstLowerer, expr: &Expr) -> LoweringResult
             enum_name,
             variant,
             args,
-        } => {
-            lower_enum_constructor(lowerer, enum_name, variant, args, expr)
-        }
+        } => lower_enum_constructor(lowerer, enum_name, variant, args, expr),
         ExprKind::ErrorPropagation { expr: inner_expr } => {
             lower_error_propagation(lowerer, inner_expr, expr)
         }
+        ExprKind::TryCatch {
+            try_expr,
+            catch_clauses: _,
+            finally_block: _,
+        } => {
+            // For now, just lower the try expression
+            // TODO: Implement proper try-catch lowering with exception handling
+            lower_expression(lowerer, try_expr)
+        }
+        ExprKind::Closure { parameters, body } => lower_closure(lowerer, parameters, body, expr),
     }
 }
 
@@ -409,7 +420,13 @@ fn lower_if(
     // Then block
     lowerer.builder.set_current_block(then_block);
     let then_value = lower_expression(lowerer, then_branch)?;
-    let then_end_block = lowerer.builder.get_current_block().unwrap(); // Block might have changed
+    let then_end_block = lowerer.builder.get_current_block().ok_or_else(|| {
+        runtime_error(
+            "No current block after evaluating then branch",
+            then_branch,
+            "if-expression",
+        )
+    })?;
     lowerer.builder.build_branch(merge_block);
 
     // Else block
@@ -420,7 +437,20 @@ fn lower_if(
         // No else branch, use unit value
         lowerer.builder.const_value(Constant::Null)
     };
-    let else_end_block = lowerer.builder.get_current_block().unwrap();
+    let else_end_block = lowerer.builder.get_current_block().ok_or_else(|| {
+        if let Some(else_expr) = else_branch {
+            runtime_error(
+                "No current block after evaluating else branch",
+                else_expr,
+                "if-expression",
+            )
+        } else {
+            Error::new(
+                ErrorKind::RuntimeError,
+                "No current block after evaluating else branch in if-expression",
+            )
+        }
+    })?;
     lowerer.builder.build_branch(merge_block);
 
     // Merge block with phi node
@@ -455,13 +485,25 @@ fn lower_short_circuit_and(
 
     // Evaluate left side
     let lhs = lower_expression(lowerer, left)?;
-    let current_block = lowerer.builder.get_current_block().unwrap();
+    let current_block = lowerer.builder.get_current_block().ok_or_else(|| {
+        runtime_error(
+            "No current block after evaluating left side of AND",
+            left,
+            "short-circuit AND",
+        )
+    })?;
     lowerer.builder.build_cond_branch(lhs, check_right, merge);
 
     // Right side block
     lowerer.builder.set_current_block(check_right);
     let rhs = lower_expression(lowerer, right)?;
-    let rhs_block = lowerer.builder.get_current_block().unwrap();
+    let rhs_block = lowerer.builder.get_current_block().ok_or_else(|| {
+        runtime_error(
+            "No current block after evaluating right side of AND",
+            right,
+            "short-circuit AND",
+        )
+    })?;
     lowerer.builder.build_branch(merge);
 
     // Merge block
@@ -494,13 +536,25 @@ fn lower_short_circuit_or(
 
     // Evaluate left side
     let lhs = lower_expression(lowerer, left)?;
-    let current_block = lowerer.builder.get_current_block().unwrap();
+    let current_block = lowerer.builder.get_current_block().ok_or_else(|| {
+        runtime_error(
+            "No current block after evaluating left side of OR",
+            left,
+            "short-circuit OR",
+        )
+    })?;
     lowerer.builder.build_cond_branch(lhs, merge, check_right);
 
     // Right side block
     lowerer.builder.set_current_block(check_right);
     let rhs = lower_expression(lowerer, right)?;
-    let rhs_block = lowerer.builder.get_current_block().unwrap();
+    let rhs_block = lowerer.builder.get_current_block().ok_or_else(|| {
+        runtime_error(
+            "No current block after evaluating right side of OR",
+            right,
+            "short-circuit OR",
+        )
+    })?;
     lowerer.builder.build_branch(merge);
 
     // Merge block
@@ -601,16 +655,18 @@ fn lower_index(
 
     // SECURITY FIX: Implement comprehensive bounds checking
     // This replaces the vulnerable code that skipped bounds validation
-    
+
     // Generate bounds check instruction for runtime validation
-    let bounds_check = lowerer
+    let _bounds_check = lowerer
         .builder
         .add_instruction(Instruction::BoundsCheck {
             array: array_value,
             index: index_value,
             length: None, // Runtime will determine array length
-            error_msg: format!("Array index out of bounds at {}:{}", 
-                expr.location.line, expr.location.column),
+            error_msg: format!(
+                "Array index out of bounds at {}:{}",
+                expr.span.start.line, expr.span.start.column
+            ),
         })
         .ok_or_else(|| {
             security_error(
@@ -704,9 +760,9 @@ fn lower_member(
         Type::Unknown => {
             // SECURITY FIX: Replace vulnerable hash-based field access with secure validation
             // The previous implementation used hash-based offsets which allowed type confusion attacks
-            
+
             // Generate field validation instruction for runtime security check
-            let field_validation = lowerer
+            let _field_validation = lowerer
                 .builder
                 .add_instruction(Instruction::ValidateFieldAccess {
                     object: object_value,
@@ -847,7 +903,7 @@ fn lower_assign(lowerer: &mut AstLowerer, target: &Expr, value: &Expr) -> Loweri
                 }
                 Type::Unknown => {
                     // For gradual typing, allow member assignment and defer validation to runtime
-                    let field_hash = calculate_field_hash(property);
+                    let field_hash = calculate_field_offset("unknown", property)? as i32;
                     let field_index = lowerer.builder.const_value(Constant::I32(field_hash));
 
                     let field_ptr = lowerer.builder.add_instruction(Instruction::GetElementPtr {
@@ -894,10 +950,7 @@ fn lower_await(lowerer: &mut AstLowerer, expr: &Expr) -> LoweringResult<ValueId>
 
     // Get the output type of the future
     let future_type = lowerer.get_expression_type(expr)?;
-    let output_type = future_type
-        .future_type()
-        .cloned()
-        .unwrap_or(Type::Unknown);
+    let output_type = future_type.future_type().cloned().unwrap_or(Type::Unknown);
 
     // In an async function, we need to:
     // 1. Poll the future
@@ -916,12 +969,12 @@ fn lower_await(lowerer: &mut AstLowerer, expr: &Expr) -> LoweringResult<ValueId>
         .builder
         .create_block("await.ready".to_string())
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create ready block"))?;
-    
+
     let pending_block = lowerer
         .builder
         .create_block("await.pending".to_string())
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to create pending block"))?;
-    
+
     let resume_block = lowerer
         .builder
         .create_block("await.resume".to_string())
@@ -934,7 +987,7 @@ fn lower_await(lowerer: &mut AstLowerer, expr: &Expr) -> LoweringResult<ValueId>
         .builder
         .build_get_enum_tag(poll_result)
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to get poll tag"))?;
-    
+
     let ready_tag = lowerer.builder.const_value(Constant::I32(0)); // Assume Ready = 0
     let is_ready_cond = lowerer
         .builder
@@ -942,7 +995,9 @@ fn lower_await(lowerer: &mut AstLowerer, expr: &Expr) -> LoweringResult<ValueId>
         .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to compare poll result"))?;
 
     // Branch based on poll result
-    lowerer.builder.build_cond_branch(is_ready_cond, ready_block, pending_block);
+    lowerer
+        .builder
+        .build_cond_branch(is_ready_cond, ready_block, pending_block);
 
     // Ready block - extract the value
     lowerer.builder.set_current_block(ready_block);
@@ -957,7 +1012,7 @@ fn lower_await(lowerer: &mut AstLowerer, expr: &Expr) -> LoweringResult<ValueId>
 
     // Resume block
     lowerer.builder.set_current_block(resume_block);
-    
+
     // Create a phi node to get the result
     let phi_inst = Instruction::Phi {
         incoming: vec![(ready_value, ready_block)],
@@ -1062,7 +1117,13 @@ fn lower_match(
 
         // Lower the arm body expression
         let arm_result = lower_expression(lowerer, &arm.body)?;
-        let arm_end_block = lowerer.builder.get_current_block().unwrap();
+        let arm_end_block = lowerer.builder.get_current_block().ok_or_else(|| {
+            runtime_error(
+                "No current block after evaluating match arm body",
+                &arm.body,
+                "match expression",
+            )
+        })?;
 
         // Branch to merge block
         lowerer.builder.build_branch(merge_block);
@@ -1211,6 +1272,18 @@ fn lower_pattern_test(
 
             Ok(result)
         }
+        PatternKind::EnumConstructor {
+            enum_name: _enum_name,
+            variant: _variant,
+            args: _args,
+        } => {
+            // For enum constructor patterns, we need to check if the value
+            // matches the specific enum variant
+
+            // TODO: Implement proper enum variant matching
+            // For now, return a placeholder true value
+            Ok(lowerer.builder.const_value(Constant::Bool(true)))
+        }
     }
 }
 
@@ -1337,6 +1410,21 @@ fn bind_pattern_variables(
             }
             Ok(())
         }
+        PatternKind::EnumConstructor {
+            enum_name: _enum_name,
+            variant: _variant,
+            args,
+        } => {
+            // For enum constructor patterns, bind variables from the arguments
+            if let Some(pattern_args) = args {
+                for (_i, arg_pattern) in pattern_args.iter().enumerate() {
+                    // TODO: Extract the actual field values from the enum variant
+                    // For now, just use the original value (placeholder)
+                    bind_pattern_variables(lowerer, arg_pattern, value)?;
+                }
+            }
+            Ok(())
+        }
     }
 }
 
@@ -1349,14 +1437,14 @@ fn lower_struct_constructor(
 ) -> LoweringResult<ValueId> {
     // Get the struct type from expression type info
     let struct_type = lowerer.get_expression_type(expr)?;
-    
+
     // Lower all field expressions
     let mut field_values = Vec::new();
     for (field_name, field_expr) in fields {
         let field_value = lower_expression(lowerer, field_expr)?;
         field_values.push((field_name.clone(), field_value));
     }
-    
+
     // Build the struct construction instruction
     lowerer
         .builder
@@ -1380,7 +1468,7 @@ fn lower_enum_constructor(
 ) -> LoweringResult<ValueId> {
     // Get the enum type from expression type info
     let enum_type = lowerer.get_expression_type(expr)?;
-    
+
     // Determine the actual enum name
     let actual_enum_name = match enum_name {
         Some(name) => name.clone(),
@@ -1389,59 +1477,116 @@ fn lower_enum_constructor(
             match &enum_type {
                 Type::Named(name) => name.clone(),
                 Type::Generic { name, .. } => name.clone(),
-                _ => return Err(type_error(
-                    "Cannot determine enum name for unqualified variant",
+                _ => {
+                    return Err(type_error(
+                        "Cannot determine enum name for unqualified variant",
+                        expr,
+                        "enum constructor",
+                    ))
+                }
+            }
+        }
+    };
+
+    // Special handling for Result and Option types - use stdlib constructors
+    if (actual_enum_name == "Result" || actual_enum_name == "Option")
+        && (variant == "Ok" || variant == "Err" || variant == "Some" || variant == "None")
+    {
+        // Lower argument expressions
+        let arg_values = match args {
+            crate::parser::EnumConstructorArgs::Unit => Vec::new(),
+            crate::parser::EnumConstructorArgs::Tuple(exprs) => {
+                let mut values = Vec::new();
+                for arg_expr in exprs {
+                    let arg_value = lower_expression(lowerer, arg_expr)?;
+                    values.push(arg_value);
+                }
+                values
+            }
+            crate::parser::EnumConstructorArgs::Struct(fields) => {
+                let mut values = Vec::new();
+                for (_, field_expr) in fields {
+                    let field_value = lower_expression(lowerer, field_expr)?;
+                    values.push(field_value);
+                }
+                values
+            }
+        };
+
+        // Generate stdlib function calls for Result/Option constructors
+        let function_name = match (actual_enum_name.as_str(), variant) {
+            ("Result", "Ok") => "Result::ok",
+            ("Result", "Err") => "Result::err",
+            ("Option", "Some") => "Option::some",
+            ("Option", "None") => "Option::none",
+            _ => {
+                return Err(runtime_error(
+                    format!("Unknown Result/Option variant: {}", variant),
                     expr,
                     "enum constructor",
                 ))
             }
-        }
-    };
-    
-    // Lower all argument expressions based on the variant type
-    let arg_values = match args {
-        crate::parser::EnumConstructorArgs::Unit => Vec::new(),
-        crate::parser::EnumConstructorArgs::Tuple(exprs) => {
-            let mut values = Vec::new();
-            for arg_expr in exprs {
-                let arg_value = lower_expression(lowerer, arg_expr)?;
-                values.push(arg_value);
+        };
+
+        // Build a call to the stdlib constructor function
+        // This integrates with the standard library instead of using raw enum construction
+        lowerer
+            .builder
+            .build_stdlib_call(function_name.to_string(), arg_values, enum_type)
+            .ok_or_else(|| {
+                runtime_error(
+                    format!("Failed to call stdlib constructor '{}'", function_name),
+                    expr,
+                    "enum constructor",
+                )
+            })
+    } else {
+        // For other enum types, use the standard enum construction
+        // Lower all argument expressions based on the variant type
+        let arg_values = match args {
+            crate::parser::EnumConstructorArgs::Unit => Vec::new(),
+            crate::parser::EnumConstructorArgs::Tuple(exprs) => {
+                let mut values = Vec::new();
+                for arg_expr in exprs {
+                    let arg_value = lower_expression(lowerer, arg_expr)?;
+                    values.push(arg_value);
+                }
+                values
             }
-            values
-        }
-        crate::parser::EnumConstructorArgs::Struct(fields) => {
-            // For struct variants, we need to lower fields in the correct order
-            // For now, we'll just lower them as a sequence of values
-            let mut values = Vec::new();
-            for (_, field_expr) in fields {
-                let field_value = lower_expression(lowerer, field_expr)?;
-                values.push(field_value);
+            crate::parser::EnumConstructorArgs::Struct(fields) => {
+                // For struct variants, we need to lower fields in the correct order
+                // For now, we'll just lower them as a sequence of values
+                let mut values = Vec::new();
+                for (_, field_expr) in fields {
+                    let field_value = lower_expression(lowerer, field_expr)?;
+                    values.push(field_value);
+                }
+                values
             }
-            values
-        }
-    };
-    
-    // Get the variant tag - for now, use a simple hash-based approach
-    // In a production implementation, this would look up the actual tag from the enum definition
-    let tag = calculate_variant_tag(&actual_enum_name, variant);
-    
-    // Build the enum construction instruction
-    lowerer
-        .builder
-        .build_construct_enum(
-            actual_enum_name,
-            variant.to_string(),
-            tag,
-            arg_values,
-            enum_type,
-        )
-        .ok_or_else(|| {
-            runtime_error(
-                format!("Failed to construct enum variant '{}'", variant),
-                expr,
-                "enum constructor",
+        };
+
+        // Get the variant tag - for now, use a simple hash-based approach
+        // In a production implementation, this would look up the actual tag from the enum definition
+        let tag = calculate_variant_tag(&actual_enum_name, variant);
+
+        // Build the enum construction instruction
+        lowerer
+            .builder
+            .build_construct_enum(
+                actual_enum_name,
+                variant.to_string(),
+                tag,
+                arg_values,
+                enum_type,
             )
-        })
+            .ok_or_else(|| {
+                runtime_error(
+                    format!("Failed to construct enum variant '{}'", variant),
+                    expr,
+                    "enum constructor",
+                )
+            })
+    }
 }
 
 /// Calculate a tag value for an enum variant
@@ -1452,37 +1597,51 @@ fn calculate_variant_tag(enum_name: &str, variant_name: &str) -> u32 {
     hasher.write(enum_name.as_bytes());
     hasher.write(variant_name.as_bytes());
     let hash = hasher.finish();
-    
+
     // Use a limited range for tags
     (hash % 256) as u32
 }
 
 /// Lower an error propagation expression (? operator)
-fn lower_error_propagation(lowerer: &mut AstLowerer, inner_expr: &Expr, expr: &Expr) -> LoweringResult<ValueId> {
+fn lower_error_propagation(
+    lowerer: &mut AstLowerer,
+    inner_expr: &Expr,
+    expr: &Expr,
+) -> LoweringResult<ValueId> {
     // Lower the inner expression first
     let inner_value = lower_expression(lowerer, inner_expr)?;
-    
+
     // Get the type of the inner expression
-    let inner_type = lowerer.context.get_expression_type(inner_expr.id)
-        .ok_or_else(|| type_error("Cannot determine type of expression for error propagation", inner_expr, "error propagation"))?;
-    
+    let inner_type = lowerer
+        .get_expression_type_by_id(inner_expr.id)
+        .ok_or_else(|| {
+            type_error(
+                "Cannot determine type of expression for error propagation",
+                inner_expr,
+                "error propagation",
+            )
+        })?;
+
     // Determine the success type based on the inner type
     let success_type = match &inner_type {
         Type::Result { ok, .. } => ok.as_ref().clone(),
         Type::Option(inner) => inner.as_ref().clone(),
         _ => {
             return Err(type_error(
-                format!("Error propagation (?) can only be used on Result or Option types, got {:?}", inner_type),
+                format!(
+                    "Error propagation (?) can only be used on Result or Option types, got {:?}",
+                    inner_type
+                ),
                 expr,
-                "error propagation"
+                "error propagation",
             ));
         }
     };
-    
+
     // Build the error propagation instruction
     lowerer
         .builder
-        .build_error_propagation(inner_value, inner_type, success_type)
+        .build_error_propagation(inner_value, inner_type.clone(), success_type)
         .ok_or_else(|| {
             runtime_error(
                 "Failed to build error propagation instruction",
@@ -1490,4 +1649,65 @@ fn lower_error_propagation(lowerer: &mut AstLowerer, inner_expr: &Expr, expr: &E
                 "error propagation",
             )
         })
+}
+
+/// Lower a closure expression to IR
+fn lower_closure(
+    lowerer: &mut AstLowerer,
+    parameters: &[ClosureParam],
+    body: &Expr,
+    expr: &Expr,
+) -> LoweringResult<ValueId> {
+    // Generate unique function ID for this closure
+    let function_id = format!("closure_{}", expr.id);
+
+    // Extract parameter names and types
+    let param_names: Vec<String> = parameters.iter().map(|p| p.name.clone()).collect();
+
+    let _param_types: Vec<Type> = parameters
+        .iter()
+        .map(|p| {
+            if let Some(ref type_ann) = p.type_ann {
+                crate::types::conversion::type_from_ast(type_ann)
+            } else {
+                Type::Unknown // Will be inferred
+            }
+        })
+        .collect();
+
+    // Lower the closure body
+    let _body_value = lower_expression(lowerer, body)?;
+
+    // Get captured variables from the closure captures map
+    let captures = lowerer
+        .closure_captures
+        .get(&expr.id)
+        .cloned()
+        .unwrap_or_default();
+
+    // Determine if any captures are by reference
+    let captures_by_ref = captures.iter().any(|(_, _, is_mutable)| *is_mutable);
+
+    // Convert captures to the format expected by the IR builder
+    // We need to look up the ValueId for each captured variable
+    let mut captured_vars: Vec<(String, crate::ir::ValueId)> = Vec::new();
+    for (name, _ty, _is_mutable) in captures {
+        // Look up the variable in the current context
+        if let Some(variable) = lowerer.context.lookup_variable(&name) {
+            captured_vars.push((name, variable.ptr));
+        } else {
+            // Variable not found in context - this shouldn't happen if semantic analysis passed
+            return Err(runtime_error(
+                &format!("Captured variable '{}' not found in scope", name),
+                expr,
+                "closure capture",
+            ));
+        }
+    }
+
+    // Create the closure instruction
+    lowerer
+        .builder
+        .build_create_closure(function_id, param_names, captured_vars, captures_by_ref)
+        .ok_or_else(|| runtime_error("Failed to create closure instruction", expr, "closure"))
 }

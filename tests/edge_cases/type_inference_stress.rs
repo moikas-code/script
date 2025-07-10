@@ -1,5 +1,5 @@
 //! Stress tests for generic type inference
-//! 
+//!
 //! These tests challenge the type inference system with complex
 //! scenarios including partial annotations, conflicting constraints,
 //! and intricate inference chains.
@@ -56,10 +56,10 @@ fn test_partial_type_annotation_complex() {
             );
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should infer all the wildcard types correctly
     assert!(count_monomorphized_instances(&program, "Container") >= 4);
     assert!(count_monomorphized_instances(&program, "Box") >= 1);
@@ -80,13 +80,16 @@ fn test_conflicting_constraints() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // This should produce a type error
     match program {
         Ok(ref prog) => {
-            assert!(!prog.errors.is_empty(), "Expected type error for conflicting constraints");
+            assert!(
+                !prog.errors.is_empty(),
+                "Expected type error for conflicting constraints"
+            );
         }
         Err(_) => {
             // Expected to fail
@@ -124,9 +127,9 @@ fn test_inference_with_trait_bounds() {
             let result = compare_and_clone(10, 20);
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Trait bounds might not be fully implemented
     if let Ok(ref prog) = program {
         assert!(count_monomorphized_instances(prog, "Constrained") >= 1);
@@ -167,9 +170,9 @@ fn test_cross_function_type_inference() {
             let w5 = transform(w3, to_string);   // Wrapper<string>
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should handle inference across function boundaries
     assert!(count_monomorphized_instances(&program, "Wrapper") >= 3);
 }
@@ -209,9 +212,9 @@ fn test_inference_with_method_chains() {
             let c2 = c1.map(|s| s.len());  // Would need closure support
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     if let Ok(ref prog) = program {
         // Should track type through method chain
         let container_instances = count_monomorphized_instances(prog, "Container");
@@ -254,9 +257,9 @@ fn test_complex_return_type_inference() {
             let r3: Result<Pair<i32, string>, string> = complex_return();
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should handle complex return types
     assert!(count_monomorphized_instances(&program, "Pair") >= 3);
     assert!(count_monomorphized_instances(&program, "Result") >= 3);
@@ -284,10 +287,10 @@ fn test_inference_with_array_literals() {
             let v4: Vec<f32> = vec_from_array([1.0, 2.0, 3.0]);
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should infer Vec<i32>, Vec<string>, Vec<bool>, Vec<f32>
     assert_eq!(count_monomorphized_instances(&program, "Vec"), 4);
 }
@@ -317,10 +320,10 @@ fn test_bidirectional_type_inference() {
             let used = expects_box_i32(b2);
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should handle bidirectional inference
     assert!(count_monomorphized_instances(&program, "Box") >= 1);
 }
@@ -349,9 +352,9 @@ fn test_inference_with_literals() {
             let n7 = Numeric { value: "hello" };     // string
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should handle different literal types
     let numeric_instances = count_monomorphized_instances(&program, "Numeric");
     assert!(numeric_instances >= 4); // i32, f32, bool, string
@@ -389,9 +392,9 @@ fn test_recursive_type_inference() {
             );
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should infer List<i32> throughout the recursive structure
     assert!(count_monomorphized_instances(&program, "List") >= 1);
     assert!(count_monomorphized_instances(&program, "Box") >= 1);

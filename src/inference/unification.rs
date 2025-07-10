@@ -1,3 +1,4 @@
+use super::optimized_substitution::{optimized_occurs_check, OptimizedSubstitution};
 use super::substitution::{occurs_check, Substitution};
 use crate::error::{Error, ErrorKind};
 use crate::source::Span;
@@ -105,18 +106,21 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
                 )
                 .with_location(span.start));
             }
-            
+
             if a1.len() != a2.len() {
                 return Err(Error::new(
                     ErrorKind::TypeError,
                     format!(
                         "Generic type argument count mismatch: {} has {} arguments, {} has {}",
-                        n1, a1.len(), n2, a2.len()
+                        n1,
+                        a1.len(),
+                        n2,
+                        a2.len()
                     ),
                 )
                 .with_location(span.start));
             }
-            
+
             let mut subst = Substitution::new();
             for (arg1, arg2) in a1.iter().zip(a2.iter()) {
                 let arg_subst = unify(arg1, arg2, span)?;
@@ -124,7 +128,7 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
             }
             Ok(subst)
         }
-        
+
         // Tuple types - unify if all elements unify
         (Type::Tuple(elems1), Type::Tuple(elems2)) => {
             if elems1.len() != elems2.len() {
@@ -132,12 +136,13 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
                     ErrorKind::TypeError,
                     format!(
                         "Tuple size mismatch: ({}) != ({})",
-                        elems1.len(), elems2.len()
+                        elems1.len(),
+                        elems2.len()
                     ),
                 )
                 .with_location(span.start));
             }
-            
+
             let mut subst = Substitution::new();
             for (elem1, elem2) in elems1.iter().zip(elems2.iter()) {
                 let elem_subst = unify(elem1, elem2, span)?;
@@ -145,9 +150,18 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
             }
             Ok(subst)
         }
-        
+
         // Reference types - unify if mutability matches and inner types unify
-        (Type::Reference { mutable: m1, inner: i1 }, Type::Reference { mutable: m2, inner: i2 }) => {
+        (
+            Type::Reference {
+                mutable: m1,
+                inner: i1,
+            },
+            Type::Reference {
+                mutable: m2,
+                inner: i2,
+            },
+        ) => {
             if m1 != m2 {
                 return Err(Error::new(
                     ErrorKind::TypeError,
@@ -161,7 +175,7 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
             }
             unify(i1, i2, span)
         }
-        
+
         // Option types - unify inner types
         (Type::Option(inner1), Type::Option(inner2)) => unify(inner1, inner2, span),
 
@@ -420,14 +434,105 @@ mod tests {
             name: "Box".to_string(),
             args: vec![Type::Option(Box::new(Type::I32))],
         };
-        
+
         // Box<Option<T0>>
         let nested2 = Type::Generic {
             name: "Box".to_string(),
             args: vec![Type::Option(Box::new(Type::TypeVar(0)))],
         };
-        
+
         let result = unify(&nested2, &nested1, span).unwrap();
         assert_eq!(result.get(0), Some(&Type::I32));
+    }
+}
+
+/// Optimized unify function that returns OptimizedSubstitution for better performance
+pub fn unify_optimized(t1: &Type, t2: &Type, span: Span) -> Result<OptimizedSubstitution, Error> {
+    match (t1, t2) {
+        // Two type variables
+        (Type::TypeVar(id1), Type::TypeVar(id2)) if id1 == id2 => Ok(OptimizedSubstitution::new()),
+
+        // Type variable on the left
+        (Type::TypeVar(id), ty) => {
+            if optimized_occurs_check(*id, ty) {
+                Err(Error::new(
+                    ErrorKind::TypeError,
+                    format!("Infinite type: T{} cannot be unified with {}", id, ty),
+                )
+                .with_location(span.start))
+            } else {
+                Ok(OptimizedSubstitution::singleton(*id, ty.clone()))
+            }
+        }
+
+        // Type variable on the right
+        (ty, Type::TypeVar(id)) => {
+            if optimized_occurs_check(*id, ty) {
+                Err(Error::new(
+                    ErrorKind::TypeError,
+                    format!("Infinite type: T{} cannot be unified with {}", id, ty),
+                )
+                .with_location(span.start))
+            } else {
+                Ok(OptimizedSubstitution::singleton(*id, ty.clone()))
+            }
+        }
+
+        // Unknown type (gradual typing) - unifies with anything
+        (Type::Unknown, _) | (_, Type::Unknown) => Ok(OptimizedSubstitution::new()),
+
+        // Basic types must match exactly
+        (Type::I32, Type::I32)
+        | (Type::F32, Type::F32)
+        | (Type::Bool, Type::Bool)
+        | (Type::String, Type::String) => Ok(OptimizedSubstitution::new()),
+
+        // Array types - unify element types
+        (Type::Array(elem1), Type::Array(elem2)) => unify_optimized(elem1, elem2, span),
+
+        // Function types - unify parameters and return type
+        (
+            Type::Function {
+                params: p1,
+                ret: r1,
+            },
+            Type::Function {
+                params: p2,
+                ret: r2,
+            },
+        ) => {
+            if p1.len() != p2.len() {
+                return Err(Error::new(
+                    ErrorKind::TypeError,
+                    format!(
+                        "Function type mismatch: expected {} parameters, found {}",
+                        p1.len(),
+                        p2.len()
+                    ),
+                )
+                .with_location(span.start));
+            }
+
+            let mut subst = OptimizedSubstitution::new();
+
+            // Unify each parameter
+            for (param1, param2) in p1.iter().zip(p2.iter()) {
+                let param_subst = unify_optimized(param1, param2, span)?;
+                subst.compose(param_subst);
+            }
+
+            // Unify return types
+            let ret_subst = unify_optimized(r1, r2, span)?;
+            subst.compose(ret_subst);
+
+            Ok(subst)
+        }
+
+        // All other cases are unification failures
+        _ => Err(Error::new(
+            ErrorKind::TypeError,
+            format!("Cannot unify {} with {}", t1, t2),
+        )
+        .with_location(span.start)),
     }
 }

@@ -6,7 +6,7 @@
 use script::error::Error;
 use script::lexer::Lexer;
 use script::parser::{Parser, Program};
-use script::semantic::{SemanticAnalyzer, GenericInstantiation};
+use script::semantic::{GenericInstantiation, SemanticAnalyzer};
 use script::types::Type;
 use std::collections::HashMap;
 
@@ -31,26 +31,26 @@ pub fn compile_generic_program(source: &str) -> Result<AnalyzedProgram, Error> {
     // Lex the source
     let lexer = Lexer::new(source);
     let (tokens, lex_errors) = lexer.scan_tokens();
-    
+
     if !lex_errors.is_empty() {
         return Err(lex_errors[0].clone());
     }
-    
+
     // Parse the tokens
     let mut parser = Parser::new(tokens);
     let ast = parser.parse()?;
-    
+
     // Analyze the program
     let mut analyzer = SemanticAnalyzer::new();
     let result = analyzer.analyze_program(&ast);
-    
+
     // Collect any errors but don't fail immediately
     let errors = if result.is_err() {
         vec![result.unwrap_err()]
     } else {
         analyzer.errors().to_vec()
     };
-    
+
     Ok(AnalyzedProgram {
         ast,
         analyzer,
@@ -60,7 +60,8 @@ pub fn compile_generic_program(source: &str) -> Result<AnalyzedProgram, Error> {
 
 /// Extract monomorphized types from the semantic analyzer
 pub fn get_monomorphized_types(analyzer: &SemanticAnalyzer) -> Vec<MonomorphizedType> {
-    analyzer.generic_instantiations()
+    analyzer
+        .generic_instantiations()
         .iter()
         .map(|inst| {
             let specialized_name = generate_specialized_name(&inst.function_name, &inst.type_args);
@@ -78,13 +79,13 @@ fn generate_specialized_name(base_name: &str, type_args: &[Type]) -> String {
     if type_args.is_empty() {
         return base_name.to_string();
     }
-    
+
     let type_suffix = type_args
         .iter()
         .map(type_to_mangle_string)
         .collect::<Vec<_>>()
         .join("_");
-    
+
     format!("{}_{}", base_name, type_suffix)
 }
 
@@ -97,7 +98,11 @@ fn type_to_mangle_string(ty: &Type) -> String {
         Type::String => "string".to_string(),
         Type::Array(elem) => format!("array_{}", type_to_mangle_string(elem)),
         Type::Option(inner) => format!("option_{}", type_to_mangle_string(inner)),
-        Type::Result { ok, err } => format!("result_{}_{}", type_to_mangle_string(ok), type_to_mangle_string(err)),
+        Type::Result { ok, err } => format!(
+            "result_{}_{}",
+            type_to_mangle_string(ok),
+            type_to_mangle_string(err)
+        ),
         Type::Named(name) => name.replace("::", "_"),
         _ => "unknown".to_string(),
     }
@@ -110,33 +115,38 @@ pub fn assert_type_instantiated(program: &AnalyzedProgram, expected: &str) -> bo
 }
 
 /// Helper to create a generic struct program
-pub fn create_generic_struct_program(name: &str, params: &[&str], fields: &[(&str, &str)]) -> String {
+pub fn create_generic_struct_program(
+    name: &str,
+    params: &[&str],
+    fields: &[(&str, &str)],
+) -> String {
     let params_str = if params.is_empty() {
         String::new()
     } else {
         format!("<{}>", params.join(", "))
     };
-    
+
     let fields_str = fields
         .iter()
         .map(|(field_name, field_type)| format!("    {}: {}", field_name, field_type))
         .collect::<Vec<_>>()
         .join(",\n");
-    
-    format!(
-        "struct {}{} {{\n{}\n}}",
-        name, params_str, fields_str
-    )
+
+    format!("struct {}{} {{\n{}\n}}", name, params_str, fields_str)
 }
 
 /// Helper to create a generic enum program
-pub fn create_generic_enum_program(name: &str, params: &[&str], variants: &[(&str, Vec<&str>)]) -> String {
+pub fn create_generic_enum_program(
+    name: &str,
+    params: &[&str],
+    variants: &[(&str, Vec<&str>)],
+) -> String {
     let params_str = if params.is_empty() {
         String::new()
     } else {
         format!("<{}>", params.join(", "))
     };
-    
+
     let variants_str = variants
         .iter()
         .map(|(variant_name, args)| {
@@ -148,11 +158,8 @@ pub fn create_generic_enum_program(name: &str, params: &[&str], variants: &[(&st
         })
         .collect::<Vec<_>>()
         .join(",\n");
-    
-    format!(
-        "enum {}{} {{\n{}\n}}",
-        name, params_str, variants_str
-    )
+
+    format!("enum {}{} {{\n{}\n}}", name, params_str, variants_str)
 }
 
 /// Create a test program with generic struct usage
@@ -163,11 +170,8 @@ pub fn create_struct_usage_program(struct_def: &str, constructor_exprs: &[&str])
         .map(|(i, expr)| format!("    let var{} = {}", i, expr))
         .collect::<Vec<_>>()
         .join("\n");
-    
-    format!(
-        "{}\n\nfn main() {{\n{}\n}}",
-        struct_def, usage
-    )
+
+    format!("{}\n\nfn main() {{\n{}\n}}", struct_def, usage)
 }
 
 /// Create a test program with generic enum usage
@@ -178,11 +182,8 @@ pub fn create_enum_usage_program(enum_def: &str, constructor_exprs: &[&str]) -> 
         .map(|(i, expr)| format!("    let var{} = {}", i, expr))
         .collect::<Vec<_>>()
         .join("\n");
-    
-    format!(
-        "{}\n\nfn main() {{\n{}\n}}",
-        enum_def, usage
-    )
+
+    format!("{}\n\nfn main() {{\n{}\n}}", enum_def, usage)
 }
 
 /// Assert that a program compiles without errors
@@ -191,7 +192,8 @@ pub fn assert_no_errors(program: &AnalyzedProgram) {
         panic!(
             "Expected no errors, but found {}:\n{}",
             program.errors.len(),
-            program.errors
+            program
+                .errors
                 .iter()
                 .map(|e| format!("  - {}", e))
                 .collect::<Vec<_>>()
@@ -202,10 +204,11 @@ pub fn assert_no_errors(program: &AnalyzedProgram) {
 
 /// Assert that a program has specific error
 pub fn assert_has_error_containing(program: &AnalyzedProgram, expected_text: &str) {
-    let has_error = program.errors
+    let has_error = program
+        .errors
         .iter()
         .any(|e| e.to_string().contains(expected_text));
-    
+
     if !has_error {
         panic!(
             "Expected error containing '{}', but found:\n{}",
@@ -213,7 +216,8 @@ pub fn assert_has_error_containing(program: &AnalyzedProgram, expected_text: &st
             if program.errors.is_empty() {
                 "  No errors".to_string()
             } else {
-                program.errors
+                program
+                    .errors
                     .iter()
                     .map(|e| format!("  - {}", e))
                     .collect::<Vec<_>>()
@@ -225,7 +229,9 @@ pub fn assert_has_error_containing(program: &AnalyzedProgram, expected_text: &st
 
 /// Count the number of monomorphized instances for a given generic type
 pub fn count_monomorphized_instances(program: &AnalyzedProgram, generic_name: &str) -> usize {
-    program.analyzer.generic_instantiations()
+    program
+        .analyzer
+        .generic_instantiations()
         .iter()
         .filter(|inst| inst.function_name.starts_with(generic_name))
         .count()
@@ -233,7 +239,9 @@ pub fn count_monomorphized_instances(program: &AnalyzedProgram, generic_name: &s
 
 /// Get all type arguments used for a specific generic type
 pub fn get_type_args_for_generic(program: &AnalyzedProgram, generic_name: &str) -> Vec<Vec<Type>> {
-    program.analyzer.generic_instantiations()
+    program
+        .analyzer
+        .generic_instantiations()
         .iter()
         .filter(|inst| inst.function_name.starts_with(generic_name))
         .map(|inst| inst.type_args.clone())
@@ -243,27 +251,20 @@ pub fn get_type_args_for_generic(program: &AnalyzedProgram, generic_name: &str) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_create_generic_struct() {
-        let struct_def = create_generic_struct_program(
-            "Box",
-            &["T"],
-            &[("value", "T")]
-        );
+        let struct_def = create_generic_struct_program("Box", &["T"], &[("value", "T")]);
         assert_eq!(struct_def, "struct Box<T> {\n    value: T\n}");
     }
-    
+
     #[test]
     fn test_create_generic_enum() {
-        let enum_def = create_generic_enum_program(
-            "Option",
-            &["T"],
-            &[("Some", vec!["T"]), ("None", vec![])]
-        );
+        let enum_def =
+            create_generic_enum_program("Option", &["T"], &[("Some", vec!["T"]), ("None", vec![])]);
         assert_eq!(enum_def, "enum Option<T> {\n    Some(T),\n    None\n}");
     }
-    
+
     #[test]
     fn test_type_mangling() {
         assert_eq!(type_to_mangle_string(&Type::I32), "i32");

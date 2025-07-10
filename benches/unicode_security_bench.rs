@@ -3,7 +3,7 @@ use script::lexer::{Lexer, UnicodeSecurityConfig, UnicodeSecurityLevel};
 
 fn lexer_ascii_benchmark(c: &mut Criterion) {
     let input = "let ascii_identifier = 42; fn another_function() { return true; }";
-    
+
     c.bench_function("lexer_ascii_only", |b| {
         b.iter(|| {
             let lexer = Lexer::new(black_box(input)).unwrap();
@@ -15,7 +15,7 @@ fn lexer_ascii_benchmark(c: &mut Criterion) {
 
 fn lexer_unicode_benchmark(c: &mut Criterion) {
     let input = "let café = 42; fn naïve_function() { return true; }";
-    
+
     c.bench_function("lexer_unicode_normalization", |b| {
         b.iter(|| {
             let config = UnicodeSecurityConfig {
@@ -32,7 +32,7 @@ fn lexer_unicode_benchmark(c: &mut Criterion) {
 
 fn lexer_confusable_detection_benchmark(c: &mut Criterion) {
     let input = "let α = 42; let а = 43; let a = 44;"; // Greek, Cyrillic, Latin 'a'
-    
+
     c.bench_function("lexer_confusable_detection", |b| {
         b.iter(|| {
             let config = UnicodeSecurityConfig {
@@ -64,7 +64,7 @@ fn lexer_mixed_content_benchmark(c: &mut Criterion) {
         let а = 2;  // Cyrillic a
         let a = 3;  // Latin a
     "#;
-    
+
     c.bench_function("lexer_mixed_content", |b| {
         b.iter(|| {
             let config = UnicodeSecurityConfig {
@@ -81,9 +81,9 @@ fn lexer_mixed_content_benchmark(c: &mut Criterion) {
 
 fn lexer_security_levels_benchmark(c: &mut Criterion) {
     let input = "let α = 42; let а = 43; let a = 44;"; // Greek, Cyrillic, Latin 'a'
-    
+
     let mut group = c.benchmark_group("lexer_security_levels");
-    
+
     group.bench_function("strict", |b| {
         b.iter(|| {
             let config = UnicodeSecurityConfig {
@@ -96,7 +96,7 @@ fn lexer_security_levels_benchmark(c: &mut Criterion) {
             black_box(tokens)
         })
     });
-    
+
     group.bench_function("warning", |b| {
         b.iter(|| {
             let config = UnicodeSecurityConfig {
@@ -109,7 +109,7 @@ fn lexer_security_levels_benchmark(c: &mut Criterion) {
             black_box(tokens)
         })
     });
-    
+
     group.bench_function("permissive", |b| {
         b.iter(|| {
             let config = UnicodeSecurityConfig {
@@ -122,14 +122,14 @@ fn lexer_security_levels_benchmark(c: &mut Criterion) {
             black_box(tokens)
         })
     });
-    
+
     group.finish();
 }
 
 fn lexer_caching_benchmark(c: &mut Criterion) {
     // Test with repeated identifiers to verify caching effectiveness
     let input = "let café = 1; let café = 2; let café = 3; let café = 4; let café = 5;";
-    
+
     c.bench_function("lexer_unicode_caching", |b| {
         b.iter(|| {
             let config = UnicodeSecurityConfig {
@@ -153,7 +153,7 @@ fn lexer_large_file_benchmark(c: &mut Criterion) {
             i, i, i, i, i
         ));
     }
-    
+
     c.bench_function("lexer_large_unicode_file", |b| {
         b.iter(|| {
             let config = UnicodeSecurityConfig {

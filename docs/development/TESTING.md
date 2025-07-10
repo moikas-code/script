@@ -226,7 +226,7 @@ fn test_lexer_reports_unterminated_string() {
     let (tokens, errors) = lexer.scan_tokens();
     
     assert_eq!(errors.len(), 1);
-    assert!(matches!(errors[0], LexError::UnterminatedString { .. }));
+    assert!(matches!(errors[0], LexerError::UnterminatedString { .. }));
 }
 
 #[test]

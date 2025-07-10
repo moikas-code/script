@@ -1,10 +1,10 @@
 //! Resource limit enforcement for Script language compiler
-//! 
+//!
 //! This module provides resource limit enforcement to prevent denial-of-service
 //! attacks through excessive resource consumption during compilation.
 
-use super::{SecurityError, SecurityMetrics, ResourceType};
-use std::sync::atomic::{AtomicUsize, AtomicU32, Ordering};
+use super::{ResourceType, SecurityError, SecurityMetrics};
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 /// Resource limit configuration
@@ -28,6 +28,12 @@ pub struct ResourceLimitConfig {
     pub enable_limits: bool,
     /// Enable resource monitoring
     pub enable_monitoring: bool,
+    /// Maximum number of async tasks
+    pub max_async_tasks: usize,
+    /// Maximum async task memory usage in bytes
+    pub max_async_task_memory_bytes: usize,
+    /// Maximum FFI pointer lifetime in seconds
+    pub max_ffi_pointer_lifetime_secs: u64,
 }
 
 impl Default for ResourceLimitConfig {
@@ -42,6 +48,9 @@ impl Default for ResourceLimitConfig {
             max_memory_usage_bytes: 2 * 1024 * 1024 * 1024, // 2GB
             enable_limits: true,
             enable_monitoring: true,
+            max_async_tasks: 1_000,
+            max_async_task_memory_bytes: 100 * 1024 * 1024, // 100MB
+            max_ffi_pointer_lifetime_secs: 300,             // 5 minutes
         }
     }
 }
@@ -63,6 +72,12 @@ pub struct ResourceUsage {
     pub peak_memory_usage: AtomicUsize,
     /// Compilation start time
     pub compilation_start: Option<Instant>,
+    /// Current number of async tasks
+    pub async_tasks_used: AtomicUsize,
+    /// Current async task memory usage
+    pub async_task_memory_used: AtomicUsize,
+    /// Current number of active FFI pointers
+    pub ffi_pointers_active: AtomicUsize,
 }
 
 impl ResourceUsage {
@@ -93,12 +108,16 @@ impl ResourceUsage {
 
     /// Increment specialization count
     pub fn increment_specializations(&self, count: usize) -> usize {
-        self.specializations_used.fetch_add(count, Ordering::Relaxed) + count
+        self.specializations_used
+            .fetch_add(count, Ordering::Relaxed)
+            + count
     }
 
     /// Increment solving iterations
     pub fn increment_solving_iterations(&self, count: usize) -> usize {
-        self.solving_iterations_used.fetch_add(count, Ordering::Relaxed) + count
+        self.solving_iterations_used
+            .fetch_add(count, Ordering::Relaxed)
+            + count
     }
 
     /// Set work queue size
@@ -132,6 +151,9 @@ impl ResourceUsage {
             work_queue_size: self.work_queue_size.load(Ordering::Relaxed),
             peak_memory_usage: self.peak_memory_usage.load(Ordering::Relaxed),
             compilation_duration: self.compilation_duration(),
+            async_tasks_used: self.async_tasks_used.load(Ordering::Relaxed),
+            async_task_memory_used: self.async_task_memory_used.load(Ordering::Relaxed),
+            ffi_pointers_active: self.ffi_pointers_active.load(Ordering::Relaxed),
         }
     }
 
@@ -143,7 +165,27 @@ impl ResourceUsage {
         self.solving_iterations_used.store(0, Ordering::Relaxed);
         self.work_queue_size.store(0, Ordering::Relaxed);
         self.peak_memory_usage.store(0, Ordering::Relaxed);
+        self.async_tasks_used.store(0, Ordering::Relaxed);
+        self.async_task_memory_used.store(0, Ordering::Relaxed);
+        self.ffi_pointers_active.store(0, Ordering::Relaxed);
         self.compilation_start = None;
+    }
+
+    /// Increment async task count
+    pub fn increment_async_tasks(&self, count: usize) -> usize {
+        self.async_tasks_used.fetch_add(count, Ordering::Relaxed) + count
+    }
+
+    /// Increment async task memory usage
+    pub fn increment_async_task_memory(&self, bytes: usize) -> usize {
+        self.async_task_memory_used
+            .fetch_add(bytes, Ordering::Relaxed)
+            + bytes
+    }
+
+    /// Increment FFI pointer count
+    pub fn increment_ffi_pointers(&self, count: usize) -> usize {
+        self.ffi_pointers_active.fetch_add(count, Ordering::Relaxed) + count
     }
 }
 
@@ -157,6 +199,9 @@ pub struct ResourceSnapshot {
     pub work_queue_size: usize,
     pub peak_memory_usage: usize,
     pub compilation_duration: Option<Duration>,
+    pub async_tasks_used: usize,
+    pub async_task_memory_used: usize,
+    pub ffi_pointers_active: usize,
 }
 
 impl ResourceSnapshot {
@@ -226,18 +271,31 @@ impl ResourceSnapshot {
     /// Calculate resource utilization percentage (0-100)
     pub fn utilization_percentage(&self, config: &ResourceLimitConfig) -> ResourceUtilization {
         ResourceUtilization {
-            type_vars: (self.type_vars_used as f64 / config.max_type_vars as f64 * 100.0).min(100.0) as u8,
-            constraints: (self.constraints_used as f64 / config.max_constraints as f64 * 100.0).min(100.0) as u8,
-            specializations: (self.specializations_used as f64 / config.max_specializations as f64 * 100.0).min(100.0) as u8,
-            solving_iterations: (self.solving_iterations_used as f64 / config.max_solving_iterations as f64 * 100.0).min(100.0) as u8,
-            work_queue: (self.work_queue_size as f64 / config.max_work_queue_size as f64 * 100.0).min(100.0) as u8,
+            type_vars: (self.type_vars_used as f64 / config.max_type_vars as f64 * 100.0).min(100.0)
+                as u8,
+            constraints: (self.constraints_used as f64 / config.max_constraints as f64 * 100.0)
+                .min(100.0) as u8,
+            specializations: (self.specializations_used as f64 / config.max_specializations as f64
+                * 100.0)
+                .min(100.0) as u8,
+            solving_iterations: (self.solving_iterations_used as f64
+                / config.max_solving_iterations as f64
+                * 100.0)
+                .min(100.0) as u8,
+            work_queue: (self.work_queue_size as f64 / config.max_work_queue_size as f64 * 100.0)
+                .min(100.0) as u8,
             memory: if config.max_memory_usage_bytes > 0 {
-                (self.peak_memory_usage as f64 / config.max_memory_usage_bytes as f64 * 100.0).min(100.0) as u8
-            } else { 0 },
+                (self.peak_memory_usage as f64 / config.max_memory_usage_bytes as f64 * 100.0)
+                    .min(100.0) as u8
+            } else {
+                0
+            },
             compilation_time: if let Some(duration) = self.compilation_duration {
                 let limit_secs = config.max_compilation_time_secs as f64;
                 (duration.as_secs_f64() / limit_secs * 100.0).min(100.0) as u8
-            } else { 0 },
+            } else {
+                0
+            },
         }
     }
 }
@@ -265,18 +323,21 @@ impl ResourceUtilization {
             self.work_queue,
             self.memory,
             self.compilation_time,
-        ].iter().max().unwrap_or(&0)
+        ]
+        .iter()
+        .max()
+        .unwrap_or(&0)
     }
 
     /// Get average utilization
     pub fn average_utilization(&self) -> u8 {
-        let total = self.type_vars as u16 +
-                   self.constraints as u16 +
-                   self.specializations as u16 +
-                   self.solving_iterations as u16 +
-                   self.work_queue as u16 +
-                   self.memory as u16 +
-                   self.compilation_time as u16;
+        let total = self.type_vars as u16
+            + self.constraints as u16
+            + self.specializations as u16
+            + self.solving_iterations as u16
+            + self.work_queue as u16
+            + self.memory as u16
+            + self.compilation_time as u16;
         (total / 7) as u8
     }
 
@@ -339,11 +400,24 @@ impl ResourceLimitEnforcer {
         }
 
         let current = match resource_type {
-            ResourceType::TypeVariables => self.usage.type_vars_used.load(Ordering::Relaxed) as usize,
+            ResourceType::TypeVariables => {
+                self.usage.type_vars_used.load(Ordering::Relaxed) as usize
+            }
             ResourceType::Constraints => self.usage.constraints_used.load(Ordering::Relaxed),
-            ResourceType::Specializations => self.usage.specializations_used.load(Ordering::Relaxed),
-            ResourceType::SolvingIterations => self.usage.solving_iterations_used.load(Ordering::Relaxed),
+            ResourceType::Specializations => {
+                self.usage.specializations_used.load(Ordering::Relaxed)
+            }
+            ResourceType::SolvingIterations => {
+                self.usage.solving_iterations_used.load(Ordering::Relaxed)
+            }
             ResourceType::WorkQueueSize => self.usage.work_queue_size.load(Ordering::Relaxed),
+            ResourceType::AsyncTasks => self.usage.async_tasks_used.load(Ordering::Relaxed),
+            ResourceType::AsyncTaskMemory => {
+                self.usage.async_task_memory_used.load(Ordering::Relaxed)
+            }
+            ResourceType::FfiPointerLifetime => {
+                self.usage.ffi_pointers_active.load(Ordering::Relaxed)
+            }
         };
 
         let limit = match resource_type {
@@ -352,6 +426,9 @@ impl ResourceLimitEnforcer {
             ResourceType::Specializations => self.config.max_specializations,
             ResourceType::SolvingIterations => self.config.max_solving_iterations,
             ResourceType::WorkQueueSize => self.config.max_work_queue_size,
+            ResourceType::AsyncTasks => self.config.max_async_tasks,
+            ResourceType::AsyncTaskMemory => self.config.max_async_task_memory_bytes,
+            ResourceType::FfiPointerLifetime => self.config.max_ffi_pointer_lifetime_secs as usize,
         };
 
         if current + increment > limit {
@@ -363,7 +440,10 @@ impl ResourceLimitEnforcer {
                 resource_type,
                 current_count: current + increment,
                 limit,
-                message: format!("Resource limit would be exceeded by increment of {}", increment),
+                message: format!(
+                    "Resource limit would be exceeded by increment of {}",
+                    increment
+                ),
             })
         } else {
             Ok(())
@@ -384,17 +464,23 @@ impl ResourceLimitEnforcer {
             ResourceType::TypeVariables => {
                 self.usage.increment_type_vars(increment as u32) as usize
             }
-            ResourceType::Constraints => {
-                self.usage.increment_constraints(increment)
-            }
-            ResourceType::Specializations => {
-                self.usage.increment_specializations(increment)
-            }
-            ResourceType::SolvingIterations => {
-                self.usage.increment_solving_iterations(increment)
-            }
+            ResourceType::Constraints => self.usage.increment_constraints(increment),
+            ResourceType::Specializations => self.usage.increment_specializations(increment),
+            ResourceType::SolvingIterations => self.usage.increment_solving_iterations(increment),
             ResourceType::WorkQueueSize => {
                 self.usage.set_work_queue_size(increment);
+                increment
+            }
+            ResourceType::AsyncTasks => {
+                self.usage.increment_async_tasks(increment);
+                increment
+            }
+            ResourceType::AsyncTaskMemory => {
+                self.usage.increment_async_task_memory(increment);
+                increment
+            }
+            ResourceType::FfiPointerLifetime => {
+                self.usage.increment_ffi_pointers(increment);
                 increment
             }
         };
@@ -476,32 +562,50 @@ impl ResourceLimitEnforcer {
 
         println!("\n📊 RESOURCE USAGE REPORT");
         println!("═══════════════════════════");
-        
-        println!("Type Variables: {} / {} ({}%)", 
-            snapshot.type_vars_used, self.config.max_type_vars, utilization.type_vars);
-        println!("Constraints: {} / {} ({}%)", 
-            snapshot.constraints_used, self.config.max_constraints, utilization.constraints);
-        println!("Specializations: {} / {} ({}%)", 
-            snapshot.specializations_used, self.config.max_specializations, utilization.specializations);
-        println!("Solving Iterations: {} / {} ({}%)", 
-            snapshot.solving_iterations_used, self.config.max_solving_iterations, utilization.solving_iterations);
-        println!("Work Queue Size: {} / {} ({}%)", 
-            snapshot.work_queue_size, self.config.max_work_queue_size, utilization.work_queue);
-        
+
+        println!(
+            "Type Variables: {} / {} ({}%)",
+            snapshot.type_vars_used, self.config.max_type_vars, utilization.type_vars
+        );
+        println!(
+            "Constraints: {} / {} ({}%)",
+            snapshot.constraints_used, self.config.max_constraints, utilization.constraints
+        );
+        println!(
+            "Specializations: {} / {} ({}%)",
+            snapshot.specializations_used,
+            self.config.max_specializations,
+            utilization.specializations
+        );
+        println!(
+            "Solving Iterations: {} / {} ({}%)",
+            snapshot.solving_iterations_used,
+            self.config.max_solving_iterations,
+            utilization.solving_iterations
+        );
+        println!(
+            "Work Queue Size: {} / {} ({}%)",
+            snapshot.work_queue_size, self.config.max_work_queue_size, utilization.work_queue
+        );
+
         if let Some(duration) = snapshot.compilation_duration {
-            println!("Compilation Time: {:?} / {}s ({}%)", 
-                duration, self.config.max_compilation_time_secs, utilization.compilation_time);
+            println!(
+                "Compilation Time: {:?} / {}s ({}%)",
+                duration, self.config.max_compilation_time_secs, utilization.compilation_time
+            );
         }
 
         if self.config.max_memory_usage_bytes > 0 {
-            println!("Peak Memory: {} / {} bytes ({}%)", 
-                snapshot.peak_memory_usage, self.config.max_memory_usage_bytes, utilization.memory);
+            println!(
+                "Peak Memory: {} / {} bytes ({}%)",
+                snapshot.peak_memory_usage, self.config.max_memory_usage_bytes, utilization.memory
+            );
         }
 
         println!("\nUtilization Summary:");
         println!("  Max: {}%", utilization.max_utilization());
         println!("  Average: {}%", utilization.average_utilization());
-        
+
         if utilization.has_critical_utilization() {
             println!("  Status: ⚠️ CRITICAL UTILIZATION");
         } else if utilization.has_high_utilization() {
@@ -525,13 +629,13 @@ mod tests {
     #[test]
     fn test_resource_usage_tracking() {
         let usage = ResourceUsage::new();
-        
+
         let count = usage.increment_type_vars(10);
         assert_eq!(count, 10);
-        
+
         let count = usage.increment_constraints(5);
         assert_eq!(count, 5);
-        
+
         let snapshot = usage.snapshot();
         assert_eq!(snapshot.type_vars_used, 10);
         assert_eq!(snapshot.constraints_used, 5);
@@ -544,13 +648,13 @@ mod tests {
             max_constraints: 100,
             ..Default::default()
         };
-        
+
         let mut enforcer = ResourceLimitEnforcer::with_config(config);
-        
+
         // Should succeed within limits
         let result = enforcer.record_resource_usage(ResourceType::TypeVariables, 50);
         assert!(result.is_ok());
-        
+
         // Should fail when exceeding limits
         let result = enforcer.record_resource_usage(ResourceType::TypeVariables, 60);
         assert!(result.is_err());
@@ -563,7 +667,7 @@ mod tests {
             max_constraints: 200,
             ..Default::default()
         };
-        
+
         let snapshot = ResourceSnapshot {
             type_vars_used: 50,
             constraints_used: 100,
@@ -573,7 +677,7 @@ mod tests {
             peak_memory_usage: 0,
             compilation_duration: None,
         };
-        
+
         let utilization = snapshot.utilization_percentage(&config);
         assert_eq!(utilization.type_vars, 50);
         assert_eq!(utilization.constraints, 50);
@@ -587,7 +691,7 @@ mod tests {
             max_constraints: 10,
             ..Default::default()
         };
-        
+
         let snapshot = ResourceSnapshot {
             type_vars_used: 15,
             constraints_used: 5,
@@ -597,10 +701,10 @@ mod tests {
             peak_memory_usage: 0,
             compilation_duration: None,
         };
-        
+
         let violations = snapshot.check_limits(&config);
         assert_eq!(violations.len(), 1);
-        
+
         if let SecurityError::ResourceLimitExceeded { resource_type, .. } = &violations[0] {
             assert_eq!(*resource_type, ResourceType::TypeVariables);
         } else {
@@ -614,13 +718,13 @@ mod tests {
             max_compilation_time_secs: 1,
             ..Default::default()
         };
-        
+
         let mut enforcer = ResourceLimitEnforcer::with_config(config);
         enforcer.start_monitoring();
-        
+
         // Simulate passage of time
         std::thread::sleep(Duration::from_millis(1100));
-        
+
         let result = enforcer.check_compilation_timeout();
         assert!(result.is_err());
     }
@@ -628,11 +732,11 @@ mod tests {
     #[test]
     fn test_memory_usage_tracking() {
         let usage = ResourceUsage::new();
-        
+
         usage.update_memory_usage(1000);
-        usage.update_memory_usage(500);  // Should not update peak
+        usage.update_memory_usage(500); // Should not update peak
         usage.update_memory_usage(1500); // Should update peak
-        
+
         let snapshot = usage.snapshot();
         assert_eq!(snapshot.peak_memory_usage, 1500);
     }
@@ -648,7 +752,7 @@ mod tests {
             memory: 60,
             compilation_time: 40,
         };
-        
+
         assert_eq!(utilization.max_utilization(), 95);
         assert_eq!(utilization.average_utilization(), 44);
         assert!(utilization.has_critical_utilization());

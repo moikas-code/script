@@ -1,65 +1,62 @@
+mod audit;
 mod cache;
+mod context;
 mod error;
 mod integration;
+mod integrity;
 mod path;
+mod path_security;
+mod permissions;
 mod registry;
 mod resolver;
-mod security;
-mod context;
-mod sandbox;
-mod permissions;
-mod path_security;
-mod integrity;
 mod resource_monitor;
-mod audit;
+mod sandbox;
 mod secure_resolver;
+mod security;
 
 #[cfg(test)]
 mod tests;
 
+pub use audit::{
+    AuditConfig, AuditStatistics, SecurityAuditEvent, SecurityAuditLogger, SecurityEventBuilder,
+    SecurityEventCategory, SecurityEventContext, SecuritySeverity,
+};
 pub use cache::{CacheEntry, ModuleCache};
+pub use context::{
+    ImportResolutionStep, ModuleContext, ModuleContextStack, ModuleDependencyChain,
+    PrivateAccessAttempt, VisibilityContext,
+};
 pub use error::{ModuleError, ModuleErrorKind, ModuleResult};
 pub use integration::{
-    create_default_pipeline, CompilationConfig, CompiledModule, ModuleCompilationPipeline,
-    ModuleExports, FunctionExportInfo, VariableExportInfo, TypeDefinitionInfo, 
-    TypeDefinitionKind, ReExportInfo, ExportVisibility,
+    create_default_pipeline, CompilationConfig, CompiledModule, ExportVisibility,
+    FunctionExportInfo, ModuleCompilationPipeline, ModuleExports, ReExportInfo, TypeDefinitionInfo,
+    TypeDefinitionKind, VariableExportInfo,
+};
+pub use integrity::{
+    ModuleChecksum, ModuleIntegrityVerifier, ModuleLockFile, ModuleSignature as IntegritySignature,
+    TrustLevel as IntegrityTrustLevel, TrustedModuleEntry, TrustedModuleRegistry,
+    VerificationRequirements, VerificationResult,
 };
 pub use path::{ImportPath, ModulePath, RelativePath};
+pub use path_security::{ModulePathSanitizer, PathSecurityValidator};
+pub use permissions::{
+    EnvVarPattern, FFIPermission, FileSystemPermission, HostPattern, LibraryPattern,
+    ModuleInteractionPermission, ModulePattern, ModulePermissions, NetworkPermission, PathPattern,
+    Permission, PermissionAuditEntry, PermissionContext, PermissionManager, PermissionRule,
+    PortRange, ProcessPattern, ProcessPermission, ResourcePermission,
+};
 pub use registry::{ModuleMetadata, ModuleRegistry, RegistryConfig};
 pub use resolver::{FileSystemResolver, ModuleResolver, ModuleResolverConfig};
-pub use security::{
-    TrustLevel, ModuleCapability, ResourceLimits, ModuleSecurityContext, 
-    ModuleSignature, ModuleSecurityManager,
-};
-pub use context::{
-    ImportResolutionStep, ModuleDependencyChain, ModuleContext, VisibilityContext,
-    PrivateAccessAttempt, ModuleContextStack,
-};
-pub use sandbox::{
-    SandboxConfig, ModuleSandbox, ResourceUsage, ExecutionTrace,
-};
-pub use permissions::{
-    ModulePermissions, Permission, FileSystemPermission, PathPattern,
-    NetworkPermission, HostPattern, PortRange, ProcessPermission, ProcessPattern,
-    EnvVarPattern, FFIPermission, LibraryPattern, ResourcePermission,
-    ModuleInteractionPermission, ModulePattern, PermissionRule, PermissionContext,
-    PermissionManager, PermissionAuditEntry,
-};
-pub use path_security::{PathSecurityValidator, ModulePathSanitizer};
-pub use integrity::{
-    ModuleIntegrityVerifier, ModuleChecksum, ModuleSignature as IntegritySignature,
-    TrustedModuleRegistry, TrustedModuleEntry, TrustLevel as IntegrityTrustLevel,
-    VerificationRequirements, VerificationResult, ModuleLockFile,
-};
 pub use resource_monitor::{
-    ResourceMonitor, ResourceLimits as ResourceMonitorLimits, ResourceUsage as ResourceMonitorUsage,
-    ModuleResourceUsage, OperationGuard, ResourceUsageSummary,
+    ModuleResourceUsage, OperationGuard, ResourceLimits as ResourceMonitorLimits, ResourceMonitor,
+    ResourceUsage as ResourceMonitorUsage, ResourceUsageSummary,
 };
-pub use audit::{
-    SecurityAuditLogger, AuditConfig, SecuritySeverity, SecurityAuditEvent,
-    SecurityEventCategory, SecurityEventContext, AuditStatistics, SecurityEventBuilder,
-};
+pub use sandbox::{ExecutionTrace, ModuleSandbox, ResourceUsage, SandboxConfig};
 pub use secure_resolver::{SecureFileSystemResolver, SecureResolverConfig};
+pub use security::{
+    ModuleCapability, ModuleSecurityContext, ModuleSecurityManager, ModuleSignature,
+    ResourceLimits, TrustLevel,
+};
 
 use crate::source::SourceLocation;
 use std::path::PathBuf;

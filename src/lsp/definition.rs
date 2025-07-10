@@ -360,6 +360,16 @@ fn find_identifier_in_expr(expr: &Expr, target: &SourceLocation) -> Option<Ident
                 }
             }
         }
+        ExprKind::ErrorPropagation { expr } => find_identifier_in_expr(expr, target),
+        ExprKind::TryCatch {
+            try_expr,
+            catch_clauses: _,
+            finally_block: _,
+        } => find_identifier_in_expr(try_expr, target),
+        ExprKind::Closure {
+            parameters: _,
+            body,
+        } => find_identifier_in_expr(body, target),
         ExprKind::Literal(_) => None,
     }
 }

@@ -14,9 +14,12 @@ use crate::types::Type as ScriptType;
 use super::{CodegenBackend, CodegenResult, ExecutableModule};
 use std::collections::HashMap;
 
+pub mod closure_optimizer;
 pub mod runtime;
 pub mod translator;
+pub mod translator_extensions;
 
+pub use closure_optimizer::{ClosureOptimizer, OptimizationStats};
 pub use runtime::RuntimeSupport;
 pub use translator::FunctionTranslator;
 
@@ -36,6 +39,8 @@ pub struct CraneliftBackend {
     field_layouts: crate::codegen::FieldLayoutRegistry,
     /// Bounds checker for array operations
     bounds_checker: crate::codegen::BoundsChecker,
+    /// Closure optimizer for performance enhancements
+    closure_optimizer: ClosureOptimizer,
 }
 
 impl CraneliftBackend {
@@ -71,7 +76,10 @@ impl CraneliftBackend {
             debug_context: None,
             debug_flags: DebugFlags::default(),
             field_layouts: crate::codegen::FieldLayoutRegistry::new(),
-            bounds_checker: crate::codegen::BoundsChecker::new(crate::codegen::BoundsCheckMode::Always),
+            bounds_checker: crate::codegen::BoundsChecker::new(
+                crate::codegen::BoundsCheckMode::Always,
+            ),
+            closure_optimizer: ClosureOptimizer::new(),
         }
     }
 
@@ -145,7 +153,7 @@ impl CraneliftBackend {
             let mut sig = self.module.make_signature();
             sig.params.push(AbiParam::new(types::I64)); // ptr
             sig.params.push(AbiParam::new(types::I64)); // len
-            
+
             let func_id = self
                 .module
                 .declare_function("script_print", Linkage::Import, &sig)
@@ -155,7 +163,7 @@ impl CraneliftBackend {
                         format!("Failed to declare runtime function script_print: {}", e),
                     )
                 })?;
-            
+
             self.func_ids.insert("script_print".to_string(), func_id);
         }
 
@@ -164,7 +172,7 @@ impl CraneliftBackend {
             let mut sig = self.module.make_signature();
             sig.params.push(AbiParam::new(types::I64)); // size
             sig.returns.push(AbiParam::new(types::I64)); // ptr
-            
+
             let func_id = self
                 .module
                 .declare_function("script_alloc", Linkage::Import, &sig)
@@ -174,7 +182,7 @@ impl CraneliftBackend {
                         format!("Failed to declare runtime function script_alloc: {}", e),
                     )
                 })?;
-            
+
             self.func_ids.insert("script_alloc".to_string(), func_id);
         }
 
@@ -182,7 +190,7 @@ impl CraneliftBackend {
         {
             let mut sig = self.module.make_signature();
             sig.params.push(AbiParam::new(types::I64)); // ptr
-            
+
             let func_id = self
                 .module
                 .declare_function("script_free", Linkage::Import, &sig)
@@ -192,7 +200,7 @@ impl CraneliftBackend {
                         format!("Failed to declare runtime function script_free: {}", e),
                     )
                 })?;
-            
+
             self.func_ids.insert("script_free".to_string(), func_id);
         }
 
@@ -201,7 +209,7 @@ impl CraneliftBackend {
             let mut sig = self.module.make_signature();
             sig.params.push(AbiParam::new(types::I64)); // msg ptr
             sig.params.push(AbiParam::new(types::I64)); // len
-            
+
             let func_id = self
                 .module
                 .declare_function("script_panic", Linkage::Import, &sig)
@@ -211,7 +219,7 @@ impl CraneliftBackend {
                         format!("Failed to declare runtime function script_panic: {}", e),
                     )
                 })?;
-            
+
             self.func_ids.insert("script_panic".to_string(), func_id);
         }
 
@@ -276,7 +284,7 @@ impl CraneliftBackend {
         let mut translator = FunctionTranslator::new(&mut self.module, &self.func_ids, ir_module);
 
         // Translate the function
-        translator.translate_function(func, &mut self.ctx.func)?;
+        translator.translate_function(func, &mut self.ctx.func, &mut self.closure_optimizer)?;
 
         // Add debug information for the function if enabled
         if let Some(ref mut debug_ctx) = self.debug_context {
@@ -380,6 +388,7 @@ fn script_type_to_cranelift(ty: &ScriptType) -> types::Type {
         ScriptType::Future(_) => types::I64, // Pointer to future
         ScriptType::Option(_) => types::I64, // Pointer to option
         ScriptType::Never => types::I64, // Never type (should not occur at runtime)
+        ScriptType::Struct { .. } => types::I64, // Pointer to struct
         ScriptType::Named(_) => types::I64, // Pointer to named type
         ScriptType::TypeVar(_) => types::I64, // Should be resolved by now
         ScriptType::Generic { .. } => types::I64, // Should be resolved by now

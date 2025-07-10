@@ -46,7 +46,7 @@ pub enum Value {
 
     /// Boolean value (bool) - alias for Bool
     Boolean(bool),
-    
+
     /// Enum variant value (for Result, Option, and user-defined enums)
     Enum {
         /// The enum type name (e.g., "Result", "Option")
@@ -56,6 +56,12 @@ pub enum Value {
         /// The associated data, if any
         data: Option<ScriptRc<Value>>,
     },
+
+    /// Closure value with captured environment
+    Closure(ScriptRc<crate::runtime::closure::Closure>),
+
+    /// Optimized closure value with performance enhancements
+    OptimizedClosure(ScriptRc<crate::runtime::closure::OptimizedClosure>),
 }
 
 impl Value {
@@ -67,7 +73,7 @@ impl Value {
             data: Some(ScriptRc::new(value)),
         }
     }
-    
+
     /// Create an Err Result value
     pub fn err(value: Value) -> Self {
         Value::Enum {
@@ -76,7 +82,7 @@ impl Value {
             data: Some(ScriptRc::new(value)),
         }
     }
-    
+
     /// Create a Some Option value
     pub fn some(value: Value) -> Self {
         Value::Enum {
@@ -85,7 +91,7 @@ impl Value {
             data: Some(ScriptRc::new(value)),
         }
     }
-    
+
     /// Create a None Option value
     pub fn none() -> Self {
         Value::Enum {
@@ -94,43 +100,44 @@ impl Value {
             data: None,
         }
     }
-    
+
     /// Check if this is a Result type
     pub fn is_result(&self) -> bool {
         matches!(self, Value::Enum { type_name, .. } if type_name == "Result")
     }
-    
+
     /// Check if this is an Option type
     pub fn is_option(&self) -> bool {
         matches!(self, Value::Enum { type_name, .. } if type_name == "Option")
     }
-    
+
     /// Get the inner value of Ok/Some, or None if not applicable
     pub fn unwrap_ok_or_some(&self) -> Option<&Value> {
         match self {
-            Value::Enum { type_name, variant, data } => {
-                match (type_name.as_str(), variant.as_str()) {
-                    ("Result", "Ok") | ("Option", "Some") => {
-                        data.as_ref().map(|v| &**v)
-                    }
-                    _ => None,
-                }
-            }
+            Value::Enum {
+                type_name,
+                variant,
+                data,
+            } => match (type_name.as_str(), variant.as_str()) {
+                ("Result", "Ok") | ("Option", "Some") => data.as_ref().map(|v| &**v),
+                _ => None,
+            },
             _ => None,
         }
     }
-    
+
     /// Get the inner value of Err, or None if not applicable
     pub fn unwrap_err(&self) -> Option<&Value> {
         match self {
-            Value::Enum { type_name: t, variant: v, data } 
-                if t == "Result" && v == "Err" => {
-                data.as_ref().map(|val| &**val)
-            }
+            Value::Enum {
+                type_name: t,
+                variant: v,
+                data,
+            } if t == "Result" && v == "Err" => data.as_ref().map(|val| &**val),
             _ => None,
         }
     }
-    
+
     /// Check if value is truthy
     pub fn is_truthy(&self) -> bool {
         match self {
@@ -150,6 +157,8 @@ impl Value {
                 // Result::Err and Option::None are falsy, everything else is truthy
                 variant != "Err" && variant != "None"
             }
+            Value::Closure(_) => true,
+            Value::OptimizedClosure(_) => true,
         }
     }
 
@@ -173,9 +182,11 @@ impl Value {
                 match type_name.as_str() {
                     "Result" => "Result",
                     "Option" => "Option",
-                    _ => Box::leak(type_name.clone().into_boxed_str())
+                    _ => Box::leak(type_name.clone().into_boxed_str()),
                 }
             }
+            Value::Closure(_) => "closure",
+            Value::OptimizedClosure(_) => "closure",
         }
     }
 }
@@ -213,7 +224,11 @@ impl fmt::Display for Value {
             Value::Function(name) => write!(f, "<function {}>", name),
             Value::Number(n) => write!(f, "{}", n),
             Value::Boolean(b) => write!(f, "{}", b),
-            Value::Enum { type_name, variant, data } => {
+            Value::Enum {
+                type_name,
+                variant,
+                data,
+            } => {
                 match (type_name.as_str(), variant.as_str(), data) {
                     ("Option", "Some", Some(val)) => write!(f, "Some({})", val),
                     ("Option", "None", None) => write!(f, "None"),
@@ -224,6 +239,8 @@ impl fmt::Display for Value {
                     (_, _, None) => write!(f, "{}::{}", type_name, variant),
                 }
             }
+            Value::Closure(closure) => write!(f, "{}", closure),
+            Value::OptimizedClosure(closure) => write!(f, "{}", closure),
         }
     }
 }
@@ -238,12 +255,19 @@ impl Traceable for Value {
     fn trace(&self, visitor: &mut dyn FnMut(&dyn Any)) {
         match self {
             // Primitive values have no references to trace
-            Value::Null | Value::Bool(_) | Value::I32(_) | Value::I64(_) |
-            Value::F32(_) | Value::F64(_) | Value::String(_) | 
-            Value::Function(_) | Value::Number(_) | Value::Boolean(_) => {
+            Value::Null
+            | Value::Bool(_)
+            | Value::I32(_)
+            | Value::I64(_)
+            | Value::F32(_)
+            | Value::F64(_)
+            | Value::String(_)
+            | Value::Function(_)
+            | Value::Number(_)
+            | Value::Boolean(_) => {
                 // No references to trace
             }
-            
+
             // Arrays contain ScriptRc references
             Value::Array(items) => {
                 for item in items {
@@ -253,7 +277,7 @@ impl Traceable for Value {
                     item.trace(visitor);
                 }
             }
-            
+
             // Objects contain ScriptRc references in values
             Value::Object(map) => {
                 for value in map.values() {
@@ -263,7 +287,7 @@ impl Traceable for Value {
                     value.trace(visitor);
                 }
             }
-            
+
             // Enum variants may contain ScriptRc references
             Value::Enum { data, .. } => {
                 if let Some(val) = data {
@@ -273,24 +297,51 @@ impl Traceable for Value {
                     val.trace(visitor);
                 }
             }
+
+            // Closures contain ScriptRc references to captured variables
+            Value::Closure(closure) => {
+                // Report the ScriptRc itself
+                visitor(closure as &dyn Any);
+                // Also trace the closure's captured variables
+                closure.trace(visitor);
+            }
+
+            // Optimized closures also contain ScriptRc references
+            Value::OptimizedClosure(closure) => {
+                // Report the ScriptRc itself
+                visitor(closure as &dyn Any);
+                // Also trace the closure's captured variables
+                closure.trace(visitor);
+            }
         }
     }
-    
+
     fn trace_size(&self) -> usize {
         let base_size = std::mem::size_of::<Value>();
         match self {
             Value::String(s) => base_size + s.capacity(),
-            Value::Array(arr) => base_size + arr.capacity() * std::mem::size_of::<ScriptRc<Value>>(),
+            Value::Array(arr) => {
+                base_size + arr.capacity() * std::mem::size_of::<ScriptRc<Value>>()
+            }
             Value::Object(map) => {
-                base_size + map.capacity() * 
-                    (std::mem::size_of::<String>() + std::mem::size_of::<ScriptRc<Value>>())
+                base_size
+                    + map.capacity()
+                        * (std::mem::size_of::<String>() + std::mem::size_of::<ScriptRc<Value>>())
             }
-            Value::Enum { type_name, variant, data } => {
-                base_size + 
-                    type_name.capacity() + 
-                    variant.capacity() +
-                    data.as_ref().map_or(0, |_| std::mem::size_of::<ScriptRc<Value>>())
+            Value::Enum {
+                type_name,
+                variant,
+                data,
+            } => {
+                base_size
+                    + type_name.capacity()
+                    + variant.capacity()
+                    + data
+                        .as_ref()
+                        .map_or(0, |_| std::mem::size_of::<ScriptRc<Value>>())
             }
+            Value::Closure(closure) => base_size + closure.trace_size(),
+            Value::OptimizedClosure(closure) => base_size + closure.trace_size(),
             _ => base_size,
         }
     }
@@ -299,15 +350,19 @@ impl Traceable for Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_result_creation() {
         let ok_val = Value::ok(Value::I32(42));
         assert!(ok_val.is_result());
         assert!(!ok_val.is_option());
-        
+
         match &ok_val {
-            Value::Enum { type_name, variant, data } => {
+            Value::Enum {
+                type_name,
+                variant,
+                data,
+            } => {
                 assert_eq!(type_name, "Result");
                 assert_eq!(variant, "Ok");
                 assert!(data.is_some());
@@ -316,31 +371,42 @@ mod tests {
             }
             _ => panic!("Expected Enum variant"),
         }
-        
+
         let err_val = Value::err(Value::String("error".to_string()));
         assert!(err_val.is_result());
-        assert_eq!(err_val.unwrap_err(), Some(&Value::String("error".to_string())));
+        assert_eq!(
+            err_val.unwrap_err(),
+            Some(&Value::String("error".to_string()))
+        );
     }
-    
+
     #[test]
     fn test_option_creation() {
         let some_val = Value::some(Value::Bool(true));
         assert!(some_val.is_option());
         assert!(!some_val.is_result());
-        
+
         match &some_val {
-            Value::Enum { type_name, variant, data } => {
+            Value::Enum {
+                type_name,
+                variant,
+                data,
+            } => {
                 assert_eq!(type_name, "Option");
                 assert_eq!(variant, "Some");
                 assert!(data.is_some());
             }
             _ => panic!("Expected Enum variant"),
         }
-        
+
         let none_val = Value::none();
         assert!(none_val.is_option());
         match &none_val {
-            Value::Enum { type_name, variant, data } => {
+            Value::Enum {
+                type_name,
+                variant,
+                data,
+            } => {
                 assert_eq!(type_name, "Option");
                 assert_eq!(variant, "None");
                 assert!(data.is_none());
@@ -348,54 +414,57 @@ mod tests {
             _ => panic!("Expected Enum variant"),
         }
     }
-    
+
     #[test]
     fn test_enum_truthiness() {
         let ok_val = Value::ok(Value::I32(42));
         assert!(ok_val.is_truthy());
-        
+
         let err_val = Value::err(Value::String("error".to_string()));
         assert!(!err_val.is_truthy());
-        
+
         let some_val = Value::some(Value::Bool(false));
         assert!(some_val.is_truthy());
-        
+
         let none_val = Value::none();
         assert!(!none_val.is_truthy());
     }
-    
+
     #[test]
     fn test_enum_display() {
         let ok_val = Value::ok(Value::I32(42));
         assert_eq!(ok_val.to_string(), "Ok(42)");
-        
+
         let err_val = Value::err(Value::String("error".to_string()));
         assert_eq!(err_val.to_string(), "Err(error)");
-        
+
         let some_val = Value::some(Value::Bool(true));
         assert_eq!(some_val.to_string(), "Some(true)");
-        
+
         let none_val = Value::none();
         assert_eq!(none_val.to_string(), "None");
     }
-    
+
     #[test]
     fn test_unwrap_helpers() {
         let ok_val = Value::ok(Value::I32(42));
         assert_eq!(ok_val.unwrap_ok_or_some(), Some(&Value::I32(42)));
         assert_eq!(ok_val.unwrap_err(), None);
-        
+
         let err_val = Value::err(Value::String("error".to_string()));
         assert_eq!(err_val.unwrap_ok_or_some(), None);
-        assert_eq!(err_val.unwrap_err(), Some(&Value::String("error".to_string())));
-        
+        assert_eq!(
+            err_val.unwrap_err(),
+            Some(&Value::String("error".to_string()))
+        );
+
         let some_val = Value::some(Value::F32(3.14));
         assert_eq!(some_val.unwrap_ok_or_some(), Some(&Value::F32(3.14)));
-        
+
         let none_val = Value::none();
         assert_eq!(none_val.unwrap_ok_or_some(), None);
     }
-    
+
     #[test]
     fn test_custom_enum() {
         let custom = Value::Enum {
@@ -403,18 +472,18 @@ mod tests {
             variant: "Red".to_string(),
             data: None,
         };
-        
+
         assert!(!custom.is_result());
         assert!(!custom.is_option());
         assert_eq!(custom.type_name(), "Color");
         assert_eq!(custom.to_string(), "Color::Red");
-        
+
         let with_data = Value::Enum {
             type_name: "Message".to_string(),
             variant: "Text".to_string(),
             data: Some(ScriptRc::new(Value::String("Hello".to_string()))),
         };
-        
+
         assert_eq!(with_data.to_string(), "Message::Text(Hello)");
     }
 }

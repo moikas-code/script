@@ -1,10 +1,10 @@
 use crate::module::{ModuleError, ModuleResult};
-use crate::error::{Error, Result};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
 /// Represents a fully qualified module path
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ModulePath {
     segments: Vec<String>,
     is_absolute: bool,
@@ -170,13 +170,13 @@ impl fmt::Display for ModulePath {
 }
 
 /// Represents an import path, which can be relative or absolute
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ImportPath {
     pub kind: ImportKind,
     pub path: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ImportKind {
     Absolute, // foo.bar
     Relative, // ./foo or ../foo
@@ -226,10 +226,10 @@ impl ImportPath {
 
     fn resolve_relative(&self, current_module: &ModulePath) -> ModuleResult<ModulePath> {
         let path = &self.path;
-        let mut current = current_module
-            .parent()
-            .unwrap_or_else(|| ModulePath::new(vec!["root".to_string()], true)
-                .expect("Failed to create fallback root module path"));
+        let mut current = current_module.parent().unwrap_or_else(|| {
+            ModulePath::new(vec!["root".to_string()], true)
+                .expect("Failed to create fallback root module path")
+        });
 
         if path.starts_with("./") {
             let relative_part = &path[2..];
@@ -243,10 +243,10 @@ impl ImportPath {
             let mut remaining = path.as_str();
             while remaining.starts_with("../") {
                 remaining = &remaining[3..];
-                current = current
-                    .parent()
-                    .unwrap_or_else(|| ModulePath::new(vec!["root".to_string()], true)
-                        .expect("Failed to create fallback root module path"));
+                current = current.parent().unwrap_or_else(|| {
+                    ModulePath::new(vec!["root".to_string()], true)
+                        .expect("Failed to create fallback root module path")
+                });
             }
 
             if !remaining.is_empty() {

@@ -504,6 +504,7 @@ fn format_type(ty: &Type) -> String {
                 format!("&{}", format_type(inner))
             }
         }
+        Type::Struct { name, .. } => name.clone(),
     }
 }
 

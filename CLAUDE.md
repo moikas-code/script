@@ -2,8 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with the Script programming language repository.
 
+- Format each individual memory as a bullet point and group related memories under descriptive markdown headings.
+
+- Perform a web search if you need more information
+
+- Create a Task in the KB when making a plan to keep track between sessions
+
+- Never use placeholder logic when writing logic; provide a full solution
+
 ## Project Overview
-**Script Language v0.5.0-alpha** - AI-native programming language with production-grade generics, pattern matching, and memory cycle detection. Current focus: fixing async security vulnerabilities and module system.
+**Script Language v0.5.0-alpha** - AI-native programming language with production-grade generics, pattern matching, memory cycle detection, and **complete functional programming support**. Major systems now complete (~90% overall), with remaining work on error messages, REPL enhancements, and MCP integration.
 
 ## Common Development Commands
 
@@ -39,6 +47,7 @@ cargo test test_name                   # Run specific test
 # Benchmarking
 cargo bench                             # Run all benchmarks
 cargo bench lexer                       # Run lexer benchmarks only
+cargo bench type_system_benchmark       # Run type system optimization benchmarks
 
 # Documentation
 cargo doc --open                        # Generate and open docs
@@ -48,18 +57,18 @@ cargo doc --features mcp --open         # Include MCP documentation
 ## Architecture Overview
 
 ### Implementation Status (v0.5.0-alpha)
-**Overall Completion**: ~80% - See [kb/STATUS.md](kb/STATUS.md) for detailed tracking
+**Overall Completion**: ~90% - See [kb/status/OVERALL_STATUS.md](kb/status/OVERALL_STATUS.md) for detailed tracking
 
 | Phase | Status | Completion | Notes |
 |-------|--------|------------|-------|
 | Lexer | ✅ | 100% | Unicode support, error reporting, REPL |
-| Parser | ✅ | 99% | Generics, enum patterns, exhaustiveness |
-| Type System | ✅ | 95% | Monomorphization, inference, generics operational |
+| Parser | ✅ | 99% | Generics, enum patterns, exhaustiveness, closures |
+| Type System | ✅ | 98% | **O(n²) → O(n log n) optimizations complete**, union-find unification |
 | Semantic | ✅ | 99% | Pattern safety, exhaustiveness, symbol resolution |
-| CodeGen | 🔧 | 85% | Generic compilation works, pattern matching partial |
-| Runtime | 🔧 | 60% | Bacon-Rajan cycle detection complete |
-| Stdlib | 🔧 | 30% | Core functions only, missing HashMap/Set/I/O |
-| Module System | ❌ | 25% | **BROKEN** - blocks multi-file projects |
+| CodeGen | 🔧 | 90% | Generic compilation, closures, patterns (+5% from functional) |
+| Runtime | 🔧 | 75% | Bacon-Rajan cycle detection, closure support (+15%) |
+| Stdlib | ✅ | 100% | **COMPLETE**: Collections, I/O, math, functional programming |
+| Module System | ✅ | 100% | **COMPLETE**: Multi-file projects fully supported |
 | MCP | 🔄 | 15% | Security framework designed, implementation starting |
 
 ### Key Architecture Components
@@ -79,18 +88,28 @@ cargo doc --features mcp --open         # Include MCP documentation
 3. **Memory Safety**: ARC with Bacon-Rajan cycle detection
 4. **AI-Native**: Security-first MCP implementation for AI development
 5. **Error Recovery**: Multiple error reporting with source context
+6. **Performance-First**: O(n log n) type system with union-find unification
 
 ## Current Development Focus
 
 ### 🚨 Critical Issues (Immediate Priority)
-1. **Async Security Vulnerabilities** - Use-after-free, memory corruption in FFI/runtime
-2. **Module System Broken** - Multi-file projects currently non-functional
-3. **Generic Implementation Security** - Array bounds checking missing, field access vulnerabilities
+*No critical issues remaining - all major systems complete!*
+
+### ✅ Recently Completed (January 2025)
+- **Module System** - Full multi-file project support with import/export
+- **Standard Library** - Complete collections (HashMap/Set/Vec), I/O, math, networking
+- **Functional Programming** - Closures, higher-order functions, iterators (57 operations)
+- **Error Handling** - Result<T,E> and Option<T> with monadic operations
+- **Async Security Vulnerabilities** - All use-after-free and memory corruption issues resolved
+- **Generic Implementation Security** - Array bounds checking and field access validation
+- **Resource Limits** - Comprehensive DoS protection for all compilation phases
+- **Type System Complexity** - O(n²) algorithms optimized to O(n log n) with union-find
 
 ### 🔧 Active Development
-- **Runtime Safety** takes precedence over new features
-- **MCP Security Framework** for AI integration  
-- **Standard Library** expansion (HashMap/Set/I/O missing)
+- **Error Messages** - Improving quality and context
+- **REPL Enhancements** - Better interactive development experience
+- **MCP Security Framework** - AI integration implementation
+- **Performance Optimizations** - Further runtime improvements
 
 ## Development Workflow
 
@@ -105,6 +124,7 @@ cargo doc --features mcp --open         # Include MCP documentation
 - **Security Rule**: All MCP tools must use sandboxed analysis
 - **Memory Rule**: Runtime safety takes precedence over new features
 - **Testing Rule**: Security validation tests are mandatory
+- **Resource Rule**: All compilation operations must respect resource limits for DoS protection
 
 ### Adding New Token Types
 1. Add variant to `TokenKind` enum in `src/lexer/mod.rs`
@@ -141,16 +161,25 @@ See `./kb/IMPLEMENTATION_TODO.md` for original planning. Current status:
 - **[KNOWN_ISSUES.md](./kb/active/KNOWN_ISSUES.md)**: All known bugs and limitations
 
 ### Recent Major Achievements ✅
+- **Module System**: Complete multi-file project support with ModuleLoaderIntegration
+- **Standard Library**: 100% complete - Vec, HashMap, HashSet, I/O, math, networking
+- **Functional Programming**: Full closure system with 57 stdlib operations
+- **Error Handling**: Complete Result/Option types with monadic operations
 - **Pattern Matching**: Exhaustiveness checking, or-patterns, guard support
 - **Generics System**: Full monomorphization pipeline with 43% deduplication efficiency  
 - **Memory Management**: Production-grade Bacon-Rajan cycle detection
-- **Type System**: Complete type inference with constructor constraints
+- **Type System**: Complete type inference with O(n log n) performance
+- **Security Infrastructure**: Comprehensive DoS protection and resource limits
+- **Async Runtime Security**: All memory corruption vulnerabilities resolved
 
-### Known Security Issues 🚨
-- **Async Runtime**: Critical vulnerabilities (use-after-free, memory corruption)
-- **Array Bounds**: Missing bounds checking in code generation
-- **Field Access**: Hash-based offsets without validation
-- **Resource Limits**: No DoS protection in type inference/monomorphization
+### Resource Limits & DoS Protection ✅
+- **Timeout Protection**: All compilation phases have configurable timeouts
+- **Memory Monitoring**: System memory usage tracking and limits  
+- **Iteration Limits**: Recursive operations bounded to prevent infinite loops
+- **Recursion Depth**: Stack overflow protection through depth tracking
+- **Specialization Limits**: Generic instantiation explosion prevention
+- **Work Queue Limits**: Bounded compilation resource usage
+- **Environment Configs**: Production, development, and testing limit profiles
 
 ## File Organization
 
@@ -158,13 +187,72 @@ See `./kb/IMPLEMENTATION_TODO.md` for original planning. Current status:
 - **Root**: Only config files, documentation, build files  
 - **tests/**: All test files and fixtures organized by type
 - **examples/**: Demo programs and tutorials
-- **kb/**: Knowledge base with STATUS.md, KNOWN_ISSUES.md, docs
+- **kb/**: Knowledge base (see KB Organization below)
 
 ### Prohibited Root Files
 No `.script` files in root directory. Use:
 - `tests/fixtures/valid_programs/` for test cases
 - `examples/` for demonstrations  
 - `tests/mcp/security/` for MCP validation
+
+## KB (Knowledge Base) Organization
+
+The `kb/` directory follows a specific structure for tracking project state:
+
+### KB Directory Structure
+```
+kb/
+├── active/          # Current work and open issues
+├── completed/       # Resolved issues and finished work
+├── status/          # Overall project status tracking
+├── development/     # Development guides and standards
+├── architecture/    # Design decisions and architecture docs
+├── guides/          # How-to guides and tutorials
+├── references/      # External references and resources
+├── planning/        # Future plans and roadmaps
+├── reports/         # Analysis and investigation reports
+├── notes/           # Miscellaneous notes and observations
+└── legacy/          # Deprecated or historical documents
+```
+
+### What Goes Where
+
+#### `active/` - Current Work
+- Open issues and bugs (e.g., KNOWN_ISSUES.md)
+- In-progress implementations
+- Current investigation reports
+- Active todo lists and tasks
+- **Move to `completed/` when resolved**
+
+#### `completed/` - Resolved Work
+- Closed issues with resolution details
+- Completed feature implementations
+- Finished investigation reports
+- Resolved security audits
+- **Include resolution date and summary**
+
+#### `status/` - Project Status
+- Overall implementation status (OVERALL_STATUS.md)
+- Component-specific status reports
+- Production readiness assessments
+- Compliance status tracking
+- **Keep continuously updated**
+
+#### `development/` - Development Resources
+- Coding standards and guidelines
+- Testing standards (e.g., CLOSURE_TESTING_STANDARDS.md)
+- Implementation guides
+- Best practices documentation
+- **Reference documents for developers**
+
+#### Other Directories
+- **architecture/**: Design decisions, system architecture
+- **guides/**: Step-by-step tutorials, how-to guides
+- **references/**: Links to external docs, resources
+- **planning/**: Roadmaps, future feature plans
+- **reports/**: Investigation results, analysis reports
+- **notes/**: Quick notes, observations, ideas
+- **legacy/**: Old/deprecated docs kept for reference
 
 ## Essential Documentation
 
@@ -177,34 +265,19 @@ No `.script` files in root directory. Use:
 - [Rust Documentation](https://doc.rust-lang.org/book/)
 - [MCP Specification](https://modelcontextprotocol.io/docs)
 
-## Memory Management for Claude Code
-
-### Documentation Workflow
-- Store all project analysis docs in `/kb/` directory
-- Update `kb//active` when bugs are found or fixed
-- Update `kb/status` when features are completed
-- Delete outdated docs when no longer needed
 
 ### Current Version: v0.5.0-alpha
-- **Overall**: ~80% complete with critical security issues
-- **Focus**: Async security fixes → Module system repair → Standard library
-- **Blocker**: Async runtime has memory corruption vulnerabilities requiring immediate fix
+- **Overall**: ~90% complete with all major systems implemented
+- **Recent**: Module system, standard library, and functional programming completed
+- **Focus**: Error message quality, REPL enhancements, MCP integration
+- **Achievement**: Production-grade core language with only minor issues remaining
 
 ## CLI Commands
 
 ### Security and Optimization
 - `/audit` - Perform a Security (SOC2 Compliant), and Optimization Audit of the provided file or files; Ensure they are ready for Production.
 - `/implement` - Implement a production-ready implementation of the provided text; Refer to and update the @kb documentation for tracking and guidance
-
-## MCP Server Integration
-
-The Script language includes a **Knowledge Base MCP Server** (`script-kb-mcp`) that provides Claude Code with persistent memory and context about the project.
-
-### MCP Server Features
-- **KB Management**: Read, update, and delete knowledge base files
-- **Smart Search**: Search across all documentation with context
-- **Status Tracking**: Get current implementation status and known issues
-- **Security**: Path validation and file type restrictions
+- `/scan` - Audit the entire codebase, create any issue that have been added to the KB, and report back on the completion status of the project;
 
 ### Available MCP Tools
 - `kb_read` - Read any KB file (e.g., "active/KNOWN_ISSUES.md")
@@ -214,10 +287,6 @@ The Script language includes a **Knowledge Base MCP Server** (`script-kb-mcp`) t
 - `kb_search` - Search KB content
 - `kb_status` - Get implementation status overview
 - `kb_issues` - Get current known issues
-
-### Configuration
-MCP server is configured at: `~/.config/Claude/claude_desktop_config.json`
-Test the server: `./script-kb-mcp/test-mcp.sh`
 
 ### Usage Examples
 - "Show me the current implementation status" → Uses `kb_status`

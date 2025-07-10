@@ -1,0 +1,249 @@
+// Script Standard Library Showcase
+// This example demonstrates all major stdlib functionality
+
+// Import standard library (implicit in Script)
+
+// ===== Collections Demo =====
+fn collections_demo() {
+    println("=== Collections Demo ===");
+    
+    // Vector operations
+    let vec = Vec::new();
+    vec_push(vec, "first");
+    vec_push(vec, "second");
+    vec_push(vec, "third");
+    println("Vector length: " + to_string(vec_len(vec)));
+    
+    // HashMap operations
+    let map = HashMap::new();
+    hashmap_insert(map, "name", "Script Language");
+    hashmap_insert(map, "version", "0.5.0");
+    hashmap_insert(map, "type", "AI-native");
+    
+    match hashmap_get(map, "name") {
+        Option::Some(val) => println("Language: " + val),
+        Option::None => println("Key not found")
+    }
+    
+    // HashSet operations
+    let set1 = HashSet::new();
+    let set2 = HashSet::new();
+    
+    hashset_insert(set1, "rust");
+    hashset_insert(set1, "script");
+    hashset_insert(set1, "python");
+    
+    hashset_insert(set2, "script");
+    hashset_insert(set2, "python");
+    hashset_insert(set2, "java");
+    
+    let common = hashset_intersection(set1, set2);
+    println("Common languages: " + to_string(hashset_len(common)));
+}
+
+// ===== String Operations Demo =====
+fn string_demo() {
+    println("\n=== String Operations Demo ===");
+    
+    let text = "  Hello, Script World!  ";
+    
+    // Basic operations
+    println("Original: '" + text + "'");
+    println("Trimmed: '" + trim(text) + "'");
+    println("Uppercase: " + to_uppercase(text));
+    println("Lowercase: " + to_lowercase(text));
+    
+    // Advanced operations
+    let name = "Script";
+    println("\nPadded left: '" + pad_left(name, 10, "*") + "'");
+    println("Padded right: '" + pad_right(name, 10, "-") + "'");
+    println("Centered: '" + center(name, 10, "=") + "'");
+    
+    // String analysis
+    let sentence = "The quick brown fox jumps over the lazy dog";
+    println("\nCharacter count: " + to_string(string_len(sentence)));
+    println("Word 'the' count: " + to_string(count_matches(to_lowercase(sentence), "the")));
+    println("Reversed: " + reverse("Script"));
+    
+    // String validation
+    println("\nIs 'abc' alphabetic? " + to_string(is_alphabetic("abc")));
+    println("Is '123' numeric? " + to_string(is_numeric("123")));
+    
+    // String manipulation
+    let email = "user@example.com";
+    let truncated = truncate(email, 10, "...");
+    println("Truncated email: " + truncated);
+}
+
+// ===== File I/O Demo =====
+fn file_io_demo() {
+    println("\n=== File I/O Demo ===");
+    
+    let filename = "script_demo.txt";
+    let content = "Hello from Script!\nThis is a demo file.";
+    
+    // Write file
+    match write_file(filename, content) {
+        Result::Ok(_) => println("File written successfully"),
+        Result::Err(e) => println("Write error: " + e.message)
+    }
+    
+    // Check if file exists
+    match file_exists(filename) {
+        Result::Ok(exists) => {
+            if exists {
+                println("File exists!");
+            }
+        },
+        Result::Err(e) => println("Error checking file: " + e.message)
+    }
+    
+    // Read file
+    match read_file(filename) {
+        Result::Ok(data) => println("File content:\n" + data),
+        Result::Err(e) => println("Read error: " + e.message)
+    }
+    
+    // Append to file
+    match append_file(filename, "\nAppended line!") {
+        Result::Ok(_) => println("Content appended"),
+        Result::Err(e) => println("Append error: " + e.message)
+    }
+    
+    // Get file metadata
+    match file_metadata(filename) {
+        Result::Ok(meta) => println("File metadata retrieved"),
+        Result::Err(e) => println("Metadata error: " + e.message)
+    }
+    
+    // Clean up
+    match delete_file(filename) {
+        Result::Ok(_) => println("File deleted"),
+        Result::Err(e) => println("Delete error: " + e.message)
+    }
+}
+
+// ===== Math Functions Demo =====
+fn math_demo() {
+    println("\n=== Math Functions Demo ===");
+    
+    // Basic operations
+    println("Absolute value of -42: " + to_string(abs(-42.0)));
+    println("Min of 10 and 20: " + to_string(min(10.0, 20.0)));
+    println("Max of 10 and 20: " + to_string(max(10.0, 20.0)));
+    
+    // Power and roots
+    println("\n2^8 = " + to_string(pow(2.0, 8.0)));
+    println("Square root of 16: " + to_string(sqrt(16.0)));
+    println("Cube root of 27: " + to_string(cbrt(27.0)));
+    
+    // Trigonometry
+    println("\nsin(0) = " + to_string(sin(0.0)));
+    println("cos(0) = " + to_string(cos(0.0)));
+    println("tan(45°) = " + to_string(tan(deg_to_rad(45.0))));
+    
+    // Rounding
+    println("\nfloor(3.7) = " + to_string(floor(3.7)));
+    println("ceil(3.2) = " + to_string(ceil(3.2)));
+    println("round(3.5) = " + to_string(round(3.5)));
+    
+    // Game math helpers
+    println("\nlerp(0, 10, 0.5) = " + to_string(lerp(0.0, 10.0, 0.5)));
+    println("clamp(15, 0, 10) = " + to_string(clamp(15.0, 0.0, 10.0)));
+}
+
+// ===== Core Types Demo =====
+fn core_types_demo() {
+    println("\n=== Core Types Demo ===");
+    
+    // Option type
+    let some_value = Option::some(42);
+    let none_value = Option::none();
+    
+    println("Is some_value Some? " + to_string(is_some(some_value)));
+    println("Is none_value None? " + to_string(is_none(none_value)));
+    
+    let unwrapped = option_unwrap_or(some_value, 0);
+    println("Unwrapped value: " + to_string(unwrapped));
+    
+    // Result type for error handling
+    let success = Result::ok("Operation successful");
+    let failure = Result::err("Something went wrong");
+    
+    match success {
+        Result::Ok(msg) => println("Success: " + msg),
+        Result::Err(e) => println("Error: " + e)
+    }
+    
+    match failure {
+        Result::Ok(msg) => println("Success: " + msg),  
+        Result::Err(e) => println("Error: " + e)
+    }
+}
+
+// ===== Network Demo =====
+fn network_demo() {
+    println("\n=== Network Demo ===");
+    println("Network functions registered:");
+    println("- tcp_connect: Connect to TCP server");
+    println("- tcp_bind: Create TCP server");
+    println("- udp_bind: Create UDP socket");
+    println("(Full implementation requires read/write/send/recv operations)");
+    
+    // Example: Try to connect
+    match tcp_connect("example.com:80") {
+        Result::Ok(stream) => println("Connected!"),
+        Result::Err(e) => println("Connection failed: " + e.message)
+    }
+}
+
+// ===== Error Handling Demo =====
+fn error_handling_demo() {
+    println("\n=== Error Handling Demo ===");
+    
+    // Demonstrate Result type error handling
+    fn safe_divide(a: f32, b: f32) -> Result<f32, string> {
+        if b == 0.0 {
+            return Result::err("Division by zero");
+        }
+        return Result::ok(a / b);
+    }
+    
+    let result1 = safe_divide(10.0, 2.0);
+    let result2 = safe_divide(10.0, 0.0);
+    
+    match result1 {
+        Result::Ok(val) => println("10 / 2 = " + to_string(val)),
+        Result::Err(e) => println("Error: " + e)
+    }
+    
+    match result2 {
+        Result::Ok(val) => println("10 / 0 = " + to_string(val)),
+        Result::Err(e) => println("Error: " + e)
+    }
+    
+    // Error propagation with ? operator (when implemented)
+    // fn calculate() -> Result<f32, string> {
+    //     let x = safe_divide(20.0, 4.0)?;
+    //     let y = safe_divide(x, 2.0)?;
+    //     return Result::ok(y);
+    // }
+}
+
+// ===== Main Entry Point =====
+fn main() {
+    println("Script Standard Library Showcase");
+    println("================================\n");
+    
+    // Run all demos
+    collections_demo();
+    string_demo();
+    file_io_demo();
+    math_demo();
+    core_types_demo();
+    network_demo();
+    error_handling_demo();
+    
+    println("\n================================");
+    println("Standard Library Demo Complete!");
+}

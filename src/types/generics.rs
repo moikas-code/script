@@ -383,7 +383,7 @@ impl GenericEnv {
                 if visited.contains(name) {
                     return Type::TypeParam(name.clone()); // Break cycle
                 }
-                
+
                 if let Some(concrete) = self.get_substitution(name) {
                     visited.insert(name.clone());
                     let result = self.substitute_type_with_visited(concrete, visited);
@@ -393,23 +393,33 @@ impl GenericEnv {
                     type_.clone()
                 }
             }
-            Type::Generic { name, args } => {
-                Type::Generic {
-                    name: name.clone(),
-                    args: args.iter().map(|arg| self.substitute_type_with_visited(arg, visited)).collect(),
-                }
+            Type::Generic { name, args } => Type::Generic {
+                name: name.clone(),
+                args: args
+                    .iter()
+                    .map(|arg| self.substitute_type_with_visited(arg, visited))
+                    .collect(),
+            },
+            Type::Array(elem) => {
+                Type::Array(Box::new(self.substitute_type_with_visited(elem, visited)))
             }
-            Type::Array(elem) => Type::Array(Box::new(self.substitute_type_with_visited(elem, visited))),
             Type::Function { params, ret } => Type::Function {
-                params: params.iter().map(|p| self.substitute_type_with_visited(p, visited)).collect(),
+                params: params
+                    .iter()
+                    .map(|p| self.substitute_type_with_visited(p, visited))
+                    .collect(),
                 ret: Box::new(self.substitute_type_with_visited(ret, visited)),
             },
             Type::Result { ok, err } => Type::Result {
                 ok: Box::new(self.substitute_type_with_visited(ok, visited)),
                 err: Box::new(self.substitute_type_with_visited(err, visited)),
             },
-            Type::Future(inner) => Type::Future(Box::new(self.substitute_type_with_visited(inner, visited))),
-            Type::Option(inner) => Type::Option(Box::new(self.substitute_type_with_visited(inner, visited))),
+            Type::Future(inner) => {
+                Type::Future(Box::new(self.substitute_type_with_visited(inner, visited)))
+            }
+            Type::Option(inner) => {
+                Type::Option(Box::new(self.substitute_type_with_visited(inner, visited)))
+            }
             Type::TypeVar(id) => {
                 // Type variables are handled by the inference engine, not generic substitution
                 Type::TypeVar(*id)

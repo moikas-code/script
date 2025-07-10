@@ -1,6 +1,6 @@
 [package]
 name = "script"
-version = "0.3.0"
+version = "0.5.0-alpha"
 edition = "2021"
 authors = ["Warren Gates (moikapy)"]
 description = "Script: A simple yet powerful programming language for web applications and games"
@@ -34,6 +34,7 @@ num_cpus = "1.0"
 crossbeam = "0.8"
 # LSP dependencies
 tokio = { version = "1.40", features = ["full"] }
+futures = "0.3"
 tower-lsp = "0.20"
 dashmap = "6.1"
 env_logger = "0.11"
@@ -50,11 +51,15 @@ self_update = { version = "0.40", features = ["archive-tar", "archive-zip", "com
 unicode-normalization = "0.1.22"
 # Performance dependencies
 ahash = "0.8"
+# UUID generation
+uuid = { version = "1.10", features = ["v4", "serde"] }
 
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.0"
 tempfile = "3.0"
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
 
 [features]
 # Enable fuzzing support

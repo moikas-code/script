@@ -7,18 +7,18 @@
 use crate::error::{Error, ErrorKind};
 use crate::ir::{Constant, Instruction, IrBuilder, Module as IrModule, Parameter, ValueId};
 use crate::parser::{Block, Expr, Program, Stmt, StmtKind};
-use crate::semantic::{SymbolTable, analyzer::GenericInstantiation};
+use crate::semantic::{analyzer::GenericInstantiation, SymbolTable};
 use crate::types::Type;
 use std::collections::HashMap;
 use std::mem;
 
+pub mod async_transform;
 pub mod context;
 pub mod expr;
 pub mod stmt;
-pub mod async_transform;
 
-pub use context::LoweringContext;
 pub use async_transform::{transform_async_function, AsyncTransformInfo};
+pub use context::LoweringContext;
 
 /// Result type for lowering operations
 pub type LoweringResult<T> = Result<T, Error>;
@@ -35,14 +35,17 @@ pub struct AstLowerer {
     type_info: HashMap<usize, Type>, // Maps expression IDs to types
     /// Generic instantiations for monomorphization
     generic_instantiations: Vec<GenericInstantiation>,
+    /// Capture information for closures (maps closure expression ID to captures)
+    closure_captures: HashMap<usize, Vec<(String, Type, bool)>>, // (name, type, is_mutable)
 }
 
 impl AstLowerer {
     /// Create a new AST lowerer
     pub fn new(
-        symbol_table: SymbolTable, 
+        symbol_table: SymbolTable,
         type_info: HashMap<usize, Type>,
-        generic_instantiations: Vec<GenericInstantiation>
+        generic_instantiations: Vec<GenericInstantiation>,
+        closure_captures: HashMap<usize, Vec<(String, Type, bool)>>,
     ) -> Self {
         AstLowerer {
             builder: IrBuilder::new(),
@@ -50,12 +53,23 @@ impl AstLowerer {
             symbol_table,
             type_info,
             generic_instantiations,
+            closure_captures,
         }
     }
-    
+
     /// Get the generic instantiations for monomorphization
     pub fn generic_instantiations(&self) -> &[GenericInstantiation] {
         &self.generic_instantiations
+    }
+
+    /// Get the type of an expression by ID
+    pub fn get_expression_type_by_id(&self, expr_id: usize) -> Option<&Type> {
+        self.type_info.get(&expr_id)
+    }
+
+    /// Infer type from expression (with fallback to Unknown)
+    pub fn infer_type_from_expr(&self, expr: &Expr) -> LoweringResult<Type> {
+        self.get_expression_type(expr)
     }
 
     /// Lower a program to IR
@@ -117,7 +131,10 @@ impl AstLowerer {
             // Transform the async function
             let module = self.builder.module_mut();
             if let Err(e) = transform_async_function(module, func_id) {
-                eprintln!("Warning: Failed to transform async function '{}': {}", name, e);
+                eprintln!(
+                    "Warning: Failed to transform async function '{}': {}",
+                    name, e
+                );
                 // Continue with other functions
             }
         }
@@ -287,7 +304,7 @@ impl AstLowerer {
                 // TODO: Implement enum definition lowering
                 // Enums are handled during semantic analysis
             }
-            
+
             StmtKind::Impl(_) => {
                 // TODO: Implement impl block lowering
                 // Impl blocks are handled during semantic analysis
@@ -739,7 +756,7 @@ impl AstLowerer {
         if let Some(type_) = self.type_info.get(&expr.id) {
             return Ok(type_.clone());
         }
-        
+
         // Fallback to basic type inference if type information is not available
         use crate::parser::ExprKind;
 
@@ -924,6 +941,40 @@ impl AstLowerer {
                     Ok(Type::Unknown)
                 }
             }
+            ExprKind::ErrorPropagation { expr } => {
+                // For error propagation, we need to extract the success type from Result/Option
+                let inner_ty = self.infer_type_from_expr(expr)?;
+                match inner_ty {
+                    Type::Result { ok, .. } => Ok(*ok),
+                    Type::Option(inner) => Ok(*inner),
+                    _ => Ok(Type::Unknown), // Fallback if not a Result/Option
+                }
+            }
+            ExprKind::TryCatch { try_expr, .. } => {
+                // The type of a try-catch expression is the type of the try expression
+                self.infer_type_from_expr(try_expr)
+            }
+            ExprKind::Closure { parameters, body } => {
+                // Infer parameter types
+                let param_types: Vec<Type> = parameters
+                    .iter()
+                    .map(|param| {
+                        if let Some(ref type_ann) = param.type_ann {
+                            crate::types::conversion::type_from_ast(type_ann)
+                        } else {
+                            Type::Unknown // Will be inferred later
+                        }
+                    })
+                    .collect();
+
+                // Infer return type from body
+                let return_type = self.get_expression_type(body)?;
+
+                Ok(Type::Function {
+                    params: param_types,
+                    ret: Box::new(return_type),
+                })
+            }
         }
     }
 
@@ -977,7 +1028,13 @@ mod tests {
         let type_info = HashMap::new();
         let generic_instantiations = Vec::new();
 
-        let mut lowerer = AstLowerer::new(symbol_table, type_info, generic_instantiations);
+        let closure_captures = HashMap::new();
+        let mut lowerer = AstLowerer::new(
+            symbol_table,
+            type_info,
+            generic_instantiations,
+            closure_captures,
+        );
         lowerer.lower_program(&program)
     }
 

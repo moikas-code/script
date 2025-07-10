@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, develop, "dev/*" ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -71,6 +71,10 @@ jobs:
         
       - name: Build documentation
         run: cargo doc --no-deps --all-features
+        
+      - name: Test MCP features
+        run: cargo test --features mcp --verbose
+        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
         
   benchmark:
     name: Benchmark

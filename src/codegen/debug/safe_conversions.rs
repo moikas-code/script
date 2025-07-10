@@ -11,19 +11,38 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConversionError {
     /// Value too large for target type
-    Overflow { value: String, target_type: &'static str },
+    Overflow {
+        value: String,
+        target_type: &'static str,
+    },
     /// Value would cause overflow when adding
-    AdditionOverflow { base: String, addend: String, target_type: &'static str },
+    AdditionOverflow {
+        base: String,
+        addend: String,
+        target_type: &'static str,
+    },
 }
 
 impl fmt::Display for ConversionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ConversionError::Overflow { value, target_type } => {
-                write!(f, "Integer overflow: value {} cannot fit in {}", value, target_type)
+                write!(
+                    f,
+                    "Integer overflow: value {} cannot fit in {}",
+                    value, target_type
+                )
             }
-            ConversionError::AdditionOverflow { base, addend, target_type } => {
-                write!(f, "Integer overflow: {} + {} exceeds {} maximum", base, addend, target_type)
+            ConversionError::AdditionOverflow {
+                base,
+                addend,
+                target_type,
+            } => {
+                write!(
+                    f,
+                    "Integer overflow: {} + {} exceeds {} maximum",
+                    base, addend, target_type
+                )
             }
         }
     }
@@ -35,7 +54,7 @@ impl std::error::Error for ConversionError {}
 pub fn usize_to_u64(value: usize) -> Result<u64, Error> {
     u64::try_from(value).map_err(|_| {
         Error::new(
-            ErrorKind::Other,
+            ErrorKind::InvalidConversion,
             format!("Integer overflow: usize value {} cannot fit in u64", value),
         )
     })
@@ -45,7 +64,7 @@ pub fn usize_to_u64(value: usize) -> Result<u64, Error> {
 pub fn usize_to_u32(value: usize) -> Result<u32, Error> {
     u32::try_from(value).map_err(|_| {
         Error::new(
-            ErrorKind::Other,
+            ErrorKind::InvalidConversion,
             format!("Integer overflow: usize value {} cannot fit in u32", value),
         )
     })
@@ -56,8 +75,11 @@ pub fn usize_to_u32_add(base: usize, addend: u32) -> Result<u32, Error> {
     let base_u32 = usize_to_u32(base)?;
     base_u32.checked_add(addend).ok_or_else(|| {
         Error::new(
-            ErrorKind::Other,
-            format!("Integer overflow: {} + {} exceeds u32 maximum", base_u32, addend),
+            ErrorKind::InvalidConversion,
+            format!(
+                "Integer overflow: {} + {} exceeds u32 maximum",
+                base_u32, addend
+            ),
         )
     })
 }
@@ -66,7 +88,7 @@ pub fn usize_to_u32_add(base: usize, addend: u32) -> Result<u32, Error> {
 pub fn i32_to_u32(value: i32) -> Result<u32, Error> {
     if value < 0 {
         return Err(Error::new(
-            ErrorKind::Other,
+            ErrorKind::InvalidConversion,
             format!("Cannot convert negative i32 value {} to u32", value),
         ));
     }
@@ -77,13 +99,13 @@ pub fn i32_to_u32(value: i32) -> Result<u32, Error> {
 pub mod limits {
     /// Maximum number of source files in a compilation unit
     pub const MAX_SOURCE_FILES: usize = 100_000;
-    
+
     /// Maximum line number supported
     pub const MAX_LINE_NUMBER: u32 = 10_000_000;
-    
+
     /// Maximum column number supported
     pub const MAX_COLUMN_NUMBER: u32 = 100_000;
-    
+
     /// Maximum number of debug entries
     pub const MAX_DEBUG_ENTRIES: usize = 1_000_000;
 }
@@ -92,8 +114,12 @@ pub mod limits {
 pub fn validate_file_count(count: usize) -> Result<(), Error> {
     if count > limits::MAX_SOURCE_FILES {
         return Err(Error::new(
-            ErrorKind::Other,
-            format!("Too many source files: {} exceeds limit of {}", count, limits::MAX_SOURCE_FILES),
+            ErrorKind::InvalidConversion,
+            format!(
+                "Too many source files: {} exceeds limit of {}",
+                count,
+                limits::MAX_SOURCE_FILES
+            ),
         ));
     }
     Ok(())
@@ -104,8 +130,12 @@ pub fn validate_line_number(line: usize) -> Result<u32, Error> {
     let line_u32 = usize_to_u32(line)?;
     if line_u32 > limits::MAX_LINE_NUMBER {
         return Err(Error::new(
-            ErrorKind::Other,
-            format!("Line number {} exceeds maximum of {}", line_u32, limits::MAX_LINE_NUMBER),
+            ErrorKind::InvalidConversion,
+            format!(
+                "Line number {} exceeds maximum of {}",
+                line_u32,
+                limits::MAX_LINE_NUMBER
+            ),
         ));
     }
     Ok(line_u32)
@@ -116,8 +146,12 @@ pub fn validate_column_number(column: usize) -> Result<u32, Error> {
     let column_u32 = usize_to_u32(column)?;
     if column_u32 > limits::MAX_COLUMN_NUMBER {
         return Err(Error::new(
-            ErrorKind::Other,
-            format!("Column number {} exceeds maximum of {}", column_u32, limits::MAX_COLUMN_NUMBER),
+            ErrorKind::InvalidConversion,
+            format!(
+                "Column number {} exceeds maximum of {}",
+                column_u32,
+                limits::MAX_COLUMN_NUMBER
+            ),
         ));
     }
     Ok(column_u32)
@@ -190,7 +224,10 @@ mod tests {
     fn test_validate_line_number() {
         assert_eq!(validate_line_number(0).unwrap(), 0);
         assert_eq!(validate_line_number(100).unwrap(), 100);
-        assert_eq!(validate_line_number(limits::MAX_LINE_NUMBER as usize).unwrap(), limits::MAX_LINE_NUMBER);
+        assert_eq!(
+            validate_line_number(limits::MAX_LINE_NUMBER as usize).unwrap(),
+            limits::MAX_LINE_NUMBER
+        );
         assert!(validate_line_number((limits::MAX_LINE_NUMBER + 1) as usize).is_err());
     }
 
@@ -198,7 +235,10 @@ mod tests {
     fn test_validate_column_number() {
         assert_eq!(validate_column_number(0).unwrap(), 0);
         assert_eq!(validate_column_number(80).unwrap(), 80);
-        assert_eq!(validate_column_number(limits::MAX_COLUMN_NUMBER as usize).unwrap(), limits::MAX_COLUMN_NUMBER);
+        assert_eq!(
+            validate_column_number(limits::MAX_COLUMN_NUMBER as usize).unwrap(),
+            limits::MAX_COLUMN_NUMBER
+        );
         assert!(validate_column_number((limits::MAX_COLUMN_NUMBER + 1) as usize).is_err());
     }
 

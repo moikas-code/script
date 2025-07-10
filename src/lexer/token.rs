@@ -46,6 +46,9 @@ pub enum TokenKind {
     Enum,
     Impl,
     Where,
+    Try,
+    Catch,
+    Finally,
 
     // Module system keywords
     Import,
@@ -79,7 +82,7 @@ pub enum TokenKind {
     And,
     Or,
     Bang,
-    Pipe, // | for pattern matching
+    Pipe,      // | for pattern matching
     Ampersand, // & for reference types
 
     // Delimiters
@@ -129,6 +132,9 @@ impl TokenKind {
             map.insert("enum", TokenKind::Enum);
             map.insert("impl", TokenKind::Impl);
             map.insert("where", TokenKind::Where);
+            map.insert("try", TokenKind::Try);
+            map.insert("catch", TokenKind::Catch);
+            map.insert("finally", TokenKind::Finally);
             map.insert("import", TokenKind::Import);
             map.insert("export", TokenKind::Export);
             map.insert("from", TokenKind::From);
@@ -138,7 +144,7 @@ impl TokenKind {
             map
         })
     }
-    
+
     /// O(1) keyword lookup using hash map
     pub fn from_keyword(word: &str) -> Option<Self> {
         Self::keyword_map().get(word).cloned()
@@ -170,6 +176,9 @@ impl fmt::Display for TokenKind {
             TokenKind::Enum => write!(f, "enum"),
             TokenKind::Impl => write!(f, "impl"),
             TokenKind::Where => write!(f, "where"),
+            TokenKind::Try => write!(f, "try"),
+            TokenKind::Catch => write!(f, "catch"),
+            TokenKind::Finally => write!(f, "finally"),
 
             TokenKind::Import => write!(f, "import"),
             TokenKind::Export => write!(f, "export"),

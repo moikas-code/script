@@ -3,12 +3,14 @@
 //! This module provides DWARF debug information generation for the Script language.
 //! It supports types, functions, variables, line numbers, and lexical scopes.
 
+use super::safe_conversions::{
+    usize_to_u32_add, validate_column_number, validate_file_count, validate_line_number,
+};
 use crate::error::Error;
 use crate::ir::Function as IrFunction;
 use crate::source::SourceLocation;
 use crate::types::Type as ScriptType;
 use std::collections::HashMap;
-use super::safe_conversions::{usize_to_u32_add, validate_line_number, validate_column_number, validate_file_count};
 
 /// DWARF debug information entry
 #[derive(Debug, Clone)]
@@ -152,7 +154,7 @@ impl DwarfBuilder {
 
         // Validate file count is within limits
         validate_file_count(self.source_files.len())?;
-        
+
         // Safely convert and add 1
         let file_id = usize_to_u32_add(self.source_files.len(), 1)?;
         self.source_files.insert(filename.to_string(), file_id);
@@ -160,9 +162,14 @@ impl DwarfBuilder {
     }
 
     /// Add a line number entry
-    pub fn add_line_entry(&mut self, address: u64, location: &SourceLocation, filename: &str) -> Result<(), Error> {
+    pub fn add_line_entry(
+        &mut self,
+        address: u64,
+        location: &SourceLocation,
+        filename: &str,
+    ) -> Result<(), Error> {
         let file_id = self.add_source_file(filename)?;
-        
+
         // Validate and convert line and column numbers
         let line = validate_line_number(location.line)?;
         let column = validate_column_number(location.column)?;
@@ -459,8 +466,8 @@ impl Default for DwarfBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::Parameter;
     use crate::codegen::debug::safe_conversions;
+    use crate::ir::Parameter;
 
     #[test]
     fn test_dwarf_builder_creation() {
@@ -499,7 +506,8 @@ mod tests {
             ScriptType::I32,
         );
 
-        let func_id = builder.add_function(&function, 0x1000, 0x2000, Some("test.script"), Some(5))?;
+        let func_id =
+            builder.add_function(&function, 0x1000, 0x2000, Some("test.script"), Some(5))?;
 
         assert!(builder.function_map.contains_key("test_function"));
         assert_eq!(builder.function_map["test_function"], func_id);
@@ -573,84 +581,88 @@ mod tests {
     #[test]
     fn test_source_file_overflow() {
         let mut builder = DwarfBuilder::new();
-        
+
         // Add files up to the limit
         for i in 0..safe_conversions::limits::MAX_SOURCE_FILES {
             let file_path = format!("/test/file_{}.script", i);
             builder.source_files.insert(file_path, (i + 1) as u32);
         }
-        
+
         // This should fail as we're at the limit
         let result = builder.add_source_file("/test/overflow.script");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Too many source files"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Too many source files"));
     }
 
     #[test]
     fn test_line_number_overflow() -> Result<(), Error> {
         let mut builder = DwarfBuilder::new();
-        
+
         // Valid line number at limit
-        let valid_location = SourceLocation::new(
-            safe_conversions::limits::MAX_LINE_NUMBER as usize,
-            5,
-            100
-        );
-        assert!(builder.add_line_entry(0x1000, &valid_location, "test.script").is_ok());
-        
+        let valid_location =
+            SourceLocation::new(safe_conversions::limits::MAX_LINE_NUMBER as usize, 5, 100);
+        assert!(builder
+            .add_line_entry(0x1000, &valid_location, "test.script")
+            .is_ok());
+
         // Invalid line number beyond limit
         let invalid_location = SourceLocation::new(
             (safe_conversions::limits::MAX_LINE_NUMBER + 1) as usize,
             5,
-            100
+            100,
         );
         let result = builder.add_line_entry(0x2000, &invalid_location, "test.script");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Line number"));
-        
+
         Ok(())
     }
 
     #[test]
     fn test_column_number_overflow() -> Result<(), Error> {
         let mut builder = DwarfBuilder::new();
-        
+
         // Valid column number at limit
         let valid_location = SourceLocation::new(
             10,
             safe_conversions::limits::MAX_COLUMN_NUMBER as usize,
-            100
+            100,
         );
-        assert!(builder.add_line_entry(0x1000, &valid_location, "test.script").is_ok());
-        
+        assert!(builder
+            .add_line_entry(0x1000, &valid_location, "test.script")
+            .is_ok());
+
         // Invalid column number beyond limit
         let invalid_location = SourceLocation::new(
             10,
             (safe_conversions::limits::MAX_COLUMN_NUMBER + 1) as usize,
-            100
+            100,
         );
         let result = builder.add_line_entry(0x2000, &invalid_location, "test.script");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Column number"));
-        
+
         Ok(())
     }
 
     #[test]
     fn test_add_source_file_edge_case() -> Result<(), Error> {
         let mut builder = DwarfBuilder::new();
-        
+
         // Test that file IDs start at 1
         let file_id1 = builder.add_source_file("test1.script")?;
         assert_eq!(file_id1, 1);
-        
+
         let file_id2 = builder.add_source_file("test2.script")?;
         assert_eq!(file_id2, 2);
-        
+
         // Test deduplication
         let file_id3 = builder.add_source_file("test1.script")?;
         assert_eq!(file_id3, 1);
-        
+
         Ok(())
     }
 }

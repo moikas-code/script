@@ -2,6 +2,8 @@
 
 The Script language includes a built-in documentation generator that produces clean, searchable HTML documentation from your code comments.
 
+> **Note**: This documentation generator is for creating user-facing API documentation from Script source code. For internal development documentation about the Script compiler itself, see the `/kb/` directory.
+
 ## Features
 
 - **Doc Comment Support**: Parse `///` and `/** */` style documentation comments

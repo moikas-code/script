@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use crate::types::Type;
-use crate::types::definitions::{StructDefinition, EnumDefinition};
 use crate::parser::{EnumVariantFields, TypeAnn};
+use crate::types::definitions::{EnumDefinition, StructDefinition};
+use crate::types::Type;
+use std::collections::HashMap;
 
 /// Memory layout information for types
 #[derive(Debug, Clone)]
@@ -101,40 +101,34 @@ impl LayoutCalculator {
             crate::parser::TypeKind::Array(elem) => {
                 Type::Array(Box::new(self.type_ann_to_type(elem)))
             }
-            crate::parser::TypeKind::Function { params, ret } => {
-                Type::Function {
-                    params: params.iter().map(|p| self.type_ann_to_type(p)).collect(),
-                    ret: Box::new(self.type_ann_to_type(ret)),
-                }
-            }
+            crate::parser::TypeKind::Function { params, ret } => Type::Function {
+                params: params.iter().map(|p| self.type_ann_to_type(p)).collect(),
+                ret: Box::new(self.type_ann_to_type(ret)),
+            },
             crate::parser::TypeKind::Generic { name, args } => {
                 // Handle Option<T> and Result<T, E> as special cases
                 match name.as_str() {
                     "Option" if args.len() == 1 => {
                         Type::Option(Box::new(self.type_ann_to_type(&args[0])))
                     }
-                    "Result" if args.len() == 2 => {
-                        Type::Result {
-                            ok: Box::new(self.type_ann_to_type(&args[0])),
-                            err: Box::new(self.type_ann_to_type(&args[1])),
-                        }
-                    }
+                    "Result" if args.len() == 2 => Type::Result {
+                        ok: Box::new(self.type_ann_to_type(&args[0])),
+                        err: Box::new(self.type_ann_to_type(&args[1])),
+                    },
                     _ => Type::Generic {
                         name: name.clone(),
                         args: args.iter().map(|a| self.type_ann_to_type(a)).collect(),
-                    }
+                    },
                 }
             }
             crate::parser::TypeKind::TypeParam(name) => Type::TypeParam(name.clone()),
             crate::parser::TypeKind::Tuple(types) => {
                 Type::Tuple(types.iter().map(|t| self.type_ann_to_type(t)).collect())
             }
-            crate::parser::TypeKind::Reference { mutable, inner } => {
-                Type::Reference {
-                    mutable: *mutable,
-                    inner: Box::new(self.type_ann_to_type(inner)),
-                }
-            }
+            crate::parser::TypeKind::Reference { mutable, inner } => Type::Reference {
+                mutable: *mutable,
+                inner: Box::new(self.type_ann_to_type(inner)),
+            },
         }
     }
 
@@ -154,16 +148,19 @@ impl LayoutCalculator {
             let field_type = self.type_ann_to_type(&field.type_ann);
             let field_layout = self.calculate_type_layout(&field_type);
             let alignment = field_layout.alignment;
-            
+
             // Align the current offset
             current_offset = align_up(current_offset, alignment);
-            
-            fields.push((field.name.clone(), FieldLayout {
-                offset: current_offset,
-                size: field_layout.size,
-                ty: field_type,
-            }));
-            
+
+            fields.push((
+                field.name.clone(),
+                FieldLayout {
+                    offset: current_offset,
+                    size: field_layout.size,
+                    ty: field_type,
+                },
+            ));
+
             current_offset += field_layout.size;
             max_alignment = max_alignment.max(alignment);
         }
@@ -199,13 +196,11 @@ impl LayoutCalculator {
         // Calculate layout for each variant
         for (tag, variant) in def.variants.iter().enumerate() {
             let variant_layout = match &variant.fields {
-                EnumVariantFields::Unit => {
-                    VariantLayout {
-                        name: variant.name.clone(),
-                        tag: tag as u32,
-                        data_layout: VariantDataLayout::Unit,
-                    }
-                }
+                EnumVariantFields::Unit => VariantLayout {
+                    name: variant.name.clone(),
+                    tag: tag as u32,
+                    data_layout: VariantDataLayout::Unit,
+                },
                 EnumVariantFields::Tuple(types) => {
                     let mut tuple_layouts = Vec::new();
                     let mut variant_size = 0u32;
@@ -238,13 +233,16 @@ impl LayoutCalculator {
                         let field_type = self.type_ann_to_type(&field.type_ann);
                         let field_layout = self.calculate_type_layout(&field_type);
                         variant_size = align_up(variant_size, field_layout.alignment);
-                        
-                        struct_fields.push((field.name.clone(), FieldLayout {
-                            offset: variant_size,
-                            size: field_layout.size,
-                            ty: field_type,
-                        }));
-                        
+
+                        struct_fields.push((
+                            field.name.clone(),
+                            FieldLayout {
+                                offset: variant_size,
+                                size: field_layout.size,
+                                ty: field_type,
+                            },
+                        ));
+
                         variant_size += field_layout.size;
                         variant_alignment = variant_alignment.max(field_layout.alignment);
                     }
@@ -284,11 +282,26 @@ impl LayoutCalculator {
     /// Calculate layout for a type
     pub fn calculate_type_layout(&self, ty: &Type) -> TypeLayout {
         match ty {
-            Type::I32 => TypeLayout { size: 4, alignment: 4 },
-            Type::F32 => TypeLayout { size: 4, alignment: 4 },
-            Type::Bool => TypeLayout { size: 1, alignment: 1 },
-            Type::String => TypeLayout { size: 16, alignment: 8 }, // Fat pointer: ptr + len
-            Type::Array(_) => TypeLayout { size: 16, alignment: 8 }, // Fat pointer: ptr + len
+            Type::I32 => TypeLayout {
+                size: 4,
+                alignment: 4,
+            },
+            Type::F32 => TypeLayout {
+                size: 4,
+                alignment: 4,
+            },
+            Type::Bool => TypeLayout {
+                size: 1,
+                alignment: 1,
+            },
+            Type::String => TypeLayout {
+                size: 16,
+                alignment: 8,
+            }, // Fat pointer: ptr + len
+            Type::Array(_) => TypeLayout {
+                size: 16,
+                alignment: 8,
+            }, // Fat pointer: ptr + len
             Type::Named(name) => {
                 // Check if it's a known struct or enum
                 if let Some(struct_layout) = self.struct_layouts.get(name) {
@@ -303,7 +316,10 @@ impl LayoutCalculator {
                     }
                 } else {
                     // Default for unknown named types
-                    TypeLayout { size: 8, alignment: 8 }
+                    TypeLayout {
+                        size: 8,
+                        alignment: 8,
+                    }
                 }
             }
             Type::Generic { name, .. } => {
@@ -320,57 +336,91 @@ impl LayoutCalculator {
                     }
                 } else {
                     // Default for unknown generic types
-                    TypeLayout { size: 8, alignment: 8 }
+                    TypeLayout {
+                        size: 8,
+                        alignment: 8,
+                    }
                 }
             }
-            Type::Function { .. } => TypeLayout { size: 8, alignment: 8 }, // Function pointer
+            Type::Function { .. } => TypeLayout {
+                size: 8,
+                alignment: 8,
+            }, // Function pointer
             Type::Tuple(types) => {
                 let mut size = 0u32;
                 let mut alignment = 1u32;
-                
+
                 for ty in types {
                     let layout = self.calculate_type_layout(ty);
                     size = align_up(size, layout.alignment);
                     size += layout.size;
                     alignment = alignment.max(layout.alignment);
                 }
-                
+
                 TypeLayout {
                     size: align_up(size, alignment),
                     alignment,
                 }
             }
-            Type::Reference { .. } => TypeLayout { size: 8, alignment: 8 }, // Pointer
-            Type::Unknown | Type::Never => TypeLayout { size: 0, alignment: 1 },
+            Type::Reference { .. } => TypeLayout {
+                size: 8,
+                alignment: 8,
+            }, // Pointer
+            Type::Unknown | Type::Never => TypeLayout {
+                size: 0,
+                alignment: 1,
+            },
             Type::TypeVar(_) | Type::TypeParam(_) => {
                 // Type variables should be resolved before layout calculation
-                TypeLayout { size: 8, alignment: 8 }
+                TypeLayout {
+                    size: 8,
+                    alignment: 8,
+                }
             }
             Type::Option(_) | Type::Result { .. } | Type::Future(_) => {
                 // These would need special handling based on their representation
-                TypeLayout { size: 16, alignment: 8 } // Conservative estimate
+                TypeLayout {
+                    size: 16,
+                    alignment: 8,
+                } // Conservative estimate
+            }
+            Type::Struct { name, .. } => {
+                // Look up the struct layout or calculate a default
+                if let Some(struct_layout) = self.struct_layouts.get(name) {
+                    TypeLayout {
+                        size: struct_layout.total_size,
+                        alignment: struct_layout.alignment,
+                    }
+                } else {
+                    TypeLayout {
+                        size: 16,
+                        alignment: 8,
+                    }
+                }
             }
         }
     }
 
     /// Get the offset of a struct field
     pub fn get_field_offset(&self, struct_name: &str, field_name: &str) -> Option<u32> {
-        self.struct_layouts.get(struct_name)
-            .and_then(|layout| {
-                layout.fields.iter()
-                    .find(|(name, _)| name == field_name)
-                    .map(|(_, field)| field.offset)
-            })
+        self.struct_layouts.get(struct_name).and_then(|layout| {
+            layout
+                .fields
+                .iter()
+                .find(|(name, _)| name == field_name)
+                .map(|(_, field)| field.offset)
+        })
     }
 
     /// Get the tag value for an enum variant
     pub fn get_variant_tag(&self, enum_name: &str, variant_name: &str) -> Option<u32> {
-        self.enum_layouts.get(enum_name)
-            .and_then(|layout| {
-                layout.variants.iter()
-                    .find(|v| v.name == variant_name)
-                    .map(|v| v.tag)
-            })
+        self.enum_layouts.get(enum_name).and_then(|layout| {
+            layout
+                .variants
+                .iter()
+                .find(|v| v.name == variant_name)
+                .map(|v| v.tag)
+        })
     }
 
     /// Get the enum layout
@@ -379,12 +429,14 @@ impl LayoutCalculator {
     }
 
     /// Get variant layout information
-    pub fn get_variant_layout(&self, enum_name: &str, variant_name: &str) -> Option<&VariantLayout> {
-        self.enum_layouts.get(enum_name)
-            .and_then(|layout| {
-                layout.variants.iter()
-                    .find(|v| v.name == variant_name)
-            })
+    pub fn get_variant_layout(
+        &self,
+        enum_name: &str,
+        variant_name: &str,
+    ) -> Option<&VariantLayout> {
+        self.enum_layouts
+            .get(enum_name)
+            .and_then(|layout| layout.variants.iter().find(|v| v.name == variant_name))
     }
 }
 
@@ -396,8 +448,8 @@ fn align_up(value: u32, alignment: u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::source::{Span, SourceLocation};
-    use crate::parser::{TypeAnn, StructField};
+    use crate::parser::{StructField, TypeAnn};
+    use crate::source::{SourceLocation, Span};
 
     fn dummy_span() -> Span {
         Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 1, 0))
@@ -406,11 +458,11 @@ mod tests {
     #[test]
     fn test_primitive_layouts() {
         let calc = LayoutCalculator::new();
-        
+
         let i32_layout = calc.calculate_type_layout(&Type::I32);
         assert_eq!(i32_layout.size, 4);
         assert_eq!(i32_layout.alignment, 4);
-        
+
         let bool_layout = calc.calculate_type_layout(&Type::Bool);
         assert_eq!(bool_layout.size, 1);
         assert_eq!(bool_layout.alignment, 1);
@@ -419,7 +471,7 @@ mod tests {
     #[test]
     fn test_struct_layout() {
         let mut calc = LayoutCalculator::new();
-        
+
         let def = StructDefinition {
             name: "Point".to_string(),
             generic_params: None,
@@ -446,7 +498,7 @@ mod tests {
             is_monomorphized: false,
             original_type: None,
         };
-        
+
         let layout = calc.calculate_struct_layout(&def);
         assert_eq!(layout.total_size, 8); // 4 + 4
         assert_eq!(layout.alignment, 4);

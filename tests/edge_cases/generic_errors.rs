@@ -1,5 +1,5 @@
 //! Error handling tests for generic types
-//! 
+//!
 //! These tests verify that the compiler produces appropriate error
 //! messages for various generic type errors.
 
@@ -19,9 +19,9 @@ fn test_type_mismatch_in_generic() {
             let b: Box<i32> = Box { value: "wrong type" };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     match program {
         Ok(ref prog) => {
             assert!(!prog.errors.is_empty(), "Expected type mismatch error");
@@ -46,9 +46,9 @@ fn test_missing_type_params() {
             let p: Pair = Pair { first: 42, second: "hello" };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Should error about missing type parameters
     match program {
         Ok(ref prog) => {
@@ -73,13 +73,16 @@ fn test_too_many_type_params() {
             let b = Box::<i32, string> { value: 42 };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Should error about too many type parameters
     match program {
         Ok(ref prog) => {
-            assert!(!prog.errors.is_empty(), "Expected error for too many type params");
+            assert!(
+                !prog.errors.is_empty(),
+                "Expected error for too many type params"
+            );
         }
         Err(_) => {
             // Expected to fail
@@ -101,13 +104,16 @@ fn test_incompatible_type_constraints() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Should error about incompatible types in array
     match program {
         Ok(ref prog) => {
-            assert!(!prog.errors.is_empty(), "Expected error for mixed types in array");
+            assert!(
+                !prog.errors.is_empty(),
+                "Expected error for mixed types in array"
+            );
         }
         Err(_) => {
             // Expected to fail
@@ -123,9 +129,9 @@ fn test_undefined_generic_type() {
             let x: NonExistent<i32> = something();
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Should error about undefined type
     match program {
         Ok(ref prog) => {
@@ -149,9 +155,9 @@ fn test_recursive_type_without_indirection() {
             // Would create infinite size type
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Should error about recursive type needing indirection
     // Though this might be caught at a later stage
 }
@@ -180,9 +186,9 @@ fn test_conflicting_impl_blocks() {
             let v = c.get();
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Might error about conflicting implementations
     // or might resolve to the more specific one
 }
@@ -206,9 +212,9 @@ fn test_type_param_shadowing() {
             let result = o.nested("different type");
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Should handle shadowing correctly or warn about it
 }
 
@@ -224,13 +230,16 @@ fn test_unresolved_type_in_struct_field() {
             let c = Container { value: 42, unknown: "?" };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Should error about undefined type parameter U
     match program {
         Ok(ref prog) => {
-            assert!(!prog.errors.is_empty(), "Expected error for undefined type param");
+            assert!(
+                !prog.errors.is_empty(),
+                "Expected error for undefined type param"
+            );
         }
         Err(e) => {
             assert!(e.to_string().contains("U") || e.to_string().contains("undefined"));
@@ -262,9 +271,9 @@ fn test_mismatched_type_args_in_impl() {
             let swapped2 = p2.swap();  // Error: swap requires both types to be same
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // The second swap call should fail
 }
 
@@ -291,9 +300,9 @@ fn test_trait_bound_not_satisfied() {
             let s2 = Sorted { items: [NoOrd { value: "a" }] };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Should error about NoOrd not implementing Ord
     // (if trait bounds are checked)
 }
@@ -322,9 +331,9 @@ fn test_ambiguous_associated_type() {
             let item = get_item(mc);
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Associated types might not be implemented yet
 }
 
@@ -340,9 +349,9 @@ fn test_lifetime_error_in_generic() {
             let b = Borrowed { value: &x };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Should error about missing lifetime or references not being supported
 }
 
@@ -357,9 +366,9 @@ fn test_const_generic_mismatch() {
             let a1: Array<i32, 5> = Array { data: [1, 2, 3] }; // Wrong size
         }
     "#;
-    
+
     let program = compile_generic_program(code);
-    
+
     // Const generics might not be supported, but if they are,
     // this should error about size mismatch
 }

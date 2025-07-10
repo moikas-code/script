@@ -4,7 +4,8 @@
 //! that can be used from Script code. All strings in Script are UTF-8 encoded.
 
 use crate::runtime::{RuntimeError, ScriptRc};
-use crate::stdlib::{ScriptValue, ScriptVec};
+use crate::stdlib::collections::ScriptVec;
+use crate::stdlib::ScriptValue;
 use std::fmt;
 
 /// A UTF-8 encoded string for Script
@@ -178,6 +179,243 @@ impl ScriptString {
             .trim()
             .parse::<f32>()
             .map_err(|e| format!("Failed to parse '{}' as f32: {}", self.data, e))
+    }
+
+    /// Join a vector of strings with this string as the delimiter
+    pub fn join(&self, parts: &[ScriptString]) -> ScriptString {
+        let strings: Vec<&str> = parts.iter().map(|s| s.as_str()).collect();
+        ScriptString::new(strings.join(&self.data))
+    }
+
+    /// Pad the string to a certain length with a fill string on the left
+    pub fn pad_left(&self, width: usize, fill: &str) -> ScriptString {
+        let current_len = self.char_count();
+        if current_len >= width {
+            self.clone()
+        } else {
+            let padding_needed = width - current_len;
+            let fill_chars: Vec<char> = fill.chars().collect();
+            if fill_chars.is_empty() {
+                return self.clone();
+            }
+
+            let mut result = String::new();
+            for i in 0..padding_needed {
+                result.push(fill_chars[i % fill_chars.len()]);
+            }
+            result.push_str(&self.data);
+            ScriptString::new(result)
+        }
+    }
+
+    /// Pad the string to a certain length with a fill string on the right
+    pub fn pad_right(&self, width: usize, fill: &str) -> ScriptString {
+        let current_len = self.char_count();
+        if current_len >= width {
+            self.clone()
+        } else {
+            let padding_needed = width - current_len;
+            let fill_chars: Vec<char> = fill.chars().collect();
+            if fill_chars.is_empty() {
+                return self.clone();
+            }
+
+            let mut result = self.data.clone();
+            for i in 0..padding_needed {
+                result.push(fill_chars[i % fill_chars.len()]);
+            }
+            ScriptString::new(result)
+        }
+    }
+
+    /// Center the string within a certain width with padding
+    pub fn center(&self, width: usize, fill: &str) -> ScriptString {
+        let current_len = self.char_count();
+        if current_len >= width {
+            self.clone()
+        } else {
+            let total_padding = width - current_len;
+            let left_padding = total_padding / 2;
+            let right_padding = total_padding - left_padding;
+
+            let fill_chars: Vec<char> = fill.chars().collect();
+            if fill_chars.is_empty() {
+                return self.clone();
+            }
+
+            let mut result = String::new();
+            for i in 0..left_padding {
+                result.push(fill_chars[i % fill_chars.len()]);
+            }
+            result.push_str(&self.data);
+            for i in 0..right_padding {
+                result.push(fill_chars[i % fill_chars.len()]);
+            }
+            ScriptString::new(result)
+        }
+    }
+
+    /// Remove a prefix if it exists
+    pub fn strip_prefix(&self, prefix: &str) -> ScriptString {
+        if let Some(stripped) = self.data.strip_prefix(prefix) {
+            ScriptString::new(stripped.to_string())
+        } else {
+            self.clone()
+        }
+    }
+
+    /// Remove a suffix if it exists
+    pub fn strip_suffix(&self, suffix: &str) -> ScriptString {
+        if let Some(stripped) = self.data.strip_suffix(suffix) {
+            ScriptString::new(stripped.to_string())
+        } else {
+            self.clone()
+        }
+    }
+
+    /// Capitalize the first character and lowercase the rest
+    pub fn capitalize(&self) -> ScriptString {
+        let mut chars = self.data.chars();
+        match chars.next() {
+            None => ScriptString::new(String::new()),
+            Some(first) => {
+                let capitalized =
+                    first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase();
+                ScriptString::new(capitalized)
+            }
+        }
+    }
+
+    /// Convert to title case (capitalize first letter of each word)
+    pub fn title_case(&self) -> ScriptString {
+        let mut result = String::new();
+        let mut after_space = true;
+
+        for ch in self.data.chars() {
+            if ch.is_whitespace() {
+                result.push(ch);
+                after_space = true;
+            } else if after_space {
+                result.extend(ch.to_uppercase());
+                after_space = false;
+            } else {
+                result.extend(ch.to_lowercase());
+            }
+        }
+
+        ScriptString::new(result)
+    }
+
+    /// Count occurrences of a substring
+    pub fn count_matches(&self, pattern: &str) -> usize {
+        if pattern.is_empty() {
+            return 0;
+        }
+        self.data.matches(pattern).count()
+    }
+
+    /// Split the string into lines
+    pub fn lines(&self) -> Vec<ScriptString> {
+        self.data
+            .lines()
+            .map(|line| ScriptString::from_str(line))
+            .collect()
+    }
+
+    /// Check if the string is ASCII only
+    pub fn is_ascii(&self) -> bool {
+        self.data.is_ascii()
+    }
+
+    /// Check if all characters are alphabetic
+    pub fn is_alphabetic(&self) -> bool {
+        !self.data.is_empty() && self.data.chars().all(|c| c.is_alphabetic())
+    }
+
+    /// Check if all characters are numeric
+    pub fn is_numeric(&self) -> bool {
+        !self.data.is_empty() && self.data.chars().all(|c| c.is_numeric())
+    }
+
+    /// Check if all characters are alphanumeric
+    pub fn is_alphanumeric(&self) -> bool {
+        !self.data.is_empty() && self.data.chars().all(|c| c.is_alphanumeric())
+    }
+
+    /// Check if all characters are whitespace
+    pub fn is_whitespace(&self) -> bool {
+        !self.data.is_empty() && self.data.chars().all(|c| c.is_whitespace())
+    }
+
+    /// Reverse the string
+    pub fn reverse(&self) -> ScriptString {
+        ScriptString::new(self.data.chars().rev().collect())
+    }
+
+    /// Get the nth word (whitespace separated)
+    pub fn word(&self, n: usize) -> Option<ScriptString> {
+        self.data
+            .split_whitespace()
+            .nth(n)
+            .map(ScriptString::from_str)
+    }
+
+    /// Format the string with arguments (simple placeholder replacement)
+    /// Replaces {} with the provided arguments in order
+    pub fn format(&self, args: &[ScriptString]) -> ScriptString {
+        let mut result = self.data.clone();
+        for arg in args {
+            if let Some(pos) = result.find("{}") {
+                result.replace_range(pos..pos + 2, arg.as_str());
+            } else {
+                break;
+            }
+        }
+        ScriptString::new(result)
+    }
+
+    /// Truncate the string to a maximum length, adding ellipsis if truncated
+    pub fn truncate(&self, max_len: usize, ellipsis: &str) -> ScriptString {
+        let char_count = self.char_count();
+        if char_count <= max_len {
+            self.clone()
+        } else {
+            let ellipsis_len = ellipsis.chars().count();
+            if max_len <= ellipsis_len {
+                ScriptString::new(ellipsis.chars().take(max_len).collect())
+            } else {
+                let keep_chars = max_len - ellipsis_len;
+                let truncated: String = self.data.chars().take(keep_chars).collect();
+                ScriptString::new(truncated + ellipsis)
+            }
+        }
+    }
+
+    /// Escape special characters for use in HTML
+    pub fn escape_html(&self) -> ScriptString {
+        let escaped = self
+            .data
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&#39;");
+        ScriptString::new(escaped)
+    }
+
+    /// Remove consecutive duplicate characters
+    pub fn squeeze(&self, ch: char) -> ScriptString {
+        let mut result = String::new();
+        let mut last_char: Option<char> = None;
+
+        for current in self.data.chars() {
+            if current != ch || last_char != Some(ch) {
+                result.push(current);
+            }
+            last_char = Some(current);
+        }
+
+        ScriptString::new(result)
     }
 }
 
@@ -383,6 +621,323 @@ pub(crate) fn string_replace_impl(args: &[ScriptValue]) -> Result<ScriptValue, R
         }
         _ => Err(RuntimeError::InvalidOperation(
             "replace expects three string arguments".to_string(),
+        )),
+    }
+}
+
+/// Join strings with a delimiter
+pub(crate) fn string_join_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "join expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1]) {
+        (ScriptValue::String(delimiter), ScriptValue::Array(parts)) => {
+            let parts_vec = parts
+                .to_vec()
+                .map_err(|e| RuntimeError::InvalidOperation(e.to_string()))?;
+            let string_parts: Result<Vec<ScriptString>, RuntimeError> = parts_vec
+                .iter()
+                .map(|v| match v {
+                    ScriptValue::String(s) => Ok((**s).clone()),
+                    _ => Err(RuntimeError::InvalidOperation(
+                        "join expects array of strings".to_string(),
+                    )),
+                })
+                .collect();
+
+            match string_parts {
+                Ok(strings) => {
+                    let joined = delimiter.join(&strings);
+                    Ok(ScriptValue::String(ScriptRc::new(joined)))
+                }
+                Err(e) => Err(e),
+            }
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "join expects a string delimiter and an array of strings".to_string(),
+        )),
+    }
+}
+
+/// Pad string on the left
+pub(crate) fn string_pad_left_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 3 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "pad_left expects 3 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1], &args[2]) {
+        (ScriptValue::String(s), ScriptValue::I32(width), ScriptValue::String(fill)) => {
+            if *width < 0 {
+                return Err(RuntimeError::InvalidOperation(
+                    "pad_left width must be non-negative".to_string(),
+                ));
+            }
+            let padded = s.pad_left(*width as usize, fill.as_str());
+            Ok(ScriptValue::String(ScriptRc::new(padded)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "pad_left expects a string, an integer width, and a fill string".to_string(),
+        )),
+    }
+}
+
+/// Pad string on the right
+pub(crate) fn string_pad_right_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 3 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "pad_right expects 3 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1], &args[2]) {
+        (ScriptValue::String(s), ScriptValue::I32(width), ScriptValue::String(fill)) => {
+            if *width < 0 {
+                return Err(RuntimeError::InvalidOperation(
+                    "pad_right width must be non-negative".to_string(),
+                ));
+            }
+            let padded = s.pad_right(*width as usize, fill.as_str());
+            Ok(ScriptValue::String(ScriptRc::new(padded)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "pad_right expects a string, an integer width, and a fill string".to_string(),
+        )),
+    }
+}
+
+/// Center string within width
+pub(crate) fn string_center_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 3 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "center expects 3 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1], &args[2]) {
+        (ScriptValue::String(s), ScriptValue::I32(width), ScriptValue::String(fill)) => {
+            if *width < 0 {
+                return Err(RuntimeError::InvalidOperation(
+                    "center width must be non-negative".to_string(),
+                ));
+            }
+            let centered = s.center(*width as usize, fill.as_str());
+            Ok(ScriptValue::String(ScriptRc::new(centered)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "center expects a string, an integer width, and a fill string".to_string(),
+        )),
+    }
+}
+
+/// Strip prefix from string
+pub(crate) fn string_strip_prefix_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "strip_prefix expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1]) {
+        (ScriptValue::String(s), ScriptValue::String(prefix)) => {
+            let stripped = s.strip_prefix(prefix.as_str());
+            Ok(ScriptValue::String(ScriptRc::new(stripped)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "strip_prefix expects two string arguments".to_string(),
+        )),
+    }
+}
+
+/// Strip suffix from string
+pub(crate) fn string_strip_suffix_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "strip_suffix expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1]) {
+        (ScriptValue::String(s), ScriptValue::String(suffix)) => {
+            let stripped = s.strip_suffix(suffix.as_str());
+            Ok(ScriptValue::String(ScriptRc::new(stripped)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "strip_suffix expects two string arguments".to_string(),
+        )),
+    }
+}
+
+/// Capitalize string
+pub(crate) fn string_capitalize_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 1 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "capitalize expects 1 argument, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::String(s) => {
+            let capitalized = s.capitalize();
+            Ok(ScriptValue::String(ScriptRc::new(capitalized)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "capitalize expects a string argument".to_string(),
+        )),
+    }
+}
+
+/// Convert to title case
+pub(crate) fn string_title_case_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 1 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "title_case expects 1 argument, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::String(s) => {
+            let title_cased = s.title_case();
+            Ok(ScriptValue::String(ScriptRc::new(title_cased)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "title_case expects a string argument".to_string(),
+        )),
+    }
+}
+
+/// Count matches of a pattern
+pub(crate) fn string_count_matches_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "count_matches expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1]) {
+        (ScriptValue::String(s), ScriptValue::String(pattern)) => {
+            let count = s.count_matches(pattern.as_str());
+            Ok(ScriptValue::I32(count as i32))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "count_matches expects two string arguments".to_string(),
+        )),
+    }
+}
+
+/// Split string into lines
+pub(crate) fn string_lines_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 1 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "lines expects 1 argument, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::String(s) => {
+            let lines = s.lines();
+            let vec = ScriptVec::new();
+            for line in lines {
+                vec.push(ScriptValue::String(ScriptRc::new(line)))
+                    .map_err(|e| RuntimeError::InvalidOperation(e.to_string()))?;
+            }
+            Ok(ScriptValue::Array(ScriptRc::new(vec)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "lines expects a string argument".to_string(),
+        )),
+    }
+}
+
+/// Reverse string
+pub(crate) fn string_reverse_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 1 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "reverse expects 1 argument, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::String(s) => {
+            let reversed = s.reverse();
+            Ok(ScriptValue::String(ScriptRc::new(reversed)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "reverse expects a string argument".to_string(),
+        )),
+    }
+}
+
+/// Check if string is alphabetic
+pub(crate) fn string_is_alphabetic_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 1 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "is_alphabetic expects 1 argument, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::String(s) => Ok(ScriptValue::Bool(s.is_alphabetic())),
+        _ => Err(RuntimeError::InvalidOperation(
+            "is_alphabetic expects a string argument".to_string(),
+        )),
+    }
+}
+
+/// Check if string is numeric
+pub(crate) fn string_is_numeric_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 1 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "is_numeric expects 1 argument, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::String(s) => Ok(ScriptValue::Bool(s.is_numeric())),
+        _ => Err(RuntimeError::InvalidOperation(
+            "is_numeric expects a string argument".to_string(),
+        )),
+    }
+}
+
+/// Truncate string with ellipsis
+pub(crate) fn string_truncate_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 3 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "truncate expects 3 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1], &args[2]) {
+        (ScriptValue::String(s), ScriptValue::I32(max_len), ScriptValue::String(ellipsis)) => {
+            if *max_len < 0 {
+                return Err(RuntimeError::InvalidOperation(
+                    "truncate max_len must be non-negative".to_string(),
+                ));
+            }
+            let truncated = s.truncate(*max_len as usize, ellipsis.as_str());
+            Ok(ScriptValue::String(ScriptRc::new(truncated)))
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "truncate expects a string, an integer max length, and an ellipsis string".to_string(),
         )),
     }
 }

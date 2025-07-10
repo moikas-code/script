@@ -72,10 +72,10 @@ mod tests {
         let mut cache = LruCache::new(2);
         cache.insert("a", 1);
         cache.insert("b", 2);
-        
+
         assert_eq!(cache.get(&"a"), Some(1));
         assert_eq!(cache.get(&"b"), Some(2));
-        
+
         // This should evict "a" since "b" was accessed more recently
         cache.insert("c", 3);
         assert_eq!(cache.get(&"a"), None);
@@ -88,7 +88,7 @@ mod tests {
         let mut cache = LruCache::new(2);
         cache.insert("a", 1);
         cache.insert("b", 2);
-        
+
         // Update "a" - should not increase size
         cache.insert("a", 10);
         assert_eq!(cache.len(), 2);

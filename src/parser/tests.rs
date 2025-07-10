@@ -2,7 +2,7 @@ use super::*;
 use crate::{lexer::Lexer, Result};
 
 fn parse(input: &str) -> Result<Program> {
-    let lexer = Lexer::new(input);
+    let lexer = Lexer::new(input)?;
     let (tokens, errors) = lexer.scan_tokens();
 
     if !errors.is_empty() {
@@ -14,7 +14,7 @@ fn parse(input: &str) -> Result<Program> {
 }
 
 fn parse_expr(input: &str) -> Result<Expr> {
-    let lexer = Lexer::new(input);
+    let lexer = Lexer::new(input)?;
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     parser.parse_expression()
@@ -23,7 +23,8 @@ fn parse_expr(input: &str) -> Result<Expr> {
 #[test]
 fn test_parse_impl_blocks() {
     // Simple impl block
-    let program = parse(r#"
+    let program = parse(
+        r#"
         struct Point { x: i32, y: i32 }
         
         impl Point {
@@ -31,10 +32,12 @@ fn test_parse_impl_blocks() {
                 Point { x: x, y: y }
             }
         }
-    "#).unwrap();
-    
+    "#,
+    )
+    .unwrap();
+
     assert_eq!(program.statements.len(), 2);
-    
+
     // Check that the second statement is an impl block
     match &program.statements[1].kind {
         StmtKind::Impl(impl_block) => {
@@ -42,7 +45,7 @@ fn test_parse_impl_blocks() {
             assert!(impl_block.generic_params.is_none());
             assert!(impl_block.where_clause.is_none());
             assert_eq!(impl_block.methods.len(), 1);
-            
+
             // Check the method
             let method = &impl_block.methods[0];
             assert_eq!(method.name, "new");
@@ -55,7 +58,8 @@ fn test_parse_impl_blocks() {
 
 #[test]
 fn test_parse_generic_impl_block() {
-    let program = parse(r#"
+    let program = parse(
+        r#"
         struct Vec<T> { items: [T] }
         
         impl<T> Vec<T> {
@@ -63,14 +67,16 @@ fn test_parse_generic_impl_block() {
                 Vec { items: [] }
             }
         }
-    "#).unwrap();
-    
+    "#,
+    )
+    .unwrap();
+
     assert_eq!(program.statements.len(), 2);
-    
+
     match &program.statements[1].kind {
         StmtKind::Impl(impl_block) => {
             assert_eq!(impl_block.type_name, "Vec");
-            
+
             // Check generic params
             assert!(impl_block.generic_params.is_some());
             let generics = impl_block.generic_params.as_ref().unwrap();
@@ -83,7 +89,8 @@ fn test_parse_generic_impl_block() {
 
 #[test]
 fn test_parse_impl_with_where_clause() {
-    let program = parse(r#"
+    let program = parse(
+        r#"
         struct Container<T> { value: T }
         
         impl<T> Container<T> where T: Clone {
@@ -91,14 +98,16 @@ fn test_parse_impl_with_where_clause() {
                 self.value.clone()
             }
         }
-    "#).unwrap();
-    
+    "#,
+    )
+    .unwrap();
+
     match &program.statements[1].kind {
         StmtKind::Impl(impl_block) => {
             assert!(impl_block.where_clause.is_some());
             let where_clause = impl_block.where_clause.as_ref().unwrap();
             assert_eq!(where_clause.predicates.len(), 1);
-            
+
             let predicate = &where_clause.predicates[0];
             assert_eq!(predicate.bounds.len(), 1);
             assert_eq!(predicate.bounds[0].trait_name, "Clone");
@@ -109,7 +118,8 @@ fn test_parse_impl_with_where_clause() {
 
 #[test]
 fn test_parse_async_methods() {
-    let program = parse(r#"
+    let program = parse(
+        r#"
         struct Worker {}
         
         impl Worker {
@@ -117,8 +127,10 @@ fn test_parse_async_methods() {
                 await something()
             }
         }
-    "#).unwrap();
-    
+    "#,
+    )
+    .unwrap();
+
     match &program.statements[1].kind {
         StmtKind::Impl(impl_block) => {
             let method = &impl_block.methods[0];
@@ -461,6 +473,7 @@ fn test_parse_function_statement() {
             body,
             is_async: _,
             generic_params: _,
+            where_clause: _,
         } => {
             assert_eq!(name, "add");
             assert_eq!(params.len(), 2);
@@ -1293,23 +1306,27 @@ fn test_parse_complex_tuple_reference() {
                     match &inner.kind {
                         TypeKind::Tuple(types) => {
                             assert_eq!(types.len(), 2);
-                            
+
                             // Check Vec<T>
                             match &types[0].kind {
                                 TypeKind::Generic { name, args } => {
                                     assert_eq!(name, "Vec");
                                     assert_eq!(args.len(), 1);
-                                    assert!(matches!(&args[0].kind, TypeKind::TypeParam(n) if n == "T"));
+                                    assert!(
+                                        matches!(&args[0].kind, TypeKind::TypeParam(n) if n == "T")
+                                    );
                                 }
                                 _ => panic!("Expected generic Vec<T>"),
                             }
-                            
+
                             // Check Option<U>
                             match &types[1].kind {
                                 TypeKind::Generic { name, args } => {
                                     assert_eq!(name, "Option");
                                     assert_eq!(args.len(), 1);
-                                    assert!(matches!(&args[0].kind, TypeKind::TypeParam(n) if n == "U"));
+                                    assert!(
+                                        matches!(&args[0].kind, TypeKind::TypeParam(n) if n == "U")
+                                    );
                                 }
                                 _ => panic!("Expected generic Option<U>"),
                             }
@@ -1343,7 +1360,7 @@ fn test_parse_function_vs_tuple_types() {
         }
         _ => panic!("Expected let statement"),
     }
-    
+
     // Tuple type (no arrow)
     let program = parse("let t: (i32, i32)").unwrap();
     match &program.statements[0].kind {
@@ -2069,7 +2086,8 @@ fn test_parse_generic_async_function() {
 #[test]
 fn test_parse_function_with_where_clause() {
     // Function with where clause
-    let program = parse("fn test<T, U>(x: T, y: U) -> T where T: Clone + Debug, U: Debug { x }").unwrap();
+    let program =
+        parse("fn test<T, U>(x: T, y: U) -> T where T: Clone + Debug, U: Debug { x }").unwrap();
 
     match &program.statements[0].kind {
         StmtKind::Function {
@@ -2079,22 +2097,22 @@ fn test_parse_function_with_where_clause() {
             ..
         } => {
             assert_eq!(name, "test");
-            
+
             // Check generic parameters
             let generics = generic_params.as_ref().unwrap();
             assert_eq!(generics.params.len(), 2);
             assert_eq!(generics.params[0].name, "T");
             assert_eq!(generics.params[1].name, "U");
-            
+
             // Check where clause
             let where_clause = where_clause.as_ref().unwrap();
             assert_eq!(where_clause.predicates.len(), 2);
-            
+
             // First predicate: T: Clone + Debug
             assert_eq!(where_clause.predicates[0].bounds.len(), 2);
             assert_eq!(where_clause.predicates[0].bounds[0].trait_name, "Clone");
             assert_eq!(where_clause.predicates[0].bounds[1].trait_name, "Debug");
-            
+
             // Second predicate: U: Debug
             assert_eq!(where_clause.predicates[1].bounds.len(), 1);
             assert_eq!(where_clause.predicates[1].bounds[0].trait_name, "Debug");
@@ -2106,7 +2124,8 @@ fn test_parse_function_with_where_clause() {
 #[test]
 fn test_parse_struct_with_where_clause() {
     // Struct with where clause
-    let program = parse("struct Container<T, U> where T: Clone, U: Debug { data: T, meta: U }").unwrap();
+    let program =
+        parse("struct Container<T, U> where T: Clone, U: Debug { data: T, meta: U }").unwrap();
 
     match &program.statements[0].kind {
         StmtKind::Struct {
@@ -2117,17 +2136,17 @@ fn test_parse_struct_with_where_clause() {
             ..
         } => {
             assert_eq!(name, "Container");
-            
+
             // Check generic parameters
             let generics = generic_params.as_ref().unwrap();
             assert_eq!(generics.params.len(), 2);
             assert_eq!(generics.params[0].name, "T");
             assert_eq!(generics.params[1].name, "U");
-            
+
             // Check where clause
             let where_clause = where_clause.as_ref().unwrap();
             assert_eq!(where_clause.predicates.len(), 2);
-            
+
             // Check fields
             assert_eq!(fields.len(), 2);
             assert_eq!(fields[0].name, "data");
@@ -2151,17 +2170,17 @@ fn test_parse_enum_with_where_clause() {
             ..
         } => {
             assert_eq!(name, "Result");
-            
+
             // Check generic parameters
             let generics = generic_params.as_ref().unwrap();
             assert_eq!(generics.params.len(), 2);
             assert_eq!(generics.params[0].name, "T");
             assert_eq!(generics.params[1].name, "E");
-            
+
             // Check where clause
             let where_clause = where_clause.as_ref().unwrap();
             assert_eq!(where_clause.predicates.len(), 2);
-            
+
             // Check variants
             assert_eq!(variants.len(), 2);
             assert_eq!(variants[0].name, "Ok");

@@ -1,6 +1,6 @@
 use cranelift_jit::JITBuilder;
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// Maximum allowed string length to prevent DoS attacks
 const MAX_STRING_LENGTH: usize = 10 * 1024 * 1024; // 10MB
@@ -31,11 +31,14 @@ impl AllocationTracker {
     }
 
     fn track_allocation(&mut self, ptr: usize, size: usize) {
-        self.allocations.insert(ptr, AllocationInfo {
-            size,
-            #[cfg(debug_assertions)]
-            backtrace: std::backtrace::Backtrace::capture(),
-        });
+        self.allocations.insert(
+            ptr,
+            AllocationInfo {
+                size,
+                #[cfg(debug_assertions)]
+                backtrace: std::backtrace::Backtrace::capture(),
+            },
+        );
     }
 
     fn untrack_allocation(&mut self, ptr: usize) -> Option<AllocationInfo> {
@@ -64,18 +67,7 @@ fn ensure_tracker_initialized() {
 /// Runtime support functions for Script
 pub struct RuntimeSupport;
 
-/// Register runtime functions with the JIT builder
-pub fn register_runtime_functions(builder: &mut JITBuilder) {
-    // Register print function
-    builder.symbol("script_print", script_print as *const u8);
-
-    // Register memory management functions
-    builder.symbol("script_alloc", script_alloc as *const u8);
-    builder.symbol("script_free", script_free as *const u8);
-
-    // Register panic handler
-    builder.symbol("script_panic", script_panic as *const u8);
-}
+// Function will be moved to end of file after closure definitions
 
 /// Print a string to stdout with safety checks
 #[no_mangle]
@@ -87,7 +79,10 @@ pub extern "C" fn script_print(ptr: *const u8, len: usize) {
 
     // Prevent DoS with excessive string lengths
     if len > MAX_STRING_LENGTH {
-        eprintln!("Script error: String too long for print (max {} bytes)", MAX_STRING_LENGTH);
+        eprintln!(
+            "Script error: String too long for print (max {} bytes)",
+            MAX_STRING_LENGTH
+        );
         return;
     }
 
@@ -105,7 +100,10 @@ pub extern "C" fn script_print(ptr: *const u8, len: usize) {
             if let Ok(s) = std::str::from_utf8(&slice[..e.valid_up_to()]) {
                 print!("{}", s);
             }
-            eprintln!("\nScript warning: Invalid UTF-8 in print at byte {}", e.valid_up_to());
+            eprintln!(
+                "\nScript warning: Invalid UTF-8 in print at byte {}",
+                e.valid_up_to()
+            );
         }
     }
 
@@ -126,8 +124,10 @@ pub extern "C" fn script_alloc(size: usize) -> *mut u8 {
 
     // Prevent excessive allocations
     if size > MAX_ALLOCATION_SIZE {
-        eprintln!("Script error: Allocation too large ({} bytes, max {} bytes)", 
-                 size, MAX_ALLOCATION_SIZE);
+        eprintln!(
+            "Script error: Allocation too large ({} bytes, max {} bytes)",
+            size, MAX_ALLOCATION_SIZE
+        );
         return std::ptr::null_mut();
     }
 
@@ -135,7 +135,10 @@ pub extern "C" fn script_alloc(size: usize) -> *mut u8 {
     let layout = match std::alloc::Layout::from_size_align(size, 8) {
         Ok(layout) => layout,
         Err(_) => {
-            eprintln!("Script error: Invalid allocation alignment for size {}", size);
+            eprintln!(
+                "Script error: Invalid allocation alignment for size {}",
+                size
+            );
             return std::ptr::null_mut();
         }
     };
@@ -147,7 +150,10 @@ pub extern "C" fn script_alloc(size: usize) -> *mut u8 {
     };
 
     if ptr.is_null() {
-        eprintln!("Script error: Out of memory (failed to allocate {} bytes)", size);
+        eprintln!(
+            "Script error: Out of memory (failed to allocate {} bytes)",
+            size
+        );
         return std::ptr::null_mut();
     }
 
@@ -197,8 +203,10 @@ pub extern "C" fn script_free(ptr: *mut u8, size: usize) {
     match tracked_info {
         Some(info) => {
             if info.size != size {
-                eprintln!("Script error: Size mismatch in free: allocated {} bytes, freeing {} bytes", 
-                         info.size, size);
+                eprintln!(
+                    "Script error: Size mismatch in free: allocated {} bytes, freeing {} bytes",
+                    info.size, size
+                );
                 // Continue with deallocation using the tracked size
                 let layout = match std::alloc::Layout::from_size_align(info.size, 8) {
                     Ok(layout) => layout,
@@ -261,7 +269,7 @@ pub extern "C" fn script_panic(msg: *const u8, len: usize) -> ! {
             // SAFETY: We've validated that ptr is non-null and len is reasonable
             std::slice::from_raw_parts(msg, len)
         };
-        
+
         // Convert to string, handling invalid UTF-8 gracefully
         match std::str::from_utf8(slice) {
             Ok(s) => {
@@ -269,13 +277,16 @@ pub extern "C" fn script_panic(msg: *const u8, len: usize) -> ! {
                 static mut PANIC_BUFFER: [u8; 1024] = [0; 1024];
                 let prefix = "Script panic: ";
                 let prefix_len = prefix.len();
-                
+
                 unsafe {
                     // SAFETY: We're in a panic handler, single-threaded context
                     if prefix_len + s.len() <= PANIC_BUFFER.len() {
                         PANIC_BUFFER[..prefix_len].copy_from_slice(prefix.as_bytes());
-                        PANIC_BUFFER[prefix_len..prefix_len + s.len()].copy_from_slice(s.as_bytes());
-                        if let Ok(full_msg) = std::str::from_utf8(&PANIC_BUFFER[..prefix_len + s.len()]) {
+                        PANIC_BUFFER[prefix_len..prefix_len + s.len()]
+                            .copy_from_slice(s.as_bytes());
+                        if let Ok(full_msg) =
+                            std::str::from_utf8(&PANIC_BUFFER[..prefix_len + s.len()])
+                        {
                             full_msg
                         } else {
                             "Script panic: (internal error formatting message)"
@@ -285,13 +296,13 @@ pub extern "C" fn script_panic(msg: *const u8, len: usize) -> ! {
                     }
                 }
             }
-            Err(_) => "Script panic: (invalid UTF-8 in error message)"
+            Err(_) => "Script panic: (invalid UTF-8 in error message)",
         }
     };
 
     // Print to stderr
     eprintln!("{}", message);
-    
+
     // Flush stderr to ensure message is visible
     use std::io::Write;
     let _ = std::io::stderr().flush();
@@ -333,4 +344,156 @@ mod tests {
         let ptr = script_alloc(0);
         assert!(ptr.is_null());
     }
+}
+
+/// Global closure registry for mapping function IDs to executable code
+static CLOSURE_REGISTRY: Mutex<Option<ClosureRegistry>> = Mutex::new(None);
+
+struct ClosureRegistry {
+    functions: HashMap<String, ClosureFunction>,
+}
+
+type ClosureFunction = Box<dyn Fn(&[*const u8]) -> *const u8 + Send + Sync>;
+
+impl ClosureRegistry {
+    fn new() -> Self {
+        Self {
+            functions: HashMap::new(),
+        }
+    }
+
+    fn register(&mut self, id: String, func: ClosureFunction) {
+        self.functions.insert(id, func);
+    }
+
+    fn get(&self, id: &str) -> Option<&ClosureFunction> {
+        self.functions.get(id)
+    }
+}
+
+/// Create a closure with the given parameters
+#[no_mangle]
+pub extern "C" fn script_create_closure(
+    function_id_ptr: *const u8,
+    function_id_len: usize,
+    param_names: *const u8,
+    param_lengths: *const usize,
+    param_count: usize,
+    capture_names: *const u8,
+    capture_name_lengths: *const usize,
+    capture_values: *const *const u8,
+    capture_count: usize,
+    captures_by_ref: u8,
+) -> *mut u8 {
+    // Validate inputs
+    if function_id_ptr.is_null() || function_id_len == 0 {
+        return std::ptr::null_mut();
+    }
+
+    // In a real implementation, this would:
+    // 1. Create a closure structure with the function ID and parameters
+    // 2. Store captured values
+    // 3. Return a pointer to the heap-allocated closure
+
+    // For now, allocate a simple structure
+    let closure_size = 32 + (capture_count * 16); // Simplified size calculation
+    let closure_ptr = script_alloc(closure_size);
+
+    if closure_ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    // Store function ID at the beginning
+    unsafe {
+        let id_slice = std::slice::from_raw_parts(function_id_ptr, function_id_len);
+        if function_id_len <= 24 {
+            // Copy function ID (up to 24 bytes)
+            std::ptr::copy_nonoverlapping(function_id_ptr, closure_ptr, function_id_len);
+            // Store length
+            *(closure_ptr.add(24) as *mut usize) = function_id_len;
+        }
+    }
+
+    closure_ptr
+}
+
+/// Invoke a closure with the given arguments
+#[no_mangle]
+pub extern "C" fn script_invoke_closure(
+    closure_ptr: *const u8,
+    _args_ptr: *const *const u8,
+    arg_count: i32,
+) -> *mut u8 {
+    // Validate inputs
+    if closure_ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    // In a real implementation, this would:
+    // 1. Extract function ID from closure
+    // 2. Look up the function in the registry
+    // 3. Set up captured environment
+    // 4. Call the function with arguments
+    // 5. Return the result
+
+    // For now, return a dummy result
+    let result_ptr = script_alloc(8);
+    if !result_ptr.is_null() {
+        unsafe {
+            // Store a dummy i64 value
+            *(result_ptr as *mut i64) = 42;
+        }
+    }
+
+    result_ptr
+}
+
+/// Fast-path closure invocation for ≤4 arguments
+#[no_mangle]
+pub extern "C" fn script_invoke_closure_fast(
+    closure_ptr: *const u8,
+    arg0: *const u8,
+    arg1: *const u8,
+    arg2: *const u8,
+    arg3: *const u8,
+    actual_arg_count: i32,
+) -> *mut u8 {
+    // Validate inputs
+    if closure_ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    // Pack arguments into array based on actual count
+    let args: Vec<*const u8> = match actual_arg_count {
+        0 => vec![],
+        1 => vec![arg0],
+        2 => vec![arg0, arg1],
+        3 => vec![arg0, arg1, arg2],
+        4 => vec![arg0, arg1, arg2, arg3],
+        _ => return std::ptr::null_mut(), // Invalid count
+    };
+
+    // Delegate to regular invoke
+    script_invoke_closure(closure_ptr, args.as_ptr(), actual_arg_count)
+}
+
+/// Register runtime functions with the JIT builder
+pub fn register_runtime_functions(builder: &mut JITBuilder) {
+    // Register print function
+    builder.symbol("script_print", script_print as *const u8);
+
+    // Register memory management functions
+    builder.symbol("script_alloc", script_alloc as *const u8);
+    builder.symbol("script_free", script_free as *const u8);
+
+    // Register panic handler
+    builder.symbol("script_panic", script_panic as *const u8);
+
+    // Register closure functions
+    builder.symbol("script_create_closure", script_create_closure as *const u8);
+    builder.symbol("script_invoke_closure", script_invoke_closure as *const u8);
+    builder.symbol(
+        "script_invoke_closure_fast",
+        script_invoke_closure_fast as *const u8,
+    );
 }

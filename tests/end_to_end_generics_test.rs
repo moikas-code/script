@@ -17,30 +17,41 @@ fn test_end_to_end_generic_function_parsing() {
             return result;
         }
     "#;
-    
+
     // Lexical analysis
-    let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize().expect("Tokenization should succeed");
-    
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+
     // Parsing
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Parsing should succeed");
-    
+
     // Verify we parsed a program with two functions
-    assert_eq!(ast.stmts.len(), 2, "Should have parsed two functions");
-    
+    assert_eq!(ast.statements.len(), 2, "Should have parsed two functions");
+
     // Verify the first function is generic
-    if let script::parser::StmtKind::Fn { name, generic_params, .. } = &ast.stmts[0].kind {
+    if let script::parser::StmtKind::Function {
+        name,
+        generic_params,
+        ..
+    } = &ast.statements[0].kind
+    {
         assert_eq!(name, "identity", "First function should be 'identity'");
-        assert!(generic_params.is_some(), "identity function should have generic params");
+        assert!(
+            generic_params.is_some(),
+            "identity function should have generic params"
+        );
         if let Some(params) = generic_params {
             assert_eq!(params.params.len(), 1, "Should have one generic parameter");
-            assert_eq!(params.params[0].name, "T", "Generic parameter should be 'T'");
+            assert_eq!(
+                params.params[0].name, "T",
+                "Generic parameter should be 'T'"
+            );
         }
     } else {
         panic!("First statement should be a function");
     }
-    
+
     // Semantic analysis would go here once it compiles
     // let mut semantic_analyzer = SemanticAnalyzer::new();
     // semantic_analyzer.analyze(&ast).expect("Semantic analysis should succeed");
@@ -69,34 +80,58 @@ fn test_generic_struct_parsing() {
             return pair.get_first();
         }
     "#;
-    
+
     // Test lexer and parser
-    let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize().expect("Tokenization should succeed");
-    
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Parsing should succeed");
-    
+
     // Verify we parsed a struct, impl block, and main function
-    assert_eq!(ast.stmts.len(), 3, "Should have parsed struct, impl block, and main");
-    
+    assert_eq!(
+        ast.statements.len(),
+        3,
+        "Should have parsed struct, impl block, and main"
+    );
+
     // Verify the struct is generic
-    if let script::parser::StmtKind::Struct { name, generic_params, .. } = &ast.stmts[0].kind {
+    if let script::parser::StmtKind::Struct {
+        name,
+        generic_params,
+        ..
+    } = &ast.statements[0].kind
+    {
         assert_eq!(name, "Pair", "First statement should be 'Pair' struct");
-        assert!(generic_params.is_some(), "Pair struct should have generic params");
+        assert!(
+            generic_params.is_some(),
+            "Pair struct should have generic params"
+        );
         if let Some(params) = generic_params {
             assert_eq!(params.params.len(), 2, "Should have two generic parameters");
-            assert_eq!(params.params[0].name, "T", "First generic parameter should be 'T'");
-            assert_eq!(params.params[1].name, "U", "Second generic parameter should be 'U'");
+            assert_eq!(
+                params.params[0].name, "T",
+                "First generic parameter should be 'T'"
+            );
+            assert_eq!(
+                params.params[1].name, "U",
+                "Second generic parameter should be 'U'"
+            );
         }
     } else {
         panic!("First statement should be a struct");
     }
-    
+
     // Verify impl block
-    if let script::parser::StmtKind::Impl(impl_block) = &ast.stmts[1].kind {
-        assert_eq!(impl_block.type_name, "Pair", "Impl block should be for 'Pair'");
-        assert!(impl_block.generic_params.is_some(), "Impl block should have generic params");
+    if let script::parser::StmtKind::Impl(impl_block) = &ast.statements[1].kind {
+        assert_eq!(
+            impl_block.type_name, "Pair",
+            "Impl block should be for 'Pair'"
+        );
+        assert!(
+            impl_block.generic_params.is_some(),
+            "Impl block should have generic params"
+        );
         assert_eq!(impl_block.methods.len(), 2, "Should have two methods");
     } else {
         panic!("Second statement should be an impl block");
@@ -122,25 +157,47 @@ fn test_trait_bounds_parsing() {
             }
         }
     "#;
-    
+
     // Test trait-bounded generic function parsing
-    let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize().expect("Tokenization should succeed");
-    
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Parsing should succeed");
-    
+
     // Verify we parsed two traits and a function
-    assert_eq!(ast.stmts.len(), 3, "Should have parsed two traits and a function");
-    
+    assert_eq!(
+        ast.statements.len(),
+        3,
+        "Should have parsed two traits and a function"
+    );
+
     // Verify the function has generic params with bounds
-    if let script::parser::StmtKind::Fn { name, generic_params, .. } = &ast.stmts[2].kind {
-        assert_eq!(name, "compare_and_clone", "Third statement should be 'compare_and_clone'");
-        assert!(generic_params.is_some(), "Function should have generic params");
+    if let script::parser::StmtKind::Function {
+        name,
+        generic_params,
+        ..
+    } = &ast.statements[2].kind
+    {
+        assert_eq!(
+            name, "compare_and_clone",
+            "Third statement should be 'compare_and_clone'"
+        );
+        assert!(
+            generic_params.is_some(),
+            "Function should have generic params"
+        );
         if let Some(params) = generic_params {
             assert_eq!(params.params.len(), 1, "Should have one generic parameter");
-            assert_eq!(params.params[0].name, "T", "Generic parameter should be 'T'");
-            assert_eq!(params.params[0].bounds.len(), 2, "T should have two trait bounds");
+            assert_eq!(
+                params.params[0].name, "T",
+                "Generic parameter should be 'T'"
+            );
+            assert_eq!(
+                params.params[0].bounds.len(),
+                2,
+                "T should have two trait bounds"
+            );
         }
     } else {
         panic!("Third statement should be a function");
@@ -169,22 +226,26 @@ fn test_method_call_with_generics() {
             return container.get();
         }
     "#;
-    
+
     // Test method call type inference and resolution
-    let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize().expect("Tokenization should succeed");
-    
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().expect("Parsing should succeed");
-    
+
     // Basic verification that parsing succeeded
-    assert_eq!(ast.stmts.len(), 3, "Should have parsed struct, impl, and main");
-    
+    assert_eq!(
+        ast.statements.len(),
+        3,
+        "Should have parsed struct, impl, and main"
+    );
+
     // Verify the main function uses generic method calls
-    if let script::parser::StmtKind::Fn { name, body, .. } = &ast.stmts[2].kind {
+    if let script::parser::StmtKind::Function { name, body, .. } = &ast.statements[2].kind {
         assert_eq!(name, "main", "Third statement should be main function");
         assert!(body.is_some(), "Main function should have a body");
-        
+
         // Check that the body contains method calls
         if let Some(body) = body {
             // We'd need to traverse the AST to find Container::new call
@@ -203,36 +264,37 @@ fn test_method_call_with_generics() {
 fn test_compilation_performance() {
     // This test requires the full compilation pipeline to be working
     // Currently blocked on semantic analyzer and code generation
-    
+
     let source = r#"
         fn identity<T>(x: T) -> T { x }
         fn main() -> i32 { identity(42) }
     "#;
-    
+
     let start_time = std::time::Instant::now();
-    
-    let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize().expect("Tokenization should succeed");
-    
+
+    let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+    let (tokens, _errors) = lexer.scan_tokens();
+    assert!(_errors.is_empty(), "Lexer should not produce errors");
+
     let mut parser = Parser::new(tokens);
     let _ast = parser.parse().expect("Parsing should succeed");
-    
+
     let parsing_time = start_time.elapsed();
-    
+
     // Verify parsing completed in reasonable time (< 100ms for simple code)
     assert!(parsing_time.as_millis() < 100, "Parsing should be fast");
 }
 */
 
 /*
-#[test] 
+#[test]
 fn test_full_compilation_pipeline() {
     // This test requires:
     // - SemanticAnalyzer to compile properly
     // - IR generation to be implemented
     // - Code generation to be implemented
     // - Inference context to be available
-    
+
     // Will be enabled once the compilation issues are resolved
 }
 */

@@ -4,18 +4,18 @@
 #[cfg(test)]
 mod tests {
     use script::lexer::{Lexer, TokenKind};
-    use script::parser::{Parser, StmtKind, Expr};
+    use script::parser::{Expr, Parser, StmtKind};
 
     #[test]
     fn test_basic_generic_function_tokenization() {
         let source = "fn identity<T>(x: T) -> T { x }";
-        
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Should tokenize");
-        
+
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+
         // Check we have the expected tokens including angle brackets
         let token_kinds: Vec<_> = tokens.iter().map(|t| &t.kind).collect();
-        
+
         assert!(token_kinds.contains(&&TokenKind::Fn));
         assert!(token_kinds.contains(&&TokenKind::Identifier("identity".to_string())));
         assert!(token_kinds.contains(&&TokenKind::Less)); // <
@@ -30,31 +30,37 @@ mod tests {
                 return x;
             }
         "#;
-        
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
-        
+
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Parsing should succeed");
-        
+
         // Check we parsed one function
-        assert_eq!(ast.stmts.len(), 1);
-        
+        assert_eq!(ast.statements.len(), 1);
+
         // Check it's a generic function
-        match &ast.stmts[0].kind {
-            StmtKind::Fn { name, generic_params, params, ret_type, .. } => {
+        match &ast.statements[0].kind {
+            StmtKind::Function {
+                name,
+                generic_params,
+                params,
+                ret_type,
+                ..
+            } => {
                 assert_eq!(name, "identity");
-                
+
                 // Check generic params exist
                 assert!(generic_params.is_some());
                 let gen_params = generic_params.as_ref().unwrap();
                 assert_eq!(gen_params.params.len(), 1);
                 assert_eq!(gen_params.params[0].name, "T");
-                
+
                 // Check function params
                 assert_eq!(params.len(), 1);
                 assert_eq!(params[0].name, "x");
-                
+
                 // Check return type
                 assert!(ret_type.is_some());
             }
@@ -70,26 +76,31 @@ mod tests {
                 second: U,
             }
         "#;
-        
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
-        
+
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Parsing should succeed");
-        
-        assert_eq!(ast.stmts.len(), 1);
-        
-        match &ast.stmts[0].kind {
-            StmtKind::Struct { name, generic_params, fields, .. } => {
+
+        assert_eq!(ast.statements.len(), 1);
+
+        match &ast.statements[0].kind {
+            StmtKind::Struct {
+                name,
+                generic_params,
+                fields,
+                ..
+            } => {
                 assert_eq!(name, "Pair");
-                
+
                 // Check generic params
                 assert!(generic_params.is_some());
                 let gen_params = generic_params.as_ref().unwrap();
                 assert_eq!(gen_params.params.len(), 2);
                 assert_eq!(gen_params.params[0].name, "T");
                 assert_eq!(gen_params.params[1].name, "U");
-                
+
                 // Check fields
                 assert_eq!(fields.len(), 2);
                 assert_eq!(fields[0].name, "first");
@@ -106,24 +117,28 @@ mod tests {
                 if a == b { a } else { b }
             }
         "#;
-        
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
-        
+
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Parsing should succeed");
-        
-        assert_eq!(ast.stmts.len(), 1);
-        
-        match &ast.stmts[0].kind {
-            StmtKind::Fn { name, generic_params, .. } => {
+
+        assert_eq!(ast.statements.len(), 1);
+
+        match &ast.statements[0].kind {
+            StmtKind::Function {
+                name,
+                generic_params,
+                ..
+            } => {
                 assert_eq!(name, "compare");
-                
+
                 // Check generic params with bounds
                 assert!(generic_params.is_some());
                 let gen_params = generic_params.as_ref().unwrap();
                 assert_eq!(gen_params.params.len(), 1);
-                
+
                 let param = &gen_params.params[0];
                 assert_eq!(param.name, "T");
                 assert_eq!(param.bounds.len(), 2);
@@ -143,26 +158,26 @@ mod tests {
                 }
             }
         "#;
-        
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Tokenization should succeed");
-        
+
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Parsing should succeed");
-        
-        assert_eq!(ast.stmts.len(), 1);
-        
-        match &ast.stmts[0].kind {
+
+        assert_eq!(ast.statements.len(), 1);
+
+        match &ast.statements[0].kind {
             StmtKind::Impl(impl_block) => {
                 // Check generic params on impl block
                 assert!(impl_block.generic_params.is_some());
                 let gen_params = impl_block.generic_params.as_ref().unwrap();
                 assert_eq!(gen_params.params.len(), 1);
                 assert_eq!(gen_params.params[0].name, "T");
-                
+
                 // Check type name includes generics
                 assert_eq!(impl_block.type_name, "Container");
-                
+
                 // Check method
                 assert_eq!(impl_block.methods.len(), 1);
                 assert_eq!(impl_block.methods[0].name, "new");
@@ -174,23 +189,23 @@ mod tests {
     #[test]
     fn test_multiple_bounds_parsing() {
         let source = "fn process<T: Debug + Clone + Send, U: Display>(x: T, y: U) {}";
-        
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Should tokenize");
-        
+
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Should parse");
-        
-        match &ast.stmts[0].kind {
-            StmtKind::Fn { generic_params, .. } => {
+
+        match &ast.statements[0].kind {
+            StmtKind::Function { generic_params, .. } => {
                 let gen_params = generic_params.as_ref().unwrap();
                 assert_eq!(gen_params.params.len(), 2);
-                
+
                 // Check T bounds
                 assert_eq!(gen_params.params[0].name, "T");
                 assert_eq!(gen_params.params[0].bounds.len(), 3);
                 assert_eq!(gen_params.params[0].bounds, vec!["Debug", "Clone", "Send"]);
-                
+
                 // Check U bounds
                 assert_eq!(gen_params.params[1].name, "U");
                 assert_eq!(gen_params.params[1].bounds.len(), 1);
@@ -208,14 +223,14 @@ mod tests {
                 let y = identity::<String>("hello");
             }
         "#;
-        
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().expect("Should tokenize");
-        
+
+        let lexer = Lexer::new(source).expect("Lexer creation should succeed");
+        let (tokens, _errors) = lexer.scan_tokens();
+
         let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Should parse");
-        
+
         // Just verify it parses without error
-        assert_eq!(ast.stmts.len(), 1);
+        assert_eq!(ast.statements.len(), 1);
     }
 }

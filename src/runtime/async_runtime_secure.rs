@@ -7,7 +7,7 @@
 use std::collections::VecDeque;
 use std::future::Future as StdFuture;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, AtomicUsize, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::task::{Context, Poll, Wake, Waker};
 use std::thread::{self, JoinHandle};
@@ -47,7 +47,11 @@ impl std::fmt::Display for AsyncRuntimeError {
         match self {
             AsyncRuntimeError::PoisonedMutex(msg) => write!(f, "Mutex poisoned: {}", msg),
             AsyncRuntimeError::TaskLimitExceeded { limit, attempted } => {
-                write!(f, "Task limit exceeded: attempted {}, limit {}", attempted, limit)
+                write!(
+                    f,
+                    "Task limit exceeded: attempted {}, limit {}",
+                    attempted, limit
+                )
             }
             AsyncRuntimeError::InvalidTimerDuration(duration) => {
                 write!(f, "Invalid timer duration: {:?}", duration)
@@ -78,9 +82,13 @@ impl<'a, T> MutexExt<'a, T> for Result<MutexGuard<'a, T>, PoisonError<MutexGuard
 }
 
 // Also implement for wait_timeout result
-impl<'a, T> MutexExt<'a, T> for Result<(MutexGuard<'a, T>, std::sync::WaitTimeoutResult), PoisonError<MutexGuard<'a, T>>> {
+impl<'a, T> MutexExt<'a, T>
+    for Result<(MutexGuard<'a, T>, std::sync::WaitTimeoutResult), PoisonError<MutexGuard<'a, T>>>
+{
     type Output = (MutexGuard<'a, T>, std::sync::WaitTimeoutResult);
-    fn secure_lock(self) -> Result<(MutexGuard<'a, T>, std::sync::WaitTimeoutResult), AsyncRuntimeError> {
+    fn secure_lock(
+        self,
+    ) -> Result<(MutexGuard<'a, T>, std::sync::WaitTimeoutResult), AsyncRuntimeError> {
         self.map_err(|e| AsyncRuntimeError::PoisonedMutex(format!("{:?}", e)))
     }
 }
@@ -135,11 +143,11 @@ impl<T> SharedResult<T> {
     /// Wait for the result and return it
     pub fn wait_for_result(&self) -> AsyncResult<T> {
         let mut result = self.result.lock().secure_lock()?;
-        
+
         while result.is_none() {
             result = self.completion.wait(result).secure_lock()?;
         }
-        
+
         result.take().ok_or_else(|| {
             AsyncRuntimeError::InvalidTaskState("Result was None after completion".to_string())
         })
@@ -149,21 +157,28 @@ impl<T> SharedResult<T> {
     pub fn wait_for_result_timeout(&self, timeout: Duration) -> AsyncResult<Option<T>> {
         let mut result = self.result.lock().secure_lock()?;
         let start = Instant::now();
-        
+
         while result.is_none() && start.elapsed() < timeout {
             let remaining = timeout.saturating_sub(start.elapsed());
             if remaining.is_zero() {
                 break;
             }
-            
-            let wait_result = self.completion.wait_timeout(result, remaining).secure_lock()?;
+
+            let wait_result = self
+                .completion
+                .wait_timeout(result, remaining)
+                .map_err(|_| {
+                    AsyncRuntimeError::PoisonedMutex(
+                        "Condition variable wait_timeout failed".to_string(),
+                    )
+                })?;
             result = wait_result.0;
-            
+
             if wait_result.1.timed_out() {
                 break;
             }
         }
-        
+
         Ok(result.take())
     }
 
@@ -247,7 +262,7 @@ impl Task {
     /// Create a new task with validation
     fn new(id: TaskId, future: BoxedFuture<()>, waker: Arc<TaskWaker>) -> AsyncResult<Self> {
         id.validate()?;
-        
+
         Ok(Task {
             id,
             future: Mutex::new(future),
@@ -330,14 +345,14 @@ impl ExecutorShared {
         }
 
         let mut queue = self.ready_queue.lock().secure_lock()?;
-        
+
         // Prevent queue overflow
         if queue.len() >= MAX_TASKS {
             return Err(AsyncRuntimeError::ResourceExhaustion(
-                "Ready queue is full".to_string()
+                "Ready queue is full".to_string(),
             ));
         }
-        
+
         queue.push_back(task_id);
         self.wake_signal.notify_one();
         Ok(())
@@ -392,7 +407,7 @@ impl Executor {
     pub fn spawn(executor: Arc<Mutex<Self>>, future: BoxedFuture<()>) -> AsyncResult<TaskId> {
         let (task_id, shared) = {
             let mut exec = executor.lock().secure_lock()?;
-            
+
             // Check task limit
             if exec.next_id >= exec.max_tasks {
                 return Err(AsyncRuntimeError::TaskLimitExceeded {
@@ -530,7 +545,7 @@ impl Executor {
 fn create_waker(task_waker: Arc<TaskWaker>) -> AsyncResult<Waker> {
     // Validate the waker before creating
     task_waker.task_id.validate()?;
-    
+
     Ok(unsafe {
         Waker::from_raw(std::task::RawWaker::new(
             Arc::into_raw(task_waker) as *const (),
@@ -553,12 +568,12 @@ unsafe fn clone_waker(data: *const ()) -> std::task::RawWaker {
 unsafe fn wake_waker(data: *const ()) {
     let waker = Arc::from_raw(data as *const TaskWaker);
     let _ = waker.wake(); // Ignore wake errors in low-level callback
-    // Arc is consumed by from_raw and dropped here
+                          // Arc is consumed by from_raw and dropped here
 }
 
 unsafe fn wake_by_ref_waker(data: *const ()) {
     let waker = Arc::from_raw(data as *const TaskWaker);
-    let _ = waker.wake(); // Ignore wake errors in low-level callback
+    let _ = TaskWaker::wake(&waker); // Call the method directly to avoid consuming the Arc
     let _ = Arc::into_raw(waker); // Convert back to raw pointer without dropping
 }
 
@@ -605,7 +620,7 @@ impl TimerThread {
                         Ok(request) => {
                             timers.push(request);
                             timers.sort_by_key(|req| req.deadline);
-                            
+
                             // Prevent unbounded growth
                             if timers.len() > MAX_TASKS {
                                 eprintln!("Timer queue overflow, removing oldest timers");
@@ -648,7 +663,7 @@ impl TimerThread {
         self.sender.send(request).map_err(|_| {
             AsyncRuntimeError::ResourceExhaustion("Timer thread disconnected".to_string())
         })?;
-        
+
         Ok(())
     }
 }
@@ -751,7 +766,7 @@ pub struct JoinAll<T> {
 impl<T> JoinAll<T> {
     pub fn new(futures: Vec<BoxedFuture<T>>) -> AsyncResult<Self> {
         let len = futures.len();
-        
+
         // Validate future count
         if len > MAX_TASKS {
             return Err(AsyncRuntimeError::TaskLimitExceeded {
@@ -764,11 +779,11 @@ impl<T> JoinAll<T> {
         for _ in 0..len {
             results.push(None);
         }
-        
-        Ok(JoinAll { 
-            futures, 
-            results, 
-            max_futures: len 
+
+        Ok(JoinAll {
+            futures,
+            results,
+            max_futures: len,
         })
     }
 }
@@ -840,10 +855,7 @@ impl BlockingExecutor {
     }
 
     /// Block on a future with a timeout, returning the result
-    pub fn block_on_with_timeout<T>(
-        future: BoxedFuture<T>, 
-        timeout: Duration
-    ) -> AsyncResult<T>
+    pub fn block_on_with_timeout<T>(future: BoxedFuture<T>, timeout: Duration) -> AsyncResult<T>
     where
         T: Send + 'static,
     {
@@ -888,7 +900,7 @@ impl BlockingExecutor {
         // Spawn the future
         let _task_id = {
             let mut exec = executor.lock().secure_lock()?;
-            
+
             if exec.next_task_id >= exec.max_tasks {
                 return Err(AsyncRuntimeError::TaskLimitExceeded {
                     limit: exec.max_tasks,
@@ -937,7 +949,9 @@ impl BlockingExecutor {
         }
 
         // Wait for the thread to finish
-        handle.join().map_err(|_| AsyncRuntimeError::ThreadJoinFailed)?;
+        handle
+            .join()
+            .map_err(|_| AsyncRuntimeError::ThreadJoinFailed)?;
 
         result.ok_or(AsyncRuntimeError::OperationTimeout)
     }
@@ -1059,7 +1073,8 @@ mod tests {
         }
 
         let task = TimerTask::new().expect("Failed to create timer task");
-        let _task_id = Executor::spawn(executor.clone(), Box::new(task)).expect("Failed to spawn task");
+        let _task_id =
+            Executor::spawn(executor.clone(), Box::new(task)).expect("Failed to spawn task");
 
         Executor::run(executor).expect("Failed to run executor");
     }
@@ -1167,13 +1182,12 @@ mod tests {
         Executor::spawn(
             executor.clone(),
             Box::new(IncrementTask::new(counter.clone())),
-        ).expect("Failed to spawn increment task");
+        )
+        .expect("Failed to spawn increment task");
 
         // Run executor in a separate thread
         let executor_clone = executor.clone();
-        let handle = thread::spawn(move || {
-            Executor::run(executor_clone)
-        });
+        let handle = thread::spawn(move || Executor::run(executor_clone));
 
         // Give it time to start
         thread::sleep(Duration::from_millis(50));
@@ -1182,7 +1196,9 @@ mod tests {
         Executor::shutdown(executor).expect("Failed to shutdown executor");
 
         // Wait for the executor thread to finish
-        handle.join().expect("Failed to join executor thread")
+        handle
+            .join()
+            .expect("Failed to join executor thread")
             .expect("Executor run failed");
 
         // Task should have executed
@@ -1209,13 +1225,19 @@ mod tests {
 
         // This should fail
         let result = Executor::spawn(executor.clone(), Box::new(NoOpTask));
-        assert!(matches!(result, Err(AsyncRuntimeError::TaskLimitExceeded { .. })));
+        assert!(matches!(
+            result,
+            Err(AsyncRuntimeError::TaskLimitExceeded { .. })
+        ));
     }
 
     #[test]
     fn test_invalid_timer_duration() {
         let result = Timer::new(Duration::from_secs(4000)); // Exceeds MAX_TIMER_DURATION
-        assert!(matches!(result, Err(AsyncRuntimeError::InvalidTimerDuration(_))));
+        assert!(matches!(
+            result,
+            Err(AsyncRuntimeError::InvalidTimerDuration(_))
+        ));
     }
 
     #[test]
@@ -1230,9 +1252,9 @@ mod tests {
 
         let result = BlockingExecutor::block_on_with_timeout(
             Box::new(NeverCompletes),
-            Duration::from_millis(100)
+            Duration::from_millis(100),
         );
-        
+
         assert!(matches!(result, Err(AsyncRuntimeError::OperationTimeout)));
     }
 }

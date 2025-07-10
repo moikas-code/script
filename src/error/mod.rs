@@ -1,5 +1,5 @@
-mod reporter;
 pub mod module_context;
+mod reporter;
 
 use crate::source::SourceLocation;
 use colored::*;
@@ -39,6 +39,7 @@ pub enum ErrorKind {
     AsyncError,
     ResourceNotFound,
     InternalError,
+    Configuration,
 }
 
 impl Error {
@@ -96,12 +97,19 @@ impl Error {
         Self::new(ErrorKind::SecurityViolation, message)
     }
 
+    pub fn security_error(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::SecurityViolation, message)
+    }
+
     pub fn lock_poisoned(message: impl Into<String>) -> Self {
         Self::new(ErrorKind::LockPoisoned, message)
     }
 
     pub fn key_not_found(key: impl Into<String>) -> Self {
-        Self::new(ErrorKind::KeyNotFound, format!("Key not found: {}", key.into()))
+        Self::new(
+            ErrorKind::KeyNotFound,
+            format!("Key not found: {}", key.into()),
+        )
     }
 
     pub fn index_out_of_bounds(index: usize, len: usize) -> Self {
@@ -167,6 +175,7 @@ impl fmt::Display for Error {
             ErrorKind::AsyncError => "Async Error",
             ErrorKind::ResourceNotFound => "Resource Not Found",
             ErrorKind::InternalError => "Internal Error",
+            ErrorKind::Configuration => "Configuration Error",
         };
 
         write!(f, "{}: {}", error_type.red().bold(), self.message)?;
@@ -223,5 +232,11 @@ impl From<std::string::FromUtf8Error> for Error {
 impl From<std::str::Utf8Error> for Error {
     fn from(err: std::str::Utf8Error) -> Self {
         Error::invalid_conversion(format!("Invalid UTF-8: {}", err))
+    }
+}
+
+impl From<String> for Error {
+    fn from(err: String) -> Self {
+        Error::semantic(err)
     }
 }

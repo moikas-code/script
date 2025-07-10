@@ -3,10 +3,12 @@
 //! This is a placeholder implementation for line number debugging information.
 //! A full implementation would integrate with gimli's line table generation.
 
-use crate::source::{SourceLocation, Span};
+use super::safe_conversions::{
+    usize_to_u64, validate_column_number, validate_file_count, validate_line_number,
+};
 use crate::error::Error;
+use crate::source::{SourceLocation, Span};
 use std::collections::HashMap;
-use super::safe_conversions::{usize_to_u64, validate_file_count, validate_line_number, validate_column_number};
 
 /// Builder for DWARF line number information (simplified)
 pub struct LineTableBuilder {
@@ -53,7 +55,7 @@ impl LineTableBuilder {
 
         // Validate file count is within limits
         validate_file_count(self.file_map.len())?;
-        
+
         // Safely convert to u64
         let file_id = usize_to_u64(self.file_map.len())?;
         self.file_map.insert(file_path.to_string(), file_id);
@@ -82,7 +84,7 @@ impl LineTableBuilder {
         // Validate and convert line and column numbers
         let line_u64 = validate_line_number(location.line)? as u64;
         let column_u64 = validate_column_number(location.column)? as u64;
-        
+
         // Update current state
         self.current_address = address;
         self.current_line = line_u64;
@@ -111,7 +113,12 @@ impl LineTableBuilder {
     }
 
     /// Add line entries for a span covering multiple addresses
-    pub fn add_span(&mut self, start_address: u64, end_address: u64, span: &Span) -> Result<(), Error> {
+    pub fn add_span(
+        &mut self,
+        start_address: u64,
+        end_address: u64,
+        span: &Span,
+    ) -> Result<(), Error> {
         self.add_line_range(start_address, end_address, &span.start)
     }
 
@@ -265,7 +272,10 @@ mod tests {
         // This should fail as we're at the limit
         let result = builder.add_file("/test/one_more.script");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Too many source files"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Too many source files"));
     }
 
     #[test]
@@ -275,23 +285,20 @@ mod tests {
         builder.set_file("/test/main.script")?;
 
         // Valid line number at limit
-        let valid_location = SourceLocation::new(
-            safe_conversions::limits::MAX_LINE_NUMBER as usize,
-            5,
-            100
-        );
+        let valid_location =
+            SourceLocation::new(safe_conversions::limits::MAX_LINE_NUMBER as usize, 5, 100);
         assert!(builder.add_line(0x1000, &valid_location).is_ok());
 
         // Invalid line number beyond limit
         let invalid_location = SourceLocation::new(
             (safe_conversions::limits::MAX_LINE_NUMBER + 1) as usize,
             5,
-            100
+            100,
         );
         let result = builder.add_line(0x2000, &invalid_location);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Line number"));
-        
+
         Ok(())
     }
 
@@ -305,7 +312,7 @@ mod tests {
         let valid_location = SourceLocation::new(
             10,
             safe_conversions::limits::MAX_COLUMN_NUMBER as usize,
-            100
+            100,
         );
         assert!(builder.add_line(0x1000, &valid_location).is_ok());
 
@@ -313,12 +320,12 @@ mod tests {
         let invalid_location = SourceLocation::new(
             10,
             (safe_conversions::limits::MAX_COLUMN_NUMBER + 1) as usize,
-            100
+            100,
         );
         let result = builder.add_line(0x2000, &invalid_location);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Column number"));
-        
+
         Ok(())
     }
 }

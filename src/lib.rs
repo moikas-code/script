@@ -21,6 +21,7 @@ pub mod stdlib;
 pub mod testing;
 pub mod types;
 pub mod update;
+pub mod verification;
 
 #[cfg(test)]
 mod tests {
@@ -31,8 +32,7 @@ pub use codegen::{CodeGenerator, ExecutableModule};
 pub use debugger::{
     get_debugger, initialize_debugger, is_debugger_initialized, shutdown_debugger, Breakpoint,
     BreakpointCondition, BreakpointId, BreakpointManager, BreakpointType, DebugEvent, DebugHook,
-    DebugSession, Debugger, DebuggerState, ExecutionContext,
-    RuntimeDebugInterface,
+    DebugSession, Debugger, DebuggerState, ExecutionContext, RuntimeDebugInterface,
 };
 pub use error::{Error, Result};
 pub use inference::{InferenceEngine, InferenceResult};

@@ -1,4 +1,5 @@
 use super::{type_ann_to_type, Constraint, InferenceContext};
+use crate::compilation::resource_limits::{ResourceLimits, ResourceMonitor};
 use crate::error::{Error, ErrorKind};
 use crate::parser::{
     BinaryOp, Block, Expr, ExprKind, Literal, Pattern, PatternKind, Program, Stmt, StmtKind,
@@ -16,7 +17,7 @@ pub struct InferenceResult {
     /// Type of each statement in the program  
     pub stmt_types: HashMap<Span, Type>,
     /// Final substitution after solving all constraints
-    pub substitution: super::Substitution,
+    pub substitution: super::OptimizedSubstitution,
 }
 
 /// The main type inference engine
@@ -26,33 +27,73 @@ pub struct InferenceEngine {
     expr_types: HashMap<Span, Type>,
     /// Store inferred types for statements
     stmt_types: HashMap<Span, Type>,
+    /// Resource monitor for DoS protection
+    resource_monitor: ResourceMonitor,
+    /// Recursion depth tracking for stack overflow protection
+    recursion_depth: usize,
 }
 
 impl InferenceEngine {
-    /// Create a new inference engine
+    /// Create a new inference engine with default resource limits
     pub fn new() -> Self {
+        Self::with_resource_limits(ResourceLimits::production())
+    }
+
+    /// Create a new inference engine with custom resource limits
+    pub fn with_resource_limits(limits: ResourceLimits) -> Self {
         InferenceEngine {
             context: InferenceContext::new(),
             expr_types: HashMap::new(),
             stmt_types: HashMap::new(),
+            resource_monitor: ResourceMonitor::new(limits),
+            recursion_depth: 0,
         }
+    }
+
+    /// Create a new inference engine for development (more permissive limits)
+    pub fn for_development() -> Self {
+        Self::with_resource_limits(ResourceLimits::development())
+    }
+
+    /// Create a new inference engine for testing (very permissive limits)
+    pub fn for_testing() -> Self {
+        Self::with_resource_limits(ResourceLimits::testing())
     }
 
     /// Infer types for a program
     pub fn infer_program(&mut self, program: &Program) -> Result<InferenceResult, Error> {
+        // Start resource monitoring for type inference phase
+        self.resource_monitor.start_phase("type_inference");
+
         // Initialize built-in functions
         self.initialize_builtins();
 
-        // Infer types for all statements
-        for stmt in &program.statements {
+        // Infer types for all statements with resource monitoring
+        for (i, stmt) in program.statements.iter().enumerate() {
+            // Check resource limits every 100 statements
+            if i % 100 == 0 {
+                self.resource_monitor
+                    .check_phase_timeout("type_inference")?;
+                self.resource_monitor.check_total_timeout()?;
+                self.resource_monitor
+                    .check_iteration_limit("statement_inference", 100)?;
+
+                // Check memory usage every 100 statements
+                self.resource_monitor.check_system_memory()?;
+            }
+
             self.infer_stmt(stmt)?;
         }
 
-        // Solve all collected constraints
+        // Solve all collected constraints with monitoring
+        self.resource_monitor.start_phase("constraint_solving");
         self.context.solve_constraints()?;
+        self.resource_monitor.end_phase("constraint_solving");
 
         // Apply final substitution to all inferred types
         self.apply_final_substitution();
+
+        self.resource_monitor.end_phase("type_inference");
 
         Ok(InferenceResult {
             expr_types: self.expr_types.clone(),
@@ -75,6 +116,19 @@ impl InferenceEngine {
 
     /// Infer type for a statement
     fn infer_stmt(&mut self, stmt: &Stmt) -> Result<Type, Error> {
+        // Track recursion depth for stack overflow protection
+        self.recursion_depth += 1;
+        self.resource_monitor
+            .check_recursion_depth("stmt_inference", self.recursion_depth)?;
+
+        let result = self.infer_stmt_impl(stmt);
+
+        self.recursion_depth -= 1;
+        result
+    }
+
+    /// Internal implementation of statement type inference
+    fn infer_stmt_impl(&mut self, stmt: &Stmt) -> Result<Type, Error> {
         let ty = match &stmt.kind {
             StmtKind::Let {
                 name,
@@ -85,13 +139,15 @@ impl InferenceEngine {
                     // Use explicit type annotation
                     type_ann_to_type(ann)
                 } else {
-                    // Generate fresh type variable
+                    // Generate fresh type variable with resource tracking
+                    self.resource_monitor.add_type_variable()?;
                     self.context.fresh_type_var()
                 };
 
                 // If there's an initializer, infer its type and constrain
                 if let Some(init_expr) = init {
                     let init_type = self.infer_expr(init_expr)?;
+                    self.resource_monitor.add_constraint()?;
                     self.context.add_constraint(Constraint::equality(
                         var_type.clone(),
                         init_type,
@@ -109,12 +165,12 @@ impl InferenceEngine {
 
             StmtKind::Function {
                 name,
-                generic_params: _, // TODO: Handle generic parameters
+                generic_params: _generic_params, // TODO: Handle generic parameters
                 params,
                 ret_type,
                 body,
                 is_async,
-                where_clause: _, // TODO: Handle where clause
+                where_clause: _where_clause, // TODO: Handle where clause
             } => {
                 // Enter new scope for function body
                 self.context.push_scope();
@@ -238,16 +294,18 @@ impl InferenceEngine {
                 Type::Unknown
             }
 
-            StmtKind::Struct { .. } => {
+            StmtKind::Struct { name, .. } => {
                 // TODO: Implement struct type inference
-                Type::Unknown
+                // For now, register as a named type
+                Type::Named(name.clone())
             }
 
-            StmtKind::Enum { .. } => {
+            StmtKind::Enum { name, .. } => {
                 // TODO: Implement enum type inference
-                Type::Unknown
+                // For now, register as a named type
+                Type::Named(name.clone())
             }
-            
+
             StmtKind::Impl(_) => {
                 // TODO: Implement impl block type inference
                 Type::Unknown
@@ -260,11 +318,32 @@ impl InferenceEngine {
 
     /// Infer type for an expression
     fn infer_expr(&mut self, expr: &Expr) -> Result<Type, Error> {
+        // Track recursion depth for stack overflow protection
+        self.recursion_depth += 1;
+        self.resource_monitor
+            .check_recursion_depth("expr_inference", self.recursion_depth)?;
+
+        // Periodically check resource limits during deep recursion
+        if self.recursion_depth % 50 == 0 {
+            self.resource_monitor
+                .check_phase_timeout("type_inference")?;
+            self.resource_monitor.check_total_timeout()?;
+        }
+
+        let result = self.infer_expr_impl(expr);
+
+        self.recursion_depth -= 1;
+        result
+    }
+
+    /// Internal implementation of expression type inference
+    fn infer_expr_impl(&mut self, expr: &Expr) -> Result<Type, Error> {
         let ty = match &expr.kind {
             ExprKind::Literal(lit) => match lit {
                 Literal::Number(_) => {
                     // Use a fresh type variable for numeric literals
                     // This allows them to unify with either i32 or f32
+                    self.resource_monitor.add_type_variable()?;
                     let ty = self.context.fresh_type_var();
                     // TODO: Add constraint that it must be numeric
                     ty
@@ -298,6 +377,7 @@ impl InferenceEngine {
                     | BinaryOp::Div
                     | BinaryOp::Mod => {
                         // Both operands must be numeric and same type
+                        self.resource_monitor.add_constraint()?;
                         self.context.add_constraint(Constraint::equality(
                             left_type.clone(),
                             right_type,
@@ -418,7 +498,7 @@ impl InferenceEngine {
 
             ExprKind::Member {
                 object,
-                property: _,
+                property: _property,
             } => {
                 // For now, just return a fresh type variable
                 // TODO: Implement proper struct/object typing
@@ -567,7 +647,7 @@ impl InferenceEngine {
             ExprKind::GenericConstructor { name, type_args } => {
                 // Generic constructors are treated as named types
                 // NOTE: With monomorphization complete, this simplified approach may be sufficient
-                let _ = type_args; // suppress warning
+                let _type_args = type_args; // suppress warning
                 Type::Named(name.clone())
             }
 
@@ -579,6 +659,56 @@ impl InferenceEngine {
             ExprKind::EnumConstructor { variant, .. } => {
                 // TODO: Implement enum constructor type inference
                 Type::Named(variant.clone())
+            }
+
+            ExprKind::ErrorPropagation { expr } => {
+                // Infer type for the inner expression
+                let inner_ty = self.infer_expr(expr)?;
+
+                // Verify that the inner expression is a Result<T, E> or Option<T>
+                match &inner_ty {
+                    Type::Result { ok, .. } => ok.as_ref().clone(),
+                    Type::Option(inner) => inner.as_ref().clone(),
+                    _ => {
+                        return Err(Error::new(
+                            ErrorKind::TypeError,
+                            format!("Error propagation (?) can only be used with Result or Option types, found: {:?}", inner_ty),
+                        ));
+                    }
+                }
+            }
+
+            ExprKind::TryCatch { try_expr, .. } => {
+                // The type of a try-catch expression is the type of the try expression
+                self.infer_expr(try_expr)?
+            }
+
+            ExprKind::Closure { parameters, body } => {
+                // Create function type for closure with resource monitoring
+                let param_types: Vec<Type> = parameters
+                    .iter()
+                    .map(|param| {
+                        if let Some(ref type_ann) = param.type_ann {
+                            crate::types::conversion::type_from_ast(type_ann)
+                        } else {
+                            // Use fresh type variable for untyped parameters
+                            self.resource_monitor
+                                .add_type_variable()
+                                .unwrap_or_else(|_| {
+                                    // If we hit resource limits, fall back to Unknown type
+                                    ()
+                                });
+                            self.context.fresh_type_var()
+                        }
+                    })
+                    .collect();
+
+                let return_type = self.infer_expr(body)?;
+
+                Type::Function {
+                    params: param_types,
+                    ret: Box::new(return_type),
+                }
             }
         };
 
@@ -675,6 +805,44 @@ impl InferenceEngine {
                     self.check_pattern_compatibility(sub_pattern, expected_type)?;
                 }
                 Ok(())
+            }
+            PatternKind::EnumConstructor {
+                enum_name,
+                variant: _variant,
+                args,
+            } => {
+                // For enum patterns, we need to check that the enum variant is compatible
+                // with the expected type and that the arguments match the variant's fields
+
+                // This is a placeholder implementation - in a full implementation,
+                // we would look up the enum definition and check variant compatibility
+                match expected_type {
+                    Type::Named(name) => {
+                        // Check if the pattern matches the expected enum type
+                        if let Some(enum_name) = enum_name {
+                            if enum_name != name {
+                                return Err(Error::new(
+                                    ErrorKind::TypeError,
+                                    format!("Pattern expects enum {}, but got {}", enum_name, name),
+                                ));
+                            }
+                        }
+                        // Check arguments if present
+                        if let Some(pattern_args) = args {
+                            for arg_pattern in pattern_args {
+                                self.check_pattern_compatibility(arg_pattern, &Type::Unknown)?;
+                            }
+                        }
+                        Ok(())
+                    }
+                    _ => {
+                        // For non-enum types, this pattern is not compatible
+                        Err(Error::new(
+                            ErrorKind::TypeError,
+                            format!("Enum pattern cannot match non-enum type {}", expected_type),
+                        ))
+                    }
+                }
             }
         }
     }
@@ -786,4 +954,5 @@ mod tests {
         let result = infer_program_str("fn f(x: i32) { x } f(1, 2);");
         assert!(result.is_err());
     }
+
 }

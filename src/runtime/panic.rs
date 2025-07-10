@@ -32,6 +32,12 @@ pub enum RecoveryPolicy {
     Custom,
 }
 
+impl Default for RecoveryPolicy {
+    fn default() -> Self {
+        RecoveryPolicy::Abort
+    }
+}
+
 /// Recovery context for panic recovery operations
 #[derive(Debug, Clone)]
 pub struct RecoveryContext {
@@ -220,12 +226,15 @@ impl PanicHandler {
                 Ok(RecoveryResult::Success) => {
                     info.recovered = true;
                     self.update_recovery_metrics(true, info.recovery_attempts);
-                },
+                }
                 Ok(RecoveryResult::Degraded(msg)) => {
                     info.recovered = true;
-                    eprintln!("Panic recovery succeeded with degraded functionality: {}", msg);
+                    eprintln!(
+                        "Panic recovery succeeded with degraded functionality: {}",
+                        msg
+                    );
                     self.update_recovery_metrics(true, info.recovery_attempts);
-                },
+                }
                 _ => {
                     info.recovered = false;
                     self.update_recovery_metrics(false, info.recovery_attempts);
@@ -299,7 +308,7 @@ impl PanicHandler {
 
         let mut boundaries = self.boundaries.write().unwrap();
         boundaries.push(boundary);
-        
+
         // Return a new boundary with the same properties
         PanicBoundary {
             id,
@@ -333,27 +342,30 @@ impl PanicHandler {
                 // Simple continue - just mark as recovered
                 info.recovery_attempts = 1;
                 Ok(RecoveryResult::Success)
-            },
+            }
             RecoveryPolicy::Restart => {
                 // Attempt restart recovery
                 self.attempt_restart_recovery(&mut context)
-            },
+            }
             RecoveryPolicy::DegradedRestart => {
                 // Attempt degraded restart
                 self.attempt_degraded_recovery(&mut context)
-            },
+            }
             RecoveryPolicy::Custom => {
                 // Try custom recovery callbacks
                 self.attempt_custom_recovery(&mut context)
-            },
+            }
         }
     }
 
     /// Attempt restart recovery
-    fn attempt_restart_recovery(&self, context: &mut RecoveryContext) -> Result<RecoveryResult, String> {
+    fn attempt_restart_recovery(
+        &self,
+        context: &mut RecoveryContext,
+    ) -> Result<RecoveryResult, String> {
         for attempt in 1..=context.max_attempts {
             context.recovery_attempt = attempt;
-            
+
             if context.recovery_start.elapsed() > context.timeout {
                 return Ok(RecoveryResult::Abort);
             }
@@ -371,24 +383,32 @@ impl PanicHandler {
     }
 
     /// Attempt degraded recovery
-    fn attempt_degraded_recovery(&self, context: &mut RecoveryContext) -> Result<RecoveryResult, String> {
+    fn attempt_degraded_recovery(
+        &self,
+        context: &mut RecoveryContext,
+    ) -> Result<RecoveryResult, String> {
         context.recovery_attempt = 1;
-        
+
         // Enable degraded mode - continue with reduced functionality
         if self.enable_degraded_mode() {
-            Ok(RecoveryResult::Degraded("Running in degraded mode".to_string()))
+            Ok(RecoveryResult::Degraded(
+                "Running in degraded mode".to_string(),
+            ))
         } else {
             Ok(RecoveryResult::Abort)
         }
     }
 
     /// Attempt custom recovery using callbacks
-    fn attempt_custom_recovery(&self, context: &mut RecoveryContext) -> Result<RecoveryResult, String> {
+    fn attempt_custom_recovery(
+        &self,
+        context: &mut RecoveryContext,
+    ) -> Result<RecoveryResult, String> {
         let callbacks = self.recovery_callbacks.read().unwrap();
-        
+
         for callback in callbacks.iter() {
             context.recovery_attempt += 1;
-            
+
             if context.recovery_start.elapsed() > context.timeout {
                 return Ok(RecoveryResult::Abort);
             }
@@ -422,7 +442,7 @@ impl PanicHandler {
     fn update_recovery_metrics(&self, success: bool, attempts: u32) {
         let mut metrics = self.recovery_metrics.lock().unwrap();
         metrics.total_recovery_attempts += attempts as u64;
-        
+
         if success {
             metrics.successful_recoveries += 1;
         } else {
@@ -566,7 +586,7 @@ pub fn script_panic(message: impl Into<String>) -> ! {
 
 /// Create a Script panic with recovery policy
 pub fn script_panic_with_policy(message: impl Into<String>, policy: RecoveryPolicy) -> ! {
-    let mut info = PanicInfo {
+    let info = PanicInfo {
         message: message.into(),
         location: None,
         backtrace: StackTrace::capture().format(),
@@ -577,7 +597,7 @@ pub fn script_panic_with_policy(message: impl Into<String>, policy: RecoveryPoli
     };
 
     record_panic(info.clone());
-    
+
     // Check if panic was recovered after recording
     if let Some(last_panic) = last_panic() {
         if last_panic.recovered {
@@ -586,7 +606,7 @@ pub fn script_panic_with_policy(message: impl Into<String>, policy: RecoveryPoli
             panic!("Recovery successful: {}", info.message);
         }
     }
-    
+
     panic!("{}", info.message);
 }
 
@@ -596,7 +616,13 @@ pub fn script_panic_at(message: impl Into<String>, file: &str, line: u32, column
 }
 
 /// Create a Script panic with location and recovery policy
-pub fn script_panic_at_with_policy(message: impl Into<String>, file: &str, line: u32, column: u32, policy: RecoveryPolicy) -> ! {
+pub fn script_panic_at_with_policy(
+    message: impl Into<String>,
+    file: &str,
+    line: u32,
+    column: u32,
+    policy: RecoveryPolicy,
+) -> ! {
     let mut info = PanicInfo {
         message: message.into(),
         location: Some(format!("{}:{}:{}", file, line, column)),
@@ -608,7 +634,7 @@ pub fn script_panic_at_with_policy(message: impl Into<String>, file: &str, line:
     };
 
     record_panic(info.clone());
-    
+
     // Check if panic was recovered after recording
     if let Some(last_panic) = last_panic() {
         if last_panic.recovered {
@@ -617,7 +643,7 @@ pub fn script_panic_at_with_policy(message: impl Into<String>, file: &str, line:
             panic!("Recovery successful: {}", info.message);
         }
     }
-    
+
     panic!("{}", info.message);
 }
 
@@ -686,8 +712,8 @@ pub fn set_default_recovery_policy(policy: RecoveryPolicy) {
 }
 
 /// Add a recovery callback
-pub fn add_recovery_callback<F>(callback: F) 
-where 
+pub fn add_recovery_callback<F>(callback: F)
+where
     F: Fn(&RecoveryContext) -> RecoveryResult + Send + Sync + 'static,
 {
     if let Ok(handler) = PANIC_HANDLER.read() {
@@ -724,7 +750,7 @@ where
 {
     // Create boundary
     let _boundary = create_panic_boundary(id, policy);
-    
+
     // Execute with panic catching
     match std::panic::catch_unwind(f) {
         Ok(result) => Ok(result),
@@ -737,7 +763,7 @@ where
             } else {
                 "Unknown panic".to_string()
             };
-            
+
             Err(format!("Panic in boundary: {}", panic_msg))
         }
     }
@@ -943,20 +969,17 @@ mod tests {
             || {
                 // This should succeed
                 42
-            }
+            },
         );
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
 
         // Test panic within boundary
-        let result = with_panic_boundary(
-            "test_panic".to_string(),
-            RecoveryPolicy::Continue,
-            || {
+        let result =
+            with_panic_boundary("test_panic".to_string(), RecoveryPolicy::Continue, || {
                 panic!("Test panic in boundary");
-            }
-        );
+            });
 
         assert!(result.is_err());
 
@@ -1004,7 +1027,7 @@ mod tests {
 
         // This test just ensures the API works - actual testing would require
         // integration with the panic system
-        
+
         shutdown();
     }
 }

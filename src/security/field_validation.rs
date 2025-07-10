@@ -1,13 +1,13 @@
 //! Field access validation for Script language
-//! 
+//!
 //! This module provides secure field access validation to prevent
 //! type confusion attacks and unauthorized memory access through
 //! dynamic field operations.
 
+use super::{SecurityError, SecurityMetrics};
+use crate::error::{Error, ErrorKind};
 use crate::ir::{Instruction, ValueId};
 use crate::types::Type;
-use crate::error::{Error, ErrorKind};
-use super::{SecurityError, SecurityMetrics};
 use std::collections::HashMap;
 
 /// Field validation configuration with performance optimizations
@@ -68,9 +68,7 @@ pub enum FieldValidationResult {
     /// Type information is insufficient for validation
     InsufficientTypeInfo,
     /// Field access is ambiguous
-    Ambiguous {
-        possible_types: Vec<String>,
-    },
+    Ambiguous { possible_types: Vec<String> },
 }
 
 /// Type information for field validation
@@ -146,17 +144,22 @@ impl FieldValidator {
         if self.config.enable_fast_path {
             for (field_name, field_info) in &type_info.fields {
                 let cache_key = format!("{}::{}", type_info.name, field_name);
-                self.field_type_cache.insert(cache_key, field_info.field_type.clone());
+                self.field_type_cache
+                    .insert(cache_key, field_info.field_type.clone());
             }
         }
-        
-        self.type_registry.insert(type_info.name.clone(), type_info);
-        
+
+        // Save the type name before moving type_info
+        let type_name = type_info.name.clone();
+        self.type_registry.insert(type_name.clone(), type_info);
+
         // Selectively clear cache when types change
         if self.config.enable_validation_cache {
             // Only clear entries related to this type instead of full clear
-            let keys_to_remove: Vec<_> = self.validation_cache.keys()
-                .filter(|key| key.contains(&format!("{}::", &type_info.name)))
+            let keys_to_remove: Vec<_> = self
+                .validation_cache
+                .keys()
+                .filter(|key| key.contains(&format!("{}::", &type_name)))
                 .cloned()
                 .collect();
             for key in keys_to_remove {
@@ -202,27 +205,29 @@ impl FieldValidator {
         field_name: &str,
     ) -> FieldValidationResult {
         let cache_key = format!("{}::{}", type_name, field_name);
-        
+
         // Fast path: check field type cache first
         if self.config.enable_fast_path {
             if let Some(field_type) = self.field_type_cache.get(&cache_key) {
                 // Update access tracking for LRU
                 self.global_access_counter += 1;
-                self.cache_access_counter.insert(cache_key.clone(), self.global_access_counter);
-                
+                self.cache_access_counter
+                    .insert(cache_key.clone(), self.global_access_counter);
+
                 return FieldValidationResult::Valid {
                     field_offset: None, // Fast path doesn't compute offset
                     field_type: field_type.clone(),
                 };
             }
         }
-        
+
         // Check validation cache
         if self.config.enable_validation_cache {
             if let Some(cached_result) = self.validation_cache.get(&cache_key) {
                 // Update access tracking
                 self.global_access_counter += 1;
-                self.cache_access_counter.insert(cache_key.clone(), self.global_access_counter);
+                self.cache_access_counter
+                    .insert(cache_key.clone(), self.global_access_counter);
                 return cached_result.clone();
             }
         }
@@ -239,8 +244,10 @@ impl FieldValidator {
         if self.config.enable_validation_cache {
             self.maybe_evict_cache();
             self.global_access_counter += 1;
-            self.validation_cache.insert(cache_key.clone(), result.clone());
-            self.cache_access_counter.insert(cache_key, self.global_access_counter);
+            self.validation_cache
+                .insert(cache_key.clone(), result.clone());
+            self.cache_access_counter
+                .insert(cache_key, self.global_access_counter);
         }
 
         result
@@ -314,29 +321,31 @@ impl FieldValidator {
         let result = self.validate_field_access(type_name, field_name);
 
         match result {
-            FieldValidationResult::Valid { field_type, field_offset } => {
+            FieldValidationResult::Valid {
+                field_type,
+                field_offset,
+            } => {
                 Ok(FieldInfo {
                     name: field_name.to_string(),
                     field_type,
                     offset: field_offset.unwrap_or(0),
-                    is_public: true, // Default for validated fields
+                    is_public: true,  // Default for validated fields
                     is_mutable: true, // Default for validated fields
                 })
             }
-            FieldValidationResult::InvalidField { type_name, field_name } => {
-                Err(SecurityError::InvalidFieldAccess {
-                    type_name,
-                    field_name,
-                    message: format!("Invalid field access in {}", error_context),
-                })
-            }
-            _ => {
-                Err(SecurityError::InvalidFieldAccess {
-                    type_name: type_name.to_string(),
-                    field_name: field_name.to_string(),
-                    message: format!("Cannot validate field access in {}", error_context),
-                })
-            }
+            FieldValidationResult::InvalidField {
+                type_name,
+                field_name,
+            } => Err(SecurityError::InvalidFieldAccess {
+                type_name,
+                field_name,
+                message: format!("Invalid field access in {}", error_context),
+            }),
+            _ => Err(SecurityError::InvalidFieldAccess {
+                type_name: type_name.to_string(),
+                field_name: field_name.to_string(),
+                message: format!("Cannot validate field access in {}", error_context),
+            }),
         }
     }
 
@@ -352,7 +361,8 @@ impl FieldValidator {
 
         if self.config.emit_validation_instructions {
             // Generate field validation instruction
-            let validation = self.generate_field_validation(object, field_name, object_type, error_context)?;
+            let validation =
+                self.generate_field_validation(object, field_name, object_type, error_context)?;
             instructions.push(validation);
         }
 
@@ -382,14 +392,20 @@ impl FieldValidator {
         match object_type {
             Type::Named(type_name) => {
                 if let Some(type_info) = self.type_registry.get(type_name) {
-                    type_info.fields.get(field_name).map(|field| field.field_type.clone())
+                    type_info
+                        .fields
+                        .get(field_name)
+                        .map(|field| field.field_type.clone())
                 } else {
                     None
                 }
             }
             Type::Struct { name, .. } => {
                 if let Some(type_info) = self.type_registry.get(name) {
-                    type_info.fields.get(field_name).map(|field| field.field_type.clone())
+                    type_info
+                        .fields
+                        .get(field_name)
+                        .map(|field| field.field_type.clone())
                 } else {
                     None
                 }
@@ -415,24 +431,28 @@ impl FieldValidator {
         self.cache_access_counter.clear();
         self.global_access_counter = 0;
     }
-    
+
     /// Maybe evict old cache entries using LRU strategy
     fn maybe_evict_cache(&mut self) {
         let current_size = self.validation_cache.len();
         let max_size = self.config.max_cache_size;
         let eviction_threshold = (max_size as f64 * self.config.cache_eviction_threshold) as usize;
-        
+
         if current_size >= eviction_threshold {
             // Find LRU entries to evict
-            let mut access_times: Vec<_> = self.cache_access_counter.iter().collect();
-            access_times.sort_by_key(|(_, &access_time)| access_time);
-            
+            let mut access_times: Vec<_> = self
+                .cache_access_counter
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect();
+            access_times.sort_by_key(|(_, access_time)| *access_time);
+
             // Remove oldest 25% of entries
             let num_to_remove = max_size / 4;
             for (cache_key, _) in access_times.into_iter().take(num_to_remove) {
-                self.validation_cache.remove(cache_key);
-                self.field_type_cache.remove(cache_key);
-                self.cache_access_counter.remove(cache_key);
+                self.validation_cache.remove(&cache_key);
+                self.field_type_cache.remove(&cache_key);
+                self.cache_access_counter.remove(&cache_key);
             }
         }
     }
@@ -440,16 +460,17 @@ impl FieldValidator {
     /// Get cache statistics
     pub fn cache_stats(&self) -> (usize, usize, usize, f64) {
         let hit_ratio = if self.global_access_counter > 0 {
-            (self.validation_cache.len() + self.field_type_cache.len()) as f64 / self.global_access_counter as f64
+            (self.validation_cache.len() + self.field_type_cache.len()) as f64
+                / self.global_access_counter as f64
         } else {
             0.0
         };
-        
+
         (
             self.validation_cache.len(),
-            self.field_type_cache.len(), 
+            self.field_type_cache.len(),
             self.type_registry.len(),
-            hit_ratio
+            hit_ratio,
         )
     }
 
@@ -549,7 +570,7 @@ mod tests {
     fn test_type_registration() {
         let mut validator = FieldValidator::new();
         let type_info = create_test_type();
-        
+
         validator.register_type(type_info);
         assert!(validator.get_type_info("TestStruct").is_some());
     }
@@ -558,7 +579,7 @@ mod tests {
     fn test_valid_field_access() {
         let mut validator = FieldValidator::new();
         validator.register_type(create_test_type());
-        
+
         let result = validator.validate_field_access("TestStruct", "x");
         assert!(matches!(result, FieldValidationResult::Valid { .. }));
     }
@@ -567,7 +588,7 @@ mod tests {
     fn test_invalid_field_access() {
         let mut validator = FieldValidator::new();
         validator.register_type(create_test_type());
-        
+
         let result = validator.validate_field_access("TestStruct", "invalid_field");
         assert!(matches!(result, FieldValidationResult::InvalidField { .. }));
     }
@@ -575,7 +596,7 @@ mod tests {
     #[test]
     fn test_unknown_type_access() {
         let mut validator = FieldValidator::new();
-        
+
         let result = validator.validate_field_access("UnknownType", "x");
         assert!(matches!(result, FieldValidationResult::InvalidField { .. }));
     }
@@ -584,12 +605,12 @@ mod tests {
     fn test_field_validation_caching() {
         let mut validator = FieldValidator::new();
         validator.register_type(create_test_type());
-        
+
         // First call should populate cache
         let _result1 = validator.validate_field_access("TestStruct", "x");
         let (cache_size, _, _, _) = validator.cache_stats();
         assert_eq!(cache_size, 1);
-        
+
         // Second call should use cache
         let _result2 = validator.validate_field_access("TestStruct", "x");
         let (cache_size, _, _, _) = validator.cache_stats();
@@ -600,10 +621,10 @@ mod tests {
     fn test_runtime_field_validation_success() {
         let mut validator = FieldValidator::new();
         validator.register_type(create_test_type());
-        
+
         let result = validator.runtime_field_validation("TestStruct", "x", "test");
         assert!(result.is_ok());
-        
+
         let field_info = result.unwrap();
         assert_eq!(field_info.name, "x");
         assert_eq!(field_info.field_type, Type::I32);
@@ -613,10 +634,10 @@ mod tests {
     fn test_runtime_field_validation_failure() {
         let mut validator = FieldValidator::new();
         validator.register_type(create_test_type());
-        
+
         let result = validator.runtime_field_validation("TestStruct", "invalid", "test");
         assert!(result.is_err());
-        
+
         if let Err(SecurityError::InvalidFieldAccess { field_name, .. }) = result {
             assert_eq!(field_name, "invalid");
         } else {
@@ -629,11 +650,16 @@ mod tests {
         let validator = FieldValidator::new();
         let object = ValueId(1);
         let object_type = Type::Named("TestStruct".to_string());
-        
+
         let result = validator.generate_field_validation(object, "x", &object_type, "test");
         assert!(result.is_ok());
-        
-        if let Ok(Instruction::ValidateFieldAccess { object: val_object, field_name, .. }) = result {
+
+        if let Ok(Instruction::ValidateFieldAccess {
+            object: val_object,
+            field_name,
+            ..
+        }) = result
+        {
             assert_eq!(val_object, object);
             assert_eq!(field_name, "x");
         } else {
@@ -645,18 +671,21 @@ mod tests {
     fn test_secure_field_access_generation() {
         let mut validator = FieldValidator::new();
         validator.register_type(create_test_type());
-        
+
         let object = ValueId(1);
         let object_type = Type::Named("TestStruct".to_string());
-        
+
         let result = validator.generate_secure_field_access(object, "x", &object_type, "test");
         assert!(result.is_ok());
-        
+
         let instructions = result.unwrap();
         assert_eq!(instructions.len(), 2); // Validation + LoadField
-        
+
         // First instruction should be validation
-        assert!(matches!(instructions[0], Instruction::ValidateFieldAccess { .. }));
+        assert!(matches!(
+            instructions[0],
+            Instruction::ValidateFieldAccess { .. }
+        ));
         // Second instruction should be field access
         assert!(matches!(instructions[1], Instruction::LoadField { .. }));
     }
@@ -669,7 +698,7 @@ mod tests {
         };
         let mut validator = FieldValidator::with_config(config);
         validator.register_type(create_test_type());
-        
+
         // Should allow unknown fields in non-strict mode
         let result = validator.validate_field_access("TestStruct", "unknown_field");
         assert!(matches!(result, FieldValidationResult::Valid { .. }));
@@ -684,7 +713,7 @@ mod tests {
                 ("y".to_string(), Type::I32, 4),
             ],
         );
-        
+
         assert_eq!(type_info.name, "Point");
         assert_eq!(type_info.fields.len(), 2);
         assert!(type_info.fields.contains_key("x"));
@@ -697,7 +726,7 @@ mod tests {
             "Color".to_string(),
             vec!["Red".to_string(), "Green".to_string(), "Blue".to_string()],
         );
-        
+
         assert_eq!(type_info.name, "Color");
         assert_eq!(type_info.fields.len(), 3);
         assert!(type_info.fields.contains_key("Red"));

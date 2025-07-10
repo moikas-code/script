@@ -49,7 +49,10 @@ pub enum SemanticErrorKind {
     /// Unknown member
     UnknownMember { ty: Type, member: String },
     /// Method not found for type
-    MethodNotFound { type_name: String, method_name: String },
+    MethodNotFound {
+        type_name: String,
+        method_name: String,
+    },
     /// Const function violation
     ConstFunctionViolation(String),
     /// Non-const function called from const function
@@ -95,17 +98,26 @@ pub enum SemanticErrorKind {
     /// Not an enum type
     NotAnEnum(String),
     /// Unknown enum variant
-    UnknownVariant { enum_name: String, variant_name: String },
+    UnknownVariant {
+        enum_name: String,
+        variant_name: String,
+    },
     /// Unqualified enum variant
     UnqualifiedEnumVariant(String),
     /// Variant form mismatch (unit/tuple/struct)
-    VariantFormMismatch { variant: String, expected: String, found: String },
+    VariantFormMismatch {
+        variant: String,
+        expected: String,
+        found: String,
+    },
     /// Undefined type
     UndefinedType(String),
     /// Error propagation (?) used in non-Result/Option function
     ErrorPropagationInNonResult,
     /// Invalid error propagation on non-Result/Option type
     InvalidErrorPropagation { actual_type: Type },
+    /// Duplicate type definition
+    DuplicateType(String),
 }
 
 /// Semantic error with location information
@@ -258,8 +270,15 @@ impl fmt::Display for SemanticErrorKind {
             SemanticErrorKind::UnknownMember { ty, member } => {
                 write!(f, "type {} has no member '{}'", ty, member)
             }
-            SemanticErrorKind::MethodNotFound { type_name, method_name } => {
-                write!(f, "no method '{}' found for type '{}'", method_name, type_name)
+            SemanticErrorKind::MethodNotFound {
+                type_name,
+                method_name,
+            } => {
+                write!(
+                    f,
+                    "no method '{}' found for type '{}'",
+                    method_name, type_name
+                )
             }
             SemanticErrorKind::ConstFunctionViolation(msg) => {
                 write!(f, "const function violation: {}", msg)
@@ -346,23 +365,48 @@ impl fmt::Display for SemanticErrorKind {
             SemanticErrorKind::NotAnEnum(name) => {
                 write!(f, "'{}' is not an enum type", name)
             }
-            SemanticErrorKind::UnknownVariant { enum_name, variant_name } => {
-                write!(f, "no variant '{}' found for enum '{}'", variant_name, enum_name)
+            SemanticErrorKind::UnknownVariant {
+                enum_name,
+                variant_name,
+            } => {
+                write!(
+                    f,
+                    "no variant '{}' found for enum '{}'",
+                    variant_name, enum_name
+                )
             }
             SemanticErrorKind::UnqualifiedEnumVariant(variant) => {
                 write!(f, "unqualified enum variant '{}'", variant)
             }
-            SemanticErrorKind::VariantFormMismatch { variant, expected, found } => {
-                write!(f, "variant '{}' expects {}, but {} were provided", variant, expected, found)
+            SemanticErrorKind::VariantFormMismatch {
+                variant,
+                expected,
+                found,
+            } => {
+                write!(
+                    f,
+                    "variant '{}' expects {}, but {} were provided",
+                    variant, expected, found
+                )
             }
             SemanticErrorKind::UndefinedType(name) => {
                 write!(f, "undefined type '{}'", name)
             }
             SemanticErrorKind::ErrorPropagationInNonResult => {
-                write!(f, "the ? operator can only be used in functions that return Result or Option")
+                write!(
+                    f,
+                    "the ? operator can only be used in functions that return Result or Option"
+                )
             }
             SemanticErrorKind::InvalidErrorPropagation { actual_type } => {
-                write!(f, "the ? operator can only be applied to Result or Option types, not {}", actual_type)
+                write!(
+                    f,
+                    "the ? operator can only be applied to Result or Option types, not {}",
+                    actual_type
+                )
+            }
+            SemanticErrorKind::DuplicateType(name) => {
+                write!(f, "type '{}' is already defined", name)
             }
         }
     }

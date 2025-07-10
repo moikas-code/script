@@ -2,7 +2,7 @@
 mod impl_block_tests {
     use crate::lexer::Lexer;
     use crate::parser::{Parser, StmtKind};
-    
+
     #[test]
     fn test_simple_impl_block() {
         let code = r#"
@@ -12,14 +12,13 @@ mod impl_block_tests {
                 }
             }
         "#;
-        
-        let mut lexer = Lexer::new(code, Some("test.script"));
-        let tokens = lexer.scan_all();
-        assert!(tokens.errors.is_empty(), "Lexer errors: {:?}", tokens.errors);
-        
-        let mut parser = Parser::new(tokens.tokens);
+
+        let mut lexer = Lexer::new(code).unwrap();
+        let (tokens, errors) = lexer.scan_tokens();
+        assert!(errors.is_empty(), "Lexer errors: {:?}", errors);
+        let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Parse should succeed");
-        
+
         assert_eq!(ast.statements.len(), 1);
         match &ast.statements[0].kind {
             StmtKind::Impl(impl_block) => {
@@ -30,7 +29,7 @@ mod impl_block_tests {
             _ => panic!("Expected impl block"),
         }
     }
-    
+
     #[test]
     fn test_generic_impl_block() {
         let code = r#"
@@ -40,14 +39,13 @@ mod impl_block_tests {
                 }
             }
         "#;
-        
-        let mut lexer = Lexer::new(code, Some("test.script"));
-        let tokens = lexer.scan_all();
-        assert!(tokens.errors.is_empty(), "Lexer errors: {:?}", tokens.errors);
-        
-        let mut parser = Parser::new(tokens.tokens);
+
+        let mut lexer = Lexer::new(code).unwrap();
+        let (tokens, errors) = lexer.scan_tokens();
+        assert!(errors.is_empty(), "Lexer errors: {:?}", errors);
+        let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Parse should succeed");
-        
+
         assert_eq!(ast.statements.len(), 1);
         match &ast.statements[0].kind {
             StmtKind::Impl(impl_block) => {
@@ -60,7 +58,7 @@ mod impl_block_tests {
             _ => panic!("Expected impl block"),
         }
     }
-    
+
     #[test]
     fn test_impl_with_where_clause() {
         let code = r#"
@@ -71,14 +69,13 @@ mod impl_block_tests {
                 }
             }
         "#;
-        
-        let mut lexer = Lexer::new(code, Some("test.script"));
-        let tokens = lexer.scan_all();
-        assert!(tokens.errors.is_empty(), "Lexer errors: {:?}", tokens.errors);
-        
-        let mut parser = Parser::new(tokens.tokens);
+
+        let mut lexer = Lexer::new(code).unwrap();
+        let (tokens, errors) = lexer.scan_tokens();
+        assert!(errors.is_empty(), "Lexer errors: {:?}", errors);
+        let mut parser = Parser::new(tokens);
         let ast = parser.parse().expect("Parse should succeed");
-        
+
         assert_eq!(ast.statements.len(), 1);
         match &ast.statements[0].kind {
             StmtKind::Impl(impl_block) => {

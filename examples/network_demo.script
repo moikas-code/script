@@ -1,0 +1,89 @@
+// Network I/O Demo for Script Programming Language
+// This example demonstrates basic TCP and UDP network operations
+
+// TCP Client Example
+fn tcp_client_demo() {
+    // Connect to a TCP server
+    let connection = tcp_connect("127.0.0.1:8080");
+    
+    match connection {
+        Result::Ok(stream) => {
+            println("Connected to TCP server!");
+            // In a full implementation, we would have:
+            // tcp_write(stream, "Hello, server!");
+            // let response = tcp_read(stream);
+            // tcp_close(stream);
+        },
+        Result::Err(error) => {
+            println("Failed to connect: " + error.message);
+        }
+    }
+}
+
+// TCP Server Example
+fn tcp_server_demo() {
+    // Bind to a TCP port
+    let listener = tcp_bind("127.0.0.1:8080");
+    
+    match listener {
+        Result::Ok(server) => {
+            println("TCP server listening on port 8080");
+            // In a full implementation, we would have:
+            // while true {
+            //     let connection = tcp_accept(server);
+            //     match connection {
+            //         Result::Ok((stream, addr)) => {
+            //             println("Client connected from: " + addr);
+            //             tcp_write(stream, "Welcome!");
+            //         },
+            //         Result::Err(error) => {
+            //             println("Accept failed: " + error.message);
+            //         }
+            //     }
+            // }
+        },
+        Result::Err(error) => {
+            println("Failed to bind: " + error.message);
+        }
+    }
+}
+
+// UDP Example
+fn udp_demo() {
+    // Bind to a UDP port
+    let socket = udp_bind("127.0.0.1:9000");
+    
+    match socket {
+        Result::Ok(udp) => {
+            println("UDP socket bound to port 9000");
+            // In a full implementation, we would have:
+            // udp_send_to(udp, "Hello, UDP!", "127.0.0.1:9001");
+            // let (data, sender) = udp_recv_from(udp);
+            // println("Received: " + data + " from " + sender);
+        },
+        Result::Err(error) => {
+            println("Failed to bind UDP socket: " + error.message);
+        }
+    }
+}
+
+// Main entry point
+fn main() {
+    println("Script Network I/O Demo");
+    println("======================");
+    
+    // Demonstrate TCP client
+    println("\nTCP Client Demo:");
+    tcp_client_demo();
+    
+    // Demonstrate TCP server
+    println("\nTCP Server Demo:");
+    tcp_server_demo();
+    
+    // Demonstrate UDP
+    println("\nUDP Demo:");
+    udp_demo();
+    
+    println("\nNote: This is a basic demonstration of network function registration.");
+    println("Full implementation would include read/write/send/recv operations.");
+}

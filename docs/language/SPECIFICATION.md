@@ -724,4 +724,4 @@ Script is designed to evolve carefully while maintaining backward compatibility:
 
 ---
 
-*This specification defines Script Language version 0.1.0*
+*This specification defines Script Language version 0.5.0-alpha*

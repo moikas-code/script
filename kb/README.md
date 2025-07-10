@@ -1,77 +1,70 @@
-# Script Language Knowledge Base
+# Knowledge Base
 
-Welcome to the Script language knowledge base. This directory contains all documentation for tracking implementation status, design decisions, and compliance requirements.
+Welcome to your knowledge base!
 
-## 📁 Directory Structure
+## Structure
+- `docs/` - Documentation files
+- `notes/` - Meeting notes and quick thoughts  
+- `references/` - Reference materials and specs
+- `guides/` - How-to guides and tutorials
+- `archive/` - Archived content
 
-### 📊 `/status/` - Current State Tracking
-- **[OVERALL_STATUS.md](status/OVERALL_STATUS.md)** - Master implementation status (single source of truth)
-- **[PRODUCTION_BLOCKERS.md](status/PRODUCTION_BLOCKERS.md)** - Critical issues preventing production use
-- **[SECURITY_STATUS.md](status/SECURITY_STATUS.md)** - Consolidated security implementation status
-- **[COMPLIANCE_STATUS.md](status/COMPLIANCE_STATUS.md)** - SOC2 compliance progress tracking
+## Important Distinction: kb/ vs src/doc/
 
-### 🔧 `/active/` - Active Development Areas
-- **[KNOWN_ISSUES.md](active/KNOWN_ISSUES.md)** - Current bugs, limitations, and workarounds
-- **[ASYNC_IMPLEMENTATION.md](active/ASYNC_IMPLEMENTATION.md)** - Async/await feature status
-- **[MODULE_SYSTEM.md](active/MODULE_SYSTEM.md)** - Module resolution and type checking
-- **[MEMORY_MANAGEMENT.md](active/MEMORY_MANAGEMENT.md)** - GC, cycle detection, memory safety
-- **[GENERICS_IMPLEMENTATION.md](active/GENERICS_IMPLEMENTATION.md)** - Generic types and monomorphization
-- **[MCP_INTEGRATION.md](active/MCP_INTEGRATION.md)** - AI/Model Context Protocol integration
-- **[STDLIB_PROGRESS.md](active/STDLIB_PROGRESS.md)** - Standard library implementation tracking
+This knowledge base (`kb/`) serves a different purpose than the `src/doc/` directory:
 
-### 🔒 `/compliance/` - SOC2 & Security Compliance
-- **[SOC2_REQUIREMENTS.md](compliance/SOC2_REQUIREMENTS.md)** - SOC2 control requirements checklist
-- **[SECURITY_CONTROLS.md](compliance/SECURITY_CONTROLS.md)** - Security control implementation
-- **[AUDIT_LOG_SPEC.md](compliance/AUDIT_LOG_SPEC.md)** - Audit logging requirements
-- **[ACCESS_CONTROL.md](compliance/ACCESS_CONTROL.md)** - Access control implementation
-- **[DATA_PROTECTION.md](compliance/DATA_PROTECTION.md)** - Data protection measures
-- **[INCIDENT_RESPONSE.md](compliance/INCIDENT_RESPONSE.md)** - Incident response procedures
+- **`kb/` (this directory)**: Internal development documentation
+  - Tracks implementation status, known issues, and development notes
+  - Used by developers working on the Script language compiler
+  - Integrated with MCP tools for project management
+  - Contains markdown files about compiler architecture and development
 
-### 🏗️ `/architecture/` - Design Decisions & Principles
-- **[SECURITY_ARCHITECTURE.md](architecture/SECURITY_ARCHITECTURE.md)** - Security-first design principles
-- **[PERFORMANCE_GOALS.md](architecture/PERFORMANCE_GOALS.md)** - Performance targets and benchmarks
-- **[API_STABILITY.md](architecture/API_STABILITY.md)** - API versioning and stability guarantees
-- **[DEPLOYMENT_ARCHITECTURE.md](architecture/DEPLOYMENT_ARCHITECTURE.md)** - Production deployment design
+- **`src/doc/`**: Documentation generator for Script language
+  - Generates HTML documentation from Script source code comments
+  - Parses `///` and `/** */` doc comments from `.script` files
+  - Creates user-facing API documentation
+  - Used by Script language users to document their code
 
-### ✅ `/completed/` - Archived Completed Features
-Contains documentation for fully implemented features:
-- Pattern matching implementation
-- Monomorphization system
-- Trait integration
-- Function call fixes
+Both systems are complementary and serve distinct audiences.
 
-### 📚 `/legacy/` - Historical Documentation
-Old audit files and superseded documentation kept for reference.
+## Usage
+```bash
+# Read a file
+kb read docs/example.md
 
-## 🚀 Quick Links
+# Create a file
+kb write docs/new-doc.md "# New Document\n\nContent here"
 
-- **[ROADMAP.md](ROADMAP.md)** - Production readiness roadmap with milestones
-- **[IMPLEMENTATION_TODO.md](IMPLEMENTATION_TODO.md)** - Original implementation plan
-- **[INITIAL_PROMPT.md](INITIAL_PROMPT.md)** - Original project vision
+# List files
+kb list
 
-## 📋 For Contributors
+# Search content
+kb search "keyword"
 
-1. **Check Status First**: Always consult `/status/OVERALL_STATUS.md` for current state
-2. **Update Actively**: Keep `/active/` docs current as you work
-3. **Track Blockers**: Add new blockers to `PRODUCTION_BLOCKERS.md`
-4. **Security First**: Document security implications in relevant files
-5. **Compliance Aware**: Consider SOC2 requirements for new features
+# Delete a file
+kb delete docs/old-file.md
 
-## 🎯 Current Focus Areas
+# Start MCP server
+kb serve
 
-1. **Eliminate Panic Points** - Remove all `.unwrap()` calls
-2. **Complete Memory Safety** - Finish cycle detection implementation
-3. **Module System** - Fix cross-module type checking
-4. **Standard Library** - Reach 80% completion of essential functions
-5. **SOC2 Compliance** - Implement audit logging and access controls
+# Manage database (for graph backend)
+kb db start    # Start local database
+kb db stop     # Stop database
+kb db status   # Check database status
+```
 
-## 📈 Version Goals
-
-- **v0.5.0**: Educational use (safe for teaching)
-- **v0.8.0**: Beta release (feature complete)
-- **v1.0.0**: Production ready with SOC2 compliance
-- **v2.0.0**: Enterprise features and advanced optimizations
+## CLI Commands
+- `kb init` - Initialize a new knowledge base
+- `kb read <path>` - Read a file
+- `kb write <path> <content>` - Write content to a file
+- `kb list [directory]` - List files
+- `kb search <query>` - Search for content
+- `kb delete <path>` - Delete a file
+- `kb status` - Show status information
+- `kb serve` - Start MCP server
+- `kb db` - Manage local graph database
+- `kb version` - Show version
 
 ---
 
-*Last Updated: 2025-01-09*
+Generated by KB-MCP CLI v2.1.1

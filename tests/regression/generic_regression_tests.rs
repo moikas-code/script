@@ -1,5 +1,5 @@
 //! Regression tests for generic types
-//! 
+//!
 //! These tests ensure that previously fixed bugs don't reappear
 //! and that edge cases continue to work correctly.
 
@@ -26,7 +26,7 @@ fn test_issue_001_type_inference_with_partial_annotation() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
     assert_type_instantiated(&program, "Container", &["i32", "string"]);
@@ -50,7 +50,7 @@ fn test_issue_002_nested_generic_in_function_signature() {
             let result = process(Option::Some(Box { value: 42 }));
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_type_instantiated(&program, "Box", &["i32"]);
     assert_type_instantiated(&program, "Option", &["Box<i32>"]);
@@ -68,7 +68,7 @@ fn test_issue_003_generic_type_alias_substitution() {
             let b: IntBox = Box { value: 42 };
         }
     "#;
-    
+
     // Type aliases might not be fully supported yet, but test the underlying behavior
     let alt_code = r#"
         struct Box<T> { value: T }
@@ -77,7 +77,7 @@ fn test_issue_003_generic_type_alias_substitution() {
             let b: Box<i32> = Box { value: 42 };
         }
     "#;
-    
+
     let program = compile_generic_program(alt_code).expect("Failed to compile");
     assert_no_errors(&program);
 }
@@ -103,7 +103,7 @@ fn test_issue_004_method_type_parameter_shadowing() {
             let c2 = c1.map(double);
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_type_instantiated(&program, "Container", &["i32"]);
 }
@@ -132,7 +132,7 @@ fn test_issue_005_recursive_type_bounds() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
     assert_type_instantiated(&program, "Node", &["i32"]);
@@ -161,7 +161,7 @@ fn test_issue_006_generic_struct_field_access() {
             let y = p.second.inner; // Should be string
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_type_instantiated(&program, "Wrapper", &["i32"]);
     assert_type_instantiated(&program, "Wrapper", &["string"]);
@@ -181,7 +181,7 @@ fn test_issue_007_array_of_generics() {
             ];
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
     assert_eq!(count_monomorphized_instances(&program, "Box"), 1); // All same type
@@ -208,7 +208,7 @@ fn test_issue_008_match_on_generic_enum() {
             let value = unwrap(r);
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_type_instantiated(&program, "Result", &["i32", "_"]);
 }
@@ -242,7 +242,7 @@ fn test_issue_009_chained_method_calls() {
                 .build();
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_type_instantiated(&program, "Builder", &["i32"]);
     assert_type_instantiated(&program, "Builder", &["string"]);
@@ -271,7 +271,7 @@ fn test_issue_010_const_generic_array_size() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_type_instantiated(&program, "FixedArray", &["i32"]);
     assert_type_instantiated(&program, "FixedArray", &["string"]);
@@ -304,7 +304,7 @@ fn test_issue_011_mutual_recursion_generics() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
 }
@@ -325,7 +325,7 @@ fn test_issue_012_variance_in_function_types() {
             let h2 = FnHolder { func: identity_string };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_type_instantiated(&program, "FnHolder", &["i32"]);
     assert_type_instantiated(&program, "FnHolder", &["string"]);
@@ -341,7 +341,7 @@ fn test_placeholder_for_future_regressions() {
             let g = Generic { value: 42 };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
 }

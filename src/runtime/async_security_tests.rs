@@ -5,6 +5,7 @@
 //! All critical security vulnerabilities are tested to ensure they have been
 //! properly addressed.
 
+use super::async_runtime::*;
 use super::async_runtime_secure::*;
 use super::async_ffi_secure::*;
 use crate::lowering::async_transform_secure::*;
@@ -83,6 +84,13 @@ impl AsyncSecurityTestSuite {
         self.test_end_to_end_security();
         self.test_fuzzing_resilience();
         self.test_stress_testing();
+
+        // New Production-Ready Security Tests
+        self.test_bounded_queue_security();
+        self.test_resource_limit_enforcement();
+        self.test_timeout_enforcement();
+        self.test_race_condition_fixes();
+        self.test_memory_exhaustion_protection();
 
         self.generate_summary()
     }
@@ -515,6 +523,211 @@ impl AsyncSecurityTestSuite {
             }
 
             Ok("Stress testing passed".to_string())
+        });
+    }
+
+    /// Test bounded queue security features
+    fn test_bounded_queue_security(&mut self) {
+        self.run_test("Bounded Queue Security", SecuritySeverity::Critical, || {
+            let mut config = AsyncRuntimeConfig::default();
+            config.max_queue_size = 5;
+            config.max_concurrent_tasks = 100;
+            config.eviction_policy = EvictionPolicy::Fifo;
+            
+            let executor = Executor::with_config(config);
+            
+            // Test queue overflow handling
+            let mut tasks_spawned = 0;
+            for _ in 0..20 {
+                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::never_complete()));
+                if result.is_ok() {
+                    tasks_spawned += 1;
+                }
+            }
+            
+            // Should have spawned some tasks but not all due to queue limits
+            if tasks_spawned > 15 {
+                return Err("Queue overflow not properly handled".to_string());
+            }
+            
+            let _ = Executor::shutdown(executor);
+            Ok("Bounded queue security working correctly".to_string())
+        });
+    }
+
+    /// Test resource limit enforcement
+    fn test_resource_limit_enforcement(&mut self) {
+        self.run_test("Resource Limit Enforcement", SecuritySeverity::Critical, || {
+            let mut config = AsyncRuntimeConfig::default();
+            config.max_concurrent_tasks = 10;
+            config.max_memory_usage = 1024; // Very low for testing
+            config.max_queue_size = 5;
+            
+            let executor = Executor::with_config(config);
+            
+            // Try to exceed limits
+            let mut spawn_count = 0;
+            for _ in 0..30 {
+                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::immediate(())));
+                if result.is_ok() {
+                    spawn_count += 1;
+                } else {
+                    // Expected failure due to limits
+                    break;
+                }
+            }
+            
+            if spawn_count > 15 {
+                return Err("Resource limits not properly enforced".to_string());
+            }
+            
+            // Test health checking
+            let is_healthy = Executor::is_healthy(executor.clone())?;
+            if is_healthy {
+                return Err("Executor should not be healthy after hitting limits".to_string());
+            }
+            
+            let _ = Executor::shutdown(executor);
+            Ok("Resource limit enforcement working correctly".to_string())
+        });
+    }
+
+    /// Test timeout enforcement
+    fn test_timeout_enforcement(&mut self) {
+        self.run_test("Timeout Enforcement", SecuritySeverity::High, || {
+            let mut config = AsyncRuntimeConfig::default();
+            config.global_timeout = Duration::from_millis(100); // Very short timeout
+            
+            let executor = Executor::with_config(config);
+            
+            // Spawn a task that would run forever
+            let _ = Executor::spawn(executor.clone(), Box::new(TestFuture::never_complete()));
+            
+            let start = std::time::Instant::now();
+            let result = Executor::run(executor);
+            let elapsed = start.elapsed();
+            
+            // Should timeout within reasonable time
+            if elapsed > Duration::from_millis(200) {
+                return Err("Timeout not enforced quickly enough".to_string());
+            }
+            
+            // Should return an error due to timeout
+            if result.is_ok() {
+                return Err("Executor should have timed out".to_string());
+            }
+            
+            // Test blocking executor timeout
+            let infinite_task = TestFuture::never_complete();
+            let timeout = Duration::from_millis(50);
+            
+            let start = std::time::Instant::now();
+            let result = BlockingExecutor::block_on_timeout(Box::new(infinite_task), timeout);
+            let elapsed = start.elapsed();
+            
+            if elapsed < timeout {
+                return Err("Blocking executor timeout too short".to_string());
+            }
+            
+            if result.is_err() {
+                return Err("Blocking executor timeout should return Ok(None)".to_string());
+            }
+            
+            if result.unwrap().is_some() {
+                return Err("Blocking executor should return None on timeout".to_string());
+            }
+            
+            Ok("Timeout enforcement working correctly".to_string())
+        });
+    }
+
+    /// Test race condition fixes
+    fn test_race_condition_fixes(&mut self) {
+        self.run_test("Race Condition Fixes", SecuritySeverity::High, || {
+            let executor = Executor::new();
+            let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            
+            // Spawn tasks concurrently from multiple threads
+            let handles: Vec<_> = (0..10).map(|_| {
+                let exec = executor.clone();
+                let counter_clone = counter.clone();
+                
+                thread::spawn(move || {
+                    for _ in 0..10 {
+                        let task = TestFuture::increment_counter(counter_clone.clone());
+                        let _ = Executor::spawn(exec.clone(), Box::new(task));
+                    }
+                })
+            }).collect();
+            
+            // Wait for all spawns to complete
+            for handle in handles {
+                handle.join().unwrap();
+            }
+            
+            // Run executor
+            let run_handle = thread::spawn({
+                let exec = executor.clone();
+                move || {
+                    let _ = Executor::run(exec);
+                }
+            });
+            
+            // Let it run briefly then shutdown
+            thread::sleep(Duration::from_millis(50));
+            let _ = Executor::shutdown(executor);
+            let _ = run_handle.join();
+            
+            // Check that we didn't have data races or double-execution
+            let final_count = counter.load(std::sync::atomic::Ordering::Relaxed);
+            if final_count > 100 {
+                return Err("Race condition detected - tasks executed multiple times".to_string());
+            }
+            
+            Ok("Race condition fixes working correctly".to_string())
+        });
+    }
+
+    /// Test memory exhaustion protection
+    fn test_memory_exhaustion_protection(&mut self) {
+        self.run_test("Memory Exhaustion Protection", SecuritySeverity::Critical, || {
+            // Test resource monitoring
+            let mut config = AsyncRuntimeConfig::default();
+            config.max_memory_usage = 2048; // Low limit for testing
+            config.enable_monitoring = true;
+            
+            let executor = Executor::with_config(config);
+            
+            // Get initial resource stats
+            let initial_stats = Executor::get_stats(executor.clone())?;
+            if initial_stats.memory_usage > 0 {
+                return Err("Initial memory usage should be zero".to_string());
+            }
+            
+            // Spawn tasks to increase memory usage
+            let mut spawn_count = 0;
+            for _ in 0..100 {
+                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::immediate(())));
+                if result.is_ok() {
+                    spawn_count += 1;
+                } else {
+                    // Expected failure due to memory limits
+                    break;
+                }
+            }
+            
+            // Check updated stats
+            let updated_stats = Executor::get_stats(executor.clone())?;
+            if updated_stats.memory_usage == 0 {
+                return Err("Memory usage should be tracked".to_string());
+            }
+            
+            if spawn_count >= 100 {
+                return Err("Memory limit not enforced".to_string());
+            }
+            
+            let _ = Executor::shutdown(executor);
+            Ok("Memory exhaustion protection working correctly".to_string())
         });
     }
 

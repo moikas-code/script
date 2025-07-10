@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 
 use crate::runtime::profiler;
 use crate::runtime::rc::{Color, ScriptRc};
-use crate::runtime::traceable::{AsScriptRc, Traceable};
+use crate::runtime::traceable::AsScriptRc;
 use crate::runtime::type_registry;
 
 /// Global cycle collector instance
@@ -25,24 +25,27 @@ static CYCLE_COLLECTOR: RwLock<Option<Arc<CycleCollector>>> = RwLock::new(None);
 
 /// Initialize the garbage collector
 pub fn initialize() -> Result<(), &'static str> {
-    let mut collector = CYCLE_COLLECTOR.write()
+    let mut collector = CYCLE_COLLECTOR
+        .write()
         .map_err(|_| "Failed to acquire collector lock")?;
     *collector = Some(Arc::new(CycleCollector::new()));
 
     // Start the background GC thread
-    let collector_ref = collector.as_ref()
+    let collector_ref = collector
+        .as_ref()
         .ok_or("Failed to create collector")?
         .clone();
     thread::spawn(move || {
         collector_ref.background_collector();
     });
-    
+
     Ok(())
 }
 
 /// Shutdown the garbage collector
 pub fn shutdown() -> Result<(), &'static str> {
-    let mut collector = CYCLE_COLLECTOR.write()
+    let mut collector = CYCLE_COLLECTOR
+        .write()
         .map_err(|_| "Failed to acquire collector lock for shutdown")?;
     if let Some(c) = collector.take() {
         c.shutdown();
@@ -158,14 +161,14 @@ impl RcWrapper for GenericRcWrapper {
             }
         }
     }
-    
+
     fn set_color(&self, color: Color) {
         unsafe {
             let color_ptr = (self.address as *const u8).add(16) as *const AtomicU8;
             (*color_ptr).store(color as u8, Ordering::Relaxed);
         }
     }
-    
+
     fn is_buffered(&self) -> bool {
         unsafe {
             // Manual offset: strong(8) + weak(8) + color(1) + padding(7) + buffered(1)
@@ -173,33 +176,35 @@ impl RcWrapper for GenericRcWrapper {
             (*buffered_ptr).load(Ordering::Relaxed)
         }
     }
-    
+
     fn set_buffered(&self, buffered: bool) {
         unsafe {
             let buffered_ptr = (self.address as *const u8).add(24) as *const AtomicBool;
             (*buffered_ptr).store(buffered, Ordering::Relaxed);
         }
     }
-    
+
     fn strong_count(&self) -> usize {
         unsafe {
             let strong_ptr = self.address as *const AtomicUsize;
             (*strong_ptr).load(Ordering::Relaxed)
         }
     }
-    
+
     fn address(&self) -> usize {
         self.address
     }
-    
+
     fn trace_children(&self, visitor: &mut dyn FnMut(usize)) {
         // Use the trace function from type info
         // Manual offset: strong(8) + weak(8) + color(1) + padding(7) + buffered(1) + traced(1) + padding(6) + type_id(8) + value
         let value_ptr = unsafe { (self.address as *const u8).add(40) };
-        
+
         (self.type_info.trace_fn)(value_ptr, &mut |any| {
             // Try to extract ScriptRc addresses from the Any
-            if let Some(rc) = any.downcast_ref::<dyn AsScriptRc>() {
+            // We need to try different concrete types that implement AsScriptRc
+            use crate::runtime::value::Value;
+            if let Some(rc) = any.downcast_ref::<ScriptRc<Value>>() {
                 if let Some(addr) = rc.as_script_rc() {
                     visitor(addr);
                 }
@@ -297,7 +302,9 @@ impl CycleCollector {
 
     /// Register a ScriptRc with the collector
     fn register(&self, address: usize, type_id: type_registry::TypeId) -> Result<(), &'static str> {
-        let mut registered = self.registered.lock()
+        let mut registered = self
+            .registered
+            .lock()
             .map_err(|_| "Failed to acquire registered lock")?;
         registered.insert(address, RegisteredRc { address, type_id });
 
@@ -325,13 +332,15 @@ impl CycleCollector {
         } else {
             return Err("Failed to acquire possible_roots lock for unregister");
         }
-        
+
         Ok(())
     }
 
     /// Add a possible cycle root
     fn add_possible_root(&self, address: usize) -> Result<(), &'static str> {
-        let mut possible_roots = self.possible_roots.lock()
+        let mut possible_roots = self
+            .possible_roots
+            .lock()
             .map_err(|_| "Failed to acquire possible_roots lock")?;
         possible_roots.insert(address);
         Ok(())
@@ -343,7 +352,9 @@ impl CycleCollector {
 
         // Take a snapshot of possible roots
         let roots: Vec<usize> = {
-            let mut possible_roots = self.possible_roots.lock()
+            let mut possible_roots = self
+                .possible_roots
+                .lock()
                 .map_err(|_| "Failed to acquire possible_roots lock during collection")?;
             let roots: Vec<_> = possible_roots.iter().cloned().collect();
             possible_roots.clear(); // Clear for next collection
@@ -386,7 +397,7 @@ impl CycleCollector {
 
         // Log collection results
         profiler::record_gc_collection(collected, start.elapsed());
-        
+
         Ok(())
     }
 
@@ -406,10 +417,10 @@ impl CycleCollector {
         let registered = self.registered.lock().ok()?;
         let reg_info = registered.get(&addr)?.clone();
         drop(registered);
-        
+
         // Get type info from registry
         let type_info = type_registry::get_type_info(reg_info.type_id)?;
-        
+
         // Create a wrapper that can manipulate the RC without knowing its exact type
         Some(Box::new(GenericRcWrapper {
             address: addr,
@@ -422,9 +433,9 @@ impl CycleCollector {
         if rc.color() != Color::White {
             return;
         }
-        
+
         rc.set_color(Color::Gray);
-        
+
         // Check if this would be freed (RC would be 0 after removing cycles)
         let strong_count = rc.strong_count();
         if strong_count > 1 {
@@ -442,14 +453,14 @@ impl CycleCollector {
         if rc.color() != Color::Gray {
             return;
         }
-        
+
         // Trace children and add them to scan list
         rc.trace_children(&mut |child_addr| {
             if let Some(child) = self.recover_rc(child_addr) {
                 self.scan(child.as_ref(), to_scan);
             }
         });
-        
+
         rc.set_color(Color::Black);
         rc.set_buffered(false);
     }
@@ -458,7 +469,7 @@ impl CycleCollector {
     fn collect_white(&self, roots: &[usize]) -> usize {
         let mut collected = 0;
         let mut to_free = Vec::new();
-        
+
         for &addr in roots {
             if let Some(rc) = self.recover_rc(addr) {
                 if rc.color() == Color::White && rc.is_buffered() {
@@ -468,18 +479,18 @@ impl CycleCollector {
                 }
             }
         }
-        
+
         // Actually free the objects
         for addr in to_free {
             // Unregister from collector
             self.unregister(addr);
-            
+
             // In a production implementation, we'd need to:
             // 1. Drop the value using the drop_fn from type_info
             // 2. Deallocate the memory
             // This requires careful handling to avoid use-after-free
         }
-        
+
         collected
     }
 
@@ -529,7 +540,7 @@ impl CycleCollector {
             Ok(guard) => guard,
             Err(_) => return true, // Lock failed, pretend collection is complete
         };
-        
+
         // If no collection in progress, start a new one
         if state_guard.is_none() {
             // Take a snapshot of possible roots
@@ -542,11 +553,11 @@ impl CycleCollector {
                 possible_roots.clear();
                 roots
             };
-            
+
             if roots.is_empty() {
                 return true; // Nothing to collect
             }
-            
+
             *state_guard = Some(IncrementalState {
                 roots,
                 to_scan: Vec::new(),
@@ -555,15 +566,15 @@ impl CycleCollector {
                 increment_size: max_work,
             });
         }
-        
+
         let state = state_guard.as_mut().unwrap();
         let mut work_done = 0;
-        
+
         loop {
             if work_done >= max_work {
                 return false; // More work to do
             }
-            
+
             match state.phase {
                 CollectionPhase::MarkWhite => {
                     // Mark roots white
@@ -576,13 +587,13 @@ impl CycleCollector {
                         work_done += 1;
                     }
                     state.processed = end;
-                    
+
                     if state.processed >= state.roots.len() {
                         state.phase = CollectionPhase::ScanRoots;
                         state.processed = 0;
                     }
                 }
-                
+
                 CollectionPhase::ScanRoots => {
                     // Scan roots
                     let end = (state.processed + max_work - work_done).min(state.roots.len());
@@ -593,13 +604,13 @@ impl CycleCollector {
                         work_done += 1;
                     }
                     state.processed = end;
-                    
+
                     if state.processed >= state.roots.len() {
                         state.phase = CollectionPhase::ScanGray;
                         state.processed = 0;
                     }
                 }
-                
+
                 CollectionPhase::ScanGray => {
                     // Scan gray objects
                     while work_done < max_work && !state.to_scan.is_empty() {
@@ -610,17 +621,17 @@ impl CycleCollector {
                         }
                         work_done += 1;
                     }
-                    
+
                     if state.to_scan.is_empty() {
                         state.phase = CollectionPhase::CollectWhite;
                         state.processed = 0;
                     }
                 }
-                
+
                 CollectionPhase::CollectWhite => {
                     // Collect white objects
                     let collected = self.collect_white(&state.roots);
-                    
+
                     // Update statistics
                     if let Ok(mut stats) = self.stats.lock() {
                         stats.collections += 1;
@@ -628,7 +639,7 @@ impl CycleCollector {
                         stats.cycles_detected += if collected > 0 { 1 } else { 0 };
                         stats.last_collection = Some(Instant::now());
                     }
-                    
+
                     // Clear state - collection complete
                     *state_guard = None;
                     return true;

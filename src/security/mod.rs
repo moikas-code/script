@@ -1,34 +1,30 @@
 //! Security module for Script language compiler
-//! 
+//!
 //! This module provides comprehensive security mechanisms including:
 //! - Memory safety validation and bounds checking
 //! - Resource limits to prevent DoS attacks
 //! - Type safety validation for dynamic operations
 //! - Security configuration and monitoring
 
+pub mod async_security;
 pub mod bounds_checking;
 pub mod field_validation;
-pub mod resource_limits;
-pub mod async_security;
 pub mod module_security;
+pub mod resource_limits;
 
 pub use self::module_security::{
-    ModuleSecurityPolicy, ModuleResourceUsage, ModuleIsolationBoundary,
-    ModuleSecurityEnforcer,
+    ModuleIsolationBoundary, ModuleResourceUsage, ModuleSecurityEnforcer, ModuleSecurityPolicy,
 };
 
 use crate::error::{Error, ErrorKind};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 /// Security violation types for the module system
 #[derive(Debug, Clone)]
 pub enum SecurityViolation {
     /// Unauthorized resource access
-    UnauthorizedAccess {
-        resource: String,
-        operation: String,
-    },
+    UnauthorizedAccess { resource: String, operation: String },
     /// Resource limit exceeded
     ResourceLimitExceeded {
         resource: String,
@@ -42,26 +38,55 @@ pub enum SecurityViolation {
         reason: String,
     },
     /// Permission denied
-    PermissionDenied {
-        permission: String,
-        module: String,
-    },
+    PermissionDenied { permission: String, module: String },
+    /// Internal security system error
+    InternalError { message: String },
 }
 
 impl std::fmt::Display for SecurityViolation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SecurityViolation::UnauthorizedAccess { resource, operation } => {
-                write!(f, "Unauthorized access: cannot {} on {}", operation, resource)
+            SecurityViolation::UnauthorizedAccess {
+                resource,
+                operation,
+            } => {
+                write!(
+                    f,
+                    "Unauthorized access: cannot {} on {}",
+                    operation, resource
+                )
             }
-            SecurityViolation::ResourceLimitExceeded { resource, limit, used } => {
-                write!(f, "Resource limit exceeded: {} used {} but limit is {}", resource, used, limit)
+            SecurityViolation::ResourceLimitExceeded {
+                resource,
+                limit,
+                used,
+            } => {
+                write!(
+                    f,
+                    "Resource limit exceeded: {} used {} but limit is {}",
+                    resource, used, limit
+                )
             }
-            SecurityViolation::CrossModuleViolation { caller, callee, reason } => {
-                write!(f, "Cross-module violation: {} cannot call {} - {}", caller, callee, reason)
+            SecurityViolation::CrossModuleViolation {
+                caller,
+                callee,
+                reason,
+            } => {
+                write!(
+                    f,
+                    "Cross-module violation: {} cannot call {} - {}",
+                    caller, callee, reason
+                )
             }
             SecurityViolation::PermissionDenied { permission, module } => {
-                write!(f, "Permission denied: module {} lacks permission {}", module, permission)
+                write!(
+                    f,
+                    "Permission denied: module {} lacks permission {}",
+                    module, permission
+                )
+            }
+            SecurityViolation::InternalError { message } => {
+                write!(f, "Internal security error: {}", message)
             }
         }
     }
@@ -96,7 +121,7 @@ impl SecurityPolicy {
             max_cpu_time: u64::MAX,
         }
     }
-    
+
     /// Create a restrictive policy (for untrusted modules)
     pub fn restrictive() -> Self {
         SecurityPolicy {
@@ -105,10 +130,10 @@ impl SecurityPolicy {
             allow_process_spawn: false,
             allow_ffi: false,
             max_memory: 10_000_000, // 10MB
-            max_cpu_time: 5_000, // 5 seconds
+            max_cpu_time: 5_000,    // 5 seconds
         }
     }
-    
+
     /// Create a strict policy (for sandbox modules)
     pub fn strict() -> Self {
         SecurityPolicy {
@@ -117,7 +142,7 @@ impl SecurityPolicy {
             allow_process_spawn: false,
             allow_ffi: false,
             max_memory: 1_000_000, // 1MB
-            max_cpu_time: 1_000, // 1 second
+            max_cpu_time: 1_000,   // 1 second
         }
     }
 }
@@ -130,7 +155,7 @@ impl Default for SecurityPolicy {
             allow_process_spawn: false,
             allow_ffi: false,
             max_memory: 100_000_000, // 100MB
-            max_cpu_time: 30_000, // 30 seconds
+            max_cpu_time: 30_000,    // 30 seconds
         }
     }
 }
@@ -141,7 +166,7 @@ impl Default for SecurityPolicy {
 pub struct SecurityConfig {
     /// Enable array bounds checking (default: true for debug, false for release)
     pub enable_bounds_checking: bool,
-    /// Enable field access validation (default: true for debug, false for release) 
+    /// Enable field access validation (default: true for debug, false for release)
     pub enable_field_validation: bool,
     /// Enable fast-path optimizations (default: true)
     pub enable_fast_path_optimizations: bool,
@@ -161,7 +186,7 @@ pub struct SecurityConfig {
     pub compilation_timeout_secs: u64,
     /// Enable comprehensive security logging (default: true)
     pub enable_security_logging: bool,
-    
+
     // Async/Await Security Configuration
     /// Enable async pointer validation (default: true)
     pub enable_async_pointer_validation: bool,
@@ -204,7 +229,7 @@ impl Default for SecurityConfig {
             enable_security_logging: true,
             #[cfg(not(debug_assertions))]
             enable_security_logging: false,
-            
+
             // Async/Await Security Defaults
             enable_async_pointer_validation: true,
             #[cfg(debug_assertions)]
@@ -241,7 +266,7 @@ pub struct SecurityMetrics {
     pub compilation_timeouts: AtomicUsize,
     /// Total security events logged
     pub security_events_logged: AtomicUsize,
-    
+
     // Async/Await Security Metrics
     /// Number of async pointer validations performed
     pub async_pointer_validations: AtomicUsize,
@@ -271,23 +296,27 @@ impl SecurityMetrics {
     pub fn record_bounds_check(&self, violation_prevented: bool) {
         self.bounds_checks_performed.fetch_add(1, Ordering::Relaxed);
         if violation_prevented {
-            self.bounds_violations_prevented.fetch_add(1, Ordering::Relaxed);
+            self.bounds_violations_prevented
+                .fetch_add(1, Ordering::Relaxed);
             self.security_events_logged.fetch_add(1, Ordering::Relaxed);
         }
     }
 
     /// Record a field validation operation
     pub fn record_field_validation(&self, invalid_access_prevented: bool) {
-        self.field_validations_performed.fetch_add(1, Ordering::Relaxed);
+        self.field_validations_performed
+            .fetch_add(1, Ordering::Relaxed);
         if invalid_access_prevented {
-            self.invalid_field_accesses_prevented.fetch_add(1, Ordering::Relaxed);
+            self.invalid_field_accesses_prevented
+                .fetch_add(1, Ordering::Relaxed);
             self.security_events_logged.fetch_add(1, Ordering::Relaxed);
         }
     }
 
     /// Record a resource limit violation
     pub fn record_resource_limit_violation(&self) {
-        self.resource_limit_violations.fetch_add(1, Ordering::Relaxed);
+        self.resource_limit_violations
+            .fetch_add(1, Ordering::Relaxed);
         self.security_events_logged.fetch_add(1, Ordering::Relaxed);
     }
 
@@ -299,9 +328,11 @@ impl SecurityMetrics {
 
     /// Record an async pointer validation operation
     pub fn record_async_pointer_validation(&self, invalid_pointer_prevented: bool) {
-        self.async_pointer_validations.fetch_add(1, Ordering::Relaxed);
+        self.async_pointer_validations
+            .fetch_add(1, Ordering::Relaxed);
         if invalid_pointer_prevented {
-            self.invalid_async_pointers_prevented.fetch_add(1, Ordering::Relaxed);
+            self.invalid_async_pointers_prevented
+                .fetch_add(1, Ordering::Relaxed);
             self.security_events_logged.fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -310,7 +341,8 @@ impl SecurityMetrics {
     pub fn record_async_memory_check(&self, violation_prevented: bool) {
         self.async_memory_checks.fetch_add(1, Ordering::Relaxed);
         if violation_prevented {
-            self.async_memory_violations_prevented.fetch_add(1, Ordering::Relaxed);
+            self.async_memory_violations_prevented
+                .fetch_add(1, Ordering::Relaxed);
             self.security_events_logged.fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -319,20 +351,23 @@ impl SecurityMetrics {
     pub fn record_async_ffi_validation(&self, malicious_call_prevented: bool) {
         self.async_ffi_validations.fetch_add(1, Ordering::Relaxed);
         if malicious_call_prevented {
-            self.malicious_ffi_calls_prevented.fetch_add(1, Ordering::Relaxed);
+            self.malicious_ffi_calls_prevented
+                .fetch_add(1, Ordering::Relaxed);
             self.security_events_logged.fetch_add(1, Ordering::Relaxed);
         }
     }
 
     /// Record an async race condition detection
     pub fn record_async_race_condition(&self) {
-        self.async_race_conditions_detected.fetch_add(1, Ordering::Relaxed);
+        self.async_race_conditions_detected
+            .fetch_add(1, Ordering::Relaxed);
         self.security_events_logged.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record an async task limit violation
     pub fn record_async_task_limit_violation(&self) {
-        self.async_task_limit_violations.fetch_add(1, Ordering::Relaxed);
+        self.async_task_limit_violations
+            .fetch_add(1, Ordering::Relaxed);
         self.security_events_logged.fetch_add(1, Ordering::Relaxed);
     }
 
@@ -342,18 +377,28 @@ impl SecurityMetrics {
             bounds_checks_performed: self.bounds_checks_performed.load(Ordering::Relaxed),
             bounds_violations_prevented: self.bounds_violations_prevented.load(Ordering::Relaxed),
             field_validations_performed: self.field_validations_performed.load(Ordering::Relaxed),
-            invalid_field_accesses_prevented: self.invalid_field_accesses_prevented.load(Ordering::Relaxed),
+            invalid_field_accesses_prevented: self
+                .invalid_field_accesses_prevented
+                .load(Ordering::Relaxed),
             resource_limit_violations: self.resource_limit_violations.load(Ordering::Relaxed),
             compilation_timeouts: self.compilation_timeouts.load(Ordering::Relaxed),
             total_security_events: self.security_events_logged.load(Ordering::Relaxed),
             // Async security metrics
             async_pointer_validations: self.async_pointer_validations.load(Ordering::Relaxed),
-            invalid_async_pointers_prevented: self.invalid_async_pointers_prevented.load(Ordering::Relaxed),
+            invalid_async_pointers_prevented: self
+                .invalid_async_pointers_prevented
+                .load(Ordering::Relaxed),
             async_memory_checks: self.async_memory_checks.load(Ordering::Relaxed),
-            async_memory_violations_prevented: self.async_memory_violations_prevented.load(Ordering::Relaxed),
+            async_memory_violations_prevented: self
+                .async_memory_violations_prevented
+                .load(Ordering::Relaxed),
             async_ffi_validations: self.async_ffi_validations.load(Ordering::Relaxed),
-            malicious_ffi_calls_prevented: self.malicious_ffi_calls_prevented.load(Ordering::Relaxed),
-            async_race_conditions_detected: self.async_race_conditions_detected.load(Ordering::Relaxed),
+            malicious_ffi_calls_prevented: self
+                .malicious_ffi_calls_prevented
+                .load(Ordering::Relaxed),
+            async_race_conditions_detected: self
+                .async_race_conditions_detected
+                .load(Ordering::Relaxed),
             async_task_limit_violations: self.async_task_limit_violations.load(Ordering::Relaxed),
         }
     }
@@ -363,18 +408,23 @@ impl SecurityMetrics {
         self.bounds_checks_performed.store(0, Ordering::Relaxed);
         self.bounds_violations_prevented.store(0, Ordering::Relaxed);
         self.field_validations_performed.store(0, Ordering::Relaxed);
-        self.invalid_field_accesses_prevented.store(0, Ordering::Relaxed);
+        self.invalid_field_accesses_prevented
+            .store(0, Ordering::Relaxed);
         self.resource_limit_violations.store(0, Ordering::Relaxed);
         self.compilation_timeouts.store(0, Ordering::Relaxed);
         self.security_events_logged.store(0, Ordering::Relaxed);
         // Reset async metrics
         self.async_pointer_validations.store(0, Ordering::Relaxed);
-        self.invalid_async_pointers_prevented.store(0, Ordering::Relaxed);
+        self.invalid_async_pointers_prevented
+            .store(0, Ordering::Relaxed);
         self.async_memory_checks.store(0, Ordering::Relaxed);
-        self.async_memory_violations_prevented.store(0, Ordering::Relaxed);
+        self.async_memory_violations_prevented
+            .store(0, Ordering::Relaxed);
         self.async_ffi_validations.store(0, Ordering::Relaxed);
-        self.malicious_ffi_calls_prevented.store(0, Ordering::Relaxed);
-        self.async_race_conditions_detected.store(0, Ordering::Relaxed);
+        self.malicious_ffi_calls_prevented
+            .store(0, Ordering::Relaxed);
+        self.async_race_conditions_detected
+            .store(0, Ordering::Relaxed);
         self.async_task_limit_violations.store(0, Ordering::Relaxed);
     }
 }
@@ -412,17 +462,18 @@ impl SecurityReport {
             return 50; // No checks performed = neutral score
         }
 
-        let violations_prevented = self.bounds_violations_prevented + self.invalid_field_accesses_prevented;
+        let violations_prevented =
+            self.bounds_violations_prevented + self.invalid_field_accesses_prevented;
         let critical_events = self.resource_limit_violations + self.compilation_timeouts;
-        
+
         // Deduct points for critical events
-        let mut score = 100;
-        score = score.saturating_sub(critical_events as u8 * 10);
-        
+        let mut score = 100u8;
+        score = score.saturating_sub(critical_events as u8 * 10u8);
+
         // Add points for successful prevention
         let prevention_ratio = (violations_prevented as f64 / total_checks as f64) * 20.0;
         score = (score as f64 + prevention_ratio).min(100.0) as u8;
-        
+
         score
     }
 
@@ -430,7 +481,7 @@ impl SecurityReport {
     pub fn get_security_grade(&self) -> char {
         match self.calculate_security_score() {
             90..=100 => 'A',
-            80..=89 => 'B', 
+            80..=89 => 'B',
             70..=79 => 'C',
             60..=69 => 'D',
             _ => 'F',
@@ -442,33 +493,52 @@ impl SecurityReport {
         println!("\n🔒 SCRIPT SECURITY REPORT");
         println!("═══════════════════════════");
         println!("Memory Safety:");
-        println!("  Bounds Checks: {} performed, {} violations prevented", 
-            self.bounds_checks_performed, self.bounds_violations_prevented);
-        println!("  Field Validations: {} performed, {} invalid accesses prevented",
-            self.field_validations_performed, self.invalid_field_accesses_prevented);
-        
+        println!(
+            "  Bounds Checks: {} performed, {} violations prevented",
+            self.bounds_checks_performed, self.bounds_violations_prevented
+        );
+        println!(
+            "  Field Validations: {} performed, {} invalid accesses prevented",
+            self.field_validations_performed, self.invalid_field_accesses_prevented
+        );
+
         println!("\nAsync/Await Security:");
-        println!("  Pointer Validations: {} performed, {} invalid prevented",
-            self.async_pointer_validations, self.invalid_async_pointers_prevented);
-        println!("  Memory Checks: {} performed, {} violations prevented",
-            self.async_memory_checks, self.async_memory_violations_prevented);
-        println!("  FFI Validations: {} performed, {} malicious calls prevented",
-            self.async_ffi_validations, self.malicious_ffi_calls_prevented);
-        println!("  Race Conditions Detected: {}", self.async_race_conditions_detected);
-        println!("  Task Limit Violations: {}", self.async_task_limit_violations);
-        
+        println!(
+            "  Pointer Validations: {} performed, {} invalid prevented",
+            self.async_pointer_validations, self.invalid_async_pointers_prevented
+        );
+        println!(
+            "  Memory Checks: {} performed, {} violations prevented",
+            self.async_memory_checks, self.async_memory_violations_prevented
+        );
+        println!(
+            "  FFI Validations: {} performed, {} malicious calls prevented",
+            self.async_ffi_validations, self.malicious_ffi_calls_prevented
+        );
+        println!(
+            "  Race Conditions Detected: {}",
+            self.async_race_conditions_detected
+        );
+        println!(
+            "  Task Limit Violations: {}",
+            self.async_task_limit_violations
+        );
+
         println!("\nResource Protection:");
-        println!("  Resource Limit Violations: {}", self.resource_limit_violations);
+        println!(
+            "  Resource Limit Violations: {}",
+            self.resource_limit_violations
+        );
         println!("  Compilation Timeouts: {}", self.compilation_timeouts);
-        
+
         println!("\nOverall Assessment:");
         println!("  Security Score: {}/100", self.calculate_security_score());
         println!("  Security Grade: {}", self.get_security_grade());
         println!("  Total Security Events: {}", self.total_security_events);
-        
+
         let status = match self.get_security_grade() {
             'A' | 'B' => "✅ PRODUCTION READY",
-            'C' => "⚠️ NEEDS IMPROVEMENT", 
+            'C' => "⚠️ NEEDS IMPROVEMENT",
             'D' | 'F' => "❌ NOT PRODUCTION READY",
             _ => "❓ UNKNOWN",
         };
@@ -541,46 +611,122 @@ pub enum SecurityError {
         task_limit: usize,
         message: String,
     },
+    /// Lock poisoning or acquisition failure
+    LockError {
+        resource_name: String,
+        message: String,
+    },
 }
 
 impl std::fmt::Display for SecurityError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SecurityError::BoundsViolation { array_size, index, message } => {
-                write!(f, "Array bounds violation: index {} out of bounds for array of size {}. {}", 
-                    index, array_size, message)
+            SecurityError::BoundsViolation {
+                array_size,
+                index,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Array bounds violation: index {} out of bounds for array of size {}. {}",
+                    index, array_size, message
+                )
             }
-            SecurityError::InvalidFieldAccess { type_name, field_name, message } => {
-                write!(f, "Invalid field access: field '{}' does not exist on type '{}'. {}", 
-                    field_name, type_name, message)
+            SecurityError::InvalidFieldAccess {
+                type_name,
+                field_name,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Invalid field access: field '{}' does not exist on type '{}'. {}",
+                    field_name, type_name, message
+                )
             }
-            SecurityError::ResourceLimitExceeded { resource_type, current_count, limit, message } => {
-                write!(f, "Resource limit exceeded: {:?} count {} exceeds limit {}. {}", 
-                    resource_type, current_count, limit, message)
+            SecurityError::ResourceLimitExceeded {
+                resource_type,
+                current_count,
+                limit,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Resource limit exceeded: {:?} count {} exceeds limit {}. {}",
+                    resource_type, current_count, limit, message
+                )
             }
-            SecurityError::CompilationTimeout { duration, limit, message } => {
-                write!(f, "Compilation timeout: duration {:?} exceeds limit {:?}. {}", 
-                    duration, limit, message)
+            SecurityError::CompilationTimeout {
+                duration,
+                limit,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Compilation timeout: duration {:?} exceeds limit {:?}. {}",
+                    duration, limit, message
+                )
             }
-            SecurityError::AsyncPointerViolation { pointer_address, validation_failed, message } => {
-                write!(f, "Async pointer violation: pointer 0x{:x} failed validation ({}). {}", 
-                    pointer_address, validation_failed, message)
+            SecurityError::AsyncPointerViolation {
+                pointer_address,
+                validation_failed,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Async pointer violation: pointer 0x{:x} failed validation ({}). {}",
+                    pointer_address, validation_failed, message
+                )
             }
-            SecurityError::AsyncMemoryViolation { task_id, memory_used, memory_limit, message } => {
-                write!(f, "Async memory violation: task {} used {} bytes, exceeds limit {} bytes. {}", 
-                    task_id, memory_used, memory_limit, message)
+            SecurityError::AsyncMemoryViolation {
+                task_id,
+                memory_used,
+                memory_limit,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Async memory violation: task {} used {} bytes, exceeds limit {} bytes. {}",
+                    task_id, memory_used, memory_limit, message
+                )
             }
-            SecurityError::AsyncFFIViolation { function_name, violation_type, message } => {
-                write!(f, "Async FFI violation: function '{}' violated {} security policy. {}", 
-                    function_name, violation_type, message)
+            SecurityError::AsyncFFIViolation {
+                function_name,
+                violation_type,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Async FFI violation: function '{}' violated {} security policy. {}",
+                    function_name, violation_type, message
+                )
             }
-            SecurityError::AsyncRaceCondition { resource_name, thread_ids, message } => {
-                write!(f, "Async race condition: resource '{}' accessed concurrently by threads {:?}. {}", 
-                    resource_name, thread_ids, message)
+            SecurityError::AsyncRaceCondition {
+                resource_name,
+                thread_ids,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Async race condition: resource '{}' accessed concurrently by threads {:?}. {}",
+                    resource_name, thread_ids, message
+                )
             }
-            SecurityError::AsyncTaskLimitExceeded { current_tasks, task_limit, message } => {
-                write!(f, "Async task limit exceeded: {} tasks exceeds limit of {} tasks. {}", 
-                    current_tasks, task_limit, message)
+            SecurityError::AsyncTaskLimitExceeded {
+                current_tasks,
+                task_limit,
+                message,
+            } => {
+                write!(
+                    f,
+                    "Async task limit exceeded: {} tasks exceeds limit of {} tasks. {}",
+                    current_tasks, task_limit, message
+                )
+            }
+            SecurityError::LockError {
+                resource_name,
+                message,
+            } => {
+                write!(f, "Lock error on {}: {}", resource_name, message)
             }
         }
     }
@@ -645,7 +791,7 @@ impl SecurityManager {
         if let Some(start_time) = self.compilation_start {
             let elapsed = start_time.elapsed();
             let limit = Duration::from_secs(self.config.compilation_timeout_secs);
-            
+
             if elapsed > limit {
                 self.metrics.record_compilation_timeout();
                 return Err(SecurityError::CompilationTimeout {
@@ -659,7 +805,11 @@ impl SecurityManager {
     }
 
     /// Check resource limits with batched optimization
-    pub fn check_resource_limit(&self, resource_type: ResourceType, current_count: usize) -> Result<(), SecurityError> {
+    pub fn check_resource_limit(
+        &self,
+        resource_type: ResourceType,
+        current_count: usize,
+    ) -> Result<(), SecurityError> {
         // Fast path optimization: batch resource checks for performance
         if self.config.enable_fast_path_optimizations {
             let counter = self.resource_check_counter.fetch_add(1, Ordering::Relaxed);
@@ -691,7 +841,8 @@ impl SecurityManager {
         }
 
         // Cache the last successful check
-        self.last_resource_check.store(current_count, Ordering::Relaxed);
+        self.last_resource_check
+            .store(current_count, Ordering::Relaxed);
         Ok(())
     }
 
@@ -738,11 +889,11 @@ mod tests {
     #[test]
     fn test_security_metrics() {
         let metrics = SecurityMetrics::new();
-        
+
         // Test bounds check recording
         metrics.record_bounds_check(true);
         metrics.record_bounds_check(false);
-        
+
         let report = metrics.get_security_report();
         assert_eq!(report.bounds_checks_performed, 2);
         assert_eq!(report.bounds_violations_prevented, 1);
@@ -769,11 +920,11 @@ mod tests {
     fn test_security_manager() {
         let mut manager = SecurityManager::new();
         manager.start_compilation();
-        
+
         // Test resource limit checking
         let result = manager.check_resource_limit(ResourceType::TypeVariables, 5000);
         assert!(result.is_ok());
-        
+
         let result = manager.check_resource_limit(ResourceType::TypeVariables, 15000);
         assert!(result.is_err());
     }
@@ -785,7 +936,7 @@ mod tests {
             index: 15,
             message: "Test bounds violation".to_string(),
         };
-        
+
         let display = format!("{}", error);
         assert!(display.contains("bounds violation"));
         assert!(display.contains("15"));

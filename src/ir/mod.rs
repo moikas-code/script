@@ -335,8 +335,17 @@ impl IrBuilder {
     }
 
     /// Build an extract enum data instruction
-    pub fn build_extract_enum_data(&mut self, enum_value: ValueId, variant_index: u32, ty: Type) -> Option<ValueId> {
-        self.add_instruction(Instruction::ExtractEnumData { enum_value, variant_index, ty })
+    pub fn build_extract_enum_data(
+        &mut self,
+        enum_value: ValueId,
+        variant_index: u32,
+        ty: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::ExtractEnumData {
+            enum_value,
+            variant_index,
+            ty,
+        })
     }
 
     /// Check if the current block has a terminator instruction
@@ -353,7 +362,10 @@ impl IrBuilder {
 
     /// Build a suspend instruction for async functions
     pub fn build_suspend(&mut self, state: ValueId, resume_block: BlockId) {
-        self.add_instruction(Instruction::Suspend { state, resume_block });
+        self.add_instruction(Instruction::Suspend {
+            state,
+            resume_block,
+        });
     }
 
     /// Build a poll future instruction
@@ -405,7 +417,10 @@ impl IrBuilder {
 
     /// Build a set async state instruction
     pub fn build_set_async_state(&mut self, state_ptr: ValueId, new_state: u32) -> Option<ValueId> {
-        self.add_instruction(Instruction::SetAsyncState { state_ptr, new_state })
+        self.add_instruction(Instruction::SetAsyncState {
+            state_ptr,
+            new_state,
+        })
     }
 
     /// Build an error propagation instruction (? operator)
@@ -419,6 +434,57 @@ impl IrBuilder {
             value,
             value_type,
             success_type,
+        })
+    }
+
+    /// Build a stdlib function call
+    /// This is a placeholder implementation that maps to regular function calls
+    /// In a full implementation, this would integrate with the stdlib function registry
+    pub fn build_stdlib_call(
+        &mut self,
+        function_name: String,
+        args: Vec<ValueId>,
+        return_type: Type,
+    ) -> Option<ValueId> {
+        // For now, create a placeholder function ID based on the function name
+        // In a real implementation, this would look up the function in the stdlib registry
+        let func_id = FunctionId(function_name.len() as u32); // Placeholder ID
+
+        // Generate a regular function call instruction
+        self.add_instruction(Instruction::Call {
+            func: func_id,
+            args,
+            ty: return_type,
+        })
+    }
+
+    /// Build a closure creation instruction
+    pub fn build_create_closure(
+        &mut self,
+        function_id: String,
+        parameters: Vec<String>,
+        captured_vars: Vec<(String, ValueId)>,
+        captures_by_ref: bool,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::CreateClosure {
+            function_id,
+            parameters,
+            captured_vars,
+            captures_by_ref,
+        })
+    }
+
+    /// Build a closure invocation instruction
+    pub fn build_invoke_closure(
+        &mut self,
+        closure: ValueId,
+        args: Vec<ValueId>,
+        return_type: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::InvokeClosure {
+            closure,
+            args,
+            return_type,
         })
     }
 }

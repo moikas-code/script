@@ -1,25 +1,22 @@
 //! Performance benchmarks for generic type monomorphization
-//! 
+//!
 //! These benchmarks measure the performance characteristics of
 //! monomorphizing generic types with various levels of complexity.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use script::{Lexer, Parser, SemanticAnalyzer};
 
 /// Generate a program with generic functions and their instantiations
 fn generate_generic_program(func_count: usize, instantiation_count: usize) -> String {
     let mut code = String::new();
-    
+
     // Define generic functions
     for i in 0..func_count {
-        code.push_str(&format!(
-            "fn generic{}<T>(x: T) -> T {{ x }}\n",
-            i
-        ));
+        code.push_str(&format!("fn generic{}<T>(x: T) -> T {{ x }}\n", i));
     }
-    
+
     code.push_str("\nfn main() {\n");
-    
+
     // Create instantiations
     for i in 0..instantiation_count {
         let func_idx = i % func_count;
@@ -34,7 +31,7 @@ fn generate_generic_program(func_count: usize, instantiation_count: usize) -> St
             i, func_idx, value
         ));
     }
-    
+
     code.push_str("}\n");
     code
 }
@@ -42,14 +39,14 @@ fn generate_generic_program(func_count: usize, instantiation_count: usize) -> St
 /// Generate a program with deeply nested generic types
 fn generate_nested_generics_program(depth: usize) -> String {
     let mut code = String::new();
-    
+
     // Define generic types
     code.push_str("struct Box<T> { value: T }\n");
     code.push_str("enum Option<T> { Some(T), None }\n");
     code.push_str("enum Result<T, E> { Ok(T), Err(E) }\n\n");
-    
+
     code.push_str("fn main() {\n");
-    
+
     // Create nested type instantiations
     for d in 1..=depth {
         let mut type_expr = "42".to_string();
@@ -58,7 +55,7 @@ fn generate_nested_generics_program(depth: usize) -> String {
         }
         code.push_str(&format!("    let nested{} = {};\n", d, type_expr));
     }
-    
+
     code.push_str("}\n");
     code
 }
@@ -66,13 +63,13 @@ fn generate_nested_generics_program(depth: usize) -> String {
 /// Generate a program with multiple generic struct instantiations
 fn generate_struct_instantiations(count: usize) -> String {
     let mut code = String::new();
-    
+
     // Define generic structs
     code.push_str("struct Pair<A, B> { first: A, second: B }\n");
     code.push_str("struct Triple<A, B, C> { first: A, second: B, third: C }\n\n");
-    
+
     code.push_str("fn main() {\n");
-    
+
     // Create various instantiations
     for i in 0..count {
         match i % 4 {
@@ -94,89 +91,77 @@ fn generate_struct_instantiations(count: usize) -> String {
             )),
         }
     }
-    
+
     code.push_str("}\n");
     code
 }
 
 fn bench_simple_monomorphization(c: &mut Criterion) {
     let mut group = c.benchmark_group("monomorphization/simple");
-    
+
     for count in [10, 100, 1000].iter() {
         let code = generate_generic_program(10, *count);
-        
-        group.bench_with_input(
-            BenchmarkId::from_parameter(count),
-            &code,
-            |b, code| {
-                b.iter(|| {
-                    let lexer = Lexer::new(black_box(code));
-                    let (tokens, _) = lexer.scan_tokens();
-                    let mut parser = Parser::new(tokens);
-                    let program = parser.parse().unwrap();
-                    let mut analyzer = SemanticAnalyzer::new();
-                    let _ = analyzer.analyze_program(&program);
-                })
-            },
-        );
+
+        group.bench_with_input(BenchmarkId::from_parameter(count), &code, |b, code| {
+            b.iter(|| {
+                let lexer = Lexer::new(black_box(code));
+                let (tokens, _) = lexer.scan_tokens();
+                let mut parser = Parser::new(tokens);
+                let program = parser.parse().unwrap();
+                let mut analyzer = SemanticAnalyzer::new();
+                let _ = analyzer.analyze_program(&program);
+            })
+        });
     }
-    
+
     group.finish();
 }
 
 fn bench_nested_generics(c: &mut Criterion) {
     let mut group = c.benchmark_group("monomorphization/nested");
-    
+
     for depth in [5, 10, 15].iter() {
         let code = generate_nested_generics_program(*depth);
-        
-        group.bench_with_input(
-            BenchmarkId::new("depth", depth),
-            &code,
-            |b, code| {
-                b.iter(|| {
-                    let lexer = Lexer::new(black_box(code));
-                    let (tokens, _) = lexer.scan_tokens();
-                    let mut parser = Parser::new(tokens);
-                    let program = parser.parse().unwrap();
-                    let mut analyzer = SemanticAnalyzer::new();
-                    let _ = analyzer.analyze_program(&program);
-                })
-            },
-        );
+
+        group.bench_with_input(BenchmarkId::new("depth", depth), &code, |b, code| {
+            b.iter(|| {
+                let lexer = Lexer::new(black_box(code));
+                let (tokens, _) = lexer.scan_tokens();
+                let mut parser = Parser::new(tokens);
+                let program = parser.parse().unwrap();
+                let mut analyzer = SemanticAnalyzer::new();
+                let _ = analyzer.analyze_program(&program);
+            })
+        });
     }
-    
+
     group.finish();
 }
 
 fn bench_struct_instantiations(c: &mut Criterion) {
     let mut group = c.benchmark_group("monomorphization/structs");
-    
+
     for count in [50, 100, 200].iter() {
         let code = generate_struct_instantiations(*count);
-        
-        group.bench_with_input(
-            BenchmarkId::from_parameter(count),
-            &code,
-            |b, code| {
-                b.iter(|| {
-                    let lexer = Lexer::new(black_box(code));
-                    let (tokens, _) = lexer.scan_tokens();
-                    let mut parser = Parser::new(tokens);
-                    let program = parser.parse().unwrap();
-                    let mut analyzer = SemanticAnalyzer::new();
-                    let _ = analyzer.analyze_program(&program);
-                })
-            },
-        );
+
+        group.bench_with_input(BenchmarkId::from_parameter(count), &code, |b, code| {
+            b.iter(|| {
+                let lexer = Lexer::new(black_box(code));
+                let (tokens, _) = lexer.scan_tokens();
+                let mut parser = Parser::new(tokens);
+                let program = parser.parse().unwrap();
+                let mut analyzer = SemanticAnalyzer::new();
+                let _ = analyzer.analyze_program(&program);
+            })
+        });
     }
-    
+
     group.finish();
 }
 
 fn bench_mixed_generics(c: &mut Criterion) {
     let mut group = c.benchmark_group("monomorphization/mixed");
-    
+
     let small_program = r#"
         struct Box<T> { value: T }
         enum Option<T> { Some(T), None }
@@ -207,7 +192,7 @@ fn bench_mixed_generics(c: &mut Criterion) {
             let id3 = identity(Box { value: 3.14 });
         }
     "#;
-    
+
     group.bench_function("small", |b| {
         b.iter(|| {
             let lexer = Lexer::new(black_box(small_program));
@@ -218,46 +203,39 @@ fn bench_mixed_generics(c: &mut Criterion) {
             let _ = analyzer.analyze_program(&program);
         })
     });
-    
+
     // Generate a larger mixed program
     let mut large_program = String::new();
     large_program.push_str("struct Box<T> { value: T }\n");
     large_program.push_str("enum Option<T> { Some(T), None }\n");
     large_program.push_str("struct Pair<A, B> { first: A, second: B }\n\n");
-    
+
     // Add generic functions
     for i in 0..20 {
-        large_program.push_str(&format!(
-            "fn process{}<T>(x: T) -> T {{ x }}\n",
-            i
-        ));
+        large_program.push_str(&format!("fn process{}<T>(x: T) -> T {{ x }}\n", i));
     }
-    
+
     large_program.push_str("\nfn main() {\n");
-    
+
     // Add varied instantiations
     for i in 0..100 {
         match i % 5 {
-            0 => large_program.push_str(&format!(
-                "    let v{} = Box {{ value: {} }};\n", i, i
-            )),
-            1 => large_program.push_str(&format!(
-                "    let v{} = Option::Some({});\n", i, i
-            )),
+            0 => large_program.push_str(&format!("    let v{} = Box {{ value: {} }};\n", i, i)),
+            1 => large_program.push_str(&format!("    let v{} = Option::Some({});\n", i, i)),
             2 => large_program.push_str(&format!(
-                "    let v{} = Pair {{ first: {}, second: \"{}\" }};\n", i, i, i
+                "    let v{} = Pair {{ first: {}, second: \"{}\" }};\n",
+                i, i, i
             )),
-            3 => large_program.push_str(&format!(
-                "    let v{} = process{}({});\n", i, i % 20, i
-            )),
+            3 => large_program.push_str(&format!("    let v{} = process{}({});\n", i, i % 20, i)),
             _ => large_program.push_str(&format!(
-                "    let v{} = Box {{ value: Option::Some({}) }};\n", i, i
+                "    let v{} = Box {{ value: Option::Some({}) }};\n",
+                i, i
             )),
         }
     }
-    
+
     large_program.push_str("}\n");
-    
+
     group.bench_function("large", |b| {
         b.iter(|| {
             let lexer = Lexer::new(black_box(&large_program));
@@ -268,7 +246,7 @@ fn bench_mixed_generics(c: &mut Criterion) {
             let _ = analyzer.analyze_program(&program);
         })
     });
-    
+
     group.finish();
 }
 

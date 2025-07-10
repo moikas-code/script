@@ -1,5 +1,7 @@
 # Script Language Developer Guide
 
+**Version: 0.5.0-alpha** | **Status: ~90% Complete**
+
 This guide is for developers who want to contribute to the Script language compiler, runtime, or tooling. It covers the project architecture, development workflow, and guidelines for contributing.
 
 ## Table of Contents
@@ -87,6 +89,20 @@ cargo clippy -- -D warnings
 
 ## Architecture Overview
 
+### Current Implementation Status (v0.5.0-alpha)
+
+The Script compiler is ~90% complete with the following status:
+
+- ✅ **Lexer** (100%): Full Unicode support, comprehensive token set
+- ✅ **Parser** (99%): Complete with generics, pattern matching, error recovery
+- ✅ **Type System** (98%): O(n log n) performance, full inference with generics
+- ✅ **Semantic Analysis** (99%): Pattern exhaustiveness, symbol resolution
+- 🔧 **Code Generation** (90%): Most features work, minor pattern gaps
+- 🔧 **Runtime** (75%): Bacon-Rajan cycle detection, some optimizations pending
+- ✅ **Standard Library** (100%): Collections, I/O, networking, 57 functional ops
+- ✅ **Module System** (100%): Full multi-file support with cross-module types
+- 🔄 **MCP Integration** (15%): Security framework designed, implementation starting
+
 ### High-Level Architecture
 
 ```
@@ -159,7 +175,7 @@ The lexer converts source text into tokens:
 ```rust
 // In src/lexer/scanner.rs
 impl Scanner {
-    pub fn scan_token(&mut self) -> Result<Token, LexError> {
+    pub fn scan_token(&mut self) -> Result<Token, LexerError> {
         self.skip_whitespace();
         self.start = self.current;
         
@@ -350,7 +366,7 @@ Use custom error types with good messages:
 ```rust
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompileError {
-    LexError(LexError),
+    LexerError(LexerError),
     ParseError(ParseError),
     TypeError(TypeError),
     SemanticError(SemanticError),
@@ -359,7 +375,7 @@ pub enum CompileError {
 impl Display for CompileError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            CompileError::LexError(e) => write!(f, "Lexical error: {}", e),
+            CompileError::LexerError(e) => write!(f, "Lexical error: {}", e),
             // ... more error types
         }
     }

@@ -1,13 +1,13 @@
 //! End-to-end integration tests for generic structs
-//! 
+//!
 //! These tests verify the complete pipeline from parsing through execution
 //! for generic struct definitions and usage.
 
 #[path = "../utils/mod.rs"]
 mod utils;
 
-use utils::generic_test_helpers::*;
 use script::types::Type;
+use utils::generic_test_helpers::*;
 
 #[test]
 fn test_simple_generic_struct() {
@@ -23,14 +23,14 @@ fn test_simple_generic_struct() {
             let b4 = Box { value: 3.14 };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Verify that we have 4 different monomorphized versions
     let box_instances = count_monomorphized_instances(&program, "Box");
     assert_eq!(box_instances, 4, "Should have 4 Box instantiations");
-    
+
     // Verify the specific types
     assert!(assert_type_instantiated(&program, "Box_i32"));
     assert!(assert_type_instantiated(&program, "Box_string"));
@@ -59,14 +59,14 @@ fn test_multiple_type_params() {
             let t1 = Triple { x: 1, y: "two", z: 3.0 };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Check Pair instantiations
     let pair_instances = count_monomorphized_instances(&program, "Pair");
     assert_eq!(pair_instances, 2, "Should have 2 Pair instantiations");
-    
+
     // Check Triple instantiation
     let triple_instances = count_monomorphized_instances(&program, "Triple");
     assert_eq!(triple_instances, 1, "Should have 1 Triple instantiation");
@@ -102,14 +102,17 @@ fn test_generic_struct_methods() {
             let v2 = b2.get();
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     // Note: impl blocks might have some errors in current implementation
     // but the struct instantiation should work
-    
+
     // Verify Box instantiations
     let box_instances = count_monomorphized_instances(&program, "Box");
-    assert!(box_instances >= 2, "Should have at least 2 Box instantiations");
+    assert!(
+        box_instances >= 2,
+        "Should have at least 2 Box instantiations"
+    );
 }
 
 #[test]
@@ -142,17 +145,23 @@ fn test_nested_generic_structs() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should have multiple Box instantiations with different types
     let box_instances = count_monomorphized_instances(&program, "Box");
-    assert!(box_instances >= 4, "Should have at least 4 Box instantiations");
-    
+    assert!(
+        box_instances >= 4,
+        "Should have at least 4 Box instantiations"
+    );
+
     // Should have Pair instantiations
     let pair_instances = count_monomorphized_instances(&program, "Pair");
-    assert!(pair_instances >= 2, "Should have at least 2 Pair instantiations");
+    assert!(
+        pair_instances >= 2,
+        "Should have at least 2 Pair instantiations"
+    );
 }
 
 #[test]
@@ -173,10 +182,10 @@ fn test_struct_field_access() {
             let y2 = p2.y;
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should have Point<i32> and Point<f32>
     assert_eq!(count_monomorphized_instances(&program, "Point"), 2);
 }
@@ -201,10 +210,10 @@ fn test_struct_with_array_field() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should have Buffer<i32> and Buffer<string>
     assert_eq!(count_monomorphized_instances(&program, "Buffer"), 2);
 }
@@ -234,13 +243,16 @@ fn test_recursive_generic_struct() {
             };
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     // Note: Recursive types might have some issues, but basic instantiation should work
-    
+
     // Should have Node<i32> instantiation
     let node_instances = count_monomorphized_instances(&program, "Node");
-    assert!(node_instances >= 1, "Should have at least 1 Node instantiation");
+    assert!(
+        node_instances >= 1,
+        "Should have at least 1 Node instantiation"
+    );
 }
 
 #[test]
@@ -266,12 +278,15 @@ fn test_generic_struct_in_function_params() {
             let result2 = process_any(c2);
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should have Container<i32> and Container<string>
     let container_instances = count_monomorphized_instances(&program, "Container");
-    assert!(container_instances >= 2, "Should have at least 2 Container instantiations");
+    assert!(
+        container_instances >= 2,
+        "Should have at least 2 Container instantiations"
+    );
 }
 
 #[test]
@@ -292,10 +307,10 @@ fn test_struct_pattern_matching() {
             }
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     // Pattern matching might have some errors, but struct instantiation should work
-    
+
     // Should have Point<i32>
     assert!(count_monomorphized_instances(&program, "Point") >= 1);
 }
@@ -310,9 +325,9 @@ fn test_empty_generic_struct() {
             let e2 = Empty::<string> {};
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
-    
+
     // Should handle empty structs correctly
     let empty_instances = count_monomorphized_instances(&program, "Empty");
     assert_eq!(empty_instances, 2, "Should have 2 Empty instantiations");
@@ -335,7 +350,7 @@ fn test_struct_with_where_clause() {
             let c = Cloneable { value: 42 };
         }
     "#;
-    
+
     let program = compile_generic_program(code);
     // This might have errors due to where clause implementation status
     // but we're testing that it at least attempts to compile
@@ -356,10 +371,10 @@ fn test_struct_field_mutation() {
             b2.value = "world";
         }
     "#;
-    
+
     let program = compile_generic_program(code).expect("Failed to compile");
     assert_no_errors(&program);
-    
+
     // Should have Box<i32> and Box<string>
     assert_eq!(count_monomorphized_instances(&program, "Box"), 2);
 }

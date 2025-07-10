@@ -1,5 +1,7 @@
 # Actor Type System Specification
 
+> **Implementation Status**: 🔄 In development. Basic async/await implemented, actor system design complete but not yet implemented.
+
 This document specifies the design of the Actor type system for the Script programming language, building upon Script's existing async/await infrastructure and beginner-friendly philosophy.
 
 ## Table of Contents

@@ -4,7 +4,7 @@
 //! are live (potentially used) at each program point.
 
 use super::control_flow::ControlFlowGraph;
-use super::data_flow::{DataFlowDirection, DataFlowJoin, DataFlowProblem, DataFlowSolver};
+use super::data_flow::{DataFlowDirection, DataFlowProblem, DataFlowSolver};
 use crate::ir::{BlockId, Function, Instruction, ValueId};
 use std::collections::{HashMap, HashSet};
 use std::fmt;

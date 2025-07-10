@@ -1,16 +1,16 @@
 //! Security audit logging for module operations
-//! 
+//!
 //! This module provides comprehensive audit logging for security-relevant
 //! module operations to enable monitoring and forensic analysis.
 
-use crate::module::{ModulePath, ModuleError, ModuleResult};
-use std::path::{Path, PathBuf};
+use crate::module::{ModuleError, ModulePath, ModuleResult};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
-use std::io::{Write, BufWriter};
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
 
 /// Security audit logger for module operations
 #[derive(Debug)]
@@ -56,7 +56,7 @@ impl Default for AuditConfig {
 }
 
 /// Security event severity levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum SecuritySeverity {
     /// Informational events
     Info,
@@ -68,6 +68,18 @@ pub enum SecuritySeverity {
     Critical,
     /// Emergency - system compromise detected
     Emergency,
+}
+
+impl std::fmt::Display for SecuritySeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SecuritySeverity::Info => write!(f, "INFO"),
+            SecuritySeverity::Warning => write!(f, "WARNING"),
+            SecuritySeverity::Error => write!(f, "ERROR"),
+            SecuritySeverity::Critical => write!(f, "CRITICAL"),
+            SecuritySeverity::Emergency => write!(f, "EMERGENCY"),
+        }
+    }
 }
 
 /// Security audit event
@@ -148,12 +160,10 @@ impl SecurityAuditLogger {
             .create(true)
             .append(true)
             .open(&config.log_file)
-            .map_err(|e| ModuleError::io_error(
-                format!("Failed to open audit log: {}", e)
-            ))?;
-        
+            .map_err(|e| ModuleError::io_error(format!("Failed to open audit log: {}", e)))?;
+
         let writer = BufWriter::new(file);
-        
+
         Ok(SecurityAuditLogger {
             writer: Arc::new(Mutex::new(Some(writer))),
             config,
@@ -161,31 +171,31 @@ impl SecurityAuditLogger {
             stats: Arc::new(Mutex::new(AuditStatistics::default())),
         })
     }
-    
+
     /// Log a security event
     pub fn log_event(&self, event: SecurityAuditEvent) -> ModuleResult<()> {
         // Check severity filter
         if event.severity < self.config.severity_filter {
             return Ok(());
         }
-        
+
         // Update statistics
         self.update_statistics(&event);
-        
+
         // Real-time alert for critical events
         if self.config.real_time_alerts && event.severity >= SecuritySeverity::Critical {
             self.send_alert(&event)?;
         }
-        
+
         // Add to memory buffer
         self.buffer_event(event.clone())?;
-        
+
         // Write to log file
         self.write_event(&event)?;
-        
+
         Ok(())
     }
-    
+
     /// Log a path traversal attempt
     pub fn log_path_traversal(
         &self,
@@ -213,10 +223,10 @@ impl SecurityAuditLogger {
                 None
             },
         };
-        
+
         self.log_event(event)
     }
-    
+
     /// Log an integrity violation
     pub fn log_integrity_violation(
         &self,
@@ -227,7 +237,7 @@ impl SecurityAuditLogger {
         let mut metadata = std::collections::HashMap::new();
         metadata.insert("expected_hash".to_string(), expected_hash.to_string());
         metadata.insert("actual_hash".to_string(), actual_hash.to_string());
-        
+
         let event = SecurityAuditEvent {
             timestamp: Utc::now(),
             severity: SecuritySeverity::Critical,
@@ -244,10 +254,10 @@ impl SecurityAuditLogger {
             },
             stack_trace: None,
         };
-        
+
         self.log_event(event)
     }
-    
+
     /// Log a resource exhaustion attempt
     pub fn log_resource_exhaustion(
         &self,
@@ -260,7 +270,7 @@ impl SecurityAuditLogger {
         metadata.insert("resource_type".to_string(), resource_type.to_string());
         metadata.insert("limit".to_string(), limit.to_string());
         metadata.insert("attempted".to_string(), attempted.to_string());
-        
+
         let event = SecurityAuditEvent {
             timestamp: Utc::now(),
             severity: SecuritySeverity::Warning,
@@ -280,10 +290,10 @@ impl SecurityAuditLogger {
             },
             stack_trace: None,
         };
-        
+
         self.log_event(event)
     }
-    
+
     /// Log a successful module load
     pub fn log_module_load(
         &self,
@@ -293,7 +303,7 @@ impl SecurityAuditLogger {
     ) -> ModuleResult<()> {
         let mut metadata = std::collections::HashMap::new();
         metadata.insert("checksum".to_string(), checksum.to_string());
-        
+
         let event = SecurityAuditEvent {
             timestamp: Utc::now(),
             severity: SecuritySeverity::Info,
@@ -310,26 +320,27 @@ impl SecurityAuditLogger {
             },
             stack_trace: None,
         };
-        
+
         self.log_event(event)
     }
-    
+
     /// Get recent security events
     pub fn get_recent_events(&self, count: usize) -> Vec<SecurityAuditEvent> {
         let buffer = self.event_buffer.lock().unwrap();
         let start = buffer.len().saturating_sub(count);
         buffer[start..].to_vec()
     }
-    
+
     /// Get events by severity
     pub fn get_events_by_severity(&self, severity: SecuritySeverity) -> Vec<SecurityAuditEvent> {
         let buffer = self.event_buffer.lock().unwrap();
-        buffer.iter()
+        buffer
+            .iter()
             .filter(|e| e.severity >= severity)
             .cloned()
             .collect()
     }
-    
+
     /// Get audit statistics
     pub fn get_statistics(&self) -> AuditStatistics {
         let stats = self.stats.lock().unwrap();
@@ -340,126 +351,121 @@ impl SecurityAuditLogger {
             total_events: stats.total_events,
         }
     }
-    
+
     /// Write event to log file
     fn write_event(&self, event: &SecurityAuditEvent) -> ModuleResult<()> {
         let mut writer_opt = self.writer.lock().unwrap();
-        
+
         if let Some(writer) = writer_opt.as_mut() {
             // Serialize event to JSON
-            let json = serde_json::to_string(event)
-                .map_err(|e| ModuleError::io_error(
-                    format!("Failed to serialize audit event: {}", e)
-                ))?;
-            
+            let json = serde_json::to_string(event).map_err(|e| {
+                ModuleError::io_error(format!("Failed to serialize audit event: {}", e))
+            })?;
+
             // Write with newline
-            writeln!(writer, "{}", json)
-                .map_err(|e| ModuleError::io_error(
-                    format!("Failed to write audit event: {}", e)
-                ))?;
-            
+            writeln!(writer, "{}", json).map_err(|e| {
+                ModuleError::io_error(format!("Failed to write audit event: {}", e))
+            })?;
+
             // Flush for critical events
             if event.severity >= SecuritySeverity::Critical {
-                writer.flush()
-                    .map_err(|e| ModuleError::io_error(
-                        format!("Failed to flush audit log: {}", e)
-                    ))?;
+                writer.flush().map_err(|e| {
+                    ModuleError::io_error(format!("Failed to flush audit log: {}", e))
+                })?;
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Buffer event in memory
     fn buffer_event(&self, event: SecurityAuditEvent) -> ModuleResult<()> {
         let mut buffer = self.event_buffer.lock().unwrap();
-        
+
         buffer.push(event);
-        
+
         // Trim buffer if too large
         if buffer.len() > self.config.buffer_size {
             let drain_count = buffer.len() - self.config.buffer_size;
             buffer.drain(0..drain_count);
         }
-        
+
         Ok(())
     }
-    
+
     /// Update statistics
     fn update_statistics(&self, event: &SecurityAuditEvent) {
         let mut stats = self.stats.lock().unwrap();
-        
+
         // Update severity counts
         *stats.events_by_severity.entry(event.severity).or_insert(0) += 1;
-        
+
         // Update category counts
         let category_str = format!("{:?}", event.category);
         *stats.events_by_category.entry(category_str).or_insert(0) += 1;
-        
+
         // Update last critical time
         if event.severity >= SecuritySeverity::Critical {
             stats.last_critical_event = Some(SystemTime::now());
         }
-        
+
         // Update total
         stats.total_events += 1;
     }
-    
+
     /// Send real-time alert for critical events
     fn send_alert(&self, event: &SecurityAuditEvent) -> ModuleResult<()> {
         // In a real implementation, this would send to monitoring system
-        eprintln!("🚨 SECURITY ALERT: {} - {}", event.severity, event.description);
+        eprintln!(
+            "🚨 SECURITY ALERT: {} - {}",
+            event.severity, event.description
+        );
         Ok(())
     }
-    
+
     /// Capture current stack trace
     fn capture_stack_trace() -> String {
         // In a real implementation, would use backtrace crate
         "Stack trace capture not implemented".to_string()
     }
-    
+
     /// Rotate log file if needed
     pub fn rotate_if_needed(&self) -> ModuleResult<()> {
-        let metadata = std::fs::metadata(&self.config.log_file)
-            .map_err(|e| ModuleError::io_error(
-                format!("Failed to get log file metadata: {}", e)
-            ))?;
-        
+        let metadata = std::fs::metadata(&self.config.log_file).map_err(|e| {
+            ModuleError::io_error(format!("Failed to get log file metadata: {}", e))
+        })?;
+
         if metadata.len() >= self.config.max_file_size {
             self.rotate_log()?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Rotate the log file
     fn rotate_log(&self) -> ModuleResult<()> {
         let mut writer_opt = self.writer.lock().unwrap();
-        
+
         // Close current file
         if let Some(writer) = writer_opt.take() {
             drop(writer);
         }
-        
+
         // Rename current log
         let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
         let rotated_name = format!("{}.{}", self.config.log_file.display(), timestamp);
         std::fs::rename(&self.config.log_file, &rotated_name)
-            .map_err(|e| ModuleError::io_error(
-                format!("Failed to rotate log file: {}", e)
-            ))?;
-        
+            .map_err(|e| ModuleError::io_error(format!("Failed to rotate log file: {}", e)))?;
+
         // Open new file
         let file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&self.config.log_file)
-            .map_err(|e| ModuleError::io_error(
-                format!("Failed to create new log file: {}", e)
-            ))?;
-        
+            .map_err(|e| ModuleError::io_error(format!("Failed to create new log file: {}", e)))?;
+
         *writer_opt = Some(BufWriter::new(file));
-        
+
         Ok(())
     }
 }
@@ -490,37 +496,37 @@ impl SecurityEventBuilder {
             },
         }
     }
-    
+
     pub fn severity(mut self, severity: SecuritySeverity) -> Self {
         self.severity = severity;
         self
     }
-    
+
     pub fn module(mut self, module: ModulePath) -> Self {
         self.module = Some(module);
         self
     }
-    
+
     pub fn file_path(mut self, path: PathBuf) -> Self {
         self.context.file_path = Some(path);
         self
     }
-    
+
     pub fn operation(mut self, op: String) -> Self {
         self.context.operation = Some(op);
         self
     }
-    
+
     pub fn error(mut self, error: String) -> Self {
         self.context.error = Some(error);
         self
     }
-    
+
     pub fn metadata(mut self, key: String, value: String) -> Self {
         self.context.metadata.insert(key, value);
         self
     }
-    
+
     pub fn build(self) -> SecurityAuditEvent {
         SecurityAuditEvent {
             timestamp: Utc::now(),
@@ -538,61 +544,63 @@ impl SecurityEventBuilder {
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    
+
     #[test]
     fn test_audit_logger_creation() {
         let temp_dir = TempDir::new().unwrap();
         let log_file = temp_dir.path().join("test_audit.log");
-        
+
         let config = AuditConfig {
             log_file: log_file.clone(),
             ..Default::default()
         };
-        
+
         let logger = SecurityAuditLogger::new(config).unwrap();
         assert!(log_file.exists());
     }
-    
+
     #[test]
     fn test_event_logging() {
         let temp_dir = TempDir::new().unwrap();
         let log_file = temp_dir.path().join("test_audit.log");
-        
+
         let config = AuditConfig {
             log_file: log_file.clone(),
             severity_filter: SecuritySeverity::Info,
             ..Default::default()
         };
-        
+
         let logger = SecurityAuditLogger::new(config).unwrap();
-        
+
         // Log an event
         let module = ModulePath::from_string("test.module").unwrap();
-        logger.log_path_traversal(
-            Some(module),
-            "../../../etc/passwd",
-            &ModuleError::security_violation("test"),
-        ).unwrap();
-        
+        logger
+            .log_path_traversal(
+                Some(module),
+                "../../../etc/passwd",
+                &ModuleError::security_violation("test"),
+            )
+            .unwrap();
+
         // Check statistics
         let stats = logger.get_statistics();
         assert_eq!(stats.total_events, 1);
         assert!(stats.last_critical_event.is_some());
     }
-    
+
     #[test]
     fn test_severity_filtering() {
         let temp_dir = TempDir::new().unwrap();
         let log_file = temp_dir.path().join("test_audit.log");
-        
+
         let config = AuditConfig {
             log_file,
             severity_filter: SecuritySeverity::Error,
             ..Default::default()
         };
-        
+
         let logger = SecurityAuditLogger::new(config).unwrap();
-        
+
         // Log info event (should be filtered)
         let event = SecurityEventBuilder::new(
             SecurityEventCategory::ModuleLoad,
@@ -600,9 +608,9 @@ mod tests {
         )
         .severity(SecuritySeverity::Info)
         .build();
-        
+
         logger.log_event(event).unwrap();
-        
+
         // Log critical event (should pass)
         let event = SecurityEventBuilder::new(
             SecurityEventCategory::PathTraversal,
@@ -610,9 +618,9 @@ mod tests {
         )
         .severity(SecuritySeverity::Critical)
         .build();
-        
+
         logger.log_event(event).unwrap();
-        
+
         // Check only critical event was logged
         let stats = logger.get_statistics();
         assert_eq!(stats.total_events, 1);

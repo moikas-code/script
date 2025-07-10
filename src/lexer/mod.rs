@@ -1,6 +1,6 @@
+mod lru_cache;
 mod scanner;
 mod token;
-mod lru_cache;
 
 #[cfg(feature = "fuzzing")]
 pub mod fuzz;

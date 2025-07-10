@@ -33,6 +33,8 @@ pub enum ModuleErrorKind {
     CacheError,
     /// Configuration error
     ConfigError,
+    /// Type checking error across modules
+    TypeError,
 }
 
 impl ModuleError {
@@ -138,6 +140,22 @@ impl ModuleError {
         )
     }
 
+    pub fn io_error(message: impl Into<String>) -> Self {
+        Self::new(ModuleErrorKind::FileSystem, message)
+    }
+
+    pub fn file_error(message: impl Into<String>) -> Self {
+        Self::new(ModuleErrorKind::FileSystem, message)
+    }
+
+    pub fn type_error(module_path: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::new(ModuleErrorKind::TypeError, message).with_module_path(module_path)
+    }
+
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self::new(ModuleErrorKind::ConfigError, message)
+    }
+
     pub fn with_location(mut self, location: SourceLocation) -> Self {
         self.location = Some(location);
         self
@@ -182,6 +200,7 @@ impl fmt::Display for ModuleError {
             ModuleErrorKind::ImportError => "Import Error",
             ModuleErrorKind::CacheError => "Cache Error",
             ModuleErrorKind::ConfigError => "Configuration Error",
+            ModuleErrorKind::TypeError => "Type Error",
         };
 
         write!(f, "{}: {}", error_type, self.message)?;

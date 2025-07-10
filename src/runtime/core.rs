@@ -13,10 +13,10 @@ use std::panic::{self, AssertUnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
 
+use crate::error::Error;
 use crate::runtime::gc::CollectionStats;
 use crate::runtime::panic::PanicInfo;
 use crate::runtime::{Result, RuntimeError};
-use crate::error::Error;
 
 /// Global runtime instance
 static RUNTIME: RwLock<Option<Arc<Runtime>>> = RwLock::new(None);
@@ -25,10 +25,12 @@ static RUNTIME: RwLock<Option<Arc<Runtime>>> = RwLock::new(None);
 pub fn runtime() -> Result<Arc<Runtime>> {
     RUNTIME
         .read()
-        .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on runtime"))?
+        .map_err(|_| {
+            RuntimeError::InvalidOperation("Failed to acquire read lock on runtime".to_string())
+        })?
         .as_ref()
         .cloned()
-        .ok_or_else(|| Error::runtime("Runtime not initialized"))
+        .ok_or_else(|| RuntimeError::NotInitialized)
 }
 
 /// Configuration for the Script runtime
@@ -143,10 +145,10 @@ impl Runtime {
     /// Initialize the runtime with the given configuration
     pub fn initialize_with_config(config: RuntimeConfig) -> Result<()> {
         let mut runtime_lock = RUNTIME.write().map_err(|_| {
-            Error::lock_poisoned("Failed to acquire write lock on runtime")
+            RuntimeError::InvalidOperation("Failed to acquire write lock on runtime".to_string())
         })?;
         if runtime_lock.is_some() {
-            return Err(Error::runtime("Runtime already initialized"));
+            return Err(RuntimeError::AlreadyInitialized);
         }
 
         let runtime = Arc::new(Runtime::new(config.clone()));
@@ -181,7 +183,9 @@ impl Runtime {
     /// Register a type with the runtime
     pub fn register_type<T: Any>(&self) -> Result<()> {
         let mut registry = self.type_registry.write().map_err(|_| {
-            Error::lock_poisoned("Failed to acquire write lock on type registry")
+            RuntimeError::InvalidOperation(
+                "Failed to acquire write lock on type registry".to_string(),
+            )
         })?;
         registry.register::<T>();
         Ok(())
@@ -198,9 +202,10 @@ impl Runtime {
 
     /// Get runtime uptime
     pub fn uptime(&self) -> std::time::Duration {
-        let metadata = self.metadata.read().map_err(|_| {
-            Error::lock_poisoned("Failed to acquire read lock on metadata")
-        });
+        let metadata = self
+            .metadata
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on metadata"));
         match metadata {
             Ok(data) => data.start_time.elapsed(),
             Err(_) => std::time::Duration::new(0, 0), // Return zero duration on lock failure
@@ -210,7 +215,7 @@ impl Runtime {
     /// Set custom metadata
     pub fn set_metadata(&self, key: String, value: String) -> Result<()> {
         let mut metadata = self.metadata.write().map_err(|_| {
-            Error::lock_poisoned("Failed to acquire write lock on metadata")
+            RuntimeError::InvalidOperation("Failed to acquire write lock on metadata".to_string())
         })?;
         metadata.custom.insert(key, value);
         Ok(())
@@ -218,9 +223,10 @@ impl Runtime {
 
     /// Get custom metadata
     pub fn get_metadata(&self, key: &str) -> Option<String> {
-        let metadata = self.metadata.read().map_err(|_| {
-            Error::lock_poisoned("Failed to acquire read lock on metadata")
-        });
+        let metadata = self
+            .metadata
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on metadata"));
         match metadata {
             Ok(data) => data.custom.get(key).cloned(),
             Err(_) => None, // Return None on lock failure
@@ -239,6 +245,10 @@ impl Runtime {
                     .location()
                     .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column())),
                 backtrace: std::backtrace::Backtrace::capture().to_string(),
+                timestamp: std::time::Instant::now(),
+                recovery_attempts: 0,
+                recovered: false,
+                recovery_policy: crate::runtime::panic::RecoveryPolicy::default(),
             };
 
             // Log panic

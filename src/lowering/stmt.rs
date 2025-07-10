@@ -122,7 +122,8 @@ mod tests {
 
         let symbol_table = SymbolTable::new();
         let type_info = HashMap::new();
-        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new());
+        let closure_captures = HashMap::new();
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new(), closure_captures);
 
         // Create a dummy function context
         lowerer
@@ -142,7 +143,8 @@ mod tests {
 
         let symbol_table = SymbolTable::new();
         let type_info = HashMap::new();
-        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new());
+        let closure_captures = HashMap::new();
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new(), closure_captures);
 
         // Create a dummy function context
         lowerer

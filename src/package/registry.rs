@@ -198,7 +198,7 @@ impl PackageRegistry for RegistryClient {
 
         // Temporarily set auth token for this request
         let old_token = self.auth_token.clone();
-        let mut client = RegistryClient {
+        let client = RegistryClient {
             base_url: self.base_url.clone(),
             client: HttpClient::new()?,
             auth_token: Some(auth_token.to_string()),

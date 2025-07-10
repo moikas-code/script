@@ -233,6 +233,41 @@ pub enum ExprKind {
     ErrorPropagation {
         expr: Box<Expr>,
     },
+    /// Try-catch expression for panic recovery
+    TryCatch {
+        try_expr: Box<Expr>,
+        catch_clauses: Vec<CatchClause>,
+        finally_block: Option<Block>,
+    },
+    /// Closure expression (e.g., |x| x + 1, |a, b| a + b)
+    Closure {
+        parameters: Vec<ClosureParam>,
+        body: Box<Expr>,
+    },
+}
+
+/// Closure parameter with optional type annotation
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClosureParam {
+    /// Parameter name
+    pub name: String,
+    /// Optional type annotation
+    pub type_ann: Option<TypeAnn>,
+}
+
+/// Catch clause for try-catch expressions
+#[derive(Debug, Clone, PartialEq)]
+pub struct CatchClause {
+    /// Optional variable name to bind the caught error
+    pub var: Option<String>,
+    /// Optional type constraint for the caught error
+    pub error_type: Option<TypeAnn>,
+    /// Condition to match specific errors
+    pub condition: Option<Expr>,
+    /// Block to execute when this catch clause matches
+    pub handler: Block,
+    /// Span information
+    pub span: Span,
 }
 
 /// Arguments for enum variant constructor
@@ -484,12 +519,12 @@ impl fmt::Display for Stmt {
                 if let Some(ret) = ret_type {
                     write!(f, " -> {}", ret)?;
                 }
-                
+
                 // Display where clause
                 if let Some(where_cl) = where_clause {
                     write!(f, " {}", where_cl)?;
                 }
-                
+
                 write!(f, " {}", body)
             }
             StmtKind::Return(expr) => {
@@ -805,6 +840,40 @@ impl fmt::Display for Expr {
                     }
                 }
             }
+            ExprKind::ErrorPropagation { expr } => {
+                write!(f, "{}?", expr)
+            }
+            ExprKind::TryCatch {
+                try_expr,
+                catch_clauses,
+                finally_block,
+            } => {
+                write!(f, "try {} ", try_expr)?;
+                for catch_clause in catch_clauses {
+                    write!(f, "catch ")?;
+                    if let Some(var) = &catch_clause.var {
+                        write!(f, "{} ", var)?;
+                    }
+                    write!(f, "{} ", catch_clause.handler)?;
+                }
+                if let Some(finally) = finally_block {
+                    write!(f, "finally {} ", finally)?;
+                }
+                Ok(())
+            }
+            ExprKind::Closure { parameters, body } => {
+                write!(f, "|")?;
+                for (i, param) in parameters.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", param.name)?;
+                    if let Some(ref type_ann) = param.type_ann {
+                        write!(f, ": {}", type_ann)?;
+                    }
+                }
+                write!(f, "| {}", body)
+            }
         }
     }
 }
@@ -860,13 +929,17 @@ impl fmt::Display for Pattern {
                 }
                 Ok(())
             }
-            PatternKind::EnumConstructor { enum_name, variant, args } => {
+            PatternKind::EnumConstructor {
+                enum_name,
+                variant,
+                args,
+            } => {
                 if let Some(enum_name) = enum_name {
                     write!(f, "{}::{}", enum_name, variant)?;
                 } else {
                     write!(f, "{}", variant)?;
                 }
-                
+
                 if let Some(args) = args {
                     write!(f, "(")?;
                     for (i, arg) in args.iter().enumerate() {
@@ -1210,19 +1283,19 @@ impl fmt::Display for WherePredicate {
 impl fmt::Display for ImplBlock {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "impl")?;
-        
+
         // Display generic parameters
         if let Some(generics) = &self.generic_params {
             write!(f, "{}", generics)?;
         }
-        
+
         write!(f, " {}", self.type_name)?;
-        
+
         // Display where clause
         if let Some(where_clause) = &self.where_clause {
             write!(f, " {}", where_clause)?;
         }
-        
+
         writeln!(f, " {{")?;
         for method in &self.methods {
             writeln!(f, "    {}", method)?;
@@ -1237,12 +1310,12 @@ impl fmt::Display for Method {
             write!(f, "async ")?;
         }
         write!(f, "fn {}", self.name)?;
-        
+
         // Display generic parameters
         if let Some(generics) = &self.generic_params {
             write!(f, "{}", generics)?;
         }
-        
+
         write!(f, "(")?;
         for (i, param) in self.params.iter().enumerate() {
             if i > 0 {
@@ -1251,16 +1324,16 @@ impl fmt::Display for Method {
             write!(f, "{}: {}", param.name, param.type_ann)?;
         }
         write!(f, ")")?;
-        
+
         if let Some(ret_type) = &self.ret_type {
             write!(f, " -> {}", ret_type)?;
         }
-        
+
         // Display where clause
         if let Some(where_clause) = &self.where_clause {
             write!(f, " {}", where_clause)?;
         }
-        
+
         write!(f, " {}", self.body)
     }
 }

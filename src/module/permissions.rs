@@ -1,10 +1,10 @@
 //! Fine-grained permission system for module operations
-//! 
+//!
 //! This module provides a capability-based permission system that controls
 //! what operations modules can perform, including file system access,
 //! network operations, FFI calls, and resource allocation.
 
-use crate::module::{ModulePath, ModuleError};
+use crate::module::{ModuleError, ModulePath};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -225,7 +225,7 @@ pub enum ModulePattern {
 }
 
 /// Custom permission rule for complex logic
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PermissionRule {
     /// Rule name
     pub name: String,
@@ -233,6 +233,16 @@ pub struct PermissionRule {
     pub description: String,
     /// Evaluation function
     pub evaluator: Arc<dyn Fn(&PermissionContext) -> bool + Send + Sync>,
+}
+
+impl std::fmt::Debug for PermissionRule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PermissionRule")
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("evaluator", &"<function>")
+            .finish()
+    }
 }
 
 /// Context for permission evaluation
@@ -277,23 +287,23 @@ impl PermissionManager {
             audit_log: Arc::new(RwLock::new(Vec::new())),
         }
     }
-    
+
     /// Get minimal safe permissions
     fn minimal_permissions() -> HashSet<Permission> {
         let mut perms = HashSet::new();
         // Allow basic memory allocation
         perms.insert(Permission::Resource(ResourcePermission::Memory(10_000_000))); // 10MB
-        // Allow limited CPU time
+                                                                                    // Allow limited CPU time
         perms.insert(Permission::Resource(ResourcePermission::CPUTime(5000))); // 5 seconds
         perms
     }
-    
+
     /// Register a module with permissions
     pub fn register_module(&self, permissions: ModulePermissions) {
         let mut perms = self.permissions.write().unwrap();
         perms.insert(permissions.module.clone(), permissions);
     }
-    
+
     /// Check if a module has a specific permission
     pub fn check_permission(
         &self,
@@ -301,17 +311,17 @@ impl PermissionManager {
         permission: &Permission,
     ) -> Result<(), ModuleError> {
         let perms = self.permissions.read().unwrap();
-        
+
         // Get module permissions, applying inheritance if needed
         let module_perms = self.get_effective_permissions(module, &perms);
-        
+
         // Check if permission is granted
-        let granted = module_perms.contains(permission) || 
-                     self.check_custom_rules(module, permission);
-        
+        let granted =
+            module_perms.contains(permission) || self.check_custom_rules(module, permission);
+
         // Log the check
         self.log_permission_check(module, permission, granted);
-        
+
         if granted {
             Ok(())
         } else {
@@ -321,7 +331,7 @@ impl PermissionManager {
             )))
         }
     }
-    
+
     /// Get effective permissions including inheritance
     fn get_effective_permissions(
         &self,
@@ -329,7 +339,7 @@ impl PermissionManager {
         perms: &HashMap<ModulePath, ModulePermissions>,
     ) -> HashSet<Permission> {
         let mut effective = self.default_permissions.clone();
-        
+
         // Walk up the inheritance chain
         let mut current = Some(module.clone());
         while let Some(mod_path) = current {
@@ -340,14 +350,14 @@ impl PermissionManager {
                 break;
             }
         }
-        
+
         effective
     }
-    
+
     /// Check custom permission rules
     fn check_custom_rules(&self, module: &ModulePath, permission: &Permission) -> bool {
         let perms = self.permissions.read().unwrap();
-        
+
         if let Some(mod_perms) = perms.get(module) {
             let context = PermissionContext {
                 module: module.clone(),
@@ -355,17 +365,17 @@ impl PermissionManager {
                 args: HashMap::new(),
                 timestamp: std::time::SystemTime::now(),
             };
-            
+
             for rule in &mod_perms.custom_rules {
                 if (rule.evaluator)(&context) {
                     return true;
                 }
             }
         }
-        
+
         false
     }
-    
+
     /// Log a permission check
     fn log_permission_check(&self, module: &ModulePath, permission: &Permission, granted: bool) {
         let entry = PermissionAuditEntry {
@@ -375,16 +385,16 @@ impl PermissionManager {
             granted,
             reason: None,
         };
-        
+
         let mut log = self.audit_log.write().unwrap();
         log.push(entry);
-        
+
         // Keep only recent entries (e.g., last 10000)
         if log.len() > 10000 {
             log.drain(0..1000);
         }
     }
-    
+
     /// Grant a permission to a module
     pub fn grant_permission(
         &self,
@@ -392,19 +402,20 @@ impl PermissionManager {
         permission: Permission,
     ) -> Result<(), ModuleError> {
         let mut perms = self.permissions.write().unwrap();
-        
-        let mod_perms = perms.entry(module.clone())
+
+        let mod_perms = perms
+            .entry(module.clone())
             .or_insert_with(|| ModulePermissions {
                 module: module.clone(),
                 permissions: HashSet::new(),
                 inherit_from: None,
                 custom_rules: Vec::new(),
             });
-        
+
         mod_perms.permissions.insert(permission);
         Ok(())
     }
-    
+
     /// Revoke a permission from a module
     pub fn revoke_permission(
         &self,
@@ -412,61 +423,85 @@ impl PermissionManager {
         permission: &Permission,
     ) -> Result<(), ModuleError> {
         let mut perms = self.permissions.write().unwrap();
-        
+
         if let Some(mod_perms) = perms.get_mut(module) {
             mod_perms.permissions.remove(permission);
         }
-        
+
         Ok(())
     }
-    
+
     /// Get audit log entries
     pub fn get_audit_log(&self) -> Vec<PermissionAuditEntry> {
         self.audit_log.read().unwrap().clone()
     }
-    
+
     /// Create a permission set for trusted modules
     pub fn trusted_permissions() -> HashSet<Permission> {
         let mut perms = HashSet::new();
-        
+
         // File system
-        perms.insert(Permission::FileSystem(FileSystemPermission::Read(PathPattern::Any)));
-        perms.insert(Permission::FileSystem(FileSystemPermission::Write(PathPattern::Prefix(PathBuf::from("/tmp")))));
-        
+        perms.insert(Permission::FileSystem(FileSystemPermission::Read(
+            PathPattern::Any,
+        )));
+        perms.insert(Permission::FileSystem(FileSystemPermission::Write(
+            PathPattern::Prefix(PathBuf::from("/tmp")),
+        )));
+
         // Network
-        perms.insert(Permission::Network(NetworkPermission::Connect(HostPattern::Any)));
+        perms.insert(Permission::Network(NetworkPermission::Connect(
+            HostPattern::Any,
+        )));
         perms.insert(Permission::Network(NetworkPermission::DNSResolve));
-        
+
         // Resources
-        perms.insert(Permission::Resource(ResourcePermission::Memory(1_000_000_000))); // 1GB
+        perms.insert(Permission::Resource(ResourcePermission::Memory(
+            1_000_000_000,
+        ))); // 1GB
         perms.insert(Permission::Resource(ResourcePermission::CPUTime(60_000))); // 60s
         perms.insert(Permission::Resource(ResourcePermission::Threads(10)));
-        
+
         // Module interaction
-        perms.insert(Permission::ModuleInteraction(ModuleInteractionPermission::Import(ModulePattern::Any)));
-        
+        perms.insert(Permission::ModuleInteraction(
+            ModuleInteractionPermission::Import(ModulePattern::Any),
+        ));
+
         perms
     }
-    
+
     /// Create a permission set for system modules
     pub fn system_permissions() -> HashSet<Permission> {
         let mut perms = Self::trusted_permissions();
-        
+
         // Additional system permissions
-        perms.insert(Permission::FileSystem(FileSystemPermission::Write(PathPattern::Any)));
-        perms.insert(Permission::FileSystem(FileSystemPermission::Delete(PathPattern::Any)));
-        perms.insert(Permission::FileSystem(FileSystemPermission::Execute(PathPattern::Any)));
-        
-        perms.insert(Permission::Process(ProcessPermission::Spawn(ProcessPattern::Any)));
+        perms.insert(Permission::FileSystem(FileSystemPermission::Write(
+            PathPattern::Any,
+        )));
+        perms.insert(Permission::FileSystem(FileSystemPermission::Delete(
+            PathPattern::Any,
+        )));
+        perms.insert(Permission::FileSystem(FileSystemPermission::Execute(
+            PathPattern::Any,
+        )));
+
+        perms.insert(Permission::Process(ProcessPermission::Spawn(
+            ProcessPattern::Any,
+        )));
         perms.insert(Permission::Process(ProcessPermission::Signal));
-        
+
         perms.insert(Permission::FFI(FFIPermission::Call(LibraryPattern::Any)));
-        perms.insert(Permission::FFI(FFIPermission::LoadLibrary(PathPattern::Any)));
+        perms.insert(Permission::FFI(FFIPermission::LoadLibrary(
+            PathPattern::Any,
+        )));
         perms.insert(Permission::FFI(FFIPermission::Unsafe));
-        
-        perms.insert(Permission::ModuleInteraction(ModuleInteractionPermission::Reflection));
-        perms.insert(Permission::ModuleInteraction(ModuleInteractionPermission::DynamicLoad));
-        
+
+        perms.insert(Permission::ModuleInteraction(
+            ModuleInteractionPermission::Reflection,
+        ));
+        perms.insert(Permission::ModuleInteraction(
+            ModuleInteractionPermission::DynamicLoad,
+        ));
+
         perms
     }
 }
@@ -474,38 +509,38 @@ impl PermissionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_path_pattern_matching() {
         let exact = PathPattern::Exact(PathBuf::from("/tmp/test.txt"));
         assert!(exact.matches(Path::new("/tmp/test.txt")));
         assert!(!exact.matches(Path::new("/tmp/other.txt")));
-        
+
         let prefix = PathPattern::Prefix(PathBuf::from("/tmp"));
         assert!(prefix.matches(Path::new("/tmp/test.txt")));
         assert!(prefix.matches(Path::new("/tmp/subdir/file.txt")));
         assert!(!prefix.matches(Path::new("/var/test.txt")));
-        
+
         let glob = PathPattern::Glob("/tmp/*".to_string());
         assert!(glob.matches(Path::new("/tmp/test.txt")));
         assert!(glob.matches(Path::new("/tmp/subdir")));
     }
-    
+
     #[test]
     fn test_permission_manager() {
         let manager = PermissionManager::new();
         let module = ModulePath::from_string("test.module").unwrap();
-        
+
         // Should fail without permissions
         let perm = Permission::FileSystem(FileSystemPermission::Read(PathPattern::Any));
         assert!(manager.check_permission(&module, &perm).is_err());
-        
+
         // Grant permission
         manager.grant_permission(&module, perm.clone()).unwrap();
-        
+
         // Should succeed now
         assert!(manager.check_permission(&module, &perm).is_ok());
-        
+
         // Check audit log
         let log = manager.get_audit_log();
         assert!(!log.is_empty());

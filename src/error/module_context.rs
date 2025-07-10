@@ -1,10 +1,10 @@
 //! Module-aware error context for enhanced error reporting
-//! 
+//!
 //! This module provides rich error context that includes module import chains,
 //! source locations across modules, and detailed diagnostics for cross-module issues.
 
 use crate::error::{Error, ErrorKind};
-use crate::module::{ModulePath, ImportPath};
+use crate::module::{ImportPath, ModulePath};
 use crate::source::Span;
 use crate::types::Type;
 use std::path::PathBuf;
@@ -61,42 +61,61 @@ impl ModuleAwareError {
             suggestions: Vec::new(),
         }
     }
-    
+
     /// Add an import step to the chain
     pub fn add_import_step(&mut self, step: ImportStep) {
         self.import_chain.push(step);
     }
-    
+
     /// Add a related error
     pub fn add_related_error(&mut self, related: RelatedError) {
         self.related_errors.push(related);
     }
-    
+
     /// Add a suggestion
     pub fn add_suggestion(&mut self, suggestion: impl Into<String>) {
         self.suggestions.push(suggestion.into());
     }
-    
+
     /// Format the error with full context
     pub fn format_with_context(&self) -> String {
         let mut output = String::new();
-        
+
         // Main error
-        output.push_str(&format!("error[{}]: {}\n", self.error_code(), self.error.message));
-        output.push_str(&format!(" --> {}:{}\n", self.module, self.error.span.map(|s| s.to_string()).unwrap_or_default()));
-        
+        output.push_str(&format!(
+            "error[{}]: {}\n",
+            self.error_code(),
+            self.error.message
+        ));
+        output.push_str(&format!(
+            " --> {}:{}\n",
+            self.module,
+            self.error
+                .location
+                .map(|s| s.to_string())
+                .unwrap_or_default()
+        ));
+
         // Import chain
         if !self.import_chain.is_empty() {
             output.push_str("\nImport chain:\n");
             for (i, step) in self.import_chain.iter().enumerate() {
                 let indent = "  ".repeat(i);
-                output.push_str(&format!("{}{} imports {}\n", indent, step.from_module, step.to_module));
+                output.push_str(&format!(
+                    "{}{} imports {}\n",
+                    indent, step.from_module, step.to_module
+                ));
                 if let Some(file) = &step.source_file {
-                    output.push_str(&format!("{}  at {}:{}\n", indent, file.display(), step.location));
+                    output.push_str(&format!(
+                        "{}  at {}:{}\n",
+                        indent,
+                        file.display(),
+                        step.location
+                    ));
                 }
             }
         }
-        
+
         // Related errors
         if !self.related_errors.is_empty() {
             output.push_str("\nRelated errors:\n");
@@ -104,7 +123,7 @@ impl ModuleAwareError {
                 output.push_str(&format!("  - [{}] {}\n", related.module, related.message));
             }
         }
-        
+
         // Suggestions
         if !self.suggestions.is_empty() {
             output.push_str("\nSuggestions:\n");
@@ -112,10 +131,10 @@ impl ModuleAwareError {
                 output.push_str(&format!("  - {}\n", suggestion));
             }
         }
-        
+
         output
     }
-    
+
     /// Get error code for categorization
     fn error_code(&self) -> &'static str {
         match &self.error.kind {
@@ -147,41 +166,50 @@ impl ModuleErrorBuilder {
             suggestions: Vec::new(),
         }
     }
-    
+
     pub fn error(mut self, error: Error) -> Self {
         self.base_error = Some(error);
         self
     }
-    
+
     pub fn module(mut self, module: ModulePath) -> Self {
         self.module = Some(module);
         self
     }
-    
+
     pub fn import_chain(mut self, chain: Vec<ImportStep>) -> Self {
         self.import_chain = chain;
         self
     }
-    
+
     pub fn add_import_step(mut self, step: ImportStep) -> Self {
         self.import_chain.push(step);
         self
     }
-    
-    pub fn related_error(mut self, module: ModulePath, message: String, location: Option<Span>) -> Self {
-        self.related_errors.push(RelatedError { module, message, location });
+
+    pub fn related_error(
+        mut self,
+        module: ModulePath,
+        message: String,
+        location: Option<Span>,
+    ) -> Self {
+        self.related_errors.push(RelatedError {
+            module,
+            message,
+            location,
+        });
         self
     }
-    
+
     pub fn suggestion(mut self, suggestion: impl Into<String>) -> Self {
         self.suggestions.push(suggestion.into());
         self
     }
-    
+
     pub fn build(self) -> Result<ModuleAwareError, String> {
         let error = self.base_error.ok_or("Error is required")?;
         let module = self.module.ok_or("Module is required")?;
-        
+
         Ok(ModuleAwareError {
             error,
             module,
@@ -218,30 +246,28 @@ pub enum TypeMismatchContext {
         position: usize,
     },
     /// Function return type mismatch
-    FunctionReturn {
-        function: String,
-    },
+    FunctionReturn { function: String },
     /// Variable assignment type mismatch
-    VariableAssignment {
-        variable: String,
-    },
+    VariableAssignment { variable: String },
     /// Import type mismatch
-    ImportedSymbol {
-        symbol: String,
-    },
+    ImportedSymbol { symbol: String },
 }
 
 impl CrossModuleTypeMismatch {
     /// Format as a detailed error message
     pub fn format_error(&self) -> String {
         let mut output = String::new();
-        
+
         // Main error message
         output.push_str("error: type mismatch across module boundary\n");
-        
+
         // Context-specific message
         match &self.context {
-            TypeMismatchContext::FunctionParameter { function, parameter, position } => {
+            TypeMismatchContext::FunctionParameter {
+                function,
+                parameter,
+                position,
+            } => {
                 output.push_str(&format!(
                     "  Function '{}' parameter '{}' (position {}) expects type '{}' from module '{}'\n",
                     function, parameter, position, self.expected, self.expected_module
@@ -282,16 +308,18 @@ impl CrossModuleTypeMismatch {
                 ));
             }
         }
-        
+
         // Add location
         output.push_str(&format!(" --> at {}\n", self.location));
-        
+
         // Add help text
         output.push_str("\nhelp: ensure that types are compatible across module boundaries\n");
         if self.expected_module != self.actual_module {
-            output.push_str("note: types with the same name from different modules are considered distinct\n");
+            output.push_str(
+                "note: types with the same name from different modules are considered distinct\n",
+            );
         }
-        
+
         output
     }
 }
@@ -329,13 +357,13 @@ impl ImportResolutionFailure {
     /// Format as a detailed error message
     pub fn format_error(&self) -> String {
         let mut output = String::new();
-        
+
         // Main error message
         output.push_str(&format!(
             "error: cannot resolve import '{}' in module '{}'\n",
             self.import, self.importing_module
         ));
-        
+
         // Reason-specific details
         match &self.reason {
             ImportFailureReason::NotFound => {
@@ -373,10 +401,10 @@ impl ImportResolutionFailure {
                 ));
             }
         }
-        
+
         // Add location
         output.push_str(&format!("\n --> at {}\n", self.location));
-        
+
         output
     }
 }
@@ -384,18 +412,15 @@ impl ImportResolutionFailure {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::module::error::ModuleError;
+    use crate::module::ModuleError;
     use crate::source::SourceLocation;
-    
+
     #[test]
     fn test_module_error_builder() {
-        let base_error = Error::new(
-            ErrorKind::Module(ModuleError::not_found("test")),
-            "Module not found",
-        );
-        
+        let base_error = Error::new(ErrorKind::ModuleError, "Module not found");
+
         let module = ModulePath::from_string("app.main").unwrap();
-        
+
         let error = ModuleErrorBuilder::new()
             .error(base_error)
             .module(module.clone())
@@ -403,18 +428,18 @@ mod tests {
             .suggestion("Ensure the module file exists")
             .build()
             .unwrap();
-        
+
         assert_eq!(error.module, module);
         assert_eq!(error.suggestions.len(), 2);
     }
-    
+
     #[test]
     fn test_cross_module_type_mismatch() {
         let expected = Type::Named("User".to_string());
         let actual = Type::Named("User".to_string());
         let expected_module = ModulePath::from_string("auth.models").unwrap();
         let actual_module = ModulePath::from_string("api.models").unwrap();
-        
+
         let mismatch = CrossModuleTypeMismatch {
             expected,
             expected_module,
@@ -430,7 +455,7 @@ mod tests {
                 SourceLocation::new(10, 20, 115),
             ),
         };
-        
+
         let error_msg = mismatch.format_error();
         assert!(error_msg.contains("type mismatch across module boundary"));
         assert!(error_msg.contains("auth.models"));

@@ -3,11 +3,11 @@
 //! This module handles the generation of DWARF debug information
 //! for Script language programs compiled with Cranelift.
 
+use self::safe_conversions::{usize_to_u64, validate_file_count};
 use crate::error::Error;
 use crate::ir::Function as IrFunction;
 use crate::source::SourceLocation;
 use std::collections::HashMap;
-use self::safe_conversions::{usize_to_u64, validate_file_count};
 
 pub mod dwarf_builder;
 pub mod line_table;
@@ -50,7 +50,7 @@ impl DebugContext {
 
         // Validate file count is within limits
         validate_file_count(self.file_map.len())?;
-        
+
         // Safely convert to u64
         let file_id = usize_to_u64(self.file_map.len())?;
         self.file_map.insert(file_path.to_string(), file_id);
@@ -202,6 +202,9 @@ mod tests {
         // This should fail as we're at the limit
         let result = debug_ctx.add_file("/test/one_more.script");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Too many source files"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Too many source files"));
     }
 }
