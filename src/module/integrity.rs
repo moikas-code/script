@@ -366,28 +366,34 @@ impl ModuleIntegrityVerifier {
     }
 
     /// Verify module signature using existing checksum
-    fn verify_module_signature_from_checksum(&self, checksum: &ModuleChecksum, signature: &ModuleSignature) -> ModuleResult<bool> {
+    fn verify_module_signature_from_checksum(
+        &self,
+        checksum: &ModuleChecksum,
+        signature: &ModuleSignature,
+    ) -> ModuleResult<bool> {
         // For production implementation, this would:
-        // 1. Parse the signature format (e.g., RSA, Ed25519) 
+        // 1. Parse the signature format (e.g., RSA, Ed25519)
         // 2. Extract the public key from a trusted keystore
         // 3. Verify the signature against the module content hash
         // 4. Check certificate chain and expiration
-        
+
         // For now, implement a basic signature verification
         // In production, replace with proper cryptographic verification
         let content_hash = &checksum.sha256;
-        
+
         // Simple verification: signature should contain content hash
         // Production implementation would use proper cryptographic verification
         let is_valid = signature.signature.contains(content_hash);
-        
+
         if !is_valid {
-            println!("Module signature verification failed for content hash: {}", content_hash);
+            println!(
+                "Module signature verification failed for content hash: {}",
+                content_hash
+            );
         }
-        
+
         Ok(is_valid)
     }
-
 }
 
 /// Module integrity lock file for dependency verification

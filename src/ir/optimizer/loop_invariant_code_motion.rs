@@ -224,7 +224,7 @@ impl LoopInvariantCodeMotion {
             }
             // Constants are always loop invariant
             Instruction::Const(_) => true,
-            
+
             // Struct operations
             Instruction::AllocStruct { .. } => false, // Allocation has side effects
             Instruction::ConstructStruct { fields, .. } => {
@@ -233,7 +233,7 @@ impl LoopInvariantCodeMotion {
                     self.is_value_loop_invariant(*value, defined_in_loop, current_invariants)
                 })
             }
-            
+
             // Enum operations
             Instruction::AllocEnum { .. } => false, // Allocation has side effects
             Instruction::ConstructEnum { args, .. } => {
@@ -249,7 +249,7 @@ impl LoopInvariantCodeMotion {
             Instruction::ExtractEnumData { enum_value, .. } => {
                 self.is_value_loop_invariant(*enum_value, defined_in_loop, current_invariants)
             }
-            
+
             // Async operations - generally not invariant due to state changes
             Instruction::Suspend { .. } => false,
             Instruction::PollFuture { .. } => false,
@@ -262,7 +262,7 @@ impl LoopInvariantCodeMotion {
                 self.is_value_loop_invariant(*state_ptr, defined_in_loop, current_invariants)
             }
             Instruction::SetAsyncState { .. } => false,
-            
+
             // Security operations
             Instruction::BoundsCheck { array, index, length, .. } => {
                 self.is_value_loop_invariant(*array, defined_in_loop, current_invariants) &&
@@ -272,12 +272,12 @@ impl LoopInvariantCodeMotion {
             Instruction::ValidateFieldAccess { object, .. } => {
                 self.is_value_loop_invariant(*object, defined_in_loop, current_invariants)
             }
-            
+
             // Error handling
             Instruction::ErrorPropagation { value, .. } => {
                 self.is_value_loop_invariant(*value, defined_in_loop, current_invariants)
             }
-            
+
             // Closure operations
             Instruction::CreateClosure { .. } => false, // Closure creation has side effects
             Instruction::InvokeClosure { .. } => false, // Closure invocation has side effects

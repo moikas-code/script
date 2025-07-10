@@ -399,11 +399,11 @@ impl LoopAnalyzer {
         // - Loop bounds (i < N)
         // - Invariant conditions
         // - Reduction patterns
-        
+
         // Mark that we have a condition to analyze
         // This prevents optimization from applying to loops without clear exit conditions
         let _ = condition; // Acknowledge the parameter
-        
+
         // For now, conservatively assume the loop may have complex control flow
         // Production implementation would do full data flow analysis here
     }

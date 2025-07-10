@@ -1062,7 +1062,7 @@ impl BlockingExecutor {
         let executor = Self::new();
 
         // Spawn the future
-        let task_id = {
+        let _task_id = {
             let mut exec = executor
                 .lock()
                 .map_err(|_| Error::lock_poisoned("Failed to acquire lock on blocking executor"))?;

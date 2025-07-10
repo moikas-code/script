@@ -422,11 +422,11 @@ impl<'a> FunctionTranslator<'a> {
             Instruction::CreateAsyncState {
                 initial_state,
                 state_size,
-                output_ty,
+                output_ty: _,
             } => {
                 // Allocate memory for the async state
                 let size_bytes = *state_size as i64;
-                let size_val = builder.ins().iconst(types::I64, size_bytes);
+                let _size_val = builder.ins().iconst(types::I64, size_bytes);
 
                 // Call malloc or use stack allocation
                 // For now, use stack allocation
@@ -563,7 +563,7 @@ impl<'a> FunctionTranslator<'a> {
             Instruction::AllocEnum {
                 enum_name,
                 variant_size,
-                ty,
+                ty: _,
             } => {
                 // Allocate space for enum (discriminant + largest variant)
                 let total_size = 4 + variant_size; // 4 bytes for discriminant
@@ -1240,7 +1240,7 @@ impl<'a> FunctionTranslator<'a> {
         &mut self,
         object: Value,
         field_name: &str,
-        field_ty: &crate::types::Type,
+        _field_ty: &crate::types::Type,
         builder: &mut FunctionBuilder,
     ) -> CodegenResult<Value> {
         // Get the object's type from our type tracking

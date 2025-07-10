@@ -216,7 +216,7 @@ impl SystemCallInterceptor {
     }
 
     /// Intercept file system read
-    fn intercept_fs_read(args: &[Value]) -> Result<Value, Error> {
+    fn intercept_fs_read(_args: &[Value]) -> Result<Value, Error> {
         Err(Error::new(
             ErrorKind::SecurityViolation,
             "File system read access denied in sandbox",
@@ -224,7 +224,7 @@ impl SystemCallInterceptor {
     }
 
     /// Intercept file system write
-    fn intercept_fs_write(args: &[Value]) -> Result<Value, Error> {
+    fn intercept_fs_write(_args: &[Value]) -> Result<Value, Error> {
         Err(Error::new(
             ErrorKind::SecurityViolation,
             "File system access denied in sandbox",
@@ -232,7 +232,7 @@ impl SystemCallInterceptor {
     }
 
     /// Intercept network connection
-    fn intercept_net_connect(args: &[Value]) -> Result<Value, Error> {
+    fn intercept_net_connect(_args: &[Value]) -> Result<Value, Error> {
         Err(Error::new(
             ErrorKind::SecurityViolation,
             "Network access denied in sandbox",
@@ -240,7 +240,7 @@ impl SystemCallInterceptor {
     }
 
     /// Intercept process spawn
-    fn intercept_process_spawn(args: &[Value]) -> Result<Value, Error> {
+    fn intercept_process_spawn(_args: &[Value]) -> Result<Value, Error> {
         Err(Error::new(
             ErrorKind::SecurityViolation,
             "Process spawning denied in sandbox",

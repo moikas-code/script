@@ -954,5 +954,4 @@ mod tests {
         let result = infer_program_str("fn f(x: i32) { x } f(1, 2);");
         assert!(result.is_err());
     }
-
 }

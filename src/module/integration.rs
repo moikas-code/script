@@ -1953,7 +1953,7 @@ impl ModuleCompilationPipeline {
     /// Set module permissions
     pub fn set_module_permissions(
         &self,
-        module_path: &ModulePath,
+        _module_path: &ModulePath,
         permissions: crate::module::ModulePermissions,
     ) -> ModuleResult<()> {
         self.permission_manager.register_module(permissions);
@@ -1972,7 +1972,7 @@ impl ModuleCompilationPipeline {
     pub fn format_error_with_context(
         &mut self,
         error: &ModuleError,
-        module_path: &ModulePath,
+        _module_path: &ModulePath,
     ) -> String {
         if let Some(ctx) = self.context_stack.current_mut() {
             let span = crate::source::Span::new(

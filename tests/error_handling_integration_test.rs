@@ -371,7 +371,11 @@ fn create_test_runtime() -> Runtime {
     let stdlib = StdLib::new();
     for name in stdlib.function_names() {
         if let Some(func) = stdlib.get_function(name) {
-            runtime.register_function(name.to_string(), func.signature.clone(), func.implementation);
+            runtime.register_function(
+                name.to_string(),
+                func.signature.clone(),
+                func.implementation,
+            );
         }
     }
 

@@ -393,7 +393,8 @@ fn test_if_non_boolean_condition() {
         r#"
         if 42 { 1 } else { 2 }
     "#,
-    ).unwrap();
+    )
+    .unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -418,7 +419,8 @@ fn test_if_incompatible_branch_types() {
         r#"
         let x = if true { 42 } else { "hello" };
     "#,
-    ).unwrap();
+    )
+    .unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
@@ -499,7 +501,8 @@ fn test_if_expression_with_string_condition() {
         r#"
         if "not a boolean" { 1 } else { 2 }
     "#,
-    ).unwrap();
+    )
+    .unwrap();
     let (tokens, _) = lexer.scan_tokens();
     let mut parser = Parser::new(tokens);
     let program = parser.parse().unwrap();
