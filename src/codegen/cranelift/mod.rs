@@ -352,12 +352,15 @@ impl CodegenBackend for CraneliftBackend {
             debug_info,
         });
 
-        // Find entry point (main function if it exists)
-        let (entry_point, is_async) = if let Some(main_func) = module.get_function_by_name("main") {
-            (Some("main".to_string()), main_func.is_async)
-        } else {
-            (None, false)
-        };
+        // Find entry point (prefer __script_main__ for top-level code, then user's main)
+        let (entry_point, is_async) =
+            if let Some(script_main) = module.get_function_by_name("__script_main__") {
+                (Some("__script_main__".to_string()), script_main.is_async)
+            } else if let Some(main_func) = module.get_function_by_name("main") {
+                (Some("main".to_string()), main_func.is_async)
+            } else {
+                (None, false)
+            };
 
         if is_async {
             Ok(ExecutableModule::new_async(entry_point, backend_data))

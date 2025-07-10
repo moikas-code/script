@@ -630,7 +630,7 @@ fn script_join_all_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::runtime::ScriptFuture;
+    use crate::runtime::async_runtime_secure::ScriptFuture;
     use std::task::{Poll, Waker};
 
     struct ImmediateFuture<T>(Option<T>);
@@ -638,7 +638,7 @@ mod tests {
     impl<T> ScriptFuture for ImmediateFuture<T> {
         type Output = T;
 
-        fn poll(&mut self, _waker: &Waker) -> Poll<Self::Output> {
+        fn poll(&mut self, _waker: &Waker) -> Poll<T> {
             Poll::Ready(self.0.take().expect("polled after completion"))
         }
     }

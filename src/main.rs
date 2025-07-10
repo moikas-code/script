@@ -117,13 +117,13 @@ fn run_file(path: &str, args: &[String]) {
             let mode = if args.len() > 2 {
                 match args[2].as_str() {
                     "--tokens" => Mode::Tokens,
-                    "--run" => Mode::Run,
+                    "--parse" => Mode::Parse,
                     "--test" => Mode::Test,
                     "--debug" => Mode::Debug,
-                    _ => Mode::Parse,
+                    _ => Mode::Run,
                 }
             } else {
-                Mode::Parse
+                Mode::Run
             };
 
             match mode {

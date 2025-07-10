@@ -300,7 +300,7 @@ mod tests {
         match script_val {
             ScriptValue::Option(opt) => {
                 assert!(opt.is_some());
-                match &**opt {
+                match opt.as_ref() {
                     ScriptOption::Some(ScriptValue::I32(42)) => {}
                     _ => panic!("Expected Some(42)"),
                 }

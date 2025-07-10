@@ -148,7 +148,7 @@ fn check_simple_exhaustiveness(
 }
 
 /// Check if enum patterns are exhaustive
-fn check_enum_exhaustiveness(arms: &[MatchArm], enum_name: &str, enum_info: &EnumInfo) -> bool {
+fn check_enum_exhaustiveness(arms: &[MatchArm], _enum_name: &str, enum_info: &EnumInfo) -> bool {
     use std::collections::HashSet;
 
     // Collect all variant names

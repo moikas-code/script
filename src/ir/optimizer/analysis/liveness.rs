@@ -379,6 +379,7 @@ impl fmt::Display for LivenessInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ir::optimizer::analysis::data_flow::DataFlowJoin;
     use crate::ir::{BinaryOp, Constant, IrBuilder};
     use crate::types::Type;
 

@@ -406,7 +406,7 @@ impl SemanticAnalyzer {
     pub fn register_generic_function(
         &mut self,
         name: &str,
-        generic_params: crate::parser::GenericParams,
+        _generic_params: crate::parser::GenericParams,
     ) {
         // Store the generic function information for later instantiation
         // This is used during cross-module type propagation
@@ -542,7 +542,30 @@ impl SemanticAnalyzer {
 
     /// Add built-in functions
     fn add_builtins(&mut self) -> Result<()> {
-        // print function: (unknown) -> void
+        // Create the full standard library
+        let stdlib = crate::stdlib::StdLib::new();
+
+        // Register all stdlib functions with the semantic analyzer
+        for function_name in stdlib.function_names() {
+            if let Some(stdlib_function) = stdlib.get_function(function_name) {
+                let signature = self.convert_stdlib_signature(&stdlib_function.signature);
+                self.symbol_table
+                    .define_function(
+                        function_name.to_string(),
+                        signature,
+                        crate::source::Span::single(crate::source::SourceLocation::initial()),
+                    )
+                    .map_err(|e| {
+                        SemanticError::new(
+                            SemanticErrorKind::DuplicateFunction(e),
+                            crate::source::Span::single(crate::source::SourceLocation::initial()),
+                        )
+                        .into_error()
+                    })?;
+            }
+        }
+
+        // Also add basic print function for backward compatibility
         let print_sig = FunctionSignature {
             generic_params: None,
             params: vec![("value".to_string(), Type::Unknown)],
@@ -557,13 +580,27 @@ impl SemanticAnalyzer {
                 print_sig,
                 crate::source::Span::single(crate::source::SourceLocation::initial()),
             )
-            .map_err(|e| {
-                SemanticError::new(
-                    SemanticErrorKind::DuplicateFunction(e),
-                    crate::source::Span::single(crate::source::SourceLocation::initial()),
-                )
-                .into_error()
-            })?;
+            .map_err(|_| {
+                // Ignore if already exists
+            });
+
+        // Add println function
+        let println_sig = FunctionSignature {
+            generic_params: None,
+            params: vec![("value".to_string(), Type::Unknown)],
+            return_type: Type::Unknown, // void
+            is_const: false,
+            is_async: false,
+        };
+        self.symbol_table
+            .define_function(
+                "println".to_string(),
+                println_sig,
+                crate::source::Span::single(crate::source::SourceLocation::initial()),
+            )
+            .map_err(|_| {
+                // Ignore if already exists
+            });
 
         // len function: ([T]) -> i32
         let len_sig = FunctionSignature {
@@ -678,6 +715,20 @@ impl SemanticAnalyzer {
             })?;
 
         Ok(())
+    }
+
+    /// Convert a stdlib type signature to a semantic analyzer function signature
+    fn convert_stdlib_signature(&self, stdlib_type: &Type) -> FunctionSignature {
+        // For now, create a simple signature for all stdlib functions
+        // In a complete implementation, this would parse the actual Type to extract
+        // function parameters and return type
+        FunctionSignature {
+            generic_params: None,
+            params: vec![("args".to_string(), Type::Unknown)],
+            return_type: Type::Unknown,
+            is_const: false,
+            is_async: false,
+        }
     }
 
     /// Analyze a struct definition
@@ -1394,7 +1445,7 @@ impl SemanticAnalyzer {
                         }
 
                         // Function parameters are initialized by the caller
-                        if let Err(err) = self
+                        if let Err(_err) = self
                             .memory_safety_ctx
                             .initialize_variable(&param.name, param.type_ann.span)
                         {
@@ -1570,7 +1621,7 @@ impl SemanticAnalyzer {
                         }
 
                         // Function parameters are initialized by the caller
-                        if let Err(err) = self
+                        if let Err(_err) = self
                             .memory_safety_ctx
                             .initialize_variable(&param.name, param.type_ann.span)
                         {
@@ -3640,7 +3691,7 @@ impl SemanticAnalyzer {
         signature: &FunctionSignature,
         arg_types: &[Type],
     ) -> Result<FunctionSignature> {
-        let generic_params = signature.generic_params.as_ref().unwrap();
+        let _generic_params = signature.generic_params.as_ref().unwrap();
 
         // Create a type substitution map
         let mut type_substitutions = HashMap::new();
@@ -4595,7 +4646,7 @@ impl SemanticAnalyzer {
         _struct_name: &str,
         struct_info: &crate::semantic::symbol::StructInfo,
         provided_fields: &[(String, Expr)],
-        _span: crate::source::Span,
+        span: crate::source::Span,
     ) -> Result<Vec<Type>> {
         if let Some(generic_params) = &struct_info.generic_params {
             // Use the constructor inference engine
@@ -4619,7 +4670,7 @@ impl SemanticAnalyzer {
                 .collect();
 
             // Generate constraints
-            engine.constrain_struct_fields(&expected_fields, &provided_field_types, _span)?;
+            engine.constrain_struct_fields(&expected_fields, &provided_field_types, span)?;
 
             // Infer types
             let result = engine.infer(generic_params)?;
@@ -4637,7 +4688,7 @@ impl SemanticAnalyzer {
         enum_info: &crate::semantic::symbol::EnumInfo,
         variant: &crate::semantic::symbol::EnumVariantInfo,
         args: &crate::parser::EnumConstructorArgs,
-        _span: crate::source::Span,
+        span: crate::source::Span,
     ) -> Result<Vec<Type>> {
         if let Some(generic_params) = &enum_info.generic_params {
             // Use the constructor inference engine
@@ -4684,7 +4735,7 @@ impl SemanticAnalyzer {
             };
 
             // Generate constraints
-            engine.constrain_enum_variant_args(&expected_types, &provided_types, _span)?;
+            engine.constrain_enum_variant_args(&expected_types, &provided_types, span)?;
 
             // Infer types
             let result = engine.infer(generic_params)?;

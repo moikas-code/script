@@ -70,7 +70,7 @@ impl Generator for SqlGenerator {
             ));
         }
 
-        let table_name = &args[0];
+        let _table_name = &args[0];
 
         // In a real implementation, this would:
         // 1. Connect to database or read schema file
@@ -95,7 +95,7 @@ impl Generator for ApiGenerator {
             ));
         }
 
-        let spec_file = &args[0];
+        let _spec_file = &args[0];
 
         // In a real implementation, this would:
         // 1. Read the OpenAPI/Swagger specification

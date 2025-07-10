@@ -233,6 +233,59 @@ impl<'a> FunctionTranslator<'a> {
             }
 
             Instruction::Call { func, args, ty } => {
+                // Check if this is a known runtime function by ID
+                // script_print is always FunctionId(1) in our current implementation
+                let is_script_print = func.0 == 1; // Hacky but works for now
+
+                if is_script_print {
+                    // Special handling for script_print runtime function
+                    // script_print is a runtime function expecting (i64, i64)
+                    // First argument is a pointer to string data (not including length prefix)
+                    // Second argument is the string length
+                    let cranelift_func_id = self.func_ids.get("script_print").ok_or_else(|| {
+                        Error::new(
+                            ErrorKind::RuntimeError,
+                            "Runtime function 'script_print' not found",
+                        )
+                    })?;
+
+                    let func_ref = self
+                        .module
+                        .declare_func_in_func(*cranelift_func_id, builder.func);
+
+                    // Get the string pointer and length arguments
+                    if args.len() != 2 {
+                        return Err(Error::new(
+                            ErrorKind::RuntimeError,
+                            format!("script_print expects 2 arguments, got {}", args.len()),
+                        ));
+                    }
+
+                    let string_ptr = self.get_value(args[0])?;
+                    let length = self.get_value(args[1])?;
+
+                    // For Pascal-style strings, we need to adjust the pointer
+                    // The string data starts 8 bytes after the base pointer (after the length field)
+                    let offset = builder.ins().iconst(types::I64, 8);
+                    let adjusted_ptr = builder.ins().iadd(string_ptr, offset);
+
+                    // Convert length to i64 if needed
+                    let length_i64 = if builder.func.dfg.value_type(length) == types::I32 {
+                        builder.ins().sextend(types::I64, length)
+                    } else {
+                        length
+                    };
+
+                    // Call script_print with adjusted pointer and length
+                    builder.ins().call(func_ref, &[adjusted_ptr, length_i64]);
+
+                    // script_print returns void, so create a dummy value
+                    let result = builder.ins().iconst(types::I32, 0);
+                    self.values.insert(value_id, result);
+
+                    return Ok(());
+                }
+
                 // Look up the function in the IR module to get its name and signature
                 let ir_func = self.ir_module.get_function(*func).ok_or_else(|| {
                     Error::new(
@@ -536,13 +589,13 @@ impl<'a> FunctionTranslator<'a> {
             }
 
             // These might already be implemented, but including for completeness
-            Instruction::AllocStruct { struct_name, ty } => {
+            Instruction::AllocStruct { struct_name: _, ty } => {
                 let result = self.translate_alloc(ty, builder)?;
                 self.values.insert(value_id, result);
             }
 
             Instruction::ConstructStruct {
-                struct_name,
+                struct_name: _,
                 fields,
                 ty,
             } => {
@@ -561,7 +614,7 @@ impl<'a> FunctionTranslator<'a> {
             }
 
             Instruction::AllocEnum {
-                enum_name,
+                enum_name: _,
                 variant_size,
                 ty: _,
             } => {

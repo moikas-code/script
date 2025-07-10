@@ -297,7 +297,7 @@ impl ModuleIntegrityVerifier {
     }
 
     /// Load trusted module registry from file
-    pub fn load_registry(&self, registry_path: &Path) -> ModuleResult<()> {
+    pub fn load_registry(&self, _registry_path: &Path) -> ModuleResult<()> {
         // In a real implementation, this would parse a registry file
         // For now, we'll add some default system modules
 

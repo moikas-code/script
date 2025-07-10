@@ -64,7 +64,7 @@ pub trait DeriveHandler: Send + Sync {
 struct DebugDeriveHandler;
 
 impl DeriveHandler for DebugDeriveHandler {
-    fn generate(&self, type_name: &str, original: &Stmt) -> Result<Vec<Stmt>> {
+    fn generate(&self, type_name: &str, _original: &Stmt) -> Result<Vec<Stmt>> {
         // Generate a debug() method that returns a string representation
         let debug_fn = Stmt {
             kind: StmtKind::Function {
@@ -104,7 +104,7 @@ impl DeriveHandler for DebugDeriveHandler {
 struct SerializeDeriveHandler;
 
 impl DeriveHandler for SerializeDeriveHandler {
-    fn generate(&self, type_name: &str, original: &Stmt) -> Result<Vec<Stmt>> {
+    fn generate(&self, type_name: &str, _original: &Stmt) -> Result<Vec<Stmt>> {
         // Generate a serialize() method that converts to JSON
         let serialize_fn = Stmt {
             kind: StmtKind::Function {

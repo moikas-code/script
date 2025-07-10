@@ -334,15 +334,15 @@ impl PackageManager {
                     name,
                     dependency,
                     resolved_version,
-                    url,
-                    rev,
-                    branch,
-                    tag,
+                    &url,
+                    &rev,
+                    &branch,
+                    &tag,
                 )?;
             }
             DependencyKind::Path { path } => {
                 // Path dependency installation logic
-                self.install_path_dependency(name, dependency, resolved_version, path)?;
+                self.install_path_dependency(name, dependency, resolved_version, &path)?;
             }
         }
 

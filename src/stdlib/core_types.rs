@@ -297,7 +297,7 @@ impl ScriptOption {
     }
 
     /// Reduce - if this is None, return None
-    pub fn reduce<F>(&self, f: F) -> ScriptOption
+    pub fn reduce<F>(&self, _f: F) -> ScriptOption
     where
         F: FnOnce(&ScriptValue, &ScriptValue) -> ScriptValue,
     {
@@ -630,7 +630,7 @@ impl ScriptResult {
     }
 
     /// Reduce - if this is Err, return Err
-    pub fn reduce<F>(&self, f: F) -> ScriptResult
+    pub fn reduce<F>(&self, _f: F) -> ScriptResult
     where
         F: FnOnce(&ScriptValue, &ScriptValue) -> ScriptValue,
     {

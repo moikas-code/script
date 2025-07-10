@@ -327,7 +327,7 @@ fn find_identifier_in_expr(expr: &Expr, target: &SourceLocation) -> Option<Ident
             None
         }
         ExprKind::EnumConstructor {
-            enum_name,
+            enum_name: _,
             variant,
             args,
         } => {

@@ -182,7 +182,7 @@ impl FieldValidator {
         object: ValueId,
         field_name: &str,
         object_type: &Type,
-        error_context: &str,
+        _error_context: &str,
     ) -> Result<Instruction, Error> {
         if !self.config.enable_runtime_validation {
             return Err(Error::new(

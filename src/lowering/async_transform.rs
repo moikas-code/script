@@ -361,7 +361,7 @@ fn validate_unsafe_patterns(func: &Function) -> Result<(), Error> {
 }
 
 /// Check if a function call is dangerous in async context
-fn is_dangerous_async_call(function: &FunctionId) -> bool {
+fn is_dangerous_async_call(_function: &FunctionId) -> bool {
     // This would check against a list of known dangerous functions
     // For now, we'll do basic validation
     false // Placeholder - would be more sophisticated
@@ -372,7 +372,7 @@ fn validate_recursion_safety(func: &Function) -> Result<(), Error> {
     // Check for direct recursive calls
     for (_, block) in func.blocks() {
         for (_, inst_with_loc) in &block.instructions {
-            if let Instruction::Call { func, .. } = &inst_with_loc.instruction {
+            if let Instruction::Call { func: _, .. } = &inst_with_loc.instruction {
                 // In a real implementation, we'd resolve the function ID
                 // and check if it matches the current function
                 // For now, we'll do basic validation
@@ -539,7 +539,7 @@ fn transform_blocks(
             // Transform each instruction
             for (value_id, inst_with_loc) in &orig_block.instructions {
                 let inst = &inst_with_loc.instruction;
-                let value_id = *value_id; // Copy the value ID
+                let _value_id = *value_id; // Copy the value ID
                 match inst {
                     Instruction::PollFuture { future, output_ty } => {
                         // This is an await point - generate suspend logic

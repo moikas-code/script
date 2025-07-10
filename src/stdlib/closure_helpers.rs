@@ -29,7 +29,7 @@ impl<'a> ClosureExecutor<'a> {
         // FunctionId expects a u32, not a String - need to parse or look up the ID
         // For now, using a placeholder approach
         let func_id = FunctionId(0); // TODO: Proper function ID lookup
-        let function = self.module.get_function(func_id).ok_or_else(|| {
+        let _function = self.module.get_function(func_id).ok_or_else(|| {
             Error::new(
                 ErrorKind::RuntimeError,
                 format!("Closure function '{}' not found", closure.function_id),
@@ -64,7 +64,7 @@ impl<'a> ClosureExecutor<'a> {
         // FunctionId expects a u32, not a String - need to parse or look up the ID
         // For now, using a placeholder approach
         let func_id = FunctionId(0); // TODO: Proper function ID lookup
-        let function = self.module.get_function(func_id).ok_or_else(|| {
+        let _function = self.module.get_function(func_id).ok_or_else(|| {
             Error::new(
                 ErrorKind::RuntimeError,
                 format!("Closure function '{}' not found", closure.function_id),

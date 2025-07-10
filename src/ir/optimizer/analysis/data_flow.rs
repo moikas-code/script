@@ -211,7 +211,7 @@ impl DataFlowSolver {
     fn iterative_analysis<T, P>(
         &self,
         problem: &P,
-        func: &Function,
+        _func: &Function,
         cfg: &ControlFlowGraph,
         result: &mut DataFlowResult<T>,
     ) where

@@ -8,7 +8,7 @@
 //! - Common game-oriented random utilities
 
 use crate::runtime::{Result as RuntimeResult, RuntimeError, ScriptRc};
-use crate::stdlib::{ScriptString, ScriptValue};
+use crate::stdlib::{ScriptString, ScriptValue, ScriptVec};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -587,7 +587,7 @@ mod tests {
         ];
 
         let original = values.clone();
-        let arr = ScriptValue::Array(ScriptRc::new(values));
+        let arr = ScriptValue::Array(ScriptRc::new(ScriptVec::from_vec(values)));
 
         let shuffled = shuffle_impl(&[arr]).unwrap();
 

@@ -980,18 +980,29 @@ impl AstLowerer {
 
     /// Ensure main function exists
     fn ensure_main_function(&mut self) {
-        if self.context.get_function("main").is_none() {
-            let main_id = self
-                .builder
-                .create_function("main".to_string(), vec![], Type::Unknown);
-            self.context.register_function("main".to_string(), main_id);
+        // Use a special name for the compiler-generated main to avoid conflicts
+        const TOPLEVEL_MAIN: &str = "__script_main__";
+
+        if self.context.get_function(TOPLEVEL_MAIN).is_none() {
+            let main_id =
+                self.builder
+                    .create_function(TOPLEVEL_MAIN.to_string(), vec![], Type::Unknown);
+            self.context
+                .register_function(TOPLEVEL_MAIN.to_string(), main_id);
             self.builder.set_current_function(main_id);
+        } else {
+            // Switch to the existing toplevel main
+            if let Some(main_id) = self.context.get_function(TOPLEVEL_MAIN) {
+                self.builder.set_current_function(main_id);
+            }
         }
     }
 
     /// Finalize main function
     fn finalize_main_function(&mut self) {
-        if let Some(main_id) = self.context.get_function("main") {
+        const TOPLEVEL_MAIN: &str = "__script_main__";
+
+        if let Some(main_id) = self.context.get_function(TOPLEVEL_MAIN) {
             let current = self.builder.current_function();
             self.builder.set_current_function(main_id);
             self.ensure_return();

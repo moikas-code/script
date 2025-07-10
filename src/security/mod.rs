@@ -909,6 +909,14 @@ mod tests {
             resource_limit_violations: 0,
             compilation_timeouts: 0,
             total_security_events: 7,
+            async_pointer_validations: 0,
+            invalid_async_pointers_prevented: 0,
+            async_memory_checks: 0,
+            async_memory_violations_prevented: 0,
+            async_ffi_validations: 0,
+            malicious_ffi_calls_prevented: 0,
+            async_race_conditions_detected: 0,
+            async_task_limit_violations: 0,
         };
 
         let score = report.calculate_security_score();

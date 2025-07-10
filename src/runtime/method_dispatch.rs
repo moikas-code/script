@@ -202,7 +202,7 @@ fn option_map(receiver: &Value, args: &[Value], _stdlib: &StdLib) -> Result<Valu
         Value::Enum {
             type_name,
             variant,
-            data,
+            data: _,
         } if type_name == "Option" => {
             match variant.as_str() {
                 "Some" => {

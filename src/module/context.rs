@@ -314,7 +314,7 @@ mod tests {
         let mut chain = ModuleDependencyChain::new(root.clone());
 
         let utils = ModulePath::from_string("app.utils").unwrap();
-        let import = ImportPath::from_string("utils").unwrap();
+        let import = ImportPath::new("utils").unwrap();
         let span = Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 10, 9));
 
         chain.push(utils.clone(), import, span);
@@ -331,7 +331,7 @@ mod tests {
         let mut ctx = ModuleContext::new(module.clone());
 
         // Record a resolution
-        let import = ImportPath::from_string("dependency").unwrap();
+        let import = ImportPath::new("dependency").unwrap();
         let resolved = ModulePath::from_string("test.dependency").unwrap();
         let span = Span::new(SourceLocation::new(1, 1, 0), SourceLocation::new(1, 20, 19));
 

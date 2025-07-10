@@ -10,6 +10,16 @@ license = "MIT"
 keywords = ["programming-language", "compiler", "script"]
 categories = ["compilers", "development-tools"]
 
+# Main binary - prioritizes developer experience
+[[bin]]
+name = "script"
+path = "src/main.rs"
+
+# Alternative binary for those who want to avoid conflicts
+[[bin]]
+name = "script-lang"
+path = "src/main.rs"
+
 [dependencies]
 colored = "2.1"
 unicode-width = "0.2"

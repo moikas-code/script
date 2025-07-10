@@ -479,8 +479,8 @@ impl<'a> CrossModuleTypeValidator<'a> {
         match &stmt.kind {
             StmtKind::Function {
                 name,
-                params,
-                ret_type,
+                params: _,
+                ret_type: _,
                 ..
             } => {
                 // Validate that function types are consistent across modules
@@ -494,7 +494,9 @@ impl<'a> CrossModuleTypeValidator<'a> {
                     }
                 }
             }
-            StmtKind::Let { name, type_ann, .. } => {
+            StmtKind::Let {
+                name, type_ann: _, ..
+            } => {
                 // Validate variable type consistency
                 if let Some(symbol) = symbol_table.lookup(name) {
                     self.validate_variable_cross_module_consistency(

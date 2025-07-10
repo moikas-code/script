@@ -2045,7 +2045,7 @@ impl Parser {
     }
 
     fn consume_keyword(&mut self, keyword: &str, message: &str) -> Result<()> {
-        if let Some(token) =
+        if let Some(_token) =
             self.match_token_if(|t| matches!(t, TokenKind::Identifier(ref name) if name == keyword))
         {
             return Ok(());

@@ -71,7 +71,7 @@ pub struct RuntimeSupport;
 
 /// Print a string to stdout with safety checks
 #[no_mangle]
-pub extern "C" fn script_print(ptr: *const u8, len: usize) {
+pub unsafe extern "C" fn script_print(ptr: *const u8, len: usize) {
     // Validate inputs
     if ptr.is_null() || len == 0 {
         return;
@@ -177,7 +177,7 @@ pub extern "C" fn script_alloc(size: usize) -> *mut u8 {
 
 /// Free memory with safety validation
 #[no_mangle]
-pub extern "C" fn script_free(ptr: *mut u8, size: usize) {
+pub unsafe extern "C" fn script_free(ptr: *mut u8, size: usize) {
     // Handle null pointer
     if ptr.is_null() {
         return;
@@ -258,7 +258,7 @@ pub extern "C" fn script_free(ptr: *mut u8, size: usize) {
 
 /// Safe panic handler that doesn't assume null-terminated strings
 #[no_mangle]
-pub extern "C" fn script_panic(msg: *const u8, len: usize) -> ! {
+pub unsafe extern "C" fn script_panic(msg: *const u8, len: usize) -> ! {
     let message = if msg.is_null() || len == 0 {
         "Script panic: (no message provided)"
     } else if len > MAX_STRING_LENGTH {
@@ -373,17 +373,17 @@ impl ClosureRegistry {
 
 /// Create a closure with the given parameters
 #[no_mangle]
-pub extern "C" fn script_create_closure(
+pub unsafe extern "C" fn script_create_closure(
     function_id_ptr: *const u8,
     function_id_len: usize,
-    param_names: *const u8,
-    param_lengths: *const usize,
-    param_count: usize,
-    capture_names: *const u8,
-    capture_name_lengths: *const usize,
-    capture_values: *const *const u8,
+    _param_names: *const u8,
+    _param_lengths: *const usize,
+    _param_count: usize,
+    _capture_names: *const u8,
+    _capture_name_lengths: *const usize,
+    _capture_values: *const *const u8,
     capture_count: usize,
-    captures_by_ref: u8,
+    _captures_by_ref: u8,
 ) -> *mut u8 {
     // Validate inputs
     if function_id_ptr.is_null() || function_id_len == 0 {
@@ -405,7 +405,7 @@ pub extern "C" fn script_create_closure(
 
     // Store function ID at the beginning
     unsafe {
-        let id_slice = std::slice::from_raw_parts(function_id_ptr, function_id_len);
+        let _id_slice = std::slice::from_raw_parts(function_id_ptr, function_id_len);
         if function_id_len <= 24 {
             // Copy function ID (up to 24 bytes)
             std::ptr::copy_nonoverlapping(function_id_ptr, closure_ptr, function_id_len);
@@ -422,7 +422,7 @@ pub extern "C" fn script_create_closure(
 pub extern "C" fn script_invoke_closure(
     closure_ptr: *const u8,
     _args_ptr: *const *const u8,
-    arg_count: i32,
+    _arg_count: i32,
 ) -> *mut u8 {
     // Validate inputs
     if closure_ptr.is_null() {

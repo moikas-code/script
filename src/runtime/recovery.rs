@@ -317,7 +317,7 @@ impl StateRecoveryManager {
     }
 
     /// Deserialize state from bytes
-    fn deserialize_state(&self, data: &[u8]) -> Result<RuntimeState> {
+    fn deserialize_state(&self, _data: &[u8]) -> Result<RuntimeState> {
         // In a real implementation, this would deserialize from the format used above
         // For now, we'll return a default state
         Ok(RuntimeState {

@@ -473,10 +473,7 @@ mod tests {
         let checker = BoundsChecker::new();
         let array = ValueId(1);
         let index = ValueId(2);
-        let array_type = Type::Array {
-            element: Box::new(Type::I32),
-            size: Some(10),
-        };
+        let array_type = Type::Array(Box::new(Type::I32));
 
         let result = checker.generate_bounds_check(array, index, &array_type, "test context");
         assert!(result.is_ok());
@@ -499,10 +496,7 @@ mod tests {
         let checker = BoundsChecker::new();
         let array = ValueId(1);
         let index = ValueId(2);
-        let array_type = Type::Array {
-            element: Box::new(Type::I32),
-            size: Some(10),
-        };
+        let array_type = Type::Array(Box::new(Type::I32));
         let element_type = Type::I32;
 
         let result =

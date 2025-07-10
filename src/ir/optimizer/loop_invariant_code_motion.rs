@@ -301,7 +301,7 @@ impl LoopInvariantCodeMotion {
     fn is_safe_to_move(
         &self,
         function: &Function,
-        loop_info: &LoopInfo,
+        _loop_info: &LoopInfo,
         block_id: BlockId,
         value_id: ValueId,
     ) -> bool {
@@ -345,7 +345,7 @@ impl LoopInvariantCodeMotion {
         &self,
         _function: &mut Function,
         from_block: BlockId,
-        value_id: ValueId,
+        _value_id: ValueId,
         to_block: BlockId,
     ) -> bool {
         // For now, this is a placeholder that would:

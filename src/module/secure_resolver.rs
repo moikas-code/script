@@ -438,7 +438,7 @@ mod tests {
         fs::write(module_dir.join("helpers.script"), "// test module").unwrap();
 
         // Test valid resolution
-        let import = ImportPath::from_string("utils/helpers").unwrap();
+        let import = ImportPath::new("utils/helpers").unwrap();
         let context = ModuleLoadContext::new(
             ModulePath::from_string("main").unwrap(),
             project_root.clone(),
@@ -465,7 +465,7 @@ mod tests {
             ModuleLoadContext::new(ModulePath::from_string("main").unwrap(), project_root);
 
         for evil_import in evil_imports {
-            let import = ImportPath::from_string(evil_import).unwrap();
+            let import = ImportPath::new(evil_import).unwrap();
             let result = resolver.resolve_module(&import, &context);
             assert!(result.is_err());
 

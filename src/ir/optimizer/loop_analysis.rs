@@ -391,7 +391,7 @@ impl LoopAnalyzer {
     }
 
     /// Analyze loop condition for optimization patterns
-    fn analyze_loop_condition(&self, condition: &crate::ir::ValueId, loop_info: &mut LoopInfo) {
+    fn analyze_loop_condition(&self, condition: &crate::ir::ValueId, _loop_info: &mut LoopInfo) {
         // This is a simplified analysis that could be extended
         // For now, we just mark that we have analyzed the condition
         // Future enhancements could detect:

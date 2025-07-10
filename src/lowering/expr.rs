@@ -343,9 +343,9 @@ fn lower_call(lowerer: &mut AstLowerer, callee: &Expr, args: &[Expr]) -> Lowerin
             .map(|arg| lower_expression(lowerer, arg))
             .collect::<Result<Vec<_>, _>>()?;
 
-        // Check if it's a built-in function
+        // Check if it's a built-in runtime function
         if func_name == "print" {
-            // Special handling for print
+            // Special handling for print - generate a call to the runtime print function
             if args.len() != 1 {
                 return Err(type_error(
                     format!("print expects exactly 1 argument, got {}", args.len()),
@@ -354,9 +354,55 @@ fn lower_call(lowerer: &mut AstLowerer, callee: &Expr, args: &[Expr]) -> Lowerin
                 ));
             }
 
-            // For now, just return the argument
-            // In a real implementation, this would generate a call to the runtime print function
-            return Ok(arg_values[0]);
+            // Get or register the script_print runtime function
+            let print_func_id = if let Some(id) = lowerer.context.get_function("script_print") {
+                id
+            } else {
+                // Register the runtime print function
+                // script_print is an external runtime function, not defined in Script code
+                // We just need a FunctionId to reference it
+                let func_id = lowerer.builder.module_mut().reserve_function_id();
+                lowerer
+                    .context
+                    .register_function("script_print".to_string(), func_id);
+                func_id
+            };
+
+            // The argument is the string value from the Script code
+            let string_value = arg_values[0];
+
+            // Call script_print(string_ptr, len)
+            // We'll handle the Pascal-style string format in the code generation phase
+            // For now, just pass the string value and a dummy length
+
+            // We need to determine the length based on the expression type
+            if let Some(string_expr) = &args.get(0) {
+                if let ExprKind::Literal(crate::parser::Literal::String(s)) = &string_expr.kind {
+                    // For string literals, we know the length at compile time
+                    let len = lowerer
+                        .builder
+                        .const_value(crate::ir::Constant::I32(s.len() as i32));
+
+                    return lowerer
+                        .builder
+                        .build_call(print_func_id, vec![string_value, len], Type::Unknown)
+                        .ok_or_else(|| {
+                            runtime_error(
+                                "Failed to generate call to runtime print function",
+                                callee,
+                                "function call",
+                            )
+                        });
+                }
+            }
+
+            // For non-string-literal arguments, we'll need to handle them differently
+            // For now, return an error
+            return Err(runtime_error(
+                "print function currently only supports string literals",
+                callee,
+                "function call",
+            ));
         }
 
         // Look up the function

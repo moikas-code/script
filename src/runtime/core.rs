@@ -346,10 +346,8 @@ impl MemoryManager {
     }
 
     /// Deallocate memory
-    pub fn deallocate(&self, ptr: *mut u8, layout: Layout) {
-        unsafe {
-            std::alloc::dealloc(ptr, layout);
-        }
+    pub unsafe fn deallocate(&self, ptr: *mut u8, layout: Layout) {
+        std::alloc::dealloc(ptr, layout);
 
         self.heap_used.fetch_sub(layout.size(), Ordering::Relaxed);
         self.total_deallocations.fetch_add(1, Ordering::Relaxed);

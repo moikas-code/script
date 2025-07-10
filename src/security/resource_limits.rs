@@ -676,6 +676,9 @@ mod tests {
             work_queue_size: 0,
             peak_memory_usage: 0,
             compilation_duration: None,
+            async_tasks_used: 0,
+            async_task_memory_used: 0,
+            ffi_pointers_active: 0,
         };
 
         let utilization = snapshot.utilization_percentage(&config);
@@ -700,6 +703,9 @@ mod tests {
             work_queue_size: 0,
             peak_memory_usage: 0,
             compilation_duration: None,
+            async_tasks_used: 0,
+            async_task_memory_used: 0,
+            ffi_pointers_active: 0,
         };
 
         let violations = snapshot.check_limits(&config);

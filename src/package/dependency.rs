@@ -527,8 +527,8 @@ impl<'a> DependencyResolver<'a> {
 
     fn get_package_dependencies(
         &self,
-        name: &str,
-        version: &Version,
+        _name: &str,
+        _version: &Version,
     ) -> PackageResult<HashMap<String, DependencySpec>> {
         // This would fetch the package manifest and extract its dependencies
         // For now, return empty dependencies

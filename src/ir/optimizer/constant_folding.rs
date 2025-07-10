@@ -187,7 +187,12 @@ impl ConstantFolding {
                     None // Keep the constant instruction as-is
                 }
 
-                Instruction::Binary { op, lhs, rhs, ty } => {
+                Instruction::Binary {
+                    op,
+                    lhs,
+                    rhs,
+                    ty: _,
+                } => {
                     // Try to get constant values for operands
                     if let (Some(lhs_const), Some(rhs_const)) =
                         (self.get_constant(*lhs), self.get_constant(*rhs))
@@ -205,7 +210,7 @@ impl ConstantFolding {
                     }
                 }
 
-                Instruction::Unary { op, operand, ty } => {
+                Instruction::Unary { op, operand, ty: _ } => {
                     // Try to get constant value for operand
                     if let Some(operand_const) = self.get_constant(*operand) {
                         // Try to evaluate the operation

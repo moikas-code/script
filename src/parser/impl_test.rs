@@ -52,8 +52,8 @@ mod impl_block_tests {
                 assert_eq!(impl_block.type_name, "Vec");
                 assert!(impl_block.generic_params.is_some());
                 let generics = impl_block.generic_params.as_ref().unwrap();
-                assert_eq!(generics.len(), 1);
-                assert_eq!(generics[0].name, "T");
+                assert_eq!(generics.params.len(), 1);
+                assert_eq!(generics.params[0].name, "T");
             }
             _ => panic!("Expected impl block"),
         }
