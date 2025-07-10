@@ -470,9 +470,9 @@ mod performance_tests {
 
         // Create a large dependency graph (1000 modules)
         for i in 0..1000 {
-            let module = ModulePath::from_string(&format!("module_{}", i)).unwrap();
+            let module = ModulePath::from_string(format!("module_{}", i)).unwrap();
             let dependencies: Vec<ModulePath> = (0..std::cmp::min(i, 10))
-                .map(|j| ModulePath::from_string(&format!("module_{}", j)).unwrap())
+                .map(|j| ModulePath::from_string(format!("module_{}", j)).unwrap())
                 .collect();
             graph.add_module(&module, &dependencies);
         }
@@ -500,7 +500,7 @@ mod performance_tests {
 
         // Insert many modules (reduced count for testing)
         for i in 0..10 {
-            let module_path = ModulePath::from_string(&format!("module_{}", i)).unwrap();
+            let module_path = ModulePath::from_string(format!("module_{}", i)).unwrap();
             let temp_file = tempfile::NamedTempFile::new().unwrap();
             let file_path = temp_file.into_temp_path().to_path_buf();
             let source = format!("// Module {}", i);
@@ -517,7 +517,7 @@ mod performance_tests {
         // Test lookup performance
         let lookup_start = Instant::now();
         for i in 0..1000 {
-            let module_path = ModulePath::from_string(&format!("module_{}", i)).unwrap();
+            let module_path = ModulePath::from_string(format!("module_{}", i)).unwrap();
             let _cached = cache.is_cached(&module_path);
         }
         let lookup_time = lookup_start.elapsed();
@@ -616,7 +616,7 @@ mod edge_case_tests {
         for i in 0..10 {
             let cache_clone = Arc::clone(&cache);
             let handle = thread::spawn(move || {
-                let module_path = ModulePath::from_string(&format!("module_{}", i)).unwrap();
+                let module_path = ModulePath::from_string(format!("module_{}", i)).unwrap();
                 let temp_file = tempfile::NamedTempFile::new().unwrap();
                 let file_path = temp_file.into_temp_path().to_path_buf();
                 let source = format!("// Module {}", i);

@@ -1,0 +1,337 @@
+/**
+ * Error Handling Validation Example
+ * 
+ * This example tests:
+ * - Result<T, E> type usage
+ * - Option<T> type usage
+ * - Error propagation with ? operator
+ * - Pattern matching for error handling
+ * - Monadic operations (map, and_then, etc.)
+ * - Custom error types
+ */
+
+// Test basic Result type operations
+fn test_basic_result() -> Result<i32, string> {
+    print("=== Basic Result Tests ===")
+    
+    let good_result: Result<i32, string> = Ok(42)
+    let bad_result: Result<i32, string> = Err("Something went wrong")
+    
+    match good_result {
+        Ok(value) => print("Success: " + value),
+        Err(msg) => print("Error: " + msg)
+    }
+    
+    match bad_result {
+        Ok(value) => print("Success: " + value),
+        Err(msg) => print("Error: " + msg)
+    }
+    
+    Ok(100)
+}
+
+// Test basic Option type operations
+fn test_basic_option() -> Option<string> {
+    print("\n=== Basic Option Tests ===")
+    
+    let some_value: Option<i32> = Some(42)
+    let none_value: Option<i32> = None
+    
+    match some_value {
+        Some(value) => print("Found value: " + value),
+        None => print("No value found")
+    }
+    
+    match none_value {
+        Some(value) => print("Found value: " + value),
+        None => print("No value found")
+    }
+    
+    Some("test complete")
+}
+
+// Test error propagation with ? operator
+fn divide_numbers(a: f32, b: f32) -> Result<f32, string> {
+    if b == 0.0 {
+        Err("Division by zero")
+    } else {
+        Ok(a / b)
+    }
+}
+
+fn calculate_complex() -> Result<f32, string> {
+    let step1 = divide_numbers(10.0, 2.0)?;  // Should succeed
+    let step2 = divide_numbers(step1, 5.0)?; // Should succeed  
+    let step3 = divide_numbers(step2, 0.0)?; // Should fail and propagate
+    Ok(step3)
+}
+
+fn test_error_propagation() {
+    print("\n=== Error Propagation Tests ===")
+    
+    // Test successful chain
+    match divide_numbers(10.0, 2.0) {
+        Ok(result) => print("10.0 / 2.0 = " + result),
+        Err(msg) => print("Error: " + msg)
+    }
+    
+    // Test error in chain
+    match calculate_complex() {
+        Ok(result) => print("Complex calculation result: " + result),
+        Err(msg) => print("Complex calculation failed: " + msg)
+    }
+}
+
+// Test Option with ? operator
+fn find_item(items: Array<string>, target: string) -> Option<i32> {
+    for i in 0..items.len() {
+        if items[i] == target {
+            return Some(i)
+        }
+    }
+    None
+}
+
+fn process_items() -> Option<string> {
+    let items = ["apple", "banana", "cherry"]
+    let banana_index = find_item(items, "banana")?;
+    let cherry_index = find_item(items, "cherry")?;
+    let total_index = banana_index + cherry_index
+    Some("Total index: " + total_index)
+}
+
+fn test_option_propagation() {
+    print("\n=== Option Propagation Tests ===")
+    
+    let items = ["apple", "banana", "cherry"]
+    
+    match find_item(items, "banana") {
+        Some(index) => print("Found banana at index: " + index),
+        None => print("Banana not found")
+    }
+    
+    match find_item(items, "grape") {
+        Some(index) => print("Found grape at index: " + index),
+        None => print("Grape not found")
+    }
+    
+    match process_items() {
+        Some(result) => print("Process result: " + result),
+        None => print("Process failed")
+    }
+}
+
+// Test Result combinators (monadic operations)
+fn test_result_combinators() {
+    print("\n=== Result Combinator Tests ===")
+    
+    let result1: Result<i32, string> = Ok(5)
+    let result2: Result<i32, string> = Err("error")
+    
+    // Test map operation
+    let mapped1 = result1.map(|x| x * 2)
+    let mapped2 = result2.map(|x| x * 2)
+    
+    print("Map Ok(5) * 2: " + format_result(mapped1))
+    print("Map Err * 2: " + format_result(mapped2))
+    
+    // Test and_then operation (flatMap)
+    let chained1 = result1.and_then(|x| {
+        if x > 0 {
+            Ok(x + 10)
+        } else {
+            Err("negative number")
+        }
+    })
+    
+    print("Chain Ok(5) + 10: " + format_result(chained1))
+    
+    // Test or_else operation
+    let fallback = result2.or_else(|_| Ok(999))
+    print("Fallback for error: " + format_result(fallback))
+}
+
+// Test Option combinators
+fn test_option_combinators() {
+    print("\n=== Option Combinator Tests ===")
+    
+    let some_val: Option<i32> = Some(10)
+    let none_val: Option<i32> = None
+    
+    // Test map operation
+    let mapped_some = some_val.map(|x| x * 3)
+    let mapped_none = none_val.map(|x| x * 3)
+    
+    print("Map Some(10) * 3: " + format_option(mapped_some))
+    print("Map None * 3: " + format_option(mapped_none))
+    
+    // Test and_then operation
+    let chained = some_val.and_then(|x| {
+        if x % 2 == 0 {
+            Some(x / 2)
+        } else {
+            None
+        }
+    })
+    
+    print("Chain Some(10) / 2: " + format_option(chained))
+    
+    // Test or_else operation
+    let fallback = none_val.or_else(|| Some(42))
+    print("Fallback for None: " + format_option(fallback))
+    
+    // Test unwrap_or
+    let unwrapped1 = some_val.unwrap_or(0)
+    let unwrapped2 = none_val.unwrap_or(0)
+    
+    print("Some(10) unwrap_or 0: " + unwrapped1)
+    print("None unwrap_or 0: " + unwrapped2)
+}
+
+// Test custom error types
+enum CustomError {
+    InvalidInput(string),
+    NetworkError(i32),
+    ParseError { line: i32, column: i32 }
+}
+
+fn risky_operation(input: string) -> Result<i32, CustomError> {
+    if input.is_empty() {
+        return Err(CustomError::InvalidInput("Empty input"))
+    }
+    
+    if input == "network_fail" {
+        return Err(CustomError::NetworkError(404))
+    }
+    
+    if input == "parse_fail" {
+        return Err(CustomError::ParseError { line: 5, column: 10 })
+    }
+    
+    Ok(42)
+}
+
+fn test_custom_errors() {
+    print("\n=== Custom Error Tests ===")
+    
+    let test_cases = ["valid", "", "network_fail", "parse_fail"]
+    
+    for test_case in test_cases {
+        match risky_operation(test_case) {
+            Ok(value) => print("Success with '" + test_case + "': " + value),
+            Err(CustomError::InvalidInput(msg)) => print("Invalid input: " + msg),
+            Err(CustomError::NetworkError(code)) => print("Network error " + code),
+            Err(CustomError::ParseError { line, column }) => {
+                print("Parse error at line " + line + ", column " + column)
+            }
+        }
+    }
+}
+
+// Test nested error handling
+fn nested_operation(depth: i32) -> Result<string, string> {
+    if depth <= 0 {
+        return Err("Invalid depth")
+    }
+    
+    if depth == 1 {
+        return Ok("Base case")
+    }
+    
+    let sub_result = nested_operation(depth - 1)?
+    Ok("Level " + depth + " -> " + sub_result)
+}
+
+fn test_nested_errors() {
+    print("\n=== Nested Error Tests ===")
+    
+    match nested_operation(3) {
+        Ok(result) => print("Nested success: " + result),
+        Err(msg) => print("Nested error: " + msg)
+    }
+    
+    match nested_operation(-1) {
+        Ok(result) => print("Nested success: " + result),
+        Err(msg) => print("Nested error: " + msg)
+    }
+}
+
+// Test early returns with errors
+fn validate_data(data: Array<i32>) -> Result<string, string> {
+    if data.is_empty() {
+        return Err("Data is empty")
+    }
+    
+    for value in data {
+        if value < 0 {
+            return Err("Negative values not allowed: " + value)
+        }
+        if value > 100 {
+            return Err("Values too large: " + value)
+        }
+    }
+    
+    let sum = data.iter().sum()
+    Ok("Data validation passed, sum: " + sum)
+}
+
+fn test_early_returns() {
+    print("\n=== Early Return Tests ===")
+    
+    let test_data = [
+        [1, 2, 3, 4, 5],
+        [],
+        [1, -2, 3],
+        [1, 2, 150]
+    ]
+    
+    for data in test_data {
+        match validate_data(data) {
+            Ok(msg) => print("Validation passed: " + msg),
+            Err(msg) => print("Validation failed: " + msg)
+        }
+    }
+}
+
+// Helper functions for formatting
+fn format_result(result: Result<i32, string>) -> string {
+    match result {
+        Ok(value) => "Ok(" + value + ")",
+        Err(msg) => "Err(" + msg + ")"
+    }
+}
+
+fn format_option(option: Option<i32>) -> string {
+    match option {
+        Some(value) => "Some(" + value + ")",
+        None => "None"
+    }
+}
+
+// Main function to run all error handling tests
+fn main() {
+    print("=== Script Language Error Handling Validation ===")
+    
+    // Test basic types
+    let _ = test_basic_result()
+    let _ = test_basic_option()
+    
+    // Test error propagation
+    test_error_propagation()
+    test_option_propagation()
+    
+    // Test combinators (monadic operations)
+    test_result_combinators()
+    test_option_combinators()
+    
+    // Test advanced error handling
+    test_custom_errors()
+    test_nested_errors()
+    test_early_returns()
+    
+    print("\n=== Error handling validation complete ===")
+    print("Note: This tests the core error handling patterns")
+    print("that are essential for robust Script programs.")
+}
+
+main()

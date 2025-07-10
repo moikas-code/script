@@ -96,8 +96,8 @@ fn type_to_mangle_string(ty: &Type) -> String {
         Type::F32 => "f32".to_string(),
         Type::Bool => "bool".to_string(),
         Type::String => "string".to_string(),
-        Type::Array(elem) => format!("array_{}", type_to_mangle_string(elem)),
-        Type::Option(inner) => format!("option_{}", type_to_mangle_string(inner)),
+        Type::Array(elem) => format!("array_{}", type_to_mangle_string(elem),
+        Type::Option(inner) => format!("option_{}", type_to_mangle_string(inner),
         Type::Result { ok, err } => format!(
             "result_{}_{}",
             type_to_mangle_string(ok),
@@ -123,7 +123,7 @@ pub fn create_generic_struct_program(
     let params_str = if params.is_empty() {
         String::new()
     } else {
-        format!("<{}>", params.join(", "))
+        format!("<{}>", params.join(", ")
     };
 
     let fields_str = fields
@@ -132,7 +132,7 @@ pub fn create_generic_struct_program(
         .collect::<Vec<_>>()
         .join(",\n");
 
-    format!("struct {}{} {{\n{}\n}}", name, params_str, fields_str)
+    format!("struct {}{params_str} {{\n{fields_str}\n}}", name)
 }
 
 /// Helper to create a generic enum program
@@ -144,7 +144,7 @@ pub fn create_generic_enum_program(
     let params_str = if params.is_empty() {
         String::new()
     } else {
-        format!("<{}>", params.join(", "))
+        format!("<{}>", params.join(", ")
     };
 
     let variants_str = variants
@@ -153,13 +153,13 @@ pub fn create_generic_enum_program(
             if args.is_empty() {
                 format!("    {}", variant_name)
             } else {
-                format!("    {}({})", variant_name, args.join(", "))
+                format!("    {variant_name}({})", args.join(", ")))
             }
         })
         .collect::<Vec<_>>()
         .join(",\n");
 
-    format!("enum {}{} {{\n{}\n}}", name, params_str, variants_str)
+    format!("enum {}{params_str} {{\n{variants_str}\n}}", name)
 }
 
 /// Create a test program with generic struct usage
@@ -171,7 +171,7 @@ pub fn create_struct_usage_program(struct_def: &str, constructor_exprs: &[&str])
         .collect::<Vec<_>>()
         .join("\n");
 
-    format!("{}\n\nfn main() {{\n{}\n}}", struct_def, usage)
+    format!("{}\n\nfn main() {{\n{usage}\n}}", struct_def)
 }
 
 /// Create a test program with generic enum usage
@@ -183,7 +183,7 @@ pub fn create_enum_usage_program(enum_def: &str, constructor_exprs: &[&str]) -> 
         .collect::<Vec<_>>()
         .join("\n");
 
-    format!("{}\n\nfn main() {{\n{}\n}}", enum_def, usage)
+    format!("{}\n\nfn main() {{\n{usage}\n}}", enum_def)
 }
 
 /// Assert that a program compiles without errors

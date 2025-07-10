@@ -15,10 +15,10 @@ async fn main() {
             .and_then(|p| p.parse::<u16>().ok())
             .unwrap_or(7777);
 
-        let addr = format!("127.0.0.1:{}", port);
+        let addr = format!("127.0.0.1:{}", port));
 
         if let Err(e) = ScriptLanguageServer::run_tcp(&addr).await {
-            eprintln!("Failed to run TCP server: {}", e);
+            eprintln!("Failed to run TCP server: {e}");
             std::process::exit(1);
         }
     } else {

@@ -1,0 +1,12 @@
+// Very simple Script validation example
+// Testing the most basic functionality
+
+fn main() {
+    print("=== Simple Script Validation ===")
+    print("Basic print function works!")
+    print("If you see this, the Script language parser")
+    print("and basic runtime are functioning correctly.")
+    print("=== Validation Complete ===")
+}
+
+main()

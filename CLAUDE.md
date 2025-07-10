@@ -52,6 +52,11 @@ cargo bench type_system_benchmark       # Run type system optimization benchmark
 # Documentation
 cargo doc --open                        # Generate and open docs
 cargo doc --features mcp --open         # Include MCP documentation
+
+# Development Tools
+python tools/fix_rust_format.py analyze # Analyze Rust format issues
+python tools/fix_rust_format.py fix     # Fix all format issues
+python tools/fix_rust_format.py fix -f path/to/file.rs  # Fix specific file
 ```
 
 ## Architecture Overview
@@ -138,6 +143,29 @@ cargo doc --features mcp --open         # Include MCP documentation
 3. Update `Display` implementations for pretty-printing
 4. Add parser tests in `src/parser/tests.rs`
 
+### Development Tools
+
+The `tools/` directory contains utilities for code maintenance:
+
+**Rust Format Fixer** (`tools/fix_rust_format.py`):
+- Fixes common Rust format string issues
+- Useful for migrating to Rust 2021 edition
+- Supports analysis mode (no changes) and fix mode
+- Creates backups before modifying files
+- See `kb/development/DEVELOPMENT_TOOLS.md` for detailed usage
+
+**Usage Examples**:
+```bash
+# Check for format issues without fixing
+python tools/fix_rust_format.py analyze
+
+# Fix all issues in src/
+python tools/fix_rust_format.py fix
+
+# Fix a specific file
+python tools/fix_rust_format.py fix -f src/parser/parser.rs
+```
+
 ### MCP Security Guidelines
 
 **Core Principles:**
@@ -188,6 +216,7 @@ See `./kb/IMPLEMENTATION_TODO.md` for original planning. Current status:
 - **tests/**: All test files and fixtures organized by type
 - **examples/**: Demo programs and tutorials
 - **kb/**: Knowledge base (see KB Organization below)
+- **tools/**: Development utilities and maintenance scripts
 
 ### Prohibited Root Files
 No `.script` files in root directory. Use:
@@ -260,6 +289,8 @@ kb/
 - **[kb/status](kb/status)** - Implementation status tracking
 - **[kb/active/KNOWN_ISSUES.md](kb/active/KNOWN_ISSUES.md)** - Bug tracker and limitations  
 - **[README.md](README.md)** - Project overview and setup
+- **[kb/development/DEVELOPMENT_TOOLS.md](kb/development/DEVELOPMENT_TOOLS.md)** - Development utilities guide
+- **[tools/README.md](tools/README.md)** - Quick reference for development tools
 
 ### External References  
 - [Rust Documentation](https://doc.rust-lang.org/book/)

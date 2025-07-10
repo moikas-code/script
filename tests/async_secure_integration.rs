@@ -214,7 +214,7 @@ impl AsyncIntegrationTestSuite {
             // Verify all futures completed
             let final_results = results.lock().unwrap();
             if final_results.len() != 3 {
-                return Err(format!("Expected 3 results, got {}", final_results.len()).into());
+                return Err(format!("Expected 3 results, got {}", final_results.len().into());
             }
 
             // Results should be in completion order (0, 1, 2)
@@ -544,7 +544,7 @@ impl AsyncIntegrationTestSuite {
                     let future = ImmediateFuture::new(i);
                     Executor::spawn(executor.clone(), Box::new(future))?;
                 } else {
-                    let future = ErrorFuture::new(&format!("Error {}", i));
+                    let future = ErrorFuture::new(format!("Error {}", i));
                     // This might fail to spawn or cause errors during execution
                     let _ = Executor::spawn(executor.clone(), Box::new(future));
                 }

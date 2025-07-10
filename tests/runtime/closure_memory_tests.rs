@@ -623,7 +623,7 @@ fn test_closure_cycle_collector_integration() {
             vec![format!("param_{}", i)],
             vec![
                 ("index".to_string(), Value::I32(i as i32)),
-                ("data".to_string(), Value::String(format!("data_{}", i))),
+                ("data".to_string(), Value::String(format!("data_{}", i),
             ],
             false,
         );
@@ -670,7 +670,7 @@ fn test_closure_cycle_collector_integration() {
         match closure {
             Value::Closure(rc_closure) => {
                 // Verify closure identity
-                assert!(rc_closure.function_id.contains(&i.to_string()));
+                assert!(rc_closure.function_id.contains(&i.to_string());
                 
                 // Verify captured data
                 match rc_closure.get_captured("index") {

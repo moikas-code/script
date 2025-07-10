@@ -211,8 +211,7 @@ impl SecureAsyncTranslator {
         // Check bounds
         if offset + access_size > region.size {
             return Err(AsyncTranslationError::StateCorruption(
-                format!("Memory access out of bounds: offset {} + size {} > region size {}",
-                    offset, access_size, region.size)
+                format!("Memory access out of bounds: offset {} + size {} > region size {}", offset, access_size, region.size)
             ));
         }
 
@@ -776,7 +775,7 @@ mod tests {
         let result = translator.create_secure_stack_slot(
             &mut builder, MAX_ASYNC_STATE_SIZE + 1, 8, Type::I32
         );
-        assert!(matches!(result, Err(AsyncTranslationError::InvalidStateSize(_))));
+        assert!(matches!(result, Err(AsyncTranslationError::InvalidStateSize(_));
     }
 
     #[test]
@@ -785,11 +784,11 @@ mod tests {
         
         // Test invalid value ID
         let result = translator.get_value(ValueId(u32::MAX));
-        assert!(matches!(result, Err(AsyncTranslationError::ValueNotFound(_))));
+        assert!(matches!(result, Err(AsyncTranslationError::ValueNotFound(_));
         
         // Test invalid value insertion
         let result = translator.insert_value(ValueId(u32::MAX), Value::from_u32(0));
-        assert!(matches!(result, Err(AsyncTranslationError::ValueNotFound(_))));
+        assert!(matches!(result, Err(AsyncTranslationError::ValueNotFound(_));
     }
 
     #[test]
@@ -806,7 +805,7 @@ mod tests {
         
         // Test out of bounds access
         let result = translator.validate_memory_access(stack_slot, 60, 8);
-        assert!(matches!(result, Err(AsyncTranslationError::StateCorruption(_))));
+        assert!(matches!(result, Err(AsyncTranslationError::StateCorruption(_));
     }
 
     #[test]
@@ -817,7 +816,7 @@ mod tests {
         let result = translator.translate_set_enum_tag(
             &mut builder, ValueId(0), 300 // > 255
         );
-        assert!(matches!(result, Err(AsyncTranslationError::InvalidEnumTag(_))));
+        assert!(matches!(result, Err(AsyncTranslationError::InvalidEnumTag(_));
     }
 
     #[test]
@@ -843,7 +842,7 @@ mod tests {
         let result = translator.create_secure_stack_slot(
             &mut builder, 64, 3, Type::I32 // 3 is not power of 2
         );
-        assert!(matches!(result, Err(AsyncTranslationError::AlignmentError(_))));
+        assert!(matches!(result, Err(AsyncTranslationError::AlignmentError(_));
     }
 
     #[test]
@@ -870,6 +869,6 @@ mod tests {
         
         // Cleanup should fail with future in polling state
         let result = translator.cleanup_and_validate();
-        assert!(matches!(result, Err(AsyncTranslationError::FuturePollingError(_))));
+        assert!(matches!(result, Err(AsyncTranslationError::FuturePollingError(_));
     }
 }

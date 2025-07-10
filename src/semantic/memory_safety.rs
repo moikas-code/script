@@ -741,10 +741,7 @@ impl fmt::Display for MemorySafetyViolation {
                 variable, reason, ..
             } => {
                 write!(
-                    f,
-                    "potential memory leak of variable '{}': {}",
-                    variable, reason
-                )
+                    f, "potential memory leak of variable '{}': {}", variable, reason)
             }
         }
     }

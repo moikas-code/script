@@ -141,8 +141,8 @@ impl OptionMethodSignature {
             OptionMethod::Or => {
                 OptionMethodSignature {
                     method,
-                    params: vec![Type::Option(Box::new(inner_type.clone()))],
-                    return_type: Type::Option(Box::new(inner_type.clone())),
+                    params: vec![Type::Option(Box::new(inner_type.clone())],
+                    return_type: Type::Option(Box::new(inner_type.clone()),
                 }
             }
             OptionMethod::OrElse => {
@@ -150,10 +150,10 @@ impl OptionMethodSignature {
                     method,
                     params: vec![Type::Function {
                         params: vec![],
-                        return_type: Box::new(Type::Option(Box::new(inner_type.clone()))),
+                        return_type: Box::new(Type::Option(Box::new(inner_type.clone())),
                         is_async: false,
                     }],
-                    return_type: Type::Option(Box::new(inner_type.clone())),
+                    return_type: Type::Option(Box::new(inner_type.clone()),
                 }
             }
             OptionMethod::OkOr => {
@@ -190,21 +190,21 @@ impl OptionMethodSignature {
                         return_type: Box::new(Type::Bool),
                         is_async: false,
                     }],
-                    return_type: Type::Option(Box::new(inner_type.clone())),
+                    return_type: Type::Option(Box::new(inner_type.clone()),
                 }
             }
             OptionMethod::Take => {
                 OptionMethodSignature {
                     method,
                     params: vec![],
-                    return_type: Type::Option(Box::new(inner_type.clone())),
+                    return_type: Type::Option(Box::new(inner_type.clone()),
                 }
             }
             OptionMethod::Replace => {
                 OptionMethodSignature {
                     method,
                     params: vec![inner_type.clone()],
-                    return_type: Type::Option(Box::new(inner_type.clone())),
+                    return_type: Type::Option(Box::new(inner_type.clone()),
                 }
             }
         }

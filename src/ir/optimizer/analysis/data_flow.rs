@@ -236,7 +236,7 @@ impl DataFlowSolver {
             iteration += 1;
 
             if self.debug && iteration % 10 == 0 {
-                eprintln!("  Iteration {}", iteration);
+                eprintln!("  Iteration {iteration}");
             }
 
             for &block_id in &blocks {

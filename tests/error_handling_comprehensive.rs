@@ -622,7 +622,7 @@ mod integration_tests {
             .and_then(|val| {
                 if let ScriptValue::Option(opt) = val {
                     if opt.is_some() {
-                        ScriptResult::ok(ScriptValue::Option(opt.clone()))
+                        ScriptResult::ok(ScriptValue::Option(opt.clone())
                     } else {
                         ScriptResult::err(ScriptValue::String(ScriptRc::new(
                             ScriptString::from_str("option is none"),

@@ -298,7 +298,7 @@ fn test_functional_array_operations() {
         let first_large = vec_find(doubled_evens, |x| x > 10);
         
         // Side effect operation
-        vec_for_each(doubled_evens, |x| println(x.to_string()));
+        vec_for_each(doubled_evens, |x| println(x.to_string());
         
         sum
     "#;

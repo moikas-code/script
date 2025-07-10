@@ -111,7 +111,7 @@ impl PathSecurityValidator {
                     return Err(ModuleError::security_violation(format!(
                         "Invalid character in path: '{}'",
                         ch
-                    )))
+                    )));
                 }
             }
         }
@@ -262,7 +262,7 @@ impl ModulePathSanitizer {
                     return Err(ModuleError::security_violation(format!(
                         "Invalid character in module name: '{}'",
                         ch
-                    )))
+                    )));
                 }
             }
         }

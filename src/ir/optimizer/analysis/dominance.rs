@@ -209,7 +209,7 @@ impl DominanceAnalysis {
             iterations += 1;
 
             if self.debug && iterations % 10 == 0 {
-                eprintln!("  Dominator iteration {}", iterations);
+                eprintln!("  Dominator iteration {iterations}");
             }
 
             for &block in blocks {

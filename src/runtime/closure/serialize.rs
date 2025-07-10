@@ -146,7 +146,7 @@ impl ClosureSerializer {
         let function_name = closure
             .function_name()
             .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("#{}", closure.function_id()));
+            .unwrap_or_else(|| format!("#{}", closure.function_id));
 
         let metadata = ClosureMetadata {
             function_id: function_name,
@@ -265,7 +265,7 @@ impl ClosureSerializer {
         let function_name = closure
             .function_name()
             .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("#{}", closure.function_id()));
+            .unwrap_or_else(|| format!("#{}", closure.function_id));
         self.write_string(&mut buffer, &function_name)?;
 
         // Write parameters
@@ -333,7 +333,7 @@ impl ClosureSerializer {
         let function_name = closure
             .function_name()
             .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("#{}", closure.function_id()));
+            .unwrap_or_else(|| format!("#{}", closure.function_id));
 
         json_data.insert("function_id", serde_json::json!(function_name));
         json_data.insert("parameters", serde_json::json!(closure.parameters.to_vec()));
@@ -421,7 +421,7 @@ impl ClosureSerializer {
         let function_name = closure
             .function_name()
             .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("#{}", closure.function_id()));
+            .unwrap_or_else(|| format!("#{}", closure.function_id));
         let id_bytes = function_name.as_bytes();
         buffer.push(id_bytes.len() as u8);
         buffer.extend_from_slice(id_bytes);

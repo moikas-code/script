@@ -208,7 +208,7 @@ impl AsyncSecurityTestSuite {
 
             // 2. Invalid task ID handling
             let executor = Executor::new();
-            let result = Executor::spawn(executor, Box::new(TestFuture::immediate(())));
+            let result = Executor::spawn(executor, Box::new(TestFuture::immediate(());
             if result.is_err() {
                 // This should return an error, not panic
                 return Ok("Error handling working correctly".to_string());
@@ -568,7 +568,7 @@ impl AsyncSecurityTestSuite {
             // Try to exceed limits
             let mut spawn_count = 0;
             for _ in 0..30 {
-                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::immediate(())));
+                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::immediate(());
                 if result.is_ok() {
                     spawn_count += 1;
                 } else {
@@ -707,7 +707,7 @@ impl AsyncSecurityTestSuite {
             // Spawn tasks to increase memory usage
             let mut spawn_count = 0;
             for _ in 0..100 {
-                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::immediate(())));
+                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::immediate(());
                 if result.is_ok() {
                     spawn_count += 1;
                 } else {
@@ -836,7 +836,7 @@ impl SecurityTestSummary {
             println!("\n📋 FAILED TESTS:");
             for result in &self.results {
                 if !result.passed {
-                    println!("  • {} ({:?}): {}", result.test_name, result.severity, result.details);
+                    println!("  • {} ({:?}): {result.test_name, result.severity, result.details}");
                 }
             }
         }

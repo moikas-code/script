@@ -68,7 +68,7 @@ impl ConstEvaluator {
                     } else {
                         Err(Error::new(
                             ErrorKind::SemanticError,
-                            &format!("Function '{}' is not marked as @const", name),
+                            format!("Function '{}' is not marked as @const", name),
                         ))
                     }
                 } else {

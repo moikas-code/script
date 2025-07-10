@@ -696,10 +696,7 @@ impl std::fmt::Display for BreakpointStatistics {
         writeln!(f, "  Address breakpoints: {}", self.address_breakpoints)?;
         writeln!(f, "  Exception breakpoints: {}", self.exception_breakpoints)?;
         writeln!(
-            f,
-            "  Conditional breakpoints: {}",
-            self.conditional_breakpoints
-        )?;
+            f, "  Conditional breakpoints: {}", self.conditional_breakpoints)?;
         writeln!(f, "  Total hits: {}", self.total_hits)?;
         Ok(())
     }

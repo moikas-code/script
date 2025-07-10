@@ -325,7 +325,7 @@ impl SemanticAnalyzer {
                     ) {
                         Ok(_) => imported_count += 1,
                         Err(err) => {
-                            eprintln!("Warning: Failed to import enum '{}': {}", symbol.name, err);
+                            eprintln!("Warning: Failed to import enum '{}': {symbol.name, err}");
                         }
                     }
                 }
@@ -3538,7 +3538,7 @@ impl SemanticAnalyzer {
                             if !sig.is_const {
                                 self.add_error(
                                     SemanticError::const_function_violation(
-                                        &format!("@const functions can only call other @const functions, but '{}' is not @const", name),
+                                        format!("@const functions can only call other @const functions, but '{}' is not @const", name),
                                         expr.span,
                                     )
                                 );

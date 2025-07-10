@@ -24,12 +24,12 @@ pub fn print(s: &str) {
 
 /// Print a string to stdout with a newline
 pub fn println(s: &str) {
-    println!("{}", s);
+    println!("{s}");
 }
 
 /// Print a string to stderr with a newline
 pub fn eprintln(s: &str) {
-    eprintln!("{}", s);
+    eprintln!("{s}");
 }
 
 /// Read a line from stdin

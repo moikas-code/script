@@ -360,8 +360,10 @@ impl VersionConstraint {
 
         // Handle multiple constraints separated by commas
         if input.contains(',') {
-            let constraints: Result<Vec<_>, _> =
-                input.split(',').map(|s| Self::parse(s.trim())).collect();
+            let constraints: Result<Vec<_>, _> = input
+                .split(',')
+                .map(|s| Self::parse(s.trim()))
+                .collect();
             return Ok(Self::Multiple(constraints?));
         }
 

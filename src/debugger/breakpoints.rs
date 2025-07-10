@@ -175,7 +175,7 @@ impl BreakpointManager {
             });
         }
 
-        Err(DebuggerError::InvalidLocation(location_str.to_string()))
+        Err(DebuggerError::InvalidLocation(location_str.to_string())
     }
 
     /// Clear all breakpoints

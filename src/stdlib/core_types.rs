@@ -50,7 +50,7 @@ impl ScriptOption {
     pub fn expect(&self, msg: &str) -> &ScriptValue {
         match self {
             ScriptOption::Some(val) => val,
-            ScriptOption::None => panic!("{}", msg),
+            ScriptOption::None => panic!("{msg}"),
         }
     }
 

@@ -83,7 +83,7 @@ mod tests {
             .with_bound(TraitBound::builtin(BuiltinTrait::Clone, test_span()));
         
         let params = GenericParams::new(vec![param1, param2], test_span());
-        let display = format!("{}", params);
+        let display = format!("{}", params));
         assert_eq!(display, "<T: Eq, U: Ord + Clone>");
     }
 
@@ -273,7 +273,7 @@ mod tests {
         let t_param = Type::TypeParam("T".to_string());
         let u_param = Type::TypeParam("U".to_string());
         
-        let array_t = Type::Array(Box::new(t_param.clone()));
+        let array_t = Type::Array(Box::new(t_param.clone());
         let func_t_to_u = Type::Function {
             params: vec![t_param],
             ret: Box::new(u_param.clone()),

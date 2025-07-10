@@ -615,7 +615,7 @@ impl SecurityMonitor {
                 description: "Memory corruption detected during validation".to_string(),
                 timestamp: SystemTime::now(),
                 context: [
-                    ("address".to_string(), format!("0x{:x}", address)),
+                    ("address".to_string(), format!("0x{}", address, :x)),
                     ("size".to_string(), size.to_string()),
                 ]
                 .iter()

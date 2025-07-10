@@ -65,7 +65,7 @@ fn main() {
 
 fn test_semantic_analysis(title: &str, source: &str) {
     println!("\n{}", title);
-    println!("{}", "-".repeat(title.len()));
+    println!("{}", "-".repeat(title.len());
     println!("Code:\n{}", source);
 
     // Tokenize

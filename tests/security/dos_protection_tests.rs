@@ -647,14 +647,14 @@ mod compilation_bomb_tests {
         // Generate a large source with many functions
         let mut large_source = String::new();
         for i in 0..100 {
-            large_source.push_str(&format!("fn func{}<T>() -> T {{ unimplemented!() }}\n", i));
+            large_source.push_str(format!("fn func{}<T>() -> T {{ unimplemented!() }}\n", i));
         }
 
         large_source.push_str("fn trigger_exhaustion() {\n");
         for i in 0..100 {
-            large_source.push_str(&format!("    func{}::<i32>();\n", i));
-            large_source.push_str(&format!("    func{}::<String>();\n", i));
-            large_source.push_str(&format!("    func{}::<Vec<i32>>();\n", i));
+            large_source.push_str(format!("    func{}::<i32>();\n", i));
+            large_source.push_str(format!("    func{}::<String>();\n", i));
+            large_source.push_str(format!("    func{}::<Vec<i32>>();\n", i));
         }
         large_source.push_str("}\n");
 

@@ -439,7 +439,7 @@ where
             if entry.created_at.elapsed() <= self.ttl {
                 entry.access_count += 1;
                 self.metrics.cache_hits.fetch_add(1, Ordering::Relaxed);
-                return Ok(Some(entry.value.clone()));
+                return Ok(Some(entry.value.clone());
             } else {
                 // Entry expired
                 data.remove(key);

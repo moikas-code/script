@@ -307,7 +307,7 @@ impl Debugger {
         let function_info = function_name
             .map(|name| format!(" in function '{}'", name))
             .unwrap_or_default();
-        println!("Breakpoint hit at {}{}", location, function_info);
+        println!("Breakpoint hit at {}{location, function_info}");
 
         Ok(())
     }
@@ -403,13 +403,13 @@ impl Debugger {
         loop {
             print!("(debug) ");
             if let Err(e) = io::stdout().flush() {
-                eprintln!("Error flushing stdout: {}", e);
+                eprintln!("Error flushing stdout: {e}");
                 break;
             }
 
             let mut input = String::new();
             if let Err(e) = io::stdin().read_line(&mut input) {
-                eprintln!("Error reading input: {}", e);
+                eprintln!("Error reading input: {e}");
                 break;
             }
             let input = input.trim();
@@ -459,12 +459,12 @@ impl Debugger {
                             .add_line_breakpoint(file_name.clone(), line)
                         {
                             Ok(id) => {
-                                println!("Breakpoint {} set at line {} in {}", id, line, file_name)
+                                println!("Breakpoint {} set at line {} in {id, line, file_name}")
                             }
-                            Err(e) => println!("Error setting breakpoint: {}", e),
+                            Err(e) => println!("Error setting breakpoint: {e}"),
                         }
                     } else {
-                        println!("Invalid line number: {}", line_str);
+                        println!("Invalid line number: {line_str}");
                     }
                 }
                 "" => continue,

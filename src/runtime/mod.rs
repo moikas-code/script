@@ -118,7 +118,7 @@ pub fn shutdown() -> Result<()> {
     // Shutdown subsystems in reverse order
     recovery::shutdown_state_recovery();
     panic::shutdown();
-    gc::shutdown().unwrap_or_else(|e| eprintln!("Warning: GC shutdown failed: {}", e));
+    gc::shutdown().unwrap_or_else(|e| eprintln!("Warning: GC shutdown failed: {e}"));
     type_registry::shutdown();
     profiler::shutdown();
 

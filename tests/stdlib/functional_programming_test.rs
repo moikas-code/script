@@ -211,7 +211,7 @@ mod tests {
             HashMap::new(),
         );
         
-        let script_closure = ScriptValue::Closure(ScriptRc::new(closure.clone()));
+        let script_closure = ScriptValue::Closure(ScriptRc::new(closure.clone());
         
         // Test that we can extract the closure back
         if let ScriptValue::Closure(extracted) = &script_closure {

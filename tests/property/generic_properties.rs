@@ -81,12 +81,12 @@ fn generate_instance_code(instance: &GenericTypeInstance, var_name: &str, seed: 
     match instance.type_name.as_str() {
         "Box" => {
             let value = type_arg_to_value(&instance.type_args[0], seed);
-            format!("let {} = Box {{ value: {} }};", var_name, value)
+            format!("let {} = Box {{ value: {value} }};", var_name)
         }
         "Option" => {
             let value = type_arg_to_value(&instance.type_args[0], seed);
             if seed % 2 == 0 {
-                format!("let {} = Option::Some({});", var_name, value)
+                format!("let {} = Option::Some({value});", var_name)
             } else {
                 format!(
                     "let {}: Option<{}> = Option::None;",
@@ -163,7 +163,7 @@ proptest! {
         // Generate instances
         for (i, instance) in instances.iter().enumerate() {
             code.push_str("    ");
-            code.push_str(&generate_instance_code(instance, &format!("v{}", i), i));
+            code.push_str(&generate_instance_code(instance, format!("v{}", i), i));
             code.push_str("\n");
         }
 
@@ -239,7 +239,7 @@ proptest! {
         code.push_str("fn main() {\n");
 
         for (i, arg) in args.iter().enumerate() {
-            code.push_str(&format!(
+            code.push_str(format!(
                 "    let result{} = identity({});\n",
                 i,
                 type_arg_to_value(arg, i)

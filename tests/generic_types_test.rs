@@ -27,9 +27,7 @@ fn test_generic_type_parsing() {
         );
 
         let mut parser = Parser::new(tokens);
-        let program = parser
-            .parse()
-            .expect(&format!("Failed to parse: {}", input));
+        let program = parser.parse().expect(&format!("Failed to parse: {}", input));
 
         // Verify the AST contains the expected generic type
         let stmt = &program.statements[0];
@@ -63,9 +61,7 @@ fn test_generic_constructor_expression() {
         );
 
         let mut parser = Parser::new(tokens);
-        let program = parser
-            .parse()
-            .expect(&format!("Failed to parse: {}", input));
+        let program = parser.parse().expect(&format!("Failed to parse: {}", input));
 
         // Verify the expression is a Call with GenericConstructor as callee
         let stmt = &program.statements[0];
@@ -110,9 +106,7 @@ fn test_type_parameter_recognition() {
         assert!(errors.is_empty());
 
         let mut parser = Parser::new(tokens);
-        let program = parser
-            .parse()
-            .expect(&format!("Failed to parse: {}", input));
+        let program = parser.parse().expect(&format!("Failed to parse: {}", input));
 
         // Check that type parameters are recognized
         let has_type_param = match &program.statements[0].kind {

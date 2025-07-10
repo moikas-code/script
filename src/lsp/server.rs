@@ -37,7 +37,7 @@ impl ScriptLanguageServer {
     /// Run the server over TCP
     pub async fn run_tcp(addr: &str) -> std::io::Result<()> {
         let listener = tokio::net::TcpListener::bind(addr).await?;
-        eprintln!("Script LSP Server listening on {}", addr);
+        eprintln!("Script LSP Server listening on {addr}");
 
         let (service, socket) = Self::create_service();
         let (stream, _) = listener.accept().await?;

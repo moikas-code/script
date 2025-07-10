@@ -74,7 +74,7 @@ fn benchmark_parse_deeply_nested(c: &mut Criterion) {
 fn benchmark_parse_many_statements(c: &mut Criterion) {
     let mut source = String::new();
     for i in 0..100 {
-        source.push_str(&format!("let var{} = {} + {} * {}\n", i, i, i + 1, i + 2));
+        source.push_str(format!("let var{} = {i} + {i + 1} * {i + 2}\n", i));
     }
 
     c.bench_function("parser_many_statements", |b| {

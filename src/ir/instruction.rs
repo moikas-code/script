@@ -499,10 +499,7 @@ impl fmt::Display for Instruction {
                 ty,
             } => {
                 write!(
-                    f,
-                    "allocenum {} [size={}] : {}",
-                    enum_name, variant_size, ty
-                )
+                    f, "allocenum {} [size={}] : {}", enum_name, variant_size, ty)
             }
             Instruction::ConstructEnum {
                 enum_name,
@@ -536,10 +533,7 @@ impl fmt::Display for Instruction {
                 ty,
             } => {
                 write!(
-                    f,
-                    "extractenumdata {}, [index={}] : {}",
-                    enum_value, variant_index, ty
-                )
+                    f, "extractenumdata {}, [index={}] : {}", enum_value, variant_index, ty)
             }
             Instruction::Phi { incoming, ty } => {
                 write!(f, "phi ")?;
@@ -587,10 +581,7 @@ impl fmt::Display for Instruction {
                 value,
             } => {
                 write!(
-                    f,
-                    "store_async_state {}, offset={}, {}",
-                    state_ptr, offset, value
-                )
+                    f, "store_async_state {}, offset={}, {}", state_ptr, offset, value)
             }
             Instruction::LoadAsyncState {
                 state_ptr,
@@ -598,10 +589,7 @@ impl fmt::Display for Instruction {
                 ty,
             } => {
                 write!(
-                    f,
-                    "load_async_state {}, offset={} : {}",
-                    state_ptr, offset, ty
-                )
+                    f, "load_async_state {}, offset={} : {}", state_ptr, offset, ty)
             }
             Instruction::GetAsyncState { state_ptr } => {
                 write!(f, "get_async_state {}", state_ptr)
@@ -642,10 +630,7 @@ impl fmt::Display for Instruction {
                 success_type,
             } => {
                 write!(
-                    f,
-                    "error_propagation {} : {} -> {}",
-                    value, value_type, success_type
-                )
+                    f, "error_propagation {} : {} -> {}", value, value_type, success_type)
             }
             Instruction::CreateClosure {
                 function_id,

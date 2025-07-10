@@ -246,9 +246,9 @@ impl VariableValue {
                     "[]".to_string()
                 } else if arr.len() <= 5 {
                     let items: Vec<String> = arr.iter().map(|v| v.debug_string()).collect();
-                    format!("[{}]", items.join(", "))
+                    format!("[{}]", items.join(", ")
                 } else {
-                    format!("[{} items]", arr.len())
+                    format!("[{} items]", arr.len()
                 }
             }
             VariableValue::Object(obj) => {
@@ -280,9 +280,7 @@ impl fmt::Display for StackFrame {
 impl fmt::Display for Variable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
-            f,
-            "{}: {} = {}",
-            self.name,
+            f, "{}: {} = {}", self.name,
             self.type_info,
             self.value.debug_string()
         )

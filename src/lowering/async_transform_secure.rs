@@ -309,7 +309,7 @@ pub fn transform_async_function(
 
     // Validate function is async
     if !func.is_async {
-        return Err(AsyncTransformError::NotAsyncFunction(func.name.clone()));
+        return Err(AsyncTransformError::NotAsyncFunction(func.name.clone());
     }
 
     let mut context = AsyncTransformContext::new();
@@ -326,7 +326,7 @@ pub fn transform_async_function(
     }
 
     // Create the poll function with proper security validation
-    let poll_fn_name = format!("{}_poll", func.name);
+    let poll_fn_name = format!("{}_poll", func.name));
     let poll_params = vec![
         Parameter {
             name: "self".to_string(),
@@ -446,7 +446,7 @@ fn analyze_local_variables(func: &Function) -> AsyncTransformResult<Vec<(String,
                 Instruction::Alloc { ty, .. } => {
                     // Found a local variable allocation
                     let var_name = format!("__local_{}", local_vars.len());
-                    local_vars.push((var_name, ty.clone()));
+                    local_vars.push((var_name, ty.clone());
                 }
                 Instruction::Call { func, .. } => {
                     // Function calls might need temporary storage
@@ -483,7 +483,7 @@ fn transform_function_body(
     let original_blocks: Vec<(BlockId, BasicBlock)> = original_func
         .blocks()
         .iter()
-        .map(|(id, block)| (*id, block.clone()))
+        .map(|(id, block)| (*id, block.clone())
         .collect();
 
     let poll_func = module
@@ -585,7 +585,7 @@ fn transform_function_body(
     for (i, param) in original_func.params.iter().enumerate() {
         let offset = context.state_offsets.get(&param.name)
             .copied()
-            .ok_or(AsyncTransformError::VariableNotFound(param.name.clone()))?;
+            .ok_or(AsyncTransformError::VariableNotFound(param.name.clone())?;
             
         let loaded_param = builder
             .build_load_async_state(state_ptr, offset, param.ty.clone())
@@ -709,7 +709,7 @@ fn transform_blocks_secure(
                         let mapped_future = context.get_mapped_value(*future);
                         
                         // Store the future in state with validation
-                        let future_var_name = format!("__future_{}", state_id);
+                        let future_var_name = format!("__future_{}", state_id));
                         let future_offset = context.allocate_variable(future_var_name, 8)?;
                         
                         builder.build_store_async_state(state_ptr, future_offset, mapped_future);
@@ -769,7 +769,7 @@ fn transform_blocks_secure(
                     }
                     Instruction::Alloc { ty, .. } => {
                         // Transform local variable allocation to state access
-                        let var_name = format!("__alloc_{}", value_id.0);
+                        let var_name = format!("__alloc_{}", value_id.0));
                         let size = calculate_type_size(ty)?;
                         let offset = context.allocate_variable(var_name, size)?;
                         
@@ -1051,6 +1051,6 @@ mod tests {
         
         // Invalid mapping
         let result = context.map_value(ValueId(u32::MAX), ValueId(1));
-        assert!(matches!(result, Err(AsyncTransformError::ValueMappingError(_))));
+        assert!(matches!(result, Err(AsyncTransformError::ValueMappingError(_));
     }
 }

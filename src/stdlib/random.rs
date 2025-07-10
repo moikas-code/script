@@ -320,11 +320,9 @@ pub fn shuffle_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
             let mut items = (**arr).clone();
 
             RNG.with(|rng| {
-                items
-                    .shuffle(&mut *rng.borrow_mut())
-                    .map_err(|e| RuntimeError::InvalidOperation(e.to_string()))
-            })
-            .map_err(|e| e)?;
+                use rand::seq::SliceRandom;
+                items.shuffle(&mut *rng.borrow_mut());
+            });
 
             Ok(ScriptValue::Array(ScriptRc::new(items)))
         }
@@ -354,7 +352,7 @@ pub fn pick_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
             let index = RNG.with(|rng| rng.borrow_mut().gen_range(0..arr.len()));
 
             arr.get(index)
-                .map_err(|e| RuntimeError::InvalidOperation(e.to_string()))?
+                .cloned()
                 .ok_or_else(|| RuntimeError::InvalidOperation("Index out of bounds".to_string()))
         }
         _ => Err(RuntimeError::InvalidOperation(
@@ -468,7 +466,7 @@ pub fn weighted_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> 
     for i in 0..weights.len() {
         let w = weights
             .get(i)
-            .map_err(|e| RuntimeError::InvalidOperation(e.to_string()))?
+            .cloned()
             .ok_or_else(|| {
                 RuntimeError::InvalidOperation("Weight index out of bounds".to_string())
             })?;
@@ -490,7 +488,7 @@ pub fn weighted_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> 
     for i in 0..weights.len() {
         let w = weights
             .get(i)
-            .map_err(|e| RuntimeError::InvalidOperation(e.to_string()))?
+            .cloned()
             .ok_or_else(|| {
                 RuntimeError::InvalidOperation("Weight index out of bounds".to_string())
             })?;
@@ -500,7 +498,7 @@ pub fn weighted_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> 
         if pick <= accumulated {
             return items
                 .get(i)
-                .map_err(|e| RuntimeError::InvalidOperation(e.to_string()))?
+                .cloned()
                 .ok_or_else(|| {
                     RuntimeError::InvalidOperation("Item index out of bounds".to_string())
                 });
@@ -510,7 +508,7 @@ pub fn weighted_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> 
     // Fallback (should not reach here)
     items
         .get(items.len() - 1)
-        .map_err(|e| RuntimeError::InvalidOperation(e.to_string()))?
+        .cloned()
         .ok_or_else(|| RuntimeError::InvalidOperation("No items in array".to_string()))
 }
 

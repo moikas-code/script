@@ -882,7 +882,7 @@ impl fmt::Display for Block {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "{{")?;
         for stmt in &self.statements {
-            writeln!(f, "    {}", stmt)?;
+            writeln!(f, "    {stmt}")?;
         }
         if let Some(expr) = &self.final_expr {
             writeln!(f, "    {}", expr)?;
@@ -1298,7 +1298,7 @@ impl fmt::Display for ImplBlock {
 
         writeln!(f, " {{")?;
         for method in &self.methods {
-            writeln!(f, "    {}", method)?;
+            writeln!(f, "    {method}")?;
         }
         write!(f, "}}")
     }

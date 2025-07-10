@@ -12,7 +12,7 @@ fn generate_generic_program(func_count: usize, instantiation_count: usize) -> St
 
     // Define generic functions
     for i in 0..func_count {
-        code.push_str(&format!("fn generic{}<T>(x: T) -> T {{ x }}\n", i));
+        code.push_str(format!("fn generic{}<T>(x: T) -> T {{ x }}\n", i));
     }
 
     code.push_str("\nfn main() {\n");
@@ -26,7 +26,7 @@ fn generate_generic_program(func_count: usize, instantiation_count: usize) -> St
             1 => format!(r#""str{}""#, i),
             _ => "true".to_string(),
         };
-        code.push_str(&format!(
+        code.push_str(format!(
             "    let result{} = generic{}({});\n",
             i, func_idx, value
         ));
@@ -51,9 +51,9 @@ fn generate_nested_generics_program(depth: usize) -> String {
     for d in 1..=depth {
         let mut type_expr = "42".to_string();
         for _ in 0..d {
-            type_expr = format!("Box {{ value: {} }}", type_expr);
+            type_expr = format!("Box {} }}", { value: {type_expr);
         }
-        code.push_str(&format!("    let nested{} = {};\n", d, type_expr));
+        code.push_str(format!("    let nested{} = {type_expr};\n", d));
     }
 
     code.push_str("}\n");
@@ -73,19 +73,19 @@ fn generate_struct_instantiations(count: usize) -> String {
     // Create various instantiations
     for i in 0..count {
         match i % 4 {
-            0 => code.push_str(&format!(
+            0 => code.push_str(format!(
                 "    let p{} = Pair {{ first: {}, second: \"{}\" }};\n",
                 i, i, i
             )),
-            1 => code.push_str(&format!(
+            1 => code.push_str(format!(
                 "    let p{} = Pair {{ first: true, second: {} }};\n",
                 i, i as f32
             )),
-            2 => code.push_str(&format!(
+            2 => code.push_str(format!(
                 "    let t{} = Triple {{ first: {}, second: \"x\", third: false }};\n",
                 i, i
             )),
-            _ => code.push_str(&format!(
+            _ => code.push_str(format!(
                 "    let t{} = Triple {{ first: \"a\", second: {}, third: {} }};\n",
                 i, i, i as f32
             )),
@@ -212,7 +212,7 @@ fn bench_mixed_generics(c: &mut Criterion) {
 
     // Add generic functions
     for i in 0..20 {
-        large_program.push_str(&format!("fn process{}<T>(x: T) -> T {{ x }}\n", i));
+        large_program.push_str(format!("fn process{}<T>(x: T) -> T {{ x }}\n", i));
     }
 
     large_program.push_str("\nfn main() {\n");
@@ -220,14 +220,14 @@ fn bench_mixed_generics(c: &mut Criterion) {
     // Add varied instantiations
     for i in 0..100 {
         match i % 5 {
-            0 => large_program.push_str(&format!("    let v{} = Box {{ value: {} }};\n", i, i)),
-            1 => large_program.push_str(&format!("    let v{} = Option::Some({});\n", i, i)),
-            2 => large_program.push_str(&format!(
+            0 => large_program.push_str(format!("    let v{} = Box {{ value: {i} }};\n", i)),
+            1 => large_program.push_str(format!("    let v{} = Option::Some({i});\n", i)),
+            2 => large_program.push_str(format!(
                 "    let v{} = Pair {{ first: {}, second: \"{}\" }};\n",
                 i, i, i
             )),
-            3 => large_program.push_str(&format!("    let v{} = process{}({});\n", i, i % 20, i)),
-            _ => large_program.push_str(&format!(
+            3 => large_program.push_str(format!("    let v{} = process{i % 20}({i});\n", i)),
+            _ => large_program.push_str(format!(
                 "    let v{} = Box {{ value: Option::Some({}) }};\n",
                 i, i
             )),

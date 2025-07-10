@@ -18,7 +18,7 @@ impl HttpClient {
             .timeout(timeout)
             .user_agent(format!("manuscript/{}", env!("CARGO_PKG_VERSION")))
             .build()
-            .map_err(|e| PackageError::Registry(format!("Failed to create HTTP client: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to build HTTP client: {}", e)))?;
 
         Ok(Self { client })
     }
@@ -28,7 +28,7 @@ impl HttpClient {
             .client
             .get(url)
             .send()
-            .map_err(|e| PackageError::Registry(format!("GET request failed: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to send GET request: {}", e)))?;
 
         self.handle_response(response)
     }
@@ -46,7 +46,7 @@ impl HttpClient {
 
         let response = request
             .send()
-            .map_err(|e| PackageError::Registry(format!("GET request failed: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to send GET request with headers: {}", e)))?;
 
         self.handle_response(response)
     }
@@ -58,7 +58,7 @@ impl HttpClient {
             .header("Content-Type", "application/json")
             .body(body)
             .send()
-            .map_err(|e| PackageError::Registry(format!("POST request failed: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to send POST request: {}", e)))?;
 
         self.handle_response(response)
     }
@@ -76,7 +76,7 @@ impl HttpClient {
             .header("Authorization", format!("Bearer {}", auth_token))
             .body(body)
             .send()
-            .map_err(|e| PackageError::Registry(format!("POST request failed: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to send authenticated POST request: {}", e)))?;
 
         self.handle_response(response)
     }
@@ -86,7 +86,7 @@ impl HttpClient {
             .client
             .head(url)
             .send()
-            .map_err(|e| PackageError::Registry(format!("HEAD request failed: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to send HEAD request: {}", e)))?;
 
         Ok(response.status().is_success())
     }
@@ -103,7 +103,7 @@ impl HttpClient {
             .client
             .get(url)
             .send()
-            .map_err(|e| PackageError::Registry(format!("Download request failed: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to send download request: {}", e)))?;
 
         if !response.status().is_success() {
             return Err(PackageError::Registry(format!(

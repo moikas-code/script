@@ -65,7 +65,7 @@ impl AnalysisManager {
 
         if !self.dominance_cache.contains_key(&func_name) {
             if self.debug {
-                eprintln!("Computing dominance analysis for function: {}", func_name);
+                eprintln!("Computing dominance analysis for function: {func_name}");
             }
 
             let mut analysis = DominanceAnalysis::new();
@@ -82,7 +82,7 @@ impl AnalysisManager {
 
         if !self.cfg_cache.contains_key(&func_name) {
             if self.debug {
-                eprintln!("Computing control flow graph for function: {}", func_name);
+                eprintln!("Computing control flow graph for function: {func_name}");
             }
 
             let cfg = ControlFlowGraph::build(func);
@@ -98,7 +98,7 @@ impl AnalysisManager {
 
         if !self.use_def_cache.contains_key(&func_name) {
             if self.debug {
-                eprintln!("Computing use-def chains for function: {}", func_name);
+                eprintln!("Computing use-def chains for function: {func_name}");
             }
 
             let mut chains = UseDefChains::new();
@@ -115,7 +115,7 @@ impl AnalysisManager {
 
         if !self.liveness_cache.contains_key(&func_name) {
             if self.debug {
-                eprintln!("Computing liveness analysis for function: {}", func_name);
+                eprintln!("Computing liveness analysis for function: {func_name}");
             }
 
             // We need the control flow graph for liveness analysis
@@ -137,7 +137,7 @@ impl AnalysisManager {
         self.liveness_cache.remove(func_name);
 
         if self.debug {
-            eprintln!("Invalidated analysis cache for function: {}", func_name);
+            eprintln!("Invalidated analysis cache for function: {func_name}");
         }
     }
 

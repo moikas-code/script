@@ -1,0 +1,11 @@
+// Minimal test - based on working hello.script pattern
+fn main() {
+    print("Script language basic validation:")
+    print("1. Parser works - you can see this message")
+    print("2. Print function works - text output")
+    print("3. Function definitions work - main() executed")
+    print("4. Function calls work - main() was called")
+    print("Validation: Core Script functionality works!")
+}
+
+main()

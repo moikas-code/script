@@ -134,7 +134,7 @@ fn test_basic_module_import_semantic_analysis() {
     "#;
 
     // For now, we test basic parsing and analysis without full module resolution
-    let result = analyze_with_modules(source, Some(builder.get_module_dir()));
+    let result = analyze_with_modules(source, Some(builder.get_module_dir());
 
     // Should parse successfully even without full module resolution
     match result {
@@ -688,7 +688,7 @@ fn test_module_integration_comprehensive() {
 
     // This test demonstrates the full integration scenario
     // For now, it will fail due to module system not being fully integrated
-    let result = analyze_with_modules(source, Some(builder.get_module_dir()));
+    let result = analyze_with_modules(source, Some(builder.get_module_dir());
 
     // Expected to have module resolution errors until full integration
     match result {

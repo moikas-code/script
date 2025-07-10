@@ -19,7 +19,7 @@ fn lowering_error(
 ) -> Error {
     let mut msg = message.into();
     if let Some(ctx) = context {
-        msg = format!("{} ({})", msg, ctx);
+        msg = format!("{} ({}, ctx)", msg);
     }
 
     Error::new(kind, msg).with_location(span.start)
@@ -31,7 +31,7 @@ fn runtime_error(message: impl Into<String>, expr: &Expr, operation: &str) -> Er
         ErrorKind::RuntimeError,
         message,
         expr.span,
-        Some(&format!("while lowering {} expression", operation)),
+        Some(format!("while lowering {} expression", operation)),
     )
 }
 
@@ -41,7 +41,7 @@ fn type_error(message: impl Into<String>, expr: &Expr, operation: &str) -> Error
         ErrorKind::TypeError,
         message,
         expr.span,
-        Some(&format!("while type checking {} expression", operation)),
+        Some(format!("while type checking {} expression", operation)),
     )
 }
 
@@ -51,7 +51,7 @@ fn security_error(message: impl Into<String>, expr: &Expr, operation: &str) -> E
         ErrorKind::SecurityViolation,
         message,
         expr.span,
-        Some(&format!(
+        Some(format!(
             "while validating security for {} expression",
             operation
         )),
@@ -1349,7 +1349,7 @@ fn calculate_field_offset(type_name: &str, field_name: &str) -> LoweringResult<i
     Ok(offset)
 }
 
-/// Calculate field hash for dynamic field access
+// Calculate field hash for dynamic field access
 // SECURITY NOTE: The vulnerable calculate_field_hash function has been removed
 // It was replaced with secure field validation using ValidateFieldAccess instruction
 // This prevents type confusion attacks through hash collision exploitation
@@ -1744,7 +1744,7 @@ fn lower_closure(
         } else {
             // Variable not found in context - this shouldn't happen if semantic analysis passed
             return Err(runtime_error(
-                &format!("Captured variable '{}' not found in scope", name),
+                format!("Captured variable '{}' not found in scope", name),
                 expr,
                 "closure capture",
             ));

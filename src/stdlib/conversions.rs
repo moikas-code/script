@@ -35,7 +35,7 @@ impl ConversionSignature {
             ConversionMethod::OptionToResult => {
                 ConversionSignature {
                     method,
-                    input_type: Type::Option(Box::new(inner_type.clone())),
+                    input_type: Type::Option(Box::new(inner_type.clone()),
                     output_type: Type::Result {
                         ok: Box::new(inner_type.clone()),
                         err: Box::new(Type::TypeParam("E".to_string())),
@@ -50,7 +50,7 @@ impl ConversionSignature {
                         ok: Box::new(inner_type.clone()),
                         err: Box::new(Type::TypeParam("E".to_string())),
                     },
-                    output_type: Type::Option(Box::new(inner_type.clone())),
+                    output_type: Type::Option(Box::new(inner_type.clone()),
                     additional_params: vec![],
                 }
             }
@@ -62,7 +62,7 @@ impl ConversionSignature {
                         err: Box::new(Type::TypeParam("E".to_string())),
                     })),
                     output_type: Type::Result {
-                        ok: Box::new(Type::Option(Box::new(inner_type.clone()))),
+                        ok: Box::new(Type::Option(Box::new(inner_type.clone())),
                         err: Box::new(Type::TypeParam("E".to_string())),
                     },
                     additional_params: vec![],
@@ -72,7 +72,7 @@ impl ConversionSignature {
                 ConversionSignature {
                     method,
                     input_type: Type::Result {
-                        ok: Box::new(Type::Option(Box::new(inner_type.clone()))),
+                        ok: Box::new(Type::Option(Box::new(inner_type.clone())),
                         err: Box::new(Type::TypeParam("E".to_string())),
                     },
                     output_type: Type::Option(Box::new(Type::Result {

@@ -533,7 +533,7 @@ fn generate_missing_patterns(
                                 EnumVariantType::Unit => variant_info.name.clone(),
                                 EnumVariantType::Tuple(types) => {
                                     let wildcards = vec!["_"; types.len()].join(", ");
-                                    format!("{}({})", variant_info.name, wildcards)
+                                    format!("{}({}, wildcards)", variant_info.name)
                                 }
                                 EnumVariantType::Struct(fields) => {
                                     format!("{} {{ .. }}", variant_info.name)

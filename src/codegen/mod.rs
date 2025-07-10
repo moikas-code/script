@@ -15,14 +15,10 @@ pub mod cranelift;
 pub mod debug;
 pub mod field_layout;
 pub mod monomorphization;
-pub mod optimized_monomorphization;
 
 pub use bounds_check::{BoundsCheckMode, BoundsChecker};
 pub use field_layout::{FieldLayout, FieldLayoutRegistry};
 pub use monomorphization::{MonomorphizationContext, MonomorphizationStats};
-pub use optimized_monomorphization::{
-    OptimizedMonomorphizationContext, OptimizedMonomorphizationStats,
-};
 
 /// Result type for code generation
 pub type CodegenResult<T> = Result<T, Error>;

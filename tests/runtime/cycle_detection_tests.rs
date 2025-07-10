@@ -43,8 +43,8 @@ fn test_simple_cycle() {
     let node_a = ScriptRc::new(Node::new(1));
     let node_b = ScriptRc::new(Node::new(2));
 
-    node_a.set_next(Some(node_b.clone()));
-    node_b.set_next(Some(node_a.clone()));
+    node_a.set_next(Some(node_b.clone());
+    node_b.set_next(Some(node_a.clone());
 
     // Check initial reference counts
     assert_eq!(node_a.strong_count(), 2); // Self + node_b's reference
@@ -75,7 +75,7 @@ fn test_cycle_with_weak_reference() {
     // Create weak reference
     let weak_b = node_b.downgrade();
 
-    node_a.set_next(Some(node_b.clone()));
+    node_a.set_next(Some(node_b.clone());
     // node_b doesn't hold strong reference back to node_a
 
     assert_eq!(node_a.strong_count(), 1);
@@ -106,10 +106,10 @@ fn test_complex_cycle() {
     let node_c = ScriptRc::new(Node::new(3));
     let node_d = ScriptRc::new(Node::new(4));
 
-    node_a.set_next(Some(node_b.clone()));
-    node_b.set_next(Some(node_c.clone()));
-    node_c.set_next(Some(node_d.clone()));
-    node_d.set_next(Some(node_b.clone())); // Creates cycle
+    node_a.set_next(Some(node_b.clone());
+    node_b.set_next(Some(node_c.clone());
+    node_c.set_next(Some(node_d.clone());
+    node_d.set_next(Some(node_b.clone()); // Creates cycle
 
     // Drop external references
     drop(node_a);
@@ -133,8 +133,8 @@ fn test_no_cycle() {
     let node_b = ScriptRc::new(Node::new(2));
     let node_c = ScriptRc::new(Node::new(3));
 
-    node_a.set_next(Some(node_b.clone()));
-    node_b.set_next(Some(node_c.clone()));
+    node_a.set_next(Some(node_b.clone());
+    node_b.set_next(Some(node_c.clone());
     // node_c.next remains None
 
     assert_eq!(node_a.strong_count(), 1);
@@ -168,8 +168,8 @@ fn test_gc_statistics() {
         let node_a = ScriptRc::new(Node::new(1));
         let node_b = ScriptRc::new(Node::new(2));
 
-        node_a.set_next(Some(node_b.clone()));
-        node_b.set_next(Some(node_a.clone()));
+        node_a.set_next(Some(node_b.clone());
+        node_b.set_next(Some(node_a.clone());
 
         // Drop to create potential cycles
         drop(node_a);
@@ -194,7 +194,7 @@ fn test_cycle_detection_threshold() {
     // Create many potential cycles to trigger automatic collection
     for i in 0..200 {
         let node = ScriptRc::new(Node::new(i));
-        node.set_next(Some(node.clone())); // Self-cycle
+        node.set_next(Some(node.clone()); // Self-cycle
         drop(node);
     }
 
@@ -224,8 +224,8 @@ fn test_concurrent_gc() {
             let node_a = ScriptRc::new(Node::new(1));
             let node_b = ScriptRc::new(Node::new(2));
 
-            node_a.set_next(Some(node_b.clone()));
-            node_b.set_next(Some(node_a.clone()));
+            node_a.set_next(Some(node_b.clone());
+            node_b.set_next(Some(node_a.clone());
 
             drop(node_a);
             drop(node_b);
@@ -257,8 +257,8 @@ fn test_known_issue_example() {
     let a = ScriptRc::new(Node::new(1));
     let b = ScriptRc::new(Node::new(2));
 
-    a.set_next(Some(b.clone()));
-    b.set_next(Some(a.clone()));
+    a.set_next(Some(b.clone());
+    b.set_next(Some(a.clone());
 
     // Before dropping: circular reference exists
     assert_eq!(a.strong_count(), 2);

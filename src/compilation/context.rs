@@ -371,7 +371,7 @@ impl CompilationContext {
 
         // Monomorphize generic functions if any exist
         if !self.generic_instantiations.is_empty() || self.has_generic_functions(&ir_module) {
-            use crate::codegen::monomorphization::MonomorphizationContext;
+            use crate::codegen::MonomorphizationContext;
 
             self.resource_monitor.start_phase("monomorphization")?;
             let mut mono_context = MonomorphizationContext::new();

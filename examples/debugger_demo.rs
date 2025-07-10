@@ -73,7 +73,7 @@ fn main() {
     println!("\n--- Demo 3: Breakpoint Information ---");
 
     let breakpoints = manager.get_all_breakpoints();
-    println!("Total breakpoints: {}", breakpoints.len());
+    println!("Total breakpoints: {}", breakpoints.len();
 
     for bp in &breakpoints {
         println!("  - {}", bp);

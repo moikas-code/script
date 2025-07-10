@@ -161,7 +161,7 @@ impl UseDefChains {
         let mut info = DefUseInfo::new();
 
         if self.debug {
-            eprintln!("Analyzing use-def chains for function: {}", func.name);
+            eprintln!("Analyzing use-def chains for function: {func.name}");
         }
 
         // Step 1: Collect all definitions and uses
@@ -311,7 +311,7 @@ impl UseDefChains {
             iterations += 1;
 
             if self.debug && iterations % 10 == 0 {
-                eprintln!("  Reaching definitions iteration {}", iterations);
+                eprintln!("  Reaching definitions iteration {iterations}");
             }
 
             for (block_id, block) in func.blocks() {

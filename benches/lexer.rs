@@ -27,8 +27,8 @@ fn benchmark_large_program(c: &mut Criterion) {
     // Generate a large program with many tokens
     let mut source = String::new();
     for i in 0..100 {
-        source.push_str(&format!("let var{} = {} + {} * {}\n", i, i, i + 1, i + 2));
-        source.push_str(&format!(
+        source.push_str(format!("let var{} = {i} + {i + 1} * {i + 2}\n", i));
+        source.push_str(format!(
             "fn func{}(x: i32, y: i32) -> i32 {{ return x + y }}\n",
             i
         ));
@@ -46,7 +46,7 @@ fn benchmark_large_program(c: &mut Criterion) {
 fn benchmark_string_heavy(c: &mut Criterion) {
     let mut source = String::new();
     for i in 0..50 {
-        source.push_str(&format!(
+        source.push_str(format!(
             r#"let str{} = "This is a string with some content and escape sequences \n\t\r""#,
             i
         ));

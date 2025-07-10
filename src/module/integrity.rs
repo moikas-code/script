@@ -198,7 +198,7 @@ impl ModuleIntegrityVerifier {
         let mut hasher = Sha256::new();
         hasher.update(content);
         let hash = hasher.finalize();
-        let sha256 = format!("{:x}", hash);
+        let sha256 = format!("{}", hash, :x);
 
         // Get file metadata
         let metadata = fs::metadata(path)

@@ -45,7 +45,7 @@ impl DeriveProcessor {
             } else {
                 return Err(Error::new(
                     ErrorKind::SemanticError,
-                    &format!("Unknown derive trait: {}", arg),
+                    format!("Unknown derive trait: {}", arg),
                 ));
             }
         }

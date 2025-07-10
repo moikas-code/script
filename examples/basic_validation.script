@@ -1,0 +1,122 @@
+/**
+ * Basic Script Language Validation Example
+ * 
+ * This example tests core language features:
+ * - Basic functions and variables
+ * - Type annotations and inference
+ * - Arithmetic operations
+ * - Control flow
+ * - Function calls
+ */
+
+// Test basic function with explicit type annotations
+fn add_numbers(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+// Test function with type inference
+fn multiply(x: i32, y: i32) {
+    x * y
+}
+
+// Test variable declarations
+fn test_variables() {
+    let x = 42          // Type inferred as i32
+    let y: f32 = 3.14   // Explicit type annotation
+    let name = "Script" // Type inferred as string
+    let active = true   // Type inferred as bool
+    
+    print("Integer: " + x)
+    print("Float: " + y)
+    print("String: " + name)
+    print("Boolean: " + active)
+}
+
+// Test control flow
+fn test_control_flow(n: i32) -> string {
+    if n > 0 {
+        "positive"
+    } else if n < 0 {
+        "negative"
+    } else {
+        "zero"
+    }
+}
+
+// Test loops and iteration
+fn test_loops() {
+    let counter = 0
+    
+    while counter < 5 {
+        print("Counter: " + counter)
+        counter = counter + 1
+    }
+    
+    // Test for loop (if supported)
+    for i in 0..3 {
+        print("For loop: " + i)
+    }
+}
+
+// Test arithmetic operations
+fn test_arithmetic() -> i32 {
+    let a = 10
+    let b = 3
+    
+    let sum = a + b
+    let diff = a - b
+    let product = a * b
+    let quotient = a / b
+    let remainder = a % b
+    
+    print("Sum: " + sum)
+    print("Difference: " + diff)
+    print("Product: " + product)
+    print("Quotient: " + quotient)
+    print("Remainder: " + remainder)
+    
+    sum
+}
+
+// Test function composition
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+// Main function to run all tests
+fn main() {
+    print("=== Script Language Basic Validation ===")
+    
+    // Test basic arithmetic
+    let result = add_numbers(5, 3)
+    print("5 + 3 = " + result)
+    
+    let product = multiply(4, 7)
+    print("4 * 7 = " + product)
+    
+    // Test variables
+    test_variables()
+    
+    // Test control flow
+    let classification = test_control_flow(42)
+    print("42 is " + classification)
+    
+    // Test loops
+    test_loops()
+    
+    // Test arithmetic operations
+    let arithmetic_result = test_arithmetic()
+    print("Arithmetic test result: " + arithmetic_result)
+    
+    // Test recursion
+    let fact5 = factorial(5)
+    print("5! = " + fact5)
+    
+    print("=== Basic validation complete ===")
+}
+
+main()

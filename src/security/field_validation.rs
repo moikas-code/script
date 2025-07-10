@@ -159,7 +159,7 @@ impl FieldValidator {
             let keys_to_remove: Vec<_> = self
                 .validation_cache
                 .keys()
-                .filter(|key| key.contains(&format!("{}::", &type_name)))
+                .filter(|key| key.contains(&format!("{}::", type_name)))
                 .cloned()
                 .collect();
             for key in keys_to_remove {

@@ -11,7 +11,7 @@ fn generate_generic_structs(count: usize) -> String {
     let mut code = String::new();
 
     for i in 0..count {
-        code.push_str(&format!(
+        code.push_str(format!(
             "struct Generic{}<T> {{\n    value: T,\n    id: i32\n}}\n\n",
             i
         ));
@@ -20,7 +20,7 @@ fn generate_generic_structs(count: usize) -> String {
     // Add usage in main
     code.push_str("fn main() {\n");
     for i in 0..count.min(10) {
-        code.push_str(&format!(
+        code.push_str(format!(
             "    let g{} = Generic{} {{ value: {}, id: {} }};\n",
             i, i, i, i
         ));
@@ -45,9 +45,9 @@ fn generate_nested_generics(depth: usize) -> String {
     for d in 1..=depth {
         let mut type_str = "i32".to_string();
         for _ in 0..d {
-            type_str = format!("Box {{ value: {} }}", type_str);
+            type_str = format!("Box {} }}", { value: {type_str);
         }
-        code.push_str(&format!("    let nested{} = {};\n", d, type_str));
+        code.push_str(format!("    let nested{} = {type_str};\n", d));
     }
 
     code.push_str("}\n");
@@ -60,12 +60,12 @@ fn generate_generic_functions(count: usize) -> String {
     let mut code = String::new();
 
     for i in 0..count {
-        code.push_str(&format!("fn generic{}<T>(x: T) -> T {{ x }}\n", i));
+        code.push_str(format!("fn generic{}<T>(x: T) -> T {{ x }}\n", i));
     }
 
     code.push_str("\nfn main() {\n");
     for i in 0..count.min(10) {
-        code.push_str(&format!("    let r{} = generic{}({});\n", i, i, i * 10));
+        code.push_str(format!("    let r{} = generic{i}({i * 10});\n", i));
     }
     code.push_str("}\n");
 
@@ -246,13 +246,10 @@ fn bench_generic_instantiation_count(c: &mut Criterion) {
         // Create N different instantiations
         for i in 0..*count {
             match i % 4 {
-                0 => code.push_str(&format!("    let b{} = Box {{ value: {} }};\n", i, i)),
-                1 => code.push_str(&format!(
-                    "    let b{} = Box {{ value: \"str{}\" }};\n",
-                    i, i
-                )),
-                2 => code.push_str(&format!("    let b{} = Box {{ value: true }};\n", i)),
-                _ => code.push_str(&format!("    let b{} = Box {{ value: {}.0 }};\n", i, i)),
+                0 => code.push_str(format!("    let b{} = Box {{ value: {i} }};\n", i)),
+                1 => code.push_str(format!("    let b{} = Box {{ value: \"str{}\" }};\n", i, i)),
+                2 => code.push_str(format!("    let b{} = Box {{ value: true }};\n", i)),
+                _ => code.push_str(format!("    let b{} = Box {{ value: {i}.0 }};\n", i)),
             }
         }
 

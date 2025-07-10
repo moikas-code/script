@@ -208,10 +208,7 @@ impl fmt::Display for SemanticErrorKind {
             }
             SemanticErrorKind::ArgumentCountMismatch { expected, found } => {
                 write!(
-                    f,
-                    "wrong number of arguments: expected {}, found {}",
-                    expected, found
-                )
+                    f, "wrong number of arguments: expected {}, found {}", expected, found)
             }
             SemanticErrorKind::AssignmentToImmutable(name) => {
                 write!(f, "cannot assign to immutable variable '{}'", name)
@@ -230,27 +227,18 @@ impl fmt::Display for SemanticErrorKind {
             }
             SemanticErrorKind::ReturnTypeMismatch { expected, found } => {
                 write!(
-                    f,
-                    "return type mismatch: expected {}, found {}",
-                    expected, found
-                )
+                    f, "return type mismatch: expected {}, found {}", expected, found)
             }
             SemanticErrorKind::MissingReturn { expected } => {
                 write!(
-                    f,
-                    "missing return statement in function that returns {}",
-                    expected
-                )
+                    f, "missing return statement in function that returns {}", expected)
             }
             SemanticErrorKind::InvalidOperation { op, ty } => {
                 write!(f, "invalid operation '{}' for type {}", op, ty)
             }
             SemanticErrorKind::InvalidBinaryOperation { op, left, right } => {
                 write!(
-                    f,
-                    "invalid binary operation '{}' between {} and {}",
-                    op, left, right
-                )
+                    f, "invalid binary operation '{}' between {} and {}", op, left, right)
             }
             SemanticErrorKind::FunctionAsValue(name) => {
                 write!(f, "cannot use function '{}' as a value", name)
@@ -400,10 +388,7 @@ impl fmt::Display for SemanticErrorKind {
             }
             SemanticErrorKind::InvalidErrorPropagation { actual_type } => {
                 write!(
-                    f,
-                    "the ? operator can only be applied to Result or Option types, not {}",
-                    actual_type
-                )
+                    f, "the ? operator can only be applied to Result or Option types, not {}", actual_type)
             }
             SemanticErrorKind::DuplicateType(name) => {
                 write!(f, "type '{}' is already defined", name)

@@ -303,8 +303,8 @@ impl<'a> FunctionTranslator<'a> {
                             "Function '{}' expects {} argument{}, but {} {} provided",
                             ir_func.name,
                             expected_arg_count,
-                            if expected_arg_count == 1 { "" } else { "s" },
-                            args.len(),
+                            if expected_arg_count == 1 { "" } else {},
+                            args.len(, "s"),
                             if args.len() == 1 { "was" } else { "were" }
                         ),
                     ));
