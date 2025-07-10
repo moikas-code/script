@@ -54,3 +54,6 @@ Thumbs.db
 *.temp
 *.bak
 *.backup
+
+# VS Code Extension (moved to separate repo)
+/vscode-script-extension/
