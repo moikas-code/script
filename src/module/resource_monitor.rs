@@ -122,7 +122,7 @@ impl ResourceMonitor {
     }
 
     /// Check if a module can be loaded given current resources
-    pub fn check_module_load(&self, module_path: &ModulePath, size: usize) -> ModuleResult<()> {
+    pub fn check_module_load(&self, _module_path: &ModulePath, size: usize) -> ModuleResult<()> {
         // Check module count limit
         let current_modules = self.usage.loaded_modules.load(Ordering::Relaxed);
         if current_modules >= self.limits.max_modules {
@@ -388,14 +388,14 @@ impl ModuleError {
     pub fn resource_exhausted(message: impl Into<String>) -> Self {
         ModuleError::runtime_error(
             "<resource_monitor>",
-            format!("Resource exhausted: {}", message.into())
+            format!("Resource exhausted: {}", message.into()),
         )
     }
 
     pub fn timeout(message: impl Into<String>) -> Self {
         ModuleError::runtime_error(
             "<resource_monitor>",
-            format!("Operation timeout: {}", message.into())
+            format!("Operation timeout: {}", message.into()),
         )
     }
 }

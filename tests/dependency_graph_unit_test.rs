@@ -1,4 +1,4 @@
-use script::compilation::dependency_graph::{DependencyAnalyzer, DependencyGraph};
+use script::compilation::{DependencyAnalyzer, DependencyGraph};
 use script::parser::{Expr, ExprKind, Program, Stmt, StmtKind};
 use std::collections::HashSet;
 

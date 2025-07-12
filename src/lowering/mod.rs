@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::mem;
 
 pub mod async_transform;
+pub mod async_transform_secure;
 pub mod context;
 pub mod expr;
 pub mod stmt;

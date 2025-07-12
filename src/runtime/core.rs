@@ -434,7 +434,9 @@ unsafe impl GlobalAlloc for ScriptAllocator {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         if let Ok(runtime) = runtime() {
-            runtime.memory().deallocate(ptr, layout);
+            unsafe {
+                runtime.memory().deallocate(ptr, layout);
+            }
         } else {
             // Fallback to system allocator
             std::alloc::dealloc(ptr, layout);
@@ -484,7 +486,9 @@ mod tests {
         assert_eq!(stats.total_allocations, 1);
 
         // Deallocate
-        runtime.memory().deallocate(ptr, layout);
+        unsafe {
+            runtime.memory().deallocate(ptr, layout);
+        }
 
         // Check stats again
         let stats = runtime.memory().stats();

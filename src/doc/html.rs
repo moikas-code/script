@@ -87,7 +87,7 @@ impl HtmlGenerator {
                 .map(|d| d.sections.description.as_str())
                 .unwrap_or("");
 
-            html.push_str(format!(
+            html.push_str(&format!(
                 r#"
                 <div class="module-item">
                     <h3><a href="{}.html">{}</a></h3>
@@ -121,7 +121,7 @@ impl HtmlGenerator {
 
         html.push_str(&self.html_header(&format!("{} - Script Documentation", module.name), "../"));
 
-        html.push_str(format!(
+        html.push_str(&format!(
             r#"
         <div class="container">
             <nav class="breadcrumb">
@@ -142,19 +142,19 @@ impl HtmlGenerator {
         html.push_str(r#"<div class="toc"><h2>Contents</h2><ul>"#);
 
         if !module.functions.is_empty() {
-            html.push_str(format!(
+            html.push_str(&format!(
                 r##"<li><a href="#functions">Functions ({})</a></li>"##,
                 module.functions.len()
             ));
         }
         if !module.types.is_empty() {
-            html.push_str(format!(
+            html.push_str(&format!(
                 r##"<li><a href="#types">Types ({})</a></li>"##,
                 module.types.len()
             ));
         }
         if !module.constants.is_empty() {
-            html.push_str(format!(
+            html.push_str(&format!(
                 r##"<li><a href="#constants">Constants ({})</a></li>"##,
                 module.constants.len()
             ));
@@ -210,7 +210,7 @@ impl HtmlGenerator {
     fn render_function(&self, func: &FunctionDoc) -> String {
         let mut html = String::new();
 
-        html.push_str(format!(
+        html.push_str(&format!(
             r#"
         <div class="item function" id="fn.{}">
             <h3>{}</h3>
@@ -241,7 +241,7 @@ impl HtmlGenerator {
             TypeKind::TypeAlias => "type",
         };
 
-        html.push_str(format!(
+        html.push_str(&format!(
             r#"
         <div class="item type" id="type.{}">
             <h3>{} {}</h3>
@@ -271,7 +271,7 @@ impl HtmlGenerator {
     fn render_constant(&self, const_doc: &ConstantDoc) -> String {
         let mut html = String::new();
 
-        html.push_str(format!(
+        html.push_str(&format!(
             r#"
         <div class="item constant" id="const.{}">
             <h3>{}</h3>
@@ -305,7 +305,7 @@ impl HtmlGenerator {
 
         // Description
         if !doc.sections.description.is_empty() {
-            html.push_str(format!(
+            html.push_str(&format!(
                 "<p>{}</p>",
                 self.escape_html(&doc.sections.description)
             ));
@@ -316,13 +316,13 @@ impl HtmlGenerator {
             html.push_str(r#"<div class="params"><h4>Parameters</h4><ul>"#);
 
             for param in &doc.sections.params {
-                html.push_str(format!(
+                html.push_str(&format!(
                     r#"<li><code>{}</code>"#,
                     self.escape_html(&param.name)
                 ));
 
                 if let Some(type_info) = &param.type_info {
-                    html.push_str(format!(
+                    html.push_str(&format!(
                         r#" : <span class="type">{}</span>"#,
                         self.escape_html(type_info)
                     ));
@@ -340,7 +340,7 @@ impl HtmlGenerator {
 
         // Returns
         if let Some(returns) = &doc.sections.returns {
-            html.push_str(format!(
+            html.push_str(&format!(
                 r#"<div class="returns"><h4>Returns</h4><p>{}</p></div>"#,
                 self.escape_html(returns)
             ));

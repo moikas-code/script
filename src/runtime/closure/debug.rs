@@ -329,7 +329,10 @@ impl fmt::Display for ClosureDebugInfo {
         writeln!(f, "Memory usage: {} bytes", self.memory_usage)?;
         writeln!(f, "Optimized: {}", self.performance_info.is_optimized)?;
         writeln!(
-            f, "Optimization level: {}", self.performance_info.optimization_level)?;
+            f,
+            "Optimization level: {}",
+            self.performance_info.optimization_level
+        )?;
         writeln!(f, "Call count: {}", self.performance_info.call_count)?;
         writeln!(
             f,

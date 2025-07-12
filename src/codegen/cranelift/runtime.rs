@@ -336,7 +336,9 @@ mod tests {
             }
         }
 
-        script_free(ptr, size);
+        unsafe {
+            script_free(ptr, size);
+        }
     }
 
     #[test]

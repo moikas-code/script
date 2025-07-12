@@ -18,7 +18,7 @@ fn test_calculator_example_parses() {
     for file in &files {
         let path = calc_dir.join(file);
         let source =
-            fs::read_to_string(&path).expect(&format!("Failed to read {}", path.display());
+            fs::read_to_string(&path).expect(&format!("Failed to read {}", path.display()));
 
         let lexer = Lexer::new(&source).unwrap();
         let (tokens, lex_errors) = lexer.scan_tokens();
@@ -62,7 +62,7 @@ fn test_game_engine_example_parses() {
         };
 
         let source =
-            fs::read_to_string(&path).expect(&format!("Failed to read {}", path.display());
+            fs::read_to_string(&path).expect(&format!("Failed to read {}", path.display()));
 
         let lexer = Lexer::new(&source).unwrap();
         let (tokens, lex_errors) = lexer.scan_tokens();
@@ -97,7 +97,7 @@ fn test_module_test_files_parse() {
     for file in &files {
         let path = test_dir.join(file);
         let source =
-            fs::read_to_string(&path).expect(&format!("Failed to read {}", path.display());
+            fs::read_to_string(&path).expect(&format!("Failed to read {}", path.display()));
 
         let lexer = Lexer::new(&source).unwrap();
         let (tokens, lex_errors) = lexer.scan_tokens();

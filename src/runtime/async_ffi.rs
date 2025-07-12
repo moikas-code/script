@@ -334,7 +334,7 @@ fn script_block_on_timeout_impl(
     let timeout = Duration::from_millis(timeout_ms);
 
     // Create async task with security monitoring
-    let task_id = {
+    let _task_id = {
         let manager = security_manager
             .lock()
             .map_err(|_| SecurityError::AsyncFFIViolation {
@@ -599,7 +599,7 @@ fn script_join_all_impl(
     }
 
     // Create async task for monitoring
-    let task_id = {
+    let _task_id = {
         let manager = security_manager
             .lock()
             .map_err(|_| SecurityError::AsyncFFIViolation {

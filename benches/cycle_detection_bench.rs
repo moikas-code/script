@@ -139,7 +139,7 @@ fn create_complex_cycle(size: usize) -> Vec<ScriptRc<TestNode>> {
                     1 => Value::String(format!("value_{}", k)),
                     2 => Value::Array(vec![
                         ScriptRc::new(Value::I32(k as i32)),
-                        ScriptRc::new(Value::String(format!("item_{}", k),
+                        ScriptRc::new(Value::String(format!("item_{}", k))),
                     ]),
                     _ => Value::Object({
                         let mut obj = HashMap::new();

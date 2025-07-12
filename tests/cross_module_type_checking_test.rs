@@ -17,7 +17,7 @@ use std::path::Path;
 
 /// Helper function to compile source code with semantic analysis
 fn compile_with_semantics(source: &str) -> Result<SemanticAnalyzer, script::error::Error> {
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, errors) = lexer.scan_tokens();
     if !errors.is_empty() {
         return Err(errors.into_iter().next().unwrap());
@@ -43,7 +43,7 @@ fn compile_with_cross_module_checking(
     let module_a_symbols = analyzer_a.symbol_table().clone();
 
     // Compile module B with access to module A's symbols
-    let lexer_b = Lexer::new(module_b_source);
+    let lexer_b = Lexer::new(module_b_source).expect("Failed to create lexer");
     let (tokens_b, errors_b) = lexer_b.scan_tokens();
     if !errors_b.is_empty() {
         return Err(errors_b.into_iter().next().unwrap());

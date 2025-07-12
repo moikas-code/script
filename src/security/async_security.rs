@@ -564,7 +564,7 @@ impl AsyncFFIValidator {
         }
 
         // Check whitelist
-        if let Some(policy) = self.allowed_functions.get(function_name) {
+        if let Some(_policy) = self.allowed_functions.get(function_name) {
             // Function is explicitly allowed
             return Ok(());
         }

@@ -29,7 +29,7 @@ pub struct MonomorphizedType {
 /// Helper to compile and analyze a generic program
 pub fn compile_generic_program(source: &str) -> Result<AnalyzedProgram, Error> {
     // Lex the source
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     if !lex_errors.is_empty() {
@@ -96,8 +96,8 @@ fn type_to_mangle_string(ty: &Type) -> String {
         Type::F32 => "f32".to_string(),
         Type::Bool => "bool".to_string(),
         Type::String => "string".to_string(),
-        Type::Array(elem) => format!("array_{}", type_to_mangle_string(elem),
-        Type::Option(inner) => format!("option_{}", type_to_mangle_string(inner),
+        Type::Array(elem) => format!("array_{}", type_to_mangle_string(elem)),
+        Type::Option(inner) => format!("option_{}", type_to_mangle_string(inner)),
         Type::Result { ok, err } => format!(
             "result_{}_{}",
             type_to_mangle_string(ok),
@@ -123,7 +123,7 @@ pub fn create_generic_struct_program(
     let params_str = if params.is_empty() {
         String::new()
     } else {
-        format!("<{}>", params.join(", ")
+        format!("<{}>", params.join(", "))
     };
 
     let fields_str = fields
@@ -144,7 +144,7 @@ pub fn create_generic_enum_program(
     let params_str = if params.is_empty() {
         String::new()
     } else {
-        format!("<{}>", params.join(", ")
+        format!("<{}>", params.join(", "))
     };
 
     let variants_str = variants
@@ -153,7 +153,7 @@ pub fn create_generic_enum_program(
             if args.is_empty() {
                 format!("    {}", variant_name)
             } else {
-                format!("    {variant_name}({})", args.join(", ")))
+                format!("    {variant_name}({})", args.join(", "))
             }
         })
         .collect::<Vec<_>>()

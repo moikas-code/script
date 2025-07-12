@@ -167,9 +167,9 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
                     ErrorKind::TypeError,
                     format!(
                         "Reference mutability mismatch: {} != {}",
-                        if *m1 {} else { "&" },
-                        if *m2 {} else { "&" }
-                    , "&mut", "&mut"),
+                        if *m1 { "&mut" } else { "&" },
+                        if *m2 { "&mut" } else { "&" }
+                    ),
                 )
                 .with_location(span.start));
             }

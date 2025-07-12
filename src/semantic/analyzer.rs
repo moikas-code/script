@@ -325,7 +325,7 @@ impl SemanticAnalyzer {
                     ) {
                         Ok(_) => imported_count += 1,
                         Err(err) => {
-                            eprintln!("Warning: Failed to import enum '{}': {symbol.name, err}");
+                            eprintln!("Warning: Failed to import enum '{}': {}", symbol.name, err);
                         }
                     }
                 }
@@ -718,7 +718,7 @@ impl SemanticAnalyzer {
     }
 
     /// Convert a stdlib type signature to a semantic analyzer function signature
-    fn convert_stdlib_signature(&self, stdlib_type: &Type) -> FunctionSignature {
+    fn convert_stdlib_signature(&self, _stdlib_type: &Type) -> FunctionSignature {
         // For now, create a simple signature for all stdlib functions
         // In a complete implementation, this would parse the actual Type to extract
         // function parameters and return type
@@ -741,7 +741,7 @@ impl SemanticAnalyzer {
         span: Span,
     ) -> Result<()> {
         // Create struct type
-        let struct_type = if let Some(generics) = generic_params {
+        let _struct_type = if let Some(generics) = generic_params {
             Type::Generic {
                 name: name.to_string(),
                 args: generics
@@ -862,7 +862,7 @@ impl SemanticAnalyzer {
         span: Span,
     ) -> Result<()> {
         // Create enum type
-        let enum_type = if let Some(generics) = generic_params {
+        let _enum_type = if let Some(generics) = generic_params {
             Type::Generic {
                 name: name.to_string(),
                 args: generics
@@ -1986,7 +1986,7 @@ impl SemanticAnalyzer {
                     type_args.iter().map(type_ann_to_type).collect();
 
                 // Look up the generic type definition
-                if let Some(symbol) = self.symbol_table.lookup(name) {
+                if let Some(_symbol) = self.symbol_table.lookup(name) {
                     // For now, create a generic type instance
                     Ok(Type::Generic {
                         name: name.clone(),
@@ -2485,7 +2485,7 @@ impl SemanticAnalyzer {
         condition: &Expr,
         then_branch: &Expr,
         else_branch: Option<&Expr>,
-        span: crate::source::Span,
+        _span: crate::source::Span,
     ) -> Result<Type> {
         // Analyze condition - must be boolean
         let cond_type = self.analyze_expr(condition)?;
@@ -2994,7 +2994,7 @@ impl SemanticAnalyzer {
         try_expr: &Expr,
         catch_clauses: &[CatchClause],
         finally_block: &Option<Block>,
-        span: crate::source::Span,
+        _span: crate::source::Span,
     ) -> Result<Type> {
         // Analyze the try expression
         let try_type = self.analyze_expr(try_expr)?;
@@ -3037,7 +3037,7 @@ impl SemanticAnalyzer {
             catch_types.push(catch_type);
 
             // Remove the error variable from scope
-            if let Some(var) = &clause.var {
+            if let Some(_var) = &clause.var {
                 // Note: In a more sophisticated implementation, we'd have proper scope management
                 // For now, we'll just note that the variable should be removed
             }
@@ -3538,7 +3538,7 @@ impl SemanticAnalyzer {
                             if !sig.is_const {
                                 self.add_error(
                                     SemanticError::const_function_violation(
-                                        format!("@const functions can only call other @const functions, but '{}' is not @const", name),
+                                        &format!("@const functions can only call other @const functions, but '{}' is not @const", name),
                                         expr.span,
                                     )
                                 );
@@ -3698,7 +3698,7 @@ impl SemanticAnalyzer {
 
         // For simple case, we'll infer type parameters from arguments
         // This is a simplified version - real implementation would use unification
-        for (i, (param_name, param_type)) in signature.params.iter().enumerate() {
+        for (i, (_param_name, param_type)) in signature.params.iter().enumerate() {
             if let Some(arg_type) = arg_types.get(i) {
                 // If parameter type is a type parameter, record the substitution
                 if let Type::TypeParam(type_param_name) = param_type {
@@ -3979,7 +3979,7 @@ impl SemanticAnalyzer {
                     }
 
                     // self parameter is initialized by the caller
-                    if let Err(err) = self
+                    if let Err(_err) = self
                         .memory_safety_ctx
                         .initialize_variable("self", method.span)
                     {

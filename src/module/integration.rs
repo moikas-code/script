@@ -467,7 +467,7 @@ impl<'a> CrossModuleTypeValidator<'a> {
         &mut self,
         stmt: &crate::parser::Stmt,
         current_module: &ModulePath,
-        type_info: &HashMap<usize, crate::types::Type>,
+        _type_info: &HashMap<usize, crate::types::Type>,
         symbol_table: &SymbolTable,
     ) -> ModuleResult<()> {
         // First, do the basic validation
@@ -1631,7 +1631,7 @@ impl ModuleCompilationPipeline {
         &self,
         exports: &mut ModuleExports,
         symbol_table: &SymbolTable,
-        type_info: &HashMap<usize, crate::types::Type>,
+        _type_info: &HashMap<usize, crate::types::Type>,
     ) -> ModuleResult<()> {
         // Update function exports with resolved types from symbol table
         for (name, func_export) in exports.functions.iter_mut() {

@@ -45,9 +45,9 @@ fn generate_nested_generics(depth: usize) -> String {
     for d in 1..=depth {
         let mut type_str = "i32".to_string();
         for _ in 0..d {
-            type_str = format!("Box {} }}", { value: {type_str);
+            type_str = format!("Box<{}>", type_str);
         }
-        code.push_str(format!("    let nested{} = {type_str};\n", d));
+        code.push_str(&format!("    let nested{} = {};\n", d, type_str));
     }
 
     code.push_str("}\n");

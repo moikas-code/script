@@ -128,23 +128,23 @@ fn run_file(path: &str, args: &[String]) {
 
             match mode {
                 Mode::Tokens => {
-                    println!("{} Tokenizing {"Script:".cyan(}")).bold(), path.display());
+                    println!("{} Tokenizing {}", "Script:".cyan().bold(), path.display());
                     tokenize_and_display(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Parse => {
-                    println!("{} Parsing {"Script:".cyan(}")).bold(), path.display());
+                    println!("{} Parsing {}", "Script:".cyan().bold(), path.display());
                     parse_and_display(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Run => {
-                    println!("{} Running {"Script:".cyan(}")).bold(), path.display());
+                    println!("{} Running {}", "Script:".cyan().bold(), path.display());
                     run_program(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Test => {
-                    println!("{} Testing {"Script:".cyan(}")).bold(), path.display());
+                    println!("{} Testing {}", "Script:".cyan().bold(), path.display());
                     run_tests(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Debug => {
-                    println!("{} Debugging {"Script:".cyan(}")).bold(), path.display());
+                    println!("{} Debugging {}", "Script:".cyan().bold(), path.display());
                     run_debug_session(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Doc => {
@@ -175,7 +175,7 @@ fn run_repl() {
         "Script".cyan().bold(),
         "v0.1.0".green()
     );
-    println!("{"⚠️  ALPHA VERSION - Not production ready".yellow(}");
+    println!("{}", "⚠️  ALPHA VERSION - Not production ready".yellow());
     println!("Type 'exit' to quit");
     println!("Type ':tokens' to switch to token mode");
     println!("Type ':parse' to switch to parse mode (default)");
@@ -296,8 +296,8 @@ fn tokenize_and_display(source: &str, file_name: Option<&str>) {
 }
 
 fn print_tokens(tokens: &[Token]) {
-    println!("\n{"Tokens:".green(}")).bold());
-    println!("{"-".repeat(60}");
+    println!("\n{}", "Tokens:".green().bold());
+    println!("{}", "-".repeat(60));
 
     for token in tokens {
         if matches!(token.kind, TokenKind::Newline) {
@@ -358,8 +358,8 @@ fn parse_and_display(source: &str, file_name: Option<&str>) {
     let mut parser = Parser::new(tokens);
     match parser.parse() {
         Ok(program) => {
-            println!("\n{"AST:".green(}")).bold());
-            println!("{"-".repeat(60}");
+            println!("\n{}", "AST:".green().bold());
+            println!("{}", "-".repeat(60));
             println!("{program}");
             println!("{}\n", "-".repeat(60));
         }
@@ -501,7 +501,7 @@ fn run_program(source: &str, file_name: Option<&str>) {
                 "Info:".blue().bold(),
                 stats.functions_monomorphized,
                 stats.type_instantiations,
-                stats.duplicates_avoided
+                stats.cache_hits
             );
         }
     }
@@ -729,10 +729,10 @@ fn run_debug_session(source: &str, file_name: Option<&str>) {
 
     match debugger.start_session() {
         Ok(()) => {
-            println!("{"Debug session ended.".green(}");
+            println!("{}", "Debug session ended.".green());
         }
         Err(error) => {
-            eprintln!("{}: {"Debug Error".red(}")).bold(), error);
+            eprintln!("{}: {}", "Debug Error".red().bold(), error);
             process::exit(1);
         }
     }
@@ -765,15 +765,15 @@ fn run_doc_command(args: &[String]) {
     }
 
     println!("{} Generating documentation", "Script:".cyan().bold());
-    println!("  Source: {source_dir.display(}");
-    println!("  Output: {output_dir.display(}");
+    println!("  Source: {}", source_dir.display());
+    println!("  Output: {}", output_dir.display());
 
     // Create documentation generator
     let mut doc_generator = DocGenerator::new();
 
     // Process all .script files in the directory
     if let Err(e) = process_directory(&mut doc_generator, source_dir, "") {
-        eprintln!("{}: {"Error".red(}")).bold(), e);
+        eprintln!("{}: {}", "Error".red().bold(), e);
         process::exit(1);
     }
 
@@ -791,7 +791,7 @@ fn run_doc_command(args: &[String]) {
             );
         }
         Err(e) => {
-            eprintln!("{}: Failed to generate HTML: {"Error".red(}")).bold(), e);
+            eprintln!("{}: Failed to generate HTML: {}", "Error".red().bold(), e);
             process::exit(1);
         }
     }
@@ -832,7 +832,7 @@ fn process_directory(
             match fs::read_to_string(&path) {
                 Ok(source) => {
                     if let Err(e) = doc_generator.generate_from_source(&source, &module_name) {
-                        eprintln!("    {}: {"Warning".yellow(}"), e);
+                        eprintln!("    {}: {}", "Warning".yellow(), e);
                     }
                 }
                 Err(e) => {
@@ -890,14 +890,14 @@ fn run_debug_command(args: &[String]) {
 
     // Shutdown debugger
     if let Err(e) = shutdown_debugger() {
-        eprintln!("{}: Failed to shutdown debugger: {"Warning".yellow(}")), e);
+        eprintln!("{}: Failed to shutdown debugger: {}", "Warning".yellow(), e);
     }
 }
 
 /// Print debug command help
 fn print_debug_help() {
     println!("{} Debug Commands", "Script".cyan().bold());
-    println!("{"-".repeat(50}");
+    println!("{}", "-".repeat(50));
     println!(
         "  {} [line]                    Add line breakpoint",
         "break".green()
@@ -958,7 +958,7 @@ fn handle_breakpoint_command(args: &[String]) {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -981,7 +981,7 @@ fn handle_breakpoint_command(args: &[String]) {
                     );
                 }
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}")).bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                 }
             }
         } else {
@@ -996,7 +996,7 @@ fn handle_breakpoint_command(args: &[String]) {
                     );
                 }
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}")).bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                 }
             }
         }
@@ -1015,7 +1015,7 @@ fn handle_breakpoint_command(args: &[String]) {
                     );
                 }
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}")).bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                 }
             }
         } else {
@@ -1039,7 +1039,7 @@ fn list_breakpoints() {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -1052,7 +1052,7 @@ fn list_breakpoints() {
     }
 
     println!("{} Breakpoints", "Script".cyan().bold());
-    println!("{"-".repeat(60}");
+    println!("{}", "-".repeat(60));
 
     for bp in breakpoints {
         let status = if bp.enabled { "enabled" } else { "disabled" };
@@ -1070,15 +1070,15 @@ fn list_breakpoints() {
         }
 
         if let Some(condition) = &bp.condition {
-            println!("       Condition: {condition.expression.cyan(}");
+            println!("       Condition: {}", condition.expression.cyan());
         }
 
         if let Some(message) = &bp.message {
-            println!("       Message: {message.cyan(}");
+            println!("       Message: {}", message.cyan());
         }
     }
 
-    println!("{"-".repeat(60}");
+    println!("{}", "-".repeat(60));
 }
 
 /// Remove a breakpoint by ID
@@ -1108,17 +1108,17 @@ fn remove_breakpoint_command(args: &[String]) {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
 
     match debugger.breakpoint_manager().remove_breakpoint(id) {
         Ok(()) => {
-            println!("{} Removed breakpoint {"Success:".green(}")).bold(), id);
+            println!("{} Removed breakpoint {}", "Success:".green().bold(), id);
         }
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
         }
     }
 }
@@ -1128,7 +1128,7 @@ fn clear_all_breakpoints() {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -1138,7 +1138,7 @@ fn clear_all_breakpoints() {
             println!("{} Cleared all breakpoints", "Success:".green().bold());
         }
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
         }
     }
 }
@@ -1170,17 +1170,17 @@ fn enable_breakpoint_command(args: &[String]) {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
 
     match debugger.breakpoint_manager().enable_breakpoint(id) {
         Ok(()) => {
-            println!("{} Enabled breakpoint {"Success:".green(}")).bold(), id);
+            println!("{} Enabled breakpoint {}", "Success:".green().bold(), id);
         }
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
         }
     }
 }
@@ -1212,17 +1212,17 @@ fn disable_breakpoint_command(args: &[String]) {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
 
     match debugger.breakpoint_manager().disable_breakpoint(id) {
         Ok(()) => {
-            println!("{} Disabled breakpoint {"Success:".green(}")).bold(), id);
+            println!("{} Disabled breakpoint {}", "Success:".green().bold(), id);
         }
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
         }
     }
 }
@@ -1232,7 +1232,7 @@ fn show_breakpoint_stats() {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}")).bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -1308,21 +1308,21 @@ fn run_update_command(args: &[String]) {
             "--check" => match update::check_update() {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}")).bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                     process::exit(1);
                 }
             },
             "--list" => match update::list_versions() {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}")).bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                     process::exit(1);
                 }
             },
             "--force" => match update::update(true) {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}")).bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                     process::exit(1);
                 }
             },
@@ -1331,7 +1331,7 @@ fn run_update_command(args: &[String]) {
                     match update::update_to_version(&args[3]) {
                         Ok(_) => {}
                         Err(e) => {
-                            eprintln!("{}: {"Error".red(}")).bold(), e);
+                            eprintln!("{}: {}", "Error".red().bold(), e);
                             process::exit(1);
                         }
                     }
@@ -1347,7 +1347,7 @@ fn run_update_command(args: &[String]) {
             "--rollback" => match update::rollback() {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}")).bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                     process::exit(1);
                 }
             },
@@ -1369,7 +1369,7 @@ fn run_update_command(args: &[String]) {
         match update::update(false) {
             Ok(_) => {}
             Err(e) => {
-                eprintln!("{}: {"Error".red(}")).bold(), e);
+                eprintln!("{}: {}", "Error".red().bold(), e);
                 process::exit(1);
             }
         }

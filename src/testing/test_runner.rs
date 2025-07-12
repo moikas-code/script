@@ -203,13 +203,13 @@ impl TestRunner {
         };
 
         // Create a test-specific program with the test function
-        let test_program = self.create_test_program(test);
+        let _test_program = self.create_test_program(test);
 
         // Execute the test with timeout
         let timeout = test.timeout();
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let test_clone = test.clone();
+        let _test_clone = test.clone();
         let should_panic = test.should_panic().map(|s| s.to_string());
 
         thread::spawn(move || {
@@ -289,7 +289,7 @@ impl TestRunner {
     }
 
     /// Execute setup or teardown function
-    fn execute_setup_teardown(&mut self, stmt: &Stmt) -> Result<()> {
+    fn execute_setup_teardown(&mut self, _stmt: &Stmt) -> Result<()> {
         // In a real implementation, this would compile and execute the function
         // For now, we'll just return Ok
         Ok(())

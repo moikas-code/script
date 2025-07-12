@@ -205,17 +205,85 @@ impl ClosureOptimizer {
     /// Create an optimized closure using fast allocation
     fn create_optimized_closure<'a>(
         &mut self,
-        _translator: &mut FunctionTranslator<'a>,
-        _value_id: ValueId,
-        _function_id: &str,
-        _parameters: &[String],
-        _captured_vars: &[(String, ValueId)],
-        _captures_by_ref: bool,
-        _builder: &mut FunctionBuilder,
+        translator: &mut FunctionTranslator<'a>,
+        value_id: ValueId,
+        function_id: &str,
+        parameters: &[String],
+        captured_vars: &[(String, ValueId)],
+        captures_by_ref: bool,
+        builder: &mut FunctionBuilder,
     ) -> CodegenResult<bool> {
-        // TODO: Implement closure optimization once FunctionTranslator methods are public
-        // For now, return false to fall back to standard translation
-        Ok(false)
+        // Get the runtime allocation function
+        let alloc_func = translator.import_runtime_function(
+            "script_alloc",
+            &[types::I64],    // size
+            Some(types::I64), // returns pointer
+            builder,
+        )?;
+
+        // Calculate closure size:
+        // - 8 bytes for function pointer/ID
+        // - 4 bytes for parameter count
+        // - 4 bytes for capture count
+        // - 8 bytes per capture (inline storage for up to 4 captures)
+        let base_size = 8 + 4 + 4;
+        let capture_size = captured_vars.len().min(4) * 8;
+        let total_size = base_size + capture_size;
+
+        // Allocate the closure
+        let size_val = builder.ins().iconst(types::I64, total_size as i64);
+        let closure_ptr = builder.ins().call(alloc_func, &[size_val]);
+        let closure_ptr = builder.inst_results(closure_ptr)[0];
+
+        // Store function ID (interned)
+        let func_id_val = self.intern_function_id(function_id, builder);
+        let memflags = MemFlags::new();
+        builder.ins().store(memflags, func_id_val, closure_ptr, 0);
+
+        // Store parameter count
+        let param_count = builder.ins().iconst(types::I32, parameters.len() as i64);
+        builder.ins().store(memflags, param_count, closure_ptr, 8);
+
+        // Store capture count
+        let capture_count = builder.ins().iconst(types::I32, captured_vars.len() as i64);
+        builder
+            .ins()
+            .store(memflags, capture_count, closure_ptr, 12);
+
+        // Store captured values inline (up to 4)
+        let mut offset = 16;
+        for (i, (_name, capture_id)) in captured_vars.iter().enumerate() {
+            if i >= 4 {
+                break; // Only store first 4 captures inline
+            }
+
+            let capture_val = translator.get_value(*capture_id)?;
+
+            // If capturing by reference, store the address; otherwise store the value
+            let stored_val = if captures_by_ref {
+                // Create a stack slot to hold the reference
+                let slot = builder.create_sized_stack_slot(StackSlotData::new(
+                    StackSlotKind::ExplicitSlot,
+                    8,
+                    8,
+                ));
+                let addr = builder.ins().stack_addr(types::I64, slot, 0);
+                builder.ins().store(memflags, capture_val, addr, 0);
+                addr
+            } else {
+                capture_val
+            };
+
+            builder
+                .ins()
+                .store(memflags, stored_val, closure_ptr, offset);
+            offset += 8;
+        }
+
+        // Store the closure pointer as the result
+        translator.insert_value(value_id, closure_ptr);
+
+        Ok(true)
     }
 
     /// Try to resolve a direct call target at compile time

@@ -349,57 +349,57 @@ impl MemoryProfiler {
         let stats = self.get_stats();
         let mut report = String::new();
 
-        report.push_str(format!("=== Memory Profile Report ===\n"));
-        report.push_str(format!("Duration: {:?}\n\n", stats.duration));
+        report.push_str(&format!("=== Memory Profile Report ===\n"));
+        report.push_str(&format!("Duration: {:?}\n\n", stats.duration));
 
-        report.push_str(format!("Allocation Summary:\n"));
-        report.push_str(format!(
+        report.push_str(&format!("Allocation Summary:\n"));
+        report.push_str(&format!(
             "  Total allocations: {}\n",
             stats.allocations.total_allocations
         ));
-        report.push_str(format!(
+        report.push_str(&format!(
             "  Total deallocations: {}\n",
             stats.allocations.total_deallocations
         ));
-        report.push_str(format!(
+        report.push_str(&format!(
             "  Total bytes allocated: {} bytes\n",
             stats.allocations.total_bytes_allocated
         ));
-        report.push_str(format!(
+        report.push_str(&format!(
             "  Total bytes freed: {} bytes\n",
             stats.allocations.total_bytes_deallocated
         ));
-        report.push_str(format!(
+        report.push_str(&format!(
             "  Current memory usage: {} bytes\n",
             stats.allocations.current_memory
         ));
-        report.push_str(format!(
+        report.push_str(&format!(
             "  Peak memory usage: {} bytes\n",
             stats.allocations.peak_memory
         ));
-        report.push_str(format!(
+        report.push_str(&format!(
             "  Potential leaks: {}\n\n",
             stats.allocations.potential_leaks
         ));
 
-        report.push_str(format!("GC Summary:\n"));
-        report.push_str(format!("  Collections: {}\n", stats.gc_collections));
-        report.push_str(format!(
+        report.push_str(&format!("GC Summary:\n"));
+        report.push_str(&format!("  Collections: {}\n", stats.gc_collections));
+        report.push_str(&format!(
             "  Objects collected: {}\n",
             stats.gc_objects_collected
         ));
-        report.push_str(format!("  Total GC time: {:?}\n\n", stats.gc_total_time));
+        report.push_str(&format!("  Total GC time: {:?}\n\n", stats.gc_total_time));
 
-        report.push_str(format!("Type Statistics:\n"));
+        report.push_str(&format!("Type Statistics:\n"));
         let mut type_stats: Vec<_> = stats.type_stats.iter().collect();
         type_stats.sort_by_key(|(_, s)| s.current_bytes);
         type_stats.reverse();
 
         for (type_name, stats) in type_stats.iter().take(10) {
-            report.push_str(format!("  {}:\n", type_name));
-            report.push_str(format!("    Allocations: {}\n", stats.allocations));
-            report.push_str(format!("    Current bytes: {}\n", stats.current_bytes));
-            report.push_str(format!("    Peak bytes: {}\n", stats.peak_bytes));
+            report.push_str(&format!("  {}:\n", type_name));
+            report.push_str(&format!("    Allocations: {}\n", stats.allocations));
+            report.push_str(&format!("    Current bytes: {}\n", stats.current_bytes));
+            report.push_str(&format!("    Peak bytes: {}\n", stats.peak_bytes));
         }
 
         report

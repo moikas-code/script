@@ -217,7 +217,7 @@ pub fn sleep_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 
 /// Create a new stopwatch
 pub fn stopwatch_new_impl(_args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
-    let stopwatch = Rc::new(RefCell::new(Stopwatch::new()));
+    let _stopwatch = Rc::new(RefCell::new(Stopwatch::new()));
 
     let mut map = HashMap::new();
     // Store stopwatch as a marker in the object - actual stopwatch would need proper wrapper
@@ -282,7 +282,7 @@ pub fn stopwatch_elapsed_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue
 
 /// Create a new frame timer
 pub fn frame_timer_new_impl(_args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
-    let timer = Rc::new(RefCell::new(FrameTimer::new()));
+    let _timer = Rc::new(RefCell::new(FrameTimer::new()));
 
     let mut map = HashMap::new();
     // Store timer as a marker in the object - actual timer would need proper wrapper
@@ -490,13 +490,13 @@ mod tests {
         // Test seconds formatting
         let result = format_time_impl(&[ScriptValue::F32(3661.0)]).unwrap();
         match result {
-            ScriptValue::String(s) => assert_eq!(&**s, "01:01:01"),
+            ScriptValue::String(s) => assert_eq!(s.as_str(), "01:01:01"),
             _ => panic!("Expected String"),
         }
 
         let result = format_time_impl(&[ScriptValue::F32(125.0)]).unwrap();
         match result {
-            ScriptValue::String(s) => assert_eq!(&**s, "02:05"),
+            ScriptValue::String(s) => assert_eq!(s.as_str(), "02:05"),
             _ => panic!("Expected String"),
         }
     }
@@ -505,7 +505,7 @@ mod tests {
     fn test_format_time_millis() {
         let result = format_time_millis_impl(&[ScriptValue::F32(65123.0)]).unwrap();
         match result {
-            ScriptValue::String(s) => assert_eq!(&**s, "01:05.123"),
+            ScriptValue::String(s) => assert_eq!(s.as_str(), "01:05.123"),
             _ => panic!("Expected String"),
         }
     }

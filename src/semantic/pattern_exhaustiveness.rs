@@ -44,7 +44,7 @@ struct PatternRow {
 pub fn check_exhaustiveness(
     arms: &[MatchArm],
     scrutinee_type: &Type,
-    scrutinee_span: Span,
+    _scrutinee_span: Span,
     symbol_table: &SymbolTable,
 ) -> ExhaustivenessResult {
     // Build the pattern matrix
@@ -533,9 +533,9 @@ fn generate_missing_patterns(
                                 EnumVariantType::Unit => variant_info.name.clone(),
                                 EnumVariantType::Tuple(types) => {
                                     let wildcards = vec!["_"; types.len()].join(", ");
-                                    format!("{}({}, wildcards)", variant_info.name)
+                                    format!("{}({})", variant_info.name, wildcards)
                                 }
-                                EnumVariantType::Struct(fields) => {
+                                EnumVariantType::Struct(_fields) => {
                                     format!("{} {{ .. }}", variant_info.name)
                                 }
                             };

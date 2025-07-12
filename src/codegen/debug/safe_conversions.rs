@@ -28,7 +28,10 @@ impl fmt::Display for ConversionError {
         match self {
             ConversionError::Overflow { value, target_type } => {
                 write!(
-                    f, "Integer overflow: value {} cannot fit in {}", value, target_type)
+                    f,
+                    "Integer overflow: value {} cannot fit in {}",
+                    value, target_type
+                )
             }
             ConversionError::AdditionOverflow {
                 base,

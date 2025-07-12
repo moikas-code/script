@@ -205,7 +205,7 @@ impl DependencyAnalyzer {
                     }
                     Err(err) => {
                         // Log error but continue processing other imports
-                        eprintln!("Warning: Failed to resolve import '{}': {module, err}");
+                        eprintln!("Warning: Failed to resolve import '{}': {}", module, err);
                     }
                 }
 
@@ -291,10 +291,8 @@ impl DependencyAnalyzer {
         // Remove base path if present
         if let Some(base) = &self.base_path {
             if let Some(base_str) = base.to_str() {
-                if let Some(relative) = module_name.strip_prefix(format!(
-                    "{}::",
-                    base_str.replace(std::path::MAIN_SEPARATOR, "::")
-                )) {
+                let prefix = format!("{}::", base_str.replace(std::path::MAIN_SEPARATOR, "::"));
+                if let Some(relative) = module_name.strip_prefix(&prefix) {
                     return Ok(relative.to_string());
                 }
             }

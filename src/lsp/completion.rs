@@ -210,7 +210,7 @@ fn get_stdlib_completions() -> Vec<CompletionItem> {
 /// Get variable completions from the current scope
 fn get_variable_completions(
     content: &str,
-    position: Position,
+    _position: Position,
     prefix: &str,
 ) -> Vec<CompletionItem> {
     let mut items = Vec::new();

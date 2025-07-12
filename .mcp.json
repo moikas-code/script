@@ -1,0 +1,45 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ],
+      "env": {}
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {}
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {}
+    },
+    "code-audit": {
+      "command": "code-audit",
+      "args": [
+        "start",
+        "--stdio"
+      ],
+      "env": {}
+    },
+    "kb-mcp": {
+      "command": "npx",
+      "args": [
+        "kb",
+        "serve"
+      ],
+      "env": {}
+    }
+  }
+}

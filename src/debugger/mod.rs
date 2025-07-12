@@ -307,7 +307,7 @@ impl Debugger {
         let function_info = function_name
             .map(|name| format!(" in function '{}'", name))
             .unwrap_or_default();
-        println!("Breakpoint hit at {}{location, function_info}");
+        println!("Breakpoint hit at {}{}", location, function_info);
 
         Ok(())
     }
@@ -459,7 +459,7 @@ impl Debugger {
                             .add_line_breakpoint(file_name.clone(), line)
                         {
                             Ok(id) => {
-                                println!("Breakpoint {} set at line {} in {id, line, file_name}")
+                                println!("Breakpoint {} set at line {} in {}", id, line, file_name)
                             }
                             Err(e) => println!("Error setting breakpoint: {e}"),
                         }

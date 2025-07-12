@@ -57,3 +57,4 @@ Thumbs.db
 
 # VS Code Extension (moved to separate repo)
 /vscode-script-extension/
+simple_perf_test

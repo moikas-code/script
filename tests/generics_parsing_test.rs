@@ -142,8 +142,8 @@ mod tests {
                 let param = &gen_params.params[0];
                 assert_eq!(param.name, "T");
                 assert_eq!(param.bounds.len(), 2);
-                assert_eq!(param.bounds[0], "Eq");
-                assert_eq!(param.bounds[1], "Clone");
+                assert_eq!(param.bounds[0].trait_name, "Eq");
+                assert_eq!(param.bounds[1].trait_name, "Clone");
             }
             _ => panic!("Expected function statement"),
         }
@@ -204,12 +204,14 @@ mod tests {
                 // Check T bounds
                 assert_eq!(gen_params.params[0].name, "T");
                 assert_eq!(gen_params.params[0].bounds.len(), 3);
-                assert_eq!(gen_params.params[0].bounds, vec!["Debug", "Clone", "Send"]);
+                assert_eq!(gen_params.params[0].bounds[0].trait_name, "Debug");
+                assert_eq!(gen_params.params[0].bounds[1].trait_name, "Clone");
+                assert_eq!(gen_params.params[0].bounds[2].trait_name, "Send");
 
                 // Check U bounds
                 assert_eq!(gen_params.params[1].name, "U");
                 assert_eq!(gen_params.params[1].bounds.len(), 1);
-                assert_eq!(gen_params.params[1].bounds[0], "Display");
+                assert_eq!(gen_params.params[1].bounds[0].trait_name, "Display");
             }
             _ => panic!("Expected function"),
         }

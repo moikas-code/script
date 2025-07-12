@@ -100,7 +100,7 @@ async fn install_from_manifest(manifest_path: &PathBuf, force: bool) -> PackageR
         lock_file.save_to_file(&lock_path)?;
     }
 
-    print_success(format!("Installed {} dependencies", build_order.len()));
+    print_success(&format!("Installed {} dependencies", build_order.len()));
 
     Ok(())
 }
@@ -122,7 +122,7 @@ async fn install_packages(
     for package_spec in packages {
         let (name, version) = parse_package_spec(&package_spec)?;
 
-        print_progress("Installing", format!("{} {}", name, version));
+        print_progress("Installing", &format!("{} {}", name, version));
 
         // Add to manifest if --save
         if save {
@@ -142,7 +142,7 @@ async fn install_packages(
             fs::create_dir_all(&package_dir)?;
         }
 
-        print_success(format!("Installed {} {}", name.cyan(), version));
+        print_success(&format!("Installed {} {}", name.cyan(), version));
     }
 
     // Save updated manifest
@@ -157,7 +157,7 @@ async fn install_packages(
         } else {
             "dependencies"
         };
-        print_success(format!("Added {} packages to {}", added.len(), dep_type));
+        print_success(&format!("Added {} packages to {}", added.len(), dep_type));
     }
 
     Ok(())
@@ -176,11 +176,11 @@ async fn install_global(packages: Vec<String>, force: bool) -> PackageResult<()>
     for package_spec in packages {
         let (name, version) = parse_package_spec(&package_spec)?;
 
-        print_progress("Installing", format!("{} {} (global)", name, version));
+        print_progress("Installing", &format!("{} {} (global)", name, version));
 
         let package_dir = global_dir.join(&name);
         if package_dir.exists() && !force {
-            print_warning(format!(
+            print_warning(&format!(
                 "{} is already installed globally. Use --force to reinstall.",
                 name
             ));
@@ -193,7 +193,7 @@ async fn install_global(packages: Vec<String>, force: bool) -> PackageResult<()>
         // Create symlinks for binaries
         // In a real implementation, this would link executables to PATH
 
-        print_success(format!("Installed {} {} globally", name.cyan(), version));
+        print_success(&format!("Installed {} {} globally", name.cyan(), version));
     }
 
     Ok(())

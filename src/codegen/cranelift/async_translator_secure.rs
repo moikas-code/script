@@ -633,14 +633,14 @@ impl SecureAsyncTranslator {
                 }
                 Ok((total_size + 7) & !7) // Align to 8 bytes
             }
-            Type::Reference(_) => Ok(8), // Reference pointer
+            Type::Reference { .. } => Ok(8), // Reference pointer
             Type::Option(inner_ty) => {
                 let inner_size = self.calculate_type_size(inner_ty)?;
                 Ok(inner_size + 1) // Data + discriminant
             }
-            Type::Result(ok_ty, err_ty) => {
-                let ok_size = self.calculate_type_size(ok_ty)?;
-                let err_size = self.calculate_type_size(err_ty)?;
+            Type::Result { ok, err } => {
+                let ok_size = self.calculate_type_size(ok)?;
+                let err_size = self.calculate_type_size(err)?;
                 Ok(ok_size.max(err_size) + 1) // Larger variant + discriminant
             }
             Type::Future(inner_ty) => {
@@ -657,10 +657,9 @@ impl SecureAsyncTranslator {
             Type::F32 => Ok(types::F32),
             Type::Bool => Ok(types::I8),
             Type::String | Type::Array(_) | Type::Function { .. } |
-            Type::Generic { .. } | Type::Named(_) | Type::Reference(_) |
-            Type::Option(_) | Type::Result(_, _) | Type::Future(_) => Ok(types::I64),
+            Type::Generic { .. } | Type::Named(_) | Type::Reference { .. } |
+            Type::Option(_) | Type::Result { .. } | Type::Future(_) => Ok(types::I64),
             Type::Unknown => Ok(types::I64),
-            Type::Null => Ok(types::I32),
             Type::Tuple(_) => Ok(types::I64), // Tuple as pointer
         }
     }

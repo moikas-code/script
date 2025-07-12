@@ -124,9 +124,17 @@ impl BoundsChecker {
         _index: Value,
         _length: Value,
     ) -> CodegenResult<()> {
-        // For now, always generate a trap for bounds violations
-        // TODO: Implement proper panic handler support
-        builder.ins().trap(TrapCode::HeapOutOfBounds);
+        // Use the panic handler if available, otherwise trap
+        if let Some(_panic_handler) = self.panic_handler {
+            // For now, we cannot directly call the panic handler from here
+            // because we don't have access to the module to convert FuncId to FuncRef.
+            // This would need to be handled at a higher level in the translator.
+            // Fall back to trap for now.
+            builder.ins().trap(TrapCode::HeapOutOfBounds);
+        } else {
+            // Fallback to trap if no panic handler is set
+            builder.ins().trap(TrapCode::HeapOutOfBounds);
+        }
 
         // This block never returns
         builder.ins().return_(&[]);

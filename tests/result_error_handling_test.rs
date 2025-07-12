@@ -6,7 +6,7 @@
 //! - Pattern exhaustiveness checking for Result/Option types
 //! - Type safety and error propagation validation
 
-use crate::common::test_utils::*;
+// Test utilities are defined inline in this file
 use script::error::ErrorKind;
 use script::lexer::Lexer;
 use script::parser::Parser;
@@ -38,7 +38,7 @@ fn test_error_propagation_semantic_analysis() {
     let ast = parser.parse().expect("Failed to parse");
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze_program(&ast);
 
     // Should succeed - valid error propagation
     assert!(
@@ -72,7 +72,7 @@ fn test_error_propagation_invalid_context() {
     let ast = parser.parse().expect("Failed to parse");
 
     let mut analyzer = SemanticAnalyzer::new();
-    let result = analyzer.analyze(&ast);
+    let result = analyzer.analyze_program(&ast);
 
     // Should fail - ? operator used in non-Result function
     assert!(result.is_err());

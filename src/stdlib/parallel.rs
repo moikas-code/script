@@ -349,7 +349,7 @@ pub(crate) fn vec_parallel_reduce_impl(
         )));
     }
 
-    let vec = match &args[0] {
+    let _vec = match &args[0] {
         ScriptValue::Array(v) => v,
         _ => {
             return Err(RuntimeError::InvalidOperation(

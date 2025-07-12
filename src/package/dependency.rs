@@ -87,7 +87,7 @@ impl DependencySpec {
                 tag,
                 rev,
                 path,
-                registry,
+                registry: _,
                 package,
                 features,
                 optional,

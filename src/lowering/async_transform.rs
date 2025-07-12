@@ -440,7 +440,7 @@ fn transform_function_body(
     let mut suspend_points = Vec::new();
     let mut next_state_id = 1u32;
 
-    for (orig_block_id, orig_block) in &original_blocks {
+    for (_orig_block_id, orig_block) in &original_blocks {
         for (_, inst_with_loc) in &orig_block.instructions {
             let inst = &inst_with_loc.instruction;
             if let Instruction::PollFuture { .. } = inst {
@@ -493,7 +493,7 @@ fn transform_function_body(
             .get(&param.name)
             .copied()
             .unwrap_or(8 + (i as u32) * 8);
-        let loaded_param = builder
+        let _loaded_param = builder
             .build_load_async_state(state_ptr, offset, param.ty.clone())
             .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to load parameter"))?;
         // Map parameter ValueId to loaded value
@@ -619,7 +619,7 @@ fn transform_blocks(
 fn create_async_wrapper(
     module: &mut Module,
     original_fn_id: FunctionId,
-    poll_fn_id: FunctionId,
+    _poll_fn_id: FunctionId,
     state_size: u32,
 ) -> Result<(), Error> {
     let original_func = module

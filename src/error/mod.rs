@@ -189,7 +189,7 @@ impl fmt::Display for Error {
         }
 
         if let (Some(line), Some(loc)) = (&self.source_line, &self.location) {
-            write!(f, "\n{:4} | {}", line)?;
+            write!(f, "\n{:4} | {}", loc.line, line)?;
             write!(f, "\n     | {}{}", " ".repeat(loc.column - 1), "^".red())?;
         }
 

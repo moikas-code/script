@@ -522,8 +522,8 @@ impl MonomorphizationContext {
             Type::Reference { mutable, inner } => {
                 format!(
                     "ref_{}_{}",
-                    if *mutable {} else { "const" },
-                    self.mangle_type(inner, "mut")
+                    if *mutable { "mut" } else { "const" },
+                    self.mangle_type(inner)
                 )
             }
             Type::Struct { name, fields } => {

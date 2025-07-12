@@ -207,7 +207,7 @@ version = "{}"
     fn compute_package_checksum(&self, package_dir: &Path) -> PackageResult<String> {
         let mut hasher = Sha256::new();
         self.hash_directory(&mut hasher, package_dir)?;
-        Ok(format!("{}", hasher.finalize(, :x)))
+        Ok(format!("{:x}", hasher.finalize()))
     }
 
     fn hash_directory(&self, hasher: &mut Sha256, dir: &Path) -> PackageResult<()> {
@@ -606,7 +606,7 @@ mod tests {
 
         let progress: ProgressCallback = Box::new(move |current, total| {
             progress_called_clone.store(true, std::sync::atomic::Ordering::SeqCst);
-            println!("Progress: {}/{current, total}");
+            println!("Progress: {}/{}", current, total);
         });
 
         manager

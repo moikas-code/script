@@ -142,7 +142,7 @@ impl LoopUnrolling {
         &self,
         _function: &Function,
         loop_info: &LoopInfo,
-        induction_var: &super::loop_analysis::InductionVariable,
+        _induction_var: &super::loop_analysis::InductionVariable,
     ) -> Option<usize> {
         // For now, return a conservative estimate
         // In a full implementation, we'd analyze the actual values

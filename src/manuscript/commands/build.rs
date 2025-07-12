@@ -41,7 +41,7 @@ pub async fn execute(
     let build_dir = package_root.join("target").join(mode);
     fs::create_dir_all(&build_dir)?;
 
-    print_info(format!(
+    print_info(&format!(
         "Building {} package in {} mode",
         package.manifest.package.name.cyan(),
         mode.yellow()
@@ -98,13 +98,13 @@ pub async fn execute(
     let mut errors = Vec::new();
 
     for target in &build_targets {
-        pb.set_message(format!("Building {} ({}, target.kind)", target.name.cyan()));
+        pb.set_message(format!("Building {} ({})", target.name.cyan(), target.kind));
 
         match build_target(&package, &target, &build_dir, release).await {
             Ok(output_path) => {
                 built_count += 1;
                 pb.inc(1);
-                print_success(format!(
+                print_success(&format!(
                     "Built {} -> {}",
                     target.name.cyan(),
                     output_path.display()
@@ -131,7 +131,7 @@ pub async fn execute(
         )));
     }
 
-    print_success(format!("Successfully built {} targets", built_count));
+    print_success(&format!("Successfully built {} targets", built_count));
 
     Ok(())
 }

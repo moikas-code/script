@@ -41,7 +41,7 @@ pub trait ScriptError: fmt::Debug + fmt::Display + Send + Sync + 'static {
 
     /// Convert to ScriptValue for Script language consumption
     fn to_script_value(&self) -> ScriptValue {
-        let error_map = std::collections::HashMap::from([
+        let _error_map = std::collections::HashMap::from([
             (
                 "message".to_string(),
                 ScriptValue::String(ScriptRc::new(crate::stdlib::ScriptString::new(
@@ -171,11 +171,17 @@ impl fmt::Display for ValidationError {
         match (&self.field, &self.value) {
             (Some(field), Some(value)) => {
                 write!(
-                    f, "Validation Error for field '{}' with value '{}': {}", field, value, self.message)
+                    f,
+                    "Validation Error for field '{}' with value '{}': {}",
+                    field, value, self.message
+                )
             }
             (Some(field), None) => {
                 write!(
-                    f, "Validation Error for field '{}': {}", field, self.message)
+                    f,
+                    "Validation Error for field '{}': {}",
+                    field, self.message
+                )
             }
             _ => {
                 write!(f, "Validation Error: {}", self.message)
@@ -248,7 +254,10 @@ impl fmt::Display for NetworkError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.status_code {
             Some(code) => write!(
-                f, "Network Error ({}, status: {}): {}", self.kind, code, self.message),
+                f,
+                "Network Error ({}, status: {}): {}",
+                self.kind, code, self.message
+            ),
             None => write!(f, "Network Error ({}): {}", self.kind, self.message),
         }
     }
@@ -311,11 +320,17 @@ impl fmt::Display for ParseError {
         match (self.line, self.column) {
             (Some(line), Some(col)) => {
                 write!(
-                    f, "Parse Error in {} at line {}, column {}: {}", self.format, line, col, self.message)
+                    f,
+                    "Parse Error in {} at line {}, column {}: {}",
+                    self.format, line, col, self.message
+                )
             }
             (Some(line), None) => {
                 write!(
-                    f, "Parse Error in {} at line {}: {}", self.format, line, self.message)
+                    f,
+                    "Parse Error in {} at line {}: {}",
+                    self.format, line, self.message
+                )
             }
             _ => {
                 write!(f, "Parse Error in {}: {}", self.format, self.message)

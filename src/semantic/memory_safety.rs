@@ -279,7 +279,7 @@ impl MemorySafetyContext {
     }
 
     /// Initialize a variable
-    pub fn initialize_variable(&mut self, name: &str, init_span: Span) -> Result<(), String> {
+    pub fn initialize_variable(&mut self, name: &str, _init_span: Span) -> Result<(), String> {
         if let Some(var_info) = self.variables.get_mut(name) {
             var_info.is_initialized = true;
             Ok(())
@@ -351,7 +351,7 @@ impl MemorySafetyContext {
         name: &str,
         borrow_span: Span,
     ) -> Result<LifetimeId, MemorySafetyViolation> {
-        if let Some(var_info) = self.variables.get_mut(name) {
+        if let Some(_var_info) = self.variables.get_mut(name) {
             // Check for conflicting mutable borrows
             if let Some(borrows) = self.active_borrows.get(name) {
                 for (borrow_state, existing_span) in borrows {
@@ -537,7 +537,7 @@ impl MemorySafetyContext {
         match &stmt.kind {
             StmtKind::Let { name, init, .. } => {
                 // Define variable
-                if let Err(e) = self.define_variable(
+                if let Err(_e) = self.define_variable(
                     name.clone(),
                     Type::Unknown, // Type would come from type checker
                     true,          // Assume mutable for now
@@ -741,7 +741,10 @@ impl fmt::Display for MemorySafetyViolation {
                 variable, reason, ..
             } => {
                 write!(
-                    f, "potential memory leak of variable '{}': {}", variable, reason)
+                    f,
+                    "potential memory leak of variable '{}': {}",
+                    variable, reason
+                )
             }
         }
     }

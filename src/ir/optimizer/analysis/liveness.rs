@@ -286,7 +286,7 @@ impl LivenessAnalysis {
     /// Run liveness analysis on a function
     pub fn analyze(&mut self, func: &Function, cfg: &ControlFlowGraph) -> LivenessInfo {
         if self.debug {
-            eprintln!("Running liveness analysis for function: {func.name}");
+            eprintln!("Running liveness analysis for function: {}", func.name);
         }
 
         // Create the data flow problem

@@ -8,7 +8,7 @@
 //! - Common game-oriented random utilities
 
 use crate::runtime::{Result as RuntimeResult, RuntimeError, ScriptRc};
-use crate::stdlib::{ScriptString, ScriptValue, ScriptVec};
+use crate::stdlib::{ScriptString, ScriptValue};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -238,7 +238,7 @@ pub fn random_seed_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 
 /// Create a new RNG instance
 pub fn rng_new_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
-    let rng = if args.is_empty() {
+    let _rng = if args.is_empty() {
         ScriptRng::new()
     } else if args.len() == 1 {
         let seed = args[0].to_i32()? as u64;
@@ -352,7 +352,7 @@ pub fn pick_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
             let index = RNG.with(|rng| rng.borrow_mut().gen_range(0..arr.len()));
 
             arr.get(index)
-                .cloned()
+                .map_err(|_| RuntimeError::InvalidOperation("Failed to access array".to_string()))?
                 .ok_or_else(|| RuntimeError::InvalidOperation("Index out of bounds".to_string()))
         }
         _ => Err(RuntimeError::InvalidOperation(
@@ -466,7 +466,9 @@ pub fn weighted_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> 
     for i in 0..weights.len() {
         let w = weights
             .get(i)
-            .cloned()
+            .map_err(|_| {
+                RuntimeError::InvalidOperation("Failed to access weights array".to_string())
+            })?
             .ok_or_else(|| {
                 RuntimeError::InvalidOperation("Weight index out of bounds".to_string())
             })?;
@@ -488,7 +490,9 @@ pub fn weighted_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> 
     for i in 0..weights.len() {
         let w = weights
             .get(i)
-            .cloned()
+            .map_err(|_| {
+                RuntimeError::InvalidOperation("Failed to access weights array".to_string())
+            })?
             .ok_or_else(|| {
                 RuntimeError::InvalidOperation("Weight index out of bounds".to_string())
             })?;
@@ -498,7 +502,9 @@ pub fn weighted_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> 
         if pick <= accumulated {
             return items
                 .get(i)
-                .cloned()
+                .map_err(|_| {
+                    RuntimeError::InvalidOperation("Failed to access items array".to_string())
+                })?
                 .ok_or_else(|| {
                     RuntimeError::InvalidOperation("Item index out of bounds".to_string())
                 });
@@ -508,7 +514,7 @@ pub fn weighted_random_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> 
     // Fallback (should not reach here)
     items
         .get(items.len() - 1)
-        .cloned()
+        .map_err(|_| RuntimeError::InvalidOperation("Failed to access items array".to_string()))?
         .ok_or_else(|| RuntimeError::InvalidOperation("No items in array".to_string()))
 }
 
@@ -585,7 +591,9 @@ mod tests {
         ];
 
         let original = values.clone();
-        let arr = ScriptValue::Array(ScriptRc::new(ScriptVec::from_vec(values)));
+        let arr = ScriptValue::Array(ScriptRc::new(
+            crate::stdlib::collections::ScriptVec::from_vec(values),
+        ));
 
         let shuffled = shuffle_impl(&[arr]).unwrap();
 

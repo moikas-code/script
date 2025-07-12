@@ -320,7 +320,7 @@ impl PackageManager {
 
         match &dependency.kind {
             DependencyKind::Registry => {
-                let package_info = self.registry.get_package_info(name)?;
+                let _package_info = self.registry.get_package_info(name)?;
                 self.cache.store_package(name, resolved_version, vec![])?;
             }
             DependencyKind::Git {
@@ -353,7 +353,7 @@ impl PackageManager {
     fn install_git_dependency(
         &mut self,
         name: &str,
-        dependency: &Dependency,
+        _dependency: &Dependency,
         resolved_version: &Version,
         url: &str,
         rev: &Option<String>,
@@ -449,7 +449,7 @@ impl PackageManager {
     fn install_path_dependency(
         &mut self,
         name: &str,
-        dependency: &Dependency,
+        _dependency: &Dependency,
         resolved_version: &Version,
         path: &PathBuf,
     ) -> PackageResult<()> {

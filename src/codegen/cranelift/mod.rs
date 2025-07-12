@@ -221,6 +221,9 @@ impl CraneliftBackend {
                 })?;
 
             self.func_ids.insert("script_panic".to_string(), func_id);
+
+            // Set the panic handler in the bounds checker
+            self.bounds_checker.set_panic_handler(func_id);
         }
 
         Ok(())
@@ -396,8 +399,8 @@ fn script_type_to_cranelift(ty: &ScriptType) -> types::Type {
         ScriptType::TypeVar(_) => types::I64, // Should be resolved by now
         ScriptType::Generic { .. } => types::I64, // Should be resolved by now
         ScriptType::TypeParam(_) => types::I64, // Should be resolved by now
-        ScriptType::Tuple(_) => types::I64, // TODO: Tuples are not yet implemented in codegen
-        ScriptType::Reference { .. } => types::I64, // TODO: References are not yet implemented in codegen
+        ScriptType::Tuple(_) => types::I64, // Pointer to tuple (heap-allocated)
+        ScriptType::Reference { .. } => types::I64, // Pointer to referenced value
     }
 }
 

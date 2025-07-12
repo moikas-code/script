@@ -385,37 +385,37 @@ fn create_test_runtime() -> Runtime {
 fn compile_and_run(runtime: &mut Runtime, code: &str) -> Result<(), RuntimeError> {
     // Lexical analysis
     let lexer = Lexer::new(code.to_string())
-        .map_err(|e| RuntimeError::InvalidOperation(format!("Lexer creation error: {:?}", e)?;
+        .map_err(|e| RuntimeError::InvalidOperation(format!("Lexer creation error: {:?}", e)))?;
     let (tokens, errors) = lexer.scan_tokens();
     if !errors.is_empty() {
         return Err(RuntimeError::InvalidOperation(format!(
             "Lexer errors: {:?}",
             errors
-        );
+        )));
     }
 
     // Parsing
     let mut parser = Parser::new(tokens);
     let ast = parser
         .parse()
-        .map_err(|e| RuntimeError::InvalidOperation(format!("Parser error: {:?}", e)?;
+        .map_err(|e| RuntimeError::InvalidOperation(format!("Parser error: {:?}", e)))?;
 
     // Semantic analysis
     let mut analyzer = SemanticAnalyzer::new();
     let analyzed_ast = analyzer
         .analyze(ast)
-        .map_err(|e| RuntimeError::InvalidOperation(format!("Semantic error: {:?}", e)?;
+        .map_err(|e| RuntimeError::InvalidOperation(format!("Semantic error: {:?}", e)))?;
 
     // Compilation
     let mut ctx = CompilationContext::new();
     let ir = ctx
         .compile_program(analyzed_ast)
-        .map_err(|e| RuntimeError::InvalidOperation(format!("Compilation error: {:?}", e)?;
+        .map_err(|e| RuntimeError::InvalidOperation(format!("Compilation error: {:?}", e)))?;
 
     // Execution
     runtime
         .execute(ir)
-        .map_err(|e| RuntimeError::InvalidOperation(format!("Runtime error: {:?}", e)
+        .map_err(|e| RuntimeError::InvalidOperation(format!("Runtime error: {:?}", e)))
 }
 
 #[cfg(test)]

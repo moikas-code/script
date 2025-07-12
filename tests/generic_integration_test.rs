@@ -14,7 +14,7 @@ fn test_generic_types_semantic_analysis() {
     "#;
 
     // Lex
-    let lexer = Lexer::new(code);
+    let lexer = Lexer::new(code).expect("Failed to create lexer");
     let (tokens, lex_errors) = lexer.scan_tokens();
     assert!(lex_errors.is_empty(), "Lexer errors: {:?}", lex_errors);
 
@@ -91,7 +91,7 @@ fn test_generic_type_display() {
 fn test_nested_generic_parsing_and_display() {
     let code = "let x: Result<Vec<Option<T>>, Error<E>> = Ok(Vec<Option<T>>())";
 
-    let lexer = Lexer::new(code);
+    let lexer = Lexer::new(code).expect("Failed to create lexer");
     let (tokens, errors) = lexer.scan_tokens();
     assert!(errors.is_empty());
 
@@ -117,7 +117,7 @@ fn test_generic_constructor_in_expressions() {
         let z = Some<T>(value)
     "#;
 
-    let lexer = Lexer::new(code);
+    let lexer = Lexer::new(code).expect("Failed to create lexer");
     let (tokens, errors) = lexer.scan_tokens();
     assert!(errors.is_empty());
 
@@ -162,7 +162,7 @@ fn test_generic_type_in_function_signatures() {
         }
     "#;
 
-    let lexer = Lexer::new(code);
+    let lexer = Lexer::new(code).expect("Failed to create lexer");
     let (tokens, errors) = lexer.scan_tokens();
     assert!(errors.is_empty());
 

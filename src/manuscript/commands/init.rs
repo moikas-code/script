@@ -105,7 +105,7 @@ pub async fn execute(name: Option<String>, lib: bool, bin: bool, yes: bool) -> P
     };
 
     // Create package structure
-    print_progress("Creating", format!("package '{}'", package_name));
+    print_progress("Creating", &format!("package '{}'", package_name));
 
     // Create directories
     fs::create_dir_all("src")?;
@@ -161,7 +161,7 @@ pub async fn execute(name: Option<String>, lib: bool, bin: bool, yes: bool) -> P
     }
 
     println!();
-    print_success(format!(
+    print_success(&format!(
         "Created package '{}' at {}",
         package_name.cyan().bold(),
         current_dir.display()

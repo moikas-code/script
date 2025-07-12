@@ -155,7 +155,7 @@ impl ModuleContext {
         let mut output = String::new();
 
         // Error message
-        output.push_str(format!("error: {}\n", error));
+        output.push_str(&format!("error: {}\n", error));
 
         // Source location with context
         if let Some(file) = self.source_files.get(&self.current_module).cloned() {
@@ -174,11 +174,11 @@ impl ModuleContext {
         if !self.resolution_history.is_empty() {
             output.push_str("\nRecent import resolutions:\n");
             for step in self.resolution_history.iter().rev().take(5) {
-                output.push_str(format!("  {} → ", step.import_stmt));
+                output.push_str(&format!("  {} → ", step.import_stmt));
                 if let Some(resolved) = &step.resolved_path {
-                    output.push_str(format!("{} ({}μs, step.resolution_time)\n", resolved));
+                    output.push_str(&format!("{} ({}μs)\n", resolved, step.resolution_time));
                 } else if let Some(error) = &step.error {
-                    output.push_str(format!("failed: {}\n", error));
+                    output.push_str(&format!("failed: {}\n", error));
                 } else {
                     output.push_str("unresolved\n");
                 }
@@ -240,7 +240,7 @@ fn format_source_context(source: &str, span: Span) -> String {
 
     for (i, line) in lines[context_start..context_end].iter().enumerate() {
         let line_num = context_start + i + 1;
-        output.push_str(format!("{:4} | {}\n", line_num, line));
+        output.push_str(&format!("{:4} | {}\n", line_num, line));
 
         // Highlight the error span
         if line_num >= span.start.line as usize && line_num <= span.end.line as usize {

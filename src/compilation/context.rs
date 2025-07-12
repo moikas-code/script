@@ -386,9 +386,7 @@ impl CompilationContext {
             if stats.functions_monomorphized > 0 {
                 println!(
                     "Monomorphized {} generic functions ({} instantiations, {} duplicates avoided)",
-                    stats.functions_monomorphized,
-                    stats.type_instantiations,
-                    stats.duplicates_avoided
+                    stats.functions_monomorphized, stats.type_instantiations, stats.cache_hits
                 );
             }
         }

@@ -1030,8 +1030,8 @@ pub(crate) fn vec_map_impl(args: &[ScriptValue]) -> std::result::Result<ScriptVa
         }
     };
 
-    let closure = match &args[1] {
-        ScriptValue::Object(obj) => {
+    let _closure = match &args[1] {
+        ScriptValue::Object(_obj) => {
             // Extract closure from object representation
             // This is a simplified approach - in practice, would need proper runtime bridge
             return Err(RuntimeError::InvalidOperation(

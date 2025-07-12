@@ -132,7 +132,7 @@ impl ConsoleReporter {
         // Show captured output if requested
         if self.show_output && !result.output.is_empty() {
             println!("\n{}", "---- output ----".dimmed());
-            println!("{result.output}");
+            println!("{}", result.output);
             println!("{}", "----------------".dimmed());
         }
     }
@@ -240,7 +240,7 @@ impl TestReporter for ConsoleReporter {
         }
 
         println!("Duration: {:.3}s", duration.as_secs_f64());
-        println!("{"=".repeat(50}");
+        println!("{}", "=".repeat(50));
 
         Ok(())
     }

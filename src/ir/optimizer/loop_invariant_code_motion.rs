@@ -344,7 +344,7 @@ impl LoopInvariantCodeMotion {
     fn move_instruction_to_preheader(
         &self,
         _function: &mut Function,
-        from_block: BlockId,
+        _from_block: BlockId,
         _value_id: ValueId,
         to_block: BlockId,
     ) -> bool {

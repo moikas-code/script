@@ -247,7 +247,7 @@ impl Breakpoint {
                 }
             }
             BreakpointType::Address { address } => {
-                format!("Address breakpoint at 0x{}", address, :x)
+                format!("Address breakpoint at 0x{:x}", address)
             }
             BreakpointType::Exception { exception_type } => {
                 if let Some(ex_type) = exception_type {
@@ -293,7 +293,7 @@ impl BreakpointCondition {
     pub fn evaluate(&self, _context: &BreakpointEvaluationContext) -> Result<bool, String> {
         // TODO: Implement condition evaluation
         // For now, always return true
-        println!("Evaluating condition: {self.expression}");
+        println!("Evaluating condition: {}", self.expression);
         Ok(true)
     }
 }

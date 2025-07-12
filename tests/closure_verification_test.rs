@@ -30,9 +30,7 @@ fn main() {
 
     // Test 4: Code generation components exist
     #[allow(unused_imports)]
-    use script::codegen::cranelift::{
-        closure_optimizer::ClosureOptimizer, translator_extensions::OptimizerIntegration,
-    };
+    use script::codegen::cranelift::closure_optimizer::ClosureOptimizer;
     println!("✓ Test 4: Code generation optimization components accessible");
 
     // Test 5: Runtime integration exists

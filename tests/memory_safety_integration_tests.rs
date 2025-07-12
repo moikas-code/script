@@ -8,7 +8,7 @@ use script::{
 
 /// Helper to parse and analyze with memory safety enabled
 fn analyze_with_memory_safety(source: &str) -> (SemanticAnalyzer, bool) {
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, lex_errors) = lexer.scan_tokens();
     if !lex_errors.is_empty() {
         return (SemanticAnalyzer::new(), false);

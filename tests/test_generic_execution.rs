@@ -21,7 +21,7 @@ fn test_generic_function_execution() {
     "#;
 
     // Lexical analysis
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, errors) = lexer.scan_tokens();
     assert!(errors.is_empty(), "Lexer should not produce errors");
 
@@ -94,7 +94,7 @@ fn test_multiple_generic_instantiations() {
     "#;
 
     // Full compilation pipeline
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, errors) = lexer.scan_tokens();
     assert!(errors.is_empty(), "Lexer should not produce errors");
 
@@ -153,7 +153,7 @@ fn test_generic_with_multiple_parameters() {
     "#;
 
     // Full compilation pipeline
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, errors) = lexer.scan_tokens();
     assert!(errors.is_empty(), "Lexer should not produce errors");
 

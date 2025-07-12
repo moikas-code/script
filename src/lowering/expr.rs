@@ -19,7 +19,7 @@ fn lowering_error(
 ) -> Error {
     let mut msg = message.into();
     if let Some(ctx) = context {
-        msg = format!("{} ({}, ctx)", msg);
+        msg = format!("{} ({})", msg, ctx);
     }
 
     Error::new(kind, msg).with_location(span.start)
@@ -31,7 +31,7 @@ fn runtime_error(message: impl Into<String>, expr: &Expr, operation: &str) -> Er
         ErrorKind::RuntimeError,
         message,
         expr.span,
-        Some(format!("while lowering {} expression", operation)),
+        Some(&format!("while lowering {} expression", operation)),
     )
 }
 
@@ -41,7 +41,7 @@ fn type_error(message: impl Into<String>, expr: &Expr, operation: &str) -> Error
         ErrorKind::TypeError,
         message,
         expr.span,
-        Some(format!("while type checking {} expression", operation)),
+        Some(&format!("while type checking {} expression", operation)),
     )
 }
 
@@ -51,7 +51,7 @@ fn security_error(message: impl Into<String>, expr: &Expr, operation: &str) -> E
         ErrorKind::SecurityViolation,
         message,
         expr.span,
-        Some(format!(
+        Some(&format!(
             "while validating security for {} expression",
             operation
         )),

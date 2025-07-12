@@ -51,9 +51,9 @@ fn generate_nested_generics_program(depth: usize) -> String {
     for d in 1..=depth {
         let mut type_expr = "42".to_string();
         for _ in 0..d {
-            type_expr = format!("Box {} }}", { value: {type_expr);
+            type_expr = format!("Box {{ value: {} }}", type_expr);
         }
-        code.push_str(format!("    let nested{} = {type_expr};\n", d));
+        code.push_str(&format!("    let nested{} = {};\n", d, type_expr));
     }
 
     code.push_str("}\n");

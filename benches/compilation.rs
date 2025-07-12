@@ -126,7 +126,7 @@ fn benchmark_compilation_stages(c: &mut Criterion) {
     // Parsing stage
     group.bench_function("parsing", |b| {
         b.iter(|| {
-            let mut parser = Parser::new(black_box(tokens.clone());
+            let mut parser = Parser::new(black_box(tokens.clone()));
             parser.parse()
         })
     });

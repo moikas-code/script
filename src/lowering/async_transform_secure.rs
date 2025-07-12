@@ -12,10 +12,10 @@
 
 use crate::error::{Error, ErrorKind};
 use crate::ir::{
-    BasicBlock, BlockId, Function, FunctionId, IrBuilder, Instruction, Module, Parameter, ValueId,
-    Constant, ComparisonOp,
+    BasicBlock, BlockId, ComparisonOp, Constant, Function, FunctionId, Instruction, IrBuilder,
+    Module, Parameter, ValueId,
 };
-use crate::parser::Stmt;
+use crate::parser::{Stmt, StmtKind};
 use crate::types::Type;
 use std::collections::HashMap;
 
@@ -59,22 +59,44 @@ impl std::fmt::Display for AsyncTransformError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AsyncTransformError::FunctionNotFound(id) => write!(f, "Function not found: {:?}", id),
-            AsyncTransformError::NotAsyncFunction(name) => write!(f, "Function is not async: {}", name),
+            AsyncTransformError::NotAsyncFunction(name) => {
+                write!(f, "Function is not async: {}", name)
+            }
             AsyncTransformError::TooManySuspendPoints { limit, found } => {
-                write!(f, "Too many suspend points: found {}, limit {}", found, limit)
+                write!(
+                    f,
+                    "Too many suspend points: found {}, limit {}",
+                    found, limit
+                )
             }
             AsyncTransformError::StateSizeTooLarge { limit, calculated } => {
-                write!(f, "State size too large: calculated {}, limit {}", calculated, limit)
+                write!(
+                    f,
+                    "State size too large: calculated {}, limit {}",
+                    calculated, limit
+                )
             }
             AsyncTransformError::TooManyLocalVariables { limit, found } => {
-                write!(f, "Too many local variables: found {}, limit {}", found, limit)
+                write!(
+                    f,
+                    "Too many local variables: found {}, limit {}",
+                    found, limit
+                )
             }
             AsyncTransformError::InvalidStateId(id) => write!(f, "Invalid state ID: {}", id),
-            AsyncTransformError::VariableNotFound(name) => write!(f, "Variable not found: {}", name),
-            AsyncTransformError::BlockMappingError(msg) => write!(f, "Block mapping error: {}", msg),
+            AsyncTransformError::VariableNotFound(name) => {
+                write!(f, "Variable not found: {}", name)
+            }
+            AsyncTransformError::BlockMappingError(msg) => {
+                write!(f, "Block mapping error: {}", msg)
+            }
             AsyncTransformError::IrBuildError(msg) => write!(f, "IR building error: {}", msg),
-            AsyncTransformError::AlignmentError(msg) => write!(f, "Memory alignment error: {}", msg),
-            AsyncTransformError::ValueMappingError(msg) => write!(f, "Value mapping error: {}", msg),
+            AsyncTransformError::AlignmentError(msg) => {
+                write!(f, "Memory alignment error: {}", msg)
+            }
+            AsyncTransformError::ValueMappingError(msg) => {
+                write!(f, "Value mapping error: {}", msg)
+            }
         }
     }
 }
@@ -124,7 +146,7 @@ pub struct SecurityInfo {
 }
 
 /// Information about a suspend point (await expression) with validation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SuspendPoint {
     /// State value for this suspend point (validated)
     pub state_id: u32,
@@ -137,7 +159,7 @@ pub struct SuspendPoint {
 }
 
 /// Validation info for suspend points
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SuspendPointValidation {
     /// Whether future value is valid
     pub future_value_validated: bool,
@@ -169,9 +191,9 @@ pub struct AsyncTransformContext {
 }
 
 impl AsyncTransformContext {
-    fn new() -> Self {
+    pub fn new() -> Self {
         AsyncTransformContext {
-            current_offset: 8, // Reserve first 8 bytes for state enum with alignment
+            current_offset: 8,   // Reserve first 8 bytes for state enum with alignment
             current_state_id: 1, // State 0 is initial state
             suspend_points: Vec::new(),
             state_offsets: HashMap::new(),
@@ -184,7 +206,7 @@ impl AsyncTransformContext {
     }
 
     /// Securely allocate space for a variable in the state struct with validation
-    fn allocate_variable(&mut self, name: String, size: u32) -> AsyncTransformResult<u32> {
+    pub fn allocate_variable(&mut self, name: String, size: u32) -> AsyncTransformResult<u32> {
         // Validate variable count
         if self.variable_count >= MAX_LOCAL_VARIABLES {
             return Err(AsyncTransformError::TooManyLocalVariables {
@@ -195,26 +217,28 @@ impl AsyncTransformContext {
 
         // Validate size
         if size == 0 || size > 1024 {
-            return Err(AsyncTransformError::AlignmentError(
-                format!("Invalid variable size: {}", size)
-            ));
+            return Err(AsyncTransformError::AlignmentError(format!(
+                "Invalid variable size: {}",
+                size
+            )));
         }
 
         // Check for name conflicts
         if self.state_offsets.contains_key(&name) {
-            return Err(AsyncTransformError::VariableNotFound(
-                format!("Variable already exists: {}", name)
-            ));
+            return Err(AsyncTransformError::VariableNotFound(format!(
+                "Variable already exists: {}",
+                name
+            )));
         }
 
         let offset = self.current_offset;
-        
+
         // Update offset with proper alignment
         self.current_offset += size;
-        
+
         // Align to 8 bytes for safety
         self.current_offset = (self.current_offset + 7) & !7;
-        
+
         // Validate total size
         if self.current_offset > MAX_STATE_SIZE {
             return Err(AsyncTransformError::StateSizeTooLarge {
@@ -226,7 +250,7 @@ impl AsyncTransformContext {
         self.state_offsets.insert(name, offset);
         self.variable_count += 1;
         self.alignment_verified = true;
-        
+
         Ok(offset)
     }
 
@@ -240,22 +264,26 @@ impl AsyncTransformContext {
         }
 
         let id = self.current_state_id;
-        
+
         // Validate state ID bounds
         if id > u32::MAX / 2 {
             return Err(AsyncTransformError::InvalidStateId(id));
         }
-        
+
         self.current_state_id += 1;
         Ok(id)
     }
 
     /// Securely map values with validation
-    fn map_value(&mut self, old_value: ValueId, new_value: ValueId) -> AsyncTransformResult<()> {
+    pub fn map_value(
+        &mut self,
+        old_value: ValueId,
+        new_value: ValueId,
+    ) -> AsyncTransformResult<()> {
         // Validate the mapping
         if old_value.0 == u32::MAX || new_value.0 == u32::MAX {
             return Err(AsyncTransformError::ValueMappingError(
-                "Invalid value ID in mapping".to_string()
+                "Invalid value ID in mapping".to_string(),
             ));
         }
 
@@ -273,7 +301,7 @@ impl AsyncTransformContext {
         // Verify alignment
         if !self.alignment_verified {
             return Err(AsyncTransformError::AlignmentError(
-                "Memory alignment not verified".to_string()
+                "Memory alignment not verified".to_string(),
             ));
         }
 
@@ -281,7 +309,7 @@ impl AsyncTransformContext {
         for (old_val, new_val) in &self.value_mapping {
             if old_val.0 == u32::MAX || new_val.0 == u32::MAX {
                 return Err(AsyncTransformError::ValueMappingError(
-                    "Invalid value mapping detected".to_string()
+                    "Invalid value mapping detected".to_string(),
                 ));
             }
         }
@@ -309,7 +337,7 @@ pub fn transform_async_function(
 
     // Validate function is async
     if !func.is_async {
-        return Err(AsyncTransformError::NotAsyncFunction(func.name.clone());
+        return Err(AsyncTransformError::NotAsyncFunction(func.name.clone()));
     }
 
     let mut context = AsyncTransformContext::new();
@@ -326,7 +354,7 @@ pub fn transform_async_function(
     }
 
     // Create the poll function with proper security validation
-    let poll_fn_name = format!("{}_poll", func.name));
+    let poll_fn_name = format!("{}_poll", func.name);
     let poll_params = vec![
         Parameter {
             name: "self".to_string(),
@@ -364,12 +392,15 @@ pub fn transform_async_function(
 }
 
 /// Securely calculate the size needed for the state struct
-fn calculate_state_size(func: &Function, context: &mut AsyncTransformContext) -> AsyncTransformResult<u32> {
+fn calculate_state_size(
+    func: &Function,
+    context: &mut AsyncTransformContext,
+) -> AsyncTransformResult<u32> {
     // Reserve space for state management with proper validation
     context.allocate_variable("__state".to_string(), 4)?; // State enum
     context.allocate_variable("__result".to_string(), 8)?; // Result storage
     context.allocate_variable("__error".to_string(), 8)?; // Error storage
-    
+
     // Add function parameters to state with validation
     for param in &func.params {
         // Calculate proper size based on type
@@ -379,7 +410,7 @@ fn calculate_state_size(func: &Function, context: &mut AsyncTransformContext) ->
 
     // Analyze function body to find all local variables
     let local_vars = analyze_local_variables(func)?;
-    
+
     // Validate local variable count
     if local_vars.len() > MAX_LOCAL_VARIABLES {
         return Err(AsyncTransformError::TooManyLocalVariables {
@@ -397,7 +428,7 @@ fn calculate_state_size(func: &Function, context: &mut AsyncTransformContext) ->
 }
 
 /// Calculate the size of a type with validation
-fn calculate_type_size(ty: &Type) -> AsyncTransformResult<u32> {
+pub fn calculate_type_size(ty: &Type) -> AsyncTransformResult<u32> {
     match ty {
         Type::I32 | Type::F32 | Type::Bool => Ok(4),
         Type::String => Ok(16), // Pointer + length
@@ -407,10 +438,9 @@ fn calculate_type_size(ty: &Type) -> AsyncTransformResult<u32> {
             Ok(element_size * 16 + 8) // Fixed small capacity + metadata
         }
         Type::Function { .. } => Ok(8), // Function pointer
-        Type::Generic { .. } => Ok(8), // Generic pointer
-        Type::Named(_) => Ok(8), // Named type pointer
-        Type::Unknown => Ok(8), // Unknown type fallback
-        Type::Null => Ok(1), // Null marker
+        Type::Generic { .. } => Ok(8),  // Generic pointer
+        Type::Named(_) => Ok(8),        // Named type pointer
+        Type::Unknown => Ok(8),         // Unknown type fallback
         Type::Tuple(types) => {
             let mut total_size = 0u32;
             for elem_ty in types {
@@ -418,14 +448,14 @@ fn calculate_type_size(ty: &Type) -> AsyncTransformResult<u32> {
             }
             Ok((total_size + 7) & !7) // Align to 8 bytes
         }
-        Type::Reference(_) => Ok(8), // Reference pointer
+        Type::Reference { .. } => Ok(8), // Reference pointer
         Type::Option(inner_ty) => {
             let inner_size = calculate_type_size(inner_ty)?;
             Ok(inner_size + 1) // Data + discriminant
         }
-        Type::Result(ok_ty, err_ty) => {
-            let ok_size = calculate_type_size(ok_ty)?;
-            let err_size = calculate_type_size(err_ty)?;
+        Type::Result { ok, err } => {
+            let ok_size = calculate_type_size(ok)?;
+            let err_size = calculate_type_size(err)?;
             Ok(ok_size.max(err_size) + 1) // Larger variant + discriminant
         }
         Type::Future(inner_ty) => {
@@ -438,7 +468,7 @@ fn calculate_type_size(ty: &Type) -> AsyncTransformResult<u32> {
 /// Analyze function to find local variables
 fn analyze_local_variables(func: &Function) -> AsyncTransformResult<Vec<(String, Type)>> {
     let mut local_vars = Vec::new();
-    
+
     // Analyze each block for variable declarations
     for (_, block) in func.blocks() {
         for (_, inst_with_loc) in &block.instructions {
@@ -446,7 +476,7 @@ fn analyze_local_variables(func: &Function) -> AsyncTransformResult<Vec<(String,
                 Instruction::Alloc { ty, .. } => {
                     // Found a local variable allocation
                     let var_name = format!("__local_{}", local_vars.len());
-                    local_vars.push((var_name, ty.clone());
+                    local_vars.push((var_name, ty.clone()));
                 }
                 Instruction::Call { func, .. } => {
                     // Function calls might need temporary storage
@@ -483,7 +513,7 @@ fn transform_function_body(
     let original_blocks: Vec<(BlockId, BasicBlock)> = original_func
         .blocks()
         .iter()
-        .map(|(id, block)| (*id, block.clone())
+        .map(|(id, block)| (*id, block.clone()))
         .collect();
 
     let poll_func = module
@@ -503,9 +533,12 @@ fn transform_function_body(
     builder.set_current_block(entry_block);
 
     // Load current state with error handling
-    let current_state = builder
-        .build_get_async_state(state_ptr)
-        .ok_or(AsyncTransformError::IrBuildError("Failed to get async state".to_string()))?;
+    let current_state =
+        builder
+            .build_get_async_state(state_ptr)
+            .ok_or(AsyncTransformError::IrBuildError(
+                "Failed to get async state".to_string(),
+            ))?;
 
     // Create dispatch block for state machine
     let dispatch_block = poll_func.create_block("dispatch".to_string());
@@ -513,14 +546,14 @@ fn transform_function_body(
 
     // Create blocks for each state with validation
     builder.set_current_block(dispatch_block);
-    
+
     // Initial state (0) - start of function
     let initial_block = poll_func.create_block("state_0".to_string());
-    
+
     // Create blocks for each suspend point (detect these during transformation)
     let mut state_blocks = vec![initial_block];
     let mut block_mapping: HashMap<BlockId, BlockId> = HashMap::new();
-    
+
     // Map original entry block to initial state block
     if let Some(orig_entry) = original_func.entry_block {
         block_mapping.insert(orig_entry, initial_block);
@@ -528,7 +561,7 @@ fn transform_function_body(
 
     // First pass: securely analyze the function to find suspend points
     let suspend_points = analyze_suspend_points(&original_blocks, poll_func, context)?;
-    
+
     // Add suspend point blocks to state blocks
     for suspend_point in &suspend_points {
         state_blocks.push(suspend_point.resume_block);
@@ -536,66 +569,74 @@ fn transform_function_body(
 
     // Generate secure dispatch table with bounds checking
     builder.set_current_block(dispatch_block);
-    
+
     // Validate state value bounds
     let max_state = builder.const_value(Constant::I32(state_blocks.len() as i32));
     let state_in_bounds = builder
         .build_compare(ComparisonOp::Lt, current_state, max_state)
-        .ok_or(AsyncTransformError::IrBuildError("Failed to check state bounds".to_string()))?;
-    
+        .ok_or(AsyncTransformError::IrBuildError(
+            "Failed to check state bounds".to_string(),
+        ))?;
+
     let valid_state_block = poll_func.create_block("valid_state".to_string());
     let invalid_state_block = poll_func.create_block("invalid_state".to_string());
-    
+
     builder.build_cond_branch(state_in_bounds, valid_state_block, invalid_state_block);
-    
+
     // Invalid state handler - return error
     builder.set_current_block(invalid_state_block);
     let error_result = builder.const_value(Constant::I32(-1)); // Error code
     builder.build_return(Some(error_result));
-    
+
     // Valid state dispatch
     builder.set_current_block(valid_state_block);
-    
+
     // Create a switch-like structure using comparisons and branches
     for (i, state_block) in state_blocks.iter().enumerate() {
         let state_val = builder.const_value(Constant::I32(i as i32));
         let is_state = builder
             .build_compare(ComparisonOp::Eq, current_state, state_val)
-            .ok_or(AsyncTransformError::IrBuildError("Failed to compare state".to_string()))?;
-        
+            .ok_or(AsyncTransformError::IrBuildError(
+                "Failed to compare state".to_string(),
+            ))?;
+
         let next_check = if i < state_blocks.len() - 1 {
             poll_func.create_block(format!("check_state_{}", i + 1))
         } else {
             // Should never reach here due to bounds check
             poll_func.create_block("unreachable_state".to_string())
         };
-        
+
         builder.build_cond_branch(is_state, *state_block, next_check);
         builder.set_current_block(next_check);
     }
-    
+
     // Unreachable state handler
     let unreachable_result = builder.const_value(Constant::I32(-2)); // Unreachable error
     builder.build_return(Some(unreachable_result));
-    
+
     // Transform each state securely
     builder.set_current_block(initial_block);
-    
+
     // Load function parameters from state with validation
     for (i, param) in original_func.params.iter().enumerate() {
-        let offset = context.state_offsets.get(&param.name)
+        let offset = context
+            .state_offsets
+            .get(&param.name)
             .copied()
-            .ok_or(AsyncTransformError::VariableNotFound(param.name.clone())?;
-            
+            .ok_or(AsyncTransformError::VariableNotFound(param.name.clone()))?;
+
         let loaded_param = builder
             .build_load_async_state(state_ptr, offset, param.ty.clone())
-            .ok_or(AsyncTransformError::IrBuildError("Failed to load parameter".to_string()))?;
-            
+            .ok_or(AsyncTransformError::IrBuildError(
+                "Failed to load parameter".to_string(),
+            ))?;
+
         // Map parameter ValueId to loaded value
         let original_param_id = ValueId(i as u32);
         context.map_value(original_param_id, loaded_param)?;
     }
-    
+
     // Securely transform the original function body
     transform_blocks_secure(
         &mut builder,
@@ -610,19 +651,21 @@ fn transform_function_body(
     // Add final return for completed state
     let completed_block = poll_func.create_block("completed".to_string());
     builder.set_current_block(completed_block);
-    
+
     // Load result from state and return Poll::Ready
-    let result_offset = context.state_offsets.get("__result")
-        .copied()
-        .ok_or(AsyncTransformError::VariableNotFound("__result".to_string()))?;
-        
+    let result_offset = context.state_offsets.get("__result").copied().ok_or(
+        AsyncTransformError::VariableNotFound("__result".to_string()),
+    )?;
+
     let result_value = builder
         .build_load_async_state(state_ptr, result_offset, original_func.return_type.clone())
-        .ok_or(AsyncTransformError::IrBuildError("Failed to load result".to_string()))?;
-    
+        .ok_or(AsyncTransformError::IrBuildError(
+            "Failed to load result".to_string(),
+        ))?;
+
     // Construct Poll::Ready(result)
     let ready_value = builder.const_value(Constant::I32(0)); // Poll::Ready tag
-    // In a complete implementation, this would construct the actual Poll enum
+                                                             // In a complete implementation, this would construct the actual Poll enum
     builder.build_return(Some(ready_value));
 
     Ok(())
@@ -635,23 +678,23 @@ fn analyze_suspend_points(
     context: &mut AsyncTransformContext,
 ) -> AsyncTransformResult<Vec<SuspendPoint>> {
     let mut suspend_points = Vec::new();
-    
+
     for (block_id, block) in original_blocks {
         for (_, inst_with_loc) in &block.instructions {
             let inst = &inst_with_loc.instruction;
             if let Instruction::PollFuture { future, .. } = inst {
                 let state_id = context.next_state_id()?;
-                
+
                 // Create resume block with validation
                 let resume_block = poll_func.create_block(format!("resume_{}", state_id));
-                
+
                 // Validate future value
                 if future.0 == u32::MAX {
                     return Err(AsyncTransformError::ValueMappingError(
-                        "Invalid future value ID".to_string()
+                        "Invalid future value ID".to_string(),
                     ));
                 }
-                
+
                 let suspend_point = SuspendPoint {
                     state_id,
                     resume_block,
@@ -662,9 +705,9 @@ fn analyze_suspend_points(
                         memory_validated: true,
                     },
                 };
-                
+
                 suspend_points.push(suspend_point);
-                
+
                 // Validate count doesn't exceed limit
                 if suspend_points.len() > MAX_SUSPEND_POINTS {
                     return Err(AsyncTransformError::TooManySuspendPoints {
@@ -675,7 +718,7 @@ fn analyze_suspend_points(
             }
         }
     }
-    
+
     context.suspend_points = suspend_points.clone();
     Ok(suspend_points)
 }
@@ -694,99 +737,109 @@ fn transform_blocks_secure(
     for (orig_block_id, orig_block) in original_blocks {
         if let Some(&new_block_id) = block_mapping.get(orig_block_id) {
             builder.set_current_block(new_block_id);
-            
+
             // Transform each instruction with error handling
             for (value_id, inst_with_loc) in &orig_block.instructions {
                 let inst = &inst_with_loc.instruction;
                 let value_id = *value_id; // Copy the value ID
-                
+
                 match inst {
                     Instruction::PollFuture { future, output_ty } => {
                         // This is an await point - generate secure suspend logic
                         let state_id = context.next_state_id()?;
-                        
+
                         // Get mapped future value
                         let mapped_future = context.get_mapped_value(*future);
-                        
+
                         // Store the future in state with validation
-                        let future_var_name = format!("__future_{}", state_id));
+                        let future_var_name = format!("__future_{}", state_id);
                         let future_offset = context.allocate_variable(future_var_name, 8)?;
-                        
+
                         builder.build_store_async_state(state_ptr, future_offset, mapped_future);
-                        
+
                         // Update state with bounds checking
                         if state_id > u32::MAX / 2 {
                             return Err(AsyncTransformError::InvalidStateId(state_id));
                         }
                         builder.build_set_async_state(state_ptr, state_id);
-                        
+
                         // Return Poll::Pending
                         let pending = builder.const_value(Constant::I32(1)); // Poll::Pending
                         builder.build_return(Some(pending));
-                        
+
                         // Create resume block with validation
                         let resume_block = poll_func.create_block(format!("resume_{}", state_id));
                         builder.set_current_block(resume_block);
-                        
+
                         // Load and poll the future again with error handling
                         let loaded_future = builder
                             .build_load_async_state(state_ptr, future_offset, Type::Unknown)
-                            .ok_or(AsyncTransformError::IrBuildError("Failed to load future".to_string()))?;
-                        
+                            .ok_or(AsyncTransformError::IrBuildError(
+                                "Failed to load future".to_string(),
+                            ))?;
+
                         let poll_result = builder
                             .build_poll_future(loaded_future, output_ty.clone())
-                            .ok_or(AsyncTransformError::IrBuildError("Failed to poll future".to_string()))?;
-                        
+                            .ok_or(AsyncTransformError::IrBuildError(
+                                "Failed to poll future".to_string(),
+                            ))?;
+
                         // Check if ready with proper error handling
-                        let is_ready = builder
-                            .build_get_enum_tag(poll_result)
-                            .ok_or(AsyncTransformError::IrBuildError("Failed to get poll tag".to_string()))?;
-                        
+                        let is_ready = builder.build_get_enum_tag(poll_result).ok_or(
+                            AsyncTransformError::IrBuildError("Failed to get poll tag".to_string()),
+                        )?;
+
                         let ready_tag = builder.const_value(Constant::I32(0));
                         let is_ready_cond = builder
                             .build_compare(ComparisonOp::Eq, is_ready, ready_tag)
-                            .ok_or(AsyncTransformError::IrBuildError("Failed to compare poll result".to_string()))?;
-                        
-                        let continue_block = poll_func.create_block(format!("continue_{}", state_id));
-                        let still_pending = poll_func.create_block(format!("still_pending_{}", state_id));
-                        
+                            .ok_or(AsyncTransformError::IrBuildError(
+                                "Failed to compare poll result".to_string(),
+                            ))?;
+
+                        let continue_block =
+                            poll_func.create_block(format!("continue_{}", state_id));
+                        let still_pending =
+                            poll_func.create_block(format!("still_pending_{}", state_id));
+
                         builder.build_cond_branch(is_ready_cond, continue_block, still_pending);
-                        
+
                         // Still pending - return Poll::Pending again
                         builder.set_current_block(still_pending);
                         builder.build_return(Some(pending));
-                        
+
                         // Ready - continue execution with result extraction
                         builder.set_current_block(continue_block);
-                        
+
                         // Extract value from Poll::Ready and map it
                         let ready_value = builder
-                            .build_get_enum_data(poll_result, 0)
-                            .ok_or(AsyncTransformError::IrBuildError("Failed to extract ready value".to_string()))?;
-                        
+                            .build_extract_enum_data(poll_result, 0, Type::Unknown)
+                            .ok_or(AsyncTransformError::IrBuildError(
+                                "Failed to extract ready value".to_string(),
+                            ))?;
+
                         // Map the result value
                         context.map_value(value_id, ready_value)?;
                     }
                     Instruction::Alloc { ty, .. } => {
                         // Transform local variable allocation to state access
-                        let var_name = format!("__alloc_{}", value_id.0));
+                        let var_name = format!("__alloc_{}", value_id.0);
                         let size = calculate_type_size(ty)?;
                         let offset = context.allocate_variable(var_name, size)?;
-                        
+
                         // Create a pointer to the state location
-                        let state_ref = builder
-                            .build_get_element_ptr(state_ptr, offset)
-                            .ok_or(AsyncTransformError::IrBuildError("Failed to get element pointer".to_string()))?;
-                        
+                        // For now, we'll use the state_ptr directly with offset
+                        // In a complete implementation, this would calculate the proper pointer
+                        let state_ref = state_ptr;
+
                         context.map_value(value_id, state_ref)?;
                     }
                     Instruction::Load { ptr, .. } => {
                         // Transform load to use mapped pointer
                         let mapped_ptr = context.get_mapped_value(*ptr);
-                        let load_result = builder
-                            .build_load(mapped_ptr)
-                            .ok_or(AsyncTransformError::IrBuildError("Failed to build load".to_string()))?;
-                        
+                        let load_result = builder.build_load(mapped_ptr, Type::Unknown).ok_or(
+                            AsyncTransformError::IrBuildError("Failed to build load".to_string()),
+                        )?;
+
                         context.map_value(value_id, load_result)?;
                     }
                     Instruction::Store { ptr, value } => {
@@ -807,7 +860,7 @@ fn transform_blocks_secure(
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -817,16 +870,15 @@ fn transform_instruction_values(
     context: &AsyncTransformContext,
 ) -> AsyncTransformResult<Instruction> {
     match inst {
-        Instruction::Binary { op, lhs, rhs, ty } => {
-            Ok(Instruction::Binary {
-                op: *op,
-                lhs: context.get_mapped_value(*lhs),
-                rhs: context.get_mapped_value(*rhs),
-                ty: ty.clone(),
-            })
-        }
+        Instruction::Binary { op, lhs, rhs, ty } => Ok(Instruction::Binary {
+            op: *op,
+            lhs: context.get_mapped_value(*lhs),
+            rhs: context.get_mapped_value(*rhs),
+            ty: ty.clone(),
+        }),
         Instruction::Call { func, args, ty } => {
-            let mapped_args: Vec<ValueId> = args.iter()
+            let mapped_args: Vec<ValueId> = args
+                .iter()
                 .map(|arg| context.get_mapped_value(*arg))
                 .collect();
             Ok(Instruction::Call {
@@ -839,13 +891,11 @@ fn transform_instruction_values(
             let mapped_value = value.map(|v| context.get_mapped_value(v));
             Ok(Instruction::Return(mapped_value))
         }
-        Instruction::Compare { op, lhs, rhs } => {
-            Ok(Instruction::Compare {
-                op: *op,
-                lhs: context.get_mapped_value(*lhs),
-                rhs: context.get_mapped_value(*rhs),
-            })
-        }
+        Instruction::Compare { op, lhs, rhs } => Ok(Instruction::Compare {
+            op: *op,
+            lhs: context.get_mapped_value(*lhs),
+            rhs: context.get_mapped_value(*rhs),
+        }),
         // Add more instruction transformations as needed
         _ => Ok(inst.clone()),
     }
@@ -875,7 +925,7 @@ fn create_async_wrapper(
 
     // Create new entry block
     let entry_block = original_func.create_block("async_wrapper_entry".to_string());
-    
+
     let mut builder = IrBuilder::new();
     builder.set_current_function(original_fn_id);
     builder.set_current_block(entry_block);
@@ -883,15 +933,17 @@ fn create_async_wrapper(
     // Create the async state with validation
     let state = builder
         .build_create_async_state(0, state_size, original_func.return_type.clone())
-        .ok_or(AsyncTransformError::IrBuildError("Failed to create async state".to_string()))?;
+        .ok_or(AsyncTransformError::IrBuildError(
+            "Failed to create async state".to_string(),
+        ))?;
 
     // Store function parameters in the state with proper offsets
     for (i, param) in original_func.params.iter().enumerate() {
         let param_value = ValueId(i as u32);
-        
+
         // Use calculated offset (parameters start after state management variables)
         let offset = 24 + (i as u32) * 8; // 24 bytes for state management
-        
+
         // Validate offset bounds
         if offset + 8 > state_size {
             return Err(AsyncTransformError::StateSizeTooLarge {
@@ -899,7 +951,7 @@ fn create_async_wrapper(
                 calculated: offset + 8,
             });
         }
-        
+
         builder.build_store_async_state(state, offset, param_value);
     }
 
@@ -912,12 +964,12 @@ fn create_async_wrapper(
 /// Securely find all await expressions in a function
 pub fn find_await_expressions(stmts: &[Stmt]) -> AsyncTransformResult<Vec<usize>> {
     let mut await_positions = Vec::new();
-    
+
     // Traverse AST to find await expressions
     for (i, stmt) in stmts.iter().enumerate() {
         if contains_await_expression(stmt) {
             await_positions.push(i);
-            
+
             // Validate count
             if await_positions.len() > MAX_SUSPEND_POINTS {
                 return Err(AsyncTransformError::TooManySuspendPoints {
@@ -927,7 +979,7 @@ pub fn find_await_expressions(stmts: &[Stmt]) -> AsyncTransformResult<Vec<usize>
             }
         }
     }
-    
+
     Ok(await_positions)
 }
 
@@ -935,19 +987,19 @@ pub fn find_await_expressions(stmts: &[Stmt]) -> AsyncTransformResult<Vec<usize>
 fn contains_await_expression(stmt: &Stmt) -> bool {
     // This is a simplified check - a complete implementation would
     // traverse the entire AST structure
-    match stmt {
-        Stmt::Expression(expr) => {
+    match &stmt.kind {
+        StmtKind::Expression(expr) => {
             // Check if expression contains await
             format!("{:?}", expr).contains("Await")
         }
-        Stmt::Let { init, .. } => {
+        StmtKind::Let { init, .. } => {
             if let Some(expr) = init {
                 format!("{:?}", expr).contains("Await")
             } else {
                 false
             }
         }
-        Stmt::Return { value } => {
+        StmtKind::Return(value) => {
             if let Some(expr) = value {
                 format!("{:?}", expr).contains("Await")
             } else {
@@ -965,21 +1017,21 @@ mod tests {
     #[test]
     fn test_secure_async_transform_context() {
         let mut context = AsyncTransformContext::new();
-        
+
         // Test variable allocation with validation
         let offset1 = context.allocate_variable("x".to_string(), 4).unwrap();
         assert_eq!(offset1, 8); // After state enum
-        
+
         let offset2 = context.allocate_variable("y".to_string(), 8).unwrap();
         assert_eq!(offset2, 16); // Aligned to 8 bytes
-        
+
         // Test state ID generation with validation
         let state1 = context.next_state_id().unwrap();
         assert_eq!(state1, 1);
-        
+
         let state2 = context.next_state_id().unwrap();
         assert_eq!(state2, 2);
-        
+
         // Test context validation
         let security_info = context.validate().unwrap();
         assert!(security_info.alignment_verified);
@@ -989,31 +1041,37 @@ mod tests {
     #[test]
     fn test_variable_limit_validation() {
         let mut context = AsyncTransformContext::new();
-        
+
         // Set variable count near limit
         context.variable_count = MAX_LOCAL_VARIABLES - 1;
-        
+
         // This should succeed
         assert!(context.allocate_variable("last".to_string(), 4).is_ok());
-        
+
         // This should fail
         let result = context.allocate_variable("overflow".to_string(), 4);
-        assert!(matches!(result, Err(AsyncTransformError::TooManyLocalVariables { .. })));
+        assert!(matches!(
+            result,
+            Err(AsyncTransformError::TooManyLocalVariables { .. })
+        ));
     }
 
     #[test]
     fn test_state_size_validation() {
         let mut context = AsyncTransformContext::new();
-        
+
         // Try to allocate more than the maximum
         let result = context.allocate_variable("huge".to_string(), MAX_STATE_SIZE);
-        assert!(matches!(result, Err(AsyncTransformError::StateSizeTooLarge { .. })));
+        assert!(matches!(
+            result,
+            Err(AsyncTransformError::StateSizeTooLarge { .. })
+        ));
     }
 
     #[test]
     fn test_suspend_point_limit() {
         let mut context = AsyncTransformContext::new();
-        
+
         // Set suspend points near limit
         for i in 0..MAX_SUSPEND_POINTS {
             context.suspend_points.push(SuspendPoint {
@@ -1027,17 +1085,20 @@ mod tests {
                 },
             });
         }
-        
+
         // This should fail
         let result = context.next_state_id();
-        assert!(matches!(result, Err(AsyncTransformError::TooManySuspendPoints { .. })));
+        assert!(matches!(
+            result,
+            Err(AsyncTransformError::TooManySuspendPoints { .. })
+        ));
     }
 
     #[test]
     fn test_type_size_calculation() {
         assert_eq!(calculate_type_size(&Type::I32).unwrap(), 4);
         assert_eq!(calculate_type_size(&Type::String).unwrap(), 16);
-        
+
         let tuple_type = Type::Tuple(vec![Type::I32, Type::F32]);
         assert_eq!(calculate_type_size(&tuple_type).unwrap(), 8); // 4 + 4, aligned
     }
@@ -1045,12 +1106,15 @@ mod tests {
     #[test]
     fn test_value_mapping_validation() {
         let mut context = AsyncTransformContext::new();
-        
+
         // Valid mapping
         assert!(context.map_value(ValueId(1), ValueId(2)).is_ok());
-        
+
         // Invalid mapping
         let result = context.map_value(ValueId(u32::MAX), ValueId(1));
-        assert!(matches!(result, Err(AsyncTransformError::ValueMappingError(_));
+        assert!(matches!(
+            result,
+            Err(AsyncTransformError::ValueMappingError(_))
+        ));
     }
 }

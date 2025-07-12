@@ -1019,7 +1019,9 @@ impl ScriptHashSet {
         }
 
         if let Some(stripped) = key.strip_prefix("string:") {
-            return Ok(ScriptValue::String(ScriptRc::new(ScriptString::from_str(stripped))));
+            return Ok(ScriptValue::String(ScriptRc::new(ScriptString::from_str(
+                stripped,
+            ))));
         }
 
         Err(crate::error::Error::type_error(

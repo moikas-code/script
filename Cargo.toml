@@ -74,6 +74,8 @@ quickcheck_macros = "1.0"
 [features]
 # Enable fuzzing support
 fuzzing = []
+# Enable MCP (Model Context Protocol) support
+mcp = []
 
 [[bench]]
 name = "lexer"
@@ -126,3 +128,16 @@ path = "src/lsp/bin/main.rs"
 [[bin]]
 name = "manuscript"
 path = "src/manuscript/main.rs"
+
+[[bin]]
+name = "script-mcp"
+path = "src/mcp/bin/main.rs"
+required-features = ["mcp"]
+
+[[bin]]
+name = "script-debug"
+path = "src/debugger/bin/main.rs"
+
+[[bin]]
+name = "script-test"
+path = "src/testing/bin/main.rs"

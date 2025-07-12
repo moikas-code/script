@@ -65,11 +65,11 @@ fn main() {
 
 fn test_semantic_analysis(title: &str, source: &str) {
     println!("\n{}", title);
-    println!("{}", "-".repeat(title.len());
+    println!("{}", "-".repeat(title.len()));
     println!("Code:\n{}", source);
 
     // Tokenize
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     if !lex_errors.is_empty() {

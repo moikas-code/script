@@ -9,6 +9,8 @@ pub mod lexer;
 pub mod lowering;
 pub mod lsp;
 pub mod manuscript;
+#[cfg(feature = "mcp")]
+pub mod mcp;
 pub mod metaprogramming;
 pub mod module;
 pub mod package;
@@ -29,6 +31,7 @@ mod tests {
 }
 
 pub use codegen::{CodeGenerator, ExecutableModule};
+pub use compilation::{DependencyAnalyzer, DependencyGraph};
 pub use debugger::{
     get_debugger, initialize_debugger, is_debugger_initialized, shutdown_debugger, Breakpoint,
     BreakpointCondition, BreakpointId, BreakpointManager, BreakpointType, DebugEvent, DebugHook,

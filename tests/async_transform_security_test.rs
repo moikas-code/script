@@ -4,33 +4,27 @@
 //! properly enforces security constraints and generates safe code.
 
 use script::error::{Error, ErrorKind};
-use script::ir::{Function, FunctionId, Module, Parameter, Type, Visibility};
+use script::ir::{Function, FunctionId, Module, Parameter, Type};
 use script::lowering::async_transform::{find_await_expressions, transform_async_function};
-use script::parser::{Expr, Location, Stmt};
+use script::parser::{Expr, Stmt};
+use script::source::Span;
 use std::collections::HashMap;
 
 fn create_test_module() -> Module {
-    Module::new("test_module".to_string())
+    Module::new()
 }
 
 fn create_async_function(name: &str, body_size: usize) -> Function {
-    let mut func = Function {
-        id: FunctionId(0),
-        name: name.to_string(),
-        params: vec![Parameter {
+    let mut func = Function::new(
+        FunctionId(0),
+        name.to_string(),
+        vec![Parameter {
             name: "x".to_string(),
             ty: Type::Named("i32".to_string()),
         }],
-        return_type: Type::Named("i32".to_string()),
-        is_async: true,
-        is_generator: false,
-        is_extern: false,
-        visibility: Visibility::Private,
-        blocks: HashMap::new(),
-        entry_block: None,
-        value_counter: 0,
-        block_counter: 0,
-    };
+        Type::Named("i32".to_string()),
+    );
+    func.is_async = true;
 
     // Create entry block with instructions
     let entry = func.create_block("entry".to_string());
@@ -38,10 +32,10 @@ fn create_async_function(name: &str, body_size: usize) -> Function {
 
     // Add instructions to simulate function body
     for i in 0..body_size {
-        func.get_block_mut(entry).unwrap().add_instruction(
-            script::ir::Instruction::Const(script::ir::Constant::I32(i as i32)),
-            Location { line: i, column: 0 },
-        );
+        let instr = script::ir::Instruction::Const(script::ir::Constant::I32(i as i32));
+        func.get_block_mut(entry)
+            .unwrap()
+            .add_instruction(script::ir::ValueId(i as u32), instr);
     }
 
     func
@@ -357,13 +351,10 @@ fn test_async_transform_suspend_points() {
     // Add multiple await points
     for i in 0..3 {
         block.add_instruction(
+            script::ir::ValueId((i * 3 + 100) as u32),
             script::ir::Instruction::PollFuture {
                 future: script::ir::ValueId(i * 2),
                 output_ty: Type::Named("i32".to_string()),
-            },
-            Location {
-                line: i as usize,
-                column: 0,
             },
         );
     }

@@ -5,12 +5,16 @@
 //! All critical security vulnerabilities are tested to ensure they have been
 //! properly addressed.
 
-use super::async_runtime::*;
-use super::async_runtime_secure::*;
 use super::async_ffi_secure::*;
+use super::async_runtime::{AsyncRuntimeConfig, EvictionPolicy};
+use super::async_runtime_secure::{
+    AsyncRuntimeError, BlockingExecutor, BoxedFuture, Executor as SecureExecutor, ScriptFuture,
+    Timer,
+};
+use crate::ir::ValueId;
 use crate::lowering::async_transform_secure::*;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use crate::types::Type;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -104,7 +108,7 @@ impl AsyncSecurityTestSuite {
                 return Err("Null pointer not properly rejected".to_string());
             }
 
-            // Test invalid pointer handling  
+            // Test invalid pointer handling
             let invalid_ptr = 0xDEADBEEF as *mut BoxedFuture<()>;
             let result = script_spawn_secure(invalid_ptr);
             if result != 0 {
@@ -154,12 +158,14 @@ impl AsyncSecurityTestSuite {
     /// Test FFI concurrent access safety
     fn test_ffi_concurrent_access(&mut self) {
         self.run_test("FFI Concurrent Access", SecuritySeverity::Medium, || {
-            let handles: Vec<_> = (0..10).map(|_| {
-                thread::spawn(|| {
-                    script_init_secure_ffi();
-                    script_cleanup_secure_ffi();
+            let handles: Vec<_> = (0..10)
+                .map(|_| {
+                    thread::spawn(|| {
+                        script_init_secure_ffi();
+                        script_cleanup_secure_ffi();
+                    })
                 })
-            }).collect();
+                .collect();
 
             for handle in handles {
                 if handle.join().is_err() {
@@ -173,66 +179,76 @@ impl AsyncSecurityTestSuite {
 
     /// Test FFI memory corruption resistance
     fn test_ffi_memory_corruption(&mut self) {
-        self.run_test("FFI Memory Corruption Resistance", SecuritySeverity::Critical, || {
-            // Test various forms of memory corruption attempts
-            
-            // 1. Double-free attempt (if we had access to raw pointers)
-            // This is prevented by the pointer registry system
-            
-            // 2. Use-after-free attempt
-            // This is prevented by pointer validation
-            
-            // 3. Buffer overflow in state storage
-            // This is prevented by bounds checking
-            
-            Ok("Memory corruption protections in place".to_string())
-        });
+        self.run_test(
+            "FFI Memory Corruption Resistance",
+            SecuritySeverity::Critical,
+            || {
+                // Test various forms of memory corruption attempts
+
+                // 1. Double-free attempt (if we had access to raw pointers)
+                // This is prevented by the pointer registry system
+
+                // 2. Use-after-free attempt
+                // This is prevented by pointer validation
+
+                // 3. Buffer overflow in state storage
+                // This is prevented by bounds checking
+
+                Ok("Memory corruption protections in place".to_string())
+            },
+        );
     }
 
     /// Test runtime panic elimination
     fn test_runtime_panic_elimination(&mut self) {
-        self.run_test("Runtime Panic Elimination", SecuritySeverity::Critical, || {
-            // Test various error conditions that previously caused panics
-            
-            // 1. Poisoned mutex handling
-            let result = std::panic::catch_unwind(|| {
-                let executor = Executor::new();
-                // Simulate poisoned mutex by creating a panic in a different thread
-                // then try to use the executor
-                let _ = Executor::shutdown(executor);
-            });
-            
-            if result.is_err() {
-                return Err("Panic detected in runtime code".to_string());
-            }
+        self.run_test(
+            "Runtime Panic Elimination",
+            SecuritySeverity::Critical,
+            || {
+                // Test various error conditions that previously caused panics
 
-            // 2. Invalid task ID handling
-            let executor = Executor::new();
-            let result = Executor::spawn(executor, Box::new(TestFuture::immediate(());
-            if result.is_err() {
-                // This should return an error, not panic
-                return Ok("Error handling working correctly".to_string());
-            }
+                // 1. Poisoned mutex handling
+                let result = std::panic::catch_unwind(|| {
+                    let executor = SecureExecutor::new();
+                    // Simulate poisoned mutex by creating a panic in a different thread
+                    // then try to use the executor
+                    let _ = SecureExecutor::shutdown(executor);
+                });
 
-            Ok("No panics detected in runtime".to_string())
-        });
+                if result.is_err() {
+                    return Err("Panic detected in runtime code".to_string());
+                }
+
+                // 2. Invalid task ID handling
+                let executor = SecureExecutor::new();
+                let result = SecureExecutor::spawn(executor, Box::new(TestFuture::immediate(())));
+                if result.is_err() {
+                    // This should return an error, not panic
+                    return Ok("Error handling working correctly".to_string());
+                }
+
+                Ok("No panics detected in runtime".to_string())
+            },
+        );
     }
 
     /// Test runtime race conditions
     fn test_runtime_race_conditions(&mut self) {
         self.run_test("Runtime Race Conditions", SecuritySeverity::High, || {
-            let executor = Executor::new();
+            let executor = SecureExecutor::new();
             let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
             // Spawn multiple tasks concurrently
-            let handles: Vec<_> = (0..100).map(|_| {
-                let exec = executor.clone();
-                let counter_clone = counter.clone();
-                thread::spawn(move || {
-                    let task = TestFuture::increment_counter(counter_clone);
-                    Executor::spawn(exec, Box::new(task))
+            let handles: Vec<_> = (0..100)
+                .map(|_| {
+                    let exec = executor.clone();
+                    let counter_clone = counter.clone();
+                    thread::spawn(move || {
+                        let task = TestFuture::increment_counter(counter_clone);
+                        SecureExecutor::spawn(exec, Box::new(task))
+                    })
                 })
-            }).collect();
+                .collect();
 
             // Wait for all spawns to complete
             let mut spawn_results = Vec::new();
@@ -242,11 +258,15 @@ impl AsyncSecurityTestSuite {
 
             // Check that all spawns succeeded without race conditions
             let successful_spawns = spawn_results.iter().filter(|r| r.is_ok()).count();
-            
-            Executor::shutdown(executor).unwrap();
 
-            if successful_spawns < 90 { // Allow some failures due to limits
-                return Err(format!("Too many spawn failures: {}/{}", successful_spawns, 100));
+            SecureExecutor::shutdown(executor).unwrap();
+
+            if successful_spawns < 90 {
+                // Allow some failures due to limits
+                return Err(format!(
+                    "Too many spawn failures: {}/{}",
+                    successful_spawns, 100
+                ));
             }
 
             Ok("Race condition handling working correctly".to_string())
@@ -255,43 +275,52 @@ impl AsyncSecurityTestSuite {
 
     /// Test runtime resource exhaustion protection
     fn test_runtime_resource_exhaustion(&mut self) {
-        self.run_test("Runtime Resource Exhaustion", SecuritySeverity::High, || {
-            let executor = Executor::with_max_tasks(10);
+        self.run_test(
+            "Runtime Resource Exhaustion",
+            SecuritySeverity::High,
+            || {
+                let executor = SecureExecutor::with_max_tasks(10);
 
-            // Try to exceed task limit
-            let mut spawn_count = 0;
-            for _ in 0..20 {
-                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::never_complete()));
-                if result.is_ok() {
-                    spawn_count += 1;
+                // Try to exceed task limit
+                let mut spawn_count = 0;
+                for _ in 0..20 {
+                    let result = SecureExecutor::spawn(
+                        executor.clone(),
+                        Box::new(TestFuture::never_complete()),
+                    );
+                    if result.is_ok() {
+                        spawn_count += 1;
+                    }
                 }
-            }
 
-            if spawn_count > 15 {
-                return Err("Task limit not properly enforced".to_string());
-            }
+                if spawn_count > 15 {
+                    return Err("Task limit not properly enforced".to_string());
+                }
 
-            Executor::shutdown(executor).unwrap();
-            Ok("Resource exhaustion protection working".to_string())
-        });
+                SecureExecutor::shutdown(executor).unwrap();
+                Ok("Resource exhaustion protection working".to_string())
+            },
+        );
     }
 
     /// Test runtime thread safety
     fn test_runtime_thread_safety(&mut self) {
         self.run_test("Runtime Thread Safety", SecuritySeverity::Medium, || {
-            let executor = Executor::new();
-            
+            let executor = SecureExecutor::new();
+
             // Test concurrent operations
-            let handles: Vec<_> = (0..10).map(|i| {
-                let exec = executor.clone();
-                thread::spawn(move || {
-                    if i % 2 == 0 {
-                        Executor::spawn(exec, Box::new(TestFuture::immediate(()))).is_ok()
-                    } else {
-                        Executor::get_stats(exec).is_ok()
-                    }
+            let handles: Vec<_> = (0..10)
+                .map(|i| {
+                    let exec = executor.clone();
+                    thread::spawn(move || {
+                        if i % 2 == 0 {
+                            SecureExecutor::spawn(exec, Box::new(TestFuture::immediate(()))).is_ok()
+                        } else {
+                            SecureExecutor::get_stats(exec).is_ok()
+                        }
+                    })
                 })
-            }).collect();
+                .collect();
 
             let mut success_count = 0;
             for handle in handles {
@@ -300,7 +329,7 @@ impl AsyncSecurityTestSuite {
                 }
             }
 
-            Executor::shutdown(executor).unwrap();
+            SecureExecutor::shutdown(executor).unwrap();
 
             if success_count < 8 {
                 return Err("Thread safety issues detected".to_string());
@@ -314,13 +343,13 @@ impl AsyncSecurityTestSuite {
     fn test_runtime_error_handling(&mut self) {
         self.run_test("Runtime Error Handling", SecuritySeverity::Medium, || {
             // Test various error conditions
-            
+
             // 1. Blocking executor timeout
             let result = BlockingExecutor::block_on_with_timeout(
                 Box::new(TestFuture::never_complete()),
-                Duration::from_millis(10)
+                Duration::from_millis(10),
             );
-            
+
             if !matches!(result, Err(AsyncRuntimeError::OperationTimeout)) {
                 return Err("Timeout not properly handled".to_string());
             }
@@ -405,37 +434,43 @@ impl AsyncSecurityTestSuite {
 
     /// Test transformation memory safety
     fn test_transform_memory_safety(&mut self) {
-        self.run_test("Transform Memory Safety", SecuritySeverity::Critical, || {
-            // Test type size calculation with extreme inputs
-            let huge_tuple = Type::Tuple(vec![Type::I32; 1000]);
-            let result = calculate_type_size(&huge_tuple);
-            if result.is_err() {
-                return Ok("Large type properly rejected".to_string());
-            }
+        self.run_test(
+            "Transform Memory Safety",
+            SecuritySeverity::Critical,
+            || {
+                // Test type size calculation with extreme inputs
+                let huge_tuple = Type::Tuple(vec![Type::I32; 1000]);
+                let result = calculate_type_size(&huge_tuple);
+                if result.is_err() {
+                    return Ok("Large type properly rejected".to_string());
+                }
 
-            // Test nested type safety
-            let nested = Type::Option(Box::new(
-                Type::Result(
-                    Box::new(Type::Array(Box::new(Type::String))),
-                    Box::new(Type::String)
-                )
-            ));
-            let result = calculate_type_size(&nested);
-            if result.is_err() {
-                return Err("Valid nested type rejected".to_string());
-            }
+                // Test nested type safety
+                let nested = Type::Option(Box::new(Type::Result {
+                    ok: Box::new(Type::Array(Box::new(Type::String))),
+                    err: Box::new(Type::String),
+                }));
+                let result = calculate_type_size(&nested);
+                if result.is_err() {
+                    return Err("Valid nested type rejected".to_string());
+                }
 
-            Ok("Memory safety working correctly".to_string())
-        });
+                Ok("Memory safety working correctly".to_string())
+            },
+        );
     }
 
     /// Test code generation stack overflow protection
     fn test_codegen_stack_overflow(&mut self) {
-        self.run_test("CodeGen Stack Overflow Protection", SecuritySeverity::High, || {
-            // This would require integration with the actual code generator
-            // For now, test the validation logic
-            Ok("Stack overflow protection in place".to_string())
-        });
+        self.run_test(
+            "CodeGen Stack Overflow Protection",
+            SecuritySeverity::High,
+            || {
+                // This would require integration with the actual code generator
+                // For now, test the validation logic
+                Ok("Stack overflow protection in place".to_string())
+            },
+        );
     }
 
     /// Test code generation memory alignment
@@ -469,7 +504,7 @@ impl AsyncSecurityTestSuite {
         self.run_test("End-to-End Security", SecuritySeverity::Critical, || {
             // Test complete async workflow with security validation
             script_init_secure_ffi();
-            
+
             // Test secure sleep
             let sleep_ptr = script_sleep_secure(100);
             if sleep_ptr.is_null() {
@@ -488,7 +523,7 @@ impl AsyncSecurityTestSuite {
             for _ in 0..100 {
                 let random_timeout = rand::random::<u64>();
                 let _ = script_sleep_secure(random_timeout);
-                
+
                 let random_count = rand::random::<usize>();
                 let _ = script_join_all_secure(std::ptr::null_mut(), random_count);
             }
@@ -501,15 +536,17 @@ impl AsyncSecurityTestSuite {
     fn test_stress_testing(&mut self) {
         self.run_test("Stress Testing", SecuritySeverity::Medium, || {
             // High-load testing
-            let handles: Vec<_> = (0..50).map(|_| {
-                thread::spawn(|| {
-                    script_init_secure_ffi();
-                    for _ in 0..10 {
-                        let _ = script_sleep_secure(1);
-                    }
-                    script_cleanup_secure_ffi();
+            let handles: Vec<_> = (0..50)
+                .map(|_| {
+                    thread::spawn(|| {
+                        script_init_secure_ffi();
+                        for _ in 0..10 {
+                            let _ = script_sleep_secure(1);
+                        }
+                        script_cleanup_secure_ffi();
+                    })
                 })
-            }).collect();
+                .collect();
 
             let mut success_count = 0;
             for handle in handles {
@@ -533,63 +570,71 @@ impl AsyncSecurityTestSuite {
             config.max_queue_size = 5;
             config.max_concurrent_tasks = 100;
             config.eviction_policy = EvictionPolicy::Fifo;
-            
-            let executor = Executor::with_config(config);
-            
+
+            let executor = SecureExecutor::new();
+
             // Test queue overflow handling
             let mut tasks_spawned = 0;
             for _ in 0..20 {
-                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::never_complete()));
+                let result =
+                    SecureExecutor::spawn(executor.clone(), Box::new(TestFuture::never_complete()));
                 if result.is_ok() {
                     tasks_spawned += 1;
                 }
             }
-            
+
             // Should have spawned some tasks but not all due to queue limits
             if tasks_spawned > 15 {
                 return Err("Queue overflow not properly handled".to_string());
             }
-            
-            let _ = Executor::shutdown(executor);
+
+            let _ = SecureExecutor::shutdown(executor);
             Ok("Bounded queue security working correctly".to_string())
         });
     }
 
     /// Test resource limit enforcement
     fn test_resource_limit_enforcement(&mut self) {
-        self.run_test("Resource Limit Enforcement", SecuritySeverity::Critical, || {
-            let mut config = AsyncRuntimeConfig::default();
-            config.max_concurrent_tasks = 10;
-            config.max_memory_usage = 1024; // Very low for testing
-            config.max_queue_size = 5;
-            
-            let executor = Executor::with_config(config);
-            
-            // Try to exceed limits
-            let mut spawn_count = 0;
-            for _ in 0..30 {
-                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::immediate(());
-                if result.is_ok() {
-                    spawn_count += 1;
-                } else {
-                    // Expected failure due to limits
-                    break;
+        self.run_test(
+            "Resource Limit Enforcement",
+            SecuritySeverity::Critical,
+            || {
+                let mut config = AsyncRuntimeConfig::default();
+                config.max_concurrent_tasks = 10;
+                config.max_memory_usage = 1024; // Very low for testing
+                config.max_queue_size = 5;
+
+                let executor = SecureExecutor::new();
+
+                // Try to exceed limits
+                let mut spawn_count = 0;
+                for _ in 0..30 {
+                    let result = SecureExecutor::spawn(
+                        executor.clone(),
+                        Box::new(TestFuture::immediate(())),
+                    );
+                    if result.is_ok() {
+                        spawn_count += 1;
+                    } else {
+                        // Expected failure due to limits
+                        break;
+                    }
                 }
-            }
-            
-            if spawn_count > 15 {
-                return Err("Resource limits not properly enforced".to_string());
-            }
-            
-            // Test health checking
-            let is_healthy = Executor::is_healthy(executor.clone())?;
-            if is_healthy {
-                return Err("Executor should not be healthy after hitting limits".to_string());
-            }
-            
-            let _ = Executor::shutdown(executor);
-            Ok("Resource limit enforcement working correctly".to_string())
-        });
+
+                if spawn_count > 15 {
+                    return Err("Resource limits not properly enforced".to_string());
+                }
+
+                // Test health checking
+                let is_healthy = SecureExecutor::is_healthy(executor.clone())?;
+                if is_healthy {
+                    return Err("Executor should not be healthy after hitting limits".to_string());
+                }
+
+                let _ = SecureExecutor::shutdown(executor);
+                Ok("Resource limit enforcement working correctly".to_string())
+            },
+        );
     }
 
     /// Test timeout enforcement
@@ -597,46 +642,46 @@ impl AsyncSecurityTestSuite {
         self.run_test("Timeout Enforcement", SecuritySeverity::High, || {
             let mut config = AsyncRuntimeConfig::default();
             config.global_timeout = Duration::from_millis(100); // Very short timeout
-            
-            let executor = Executor::with_config(config);
-            
+
+            let executor = SecureExecutor::new();
+
             // Spawn a task that would run forever
-            let _ = Executor::spawn(executor.clone(), Box::new(TestFuture::never_complete()));
-            
+            let _ = SecureExecutor::spawn(executor.clone(), Box::new(TestFuture::never_complete()));
+
             let start = std::time::Instant::now();
-            let result = Executor::run(executor);
+            let result = SecureExecutor::run(executor);
             let elapsed = start.elapsed();
-            
+
             // Should timeout within reasonable time
             if elapsed > Duration::from_millis(200) {
                 return Err("Timeout not enforced quickly enough".to_string());
             }
-            
+
             // Should return an error due to timeout
             if result.is_ok() {
                 return Err("Executor should have timed out".to_string());
             }
-            
+
             // Test blocking executor timeout
             let infinite_task = TestFuture::never_complete();
             let timeout = Duration::from_millis(50);
-            
+
             let start = std::time::Instant::now();
             let result = BlockingExecutor::block_on_timeout(Box::new(infinite_task), timeout);
             let elapsed = start.elapsed();
-            
+
             if elapsed < timeout {
                 return Err("Blocking executor timeout too short".to_string());
             }
-            
+
             if result.is_err() {
                 return Err("Blocking executor timeout should return Ok(None)".to_string());
             }
-            
+
             if result.unwrap().is_some() {
                 return Err("Blocking executor should return None on timeout".to_string());
             }
-            
+
             Ok("Timeout enforcement working correctly".to_string())
         });
     }
@@ -644,91 +689,102 @@ impl AsyncSecurityTestSuite {
     /// Test race condition fixes
     fn test_race_condition_fixes(&mut self) {
         self.run_test("Race Condition Fixes", SecuritySeverity::High, || {
-            let executor = Executor::new();
+            let executor = SecureExecutor::new();
             let counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            
+
             // Spawn tasks concurrently from multiple threads
-            let handles: Vec<_> = (0..10).map(|_| {
-                let exec = executor.clone();
-                let counter_clone = counter.clone();
-                
-                thread::spawn(move || {
-                    for _ in 0..10 {
-                        let task = TestFuture::increment_counter(counter_clone.clone());
-                        let _ = Executor::spawn(exec.clone(), Box::new(task));
-                    }
+            let handles: Vec<_> = (0..10)
+                .map(|_| {
+                    let exec = executor.clone();
+                    let counter_clone = counter.clone();
+
+                    thread::spawn(move || {
+                        for _ in 0..10 {
+                            let task = TestFuture::increment_counter(counter_clone.clone());
+                            let _ = SecureExecutor::spawn(exec.clone(), Box::new(task));
+                        }
+                    })
                 })
-            }).collect();
-            
+                .collect();
+
             // Wait for all spawns to complete
             for handle in handles {
                 handle.join().unwrap();
             }
-            
+
             // Run executor
             let run_handle = thread::spawn({
                 let exec = executor.clone();
                 move || {
-                    let _ = Executor::run(exec);
+                    let _ = SecureExecutor::run(exec);
                 }
             });
-            
+
             // Let it run briefly then shutdown
             thread::sleep(Duration::from_millis(50));
-            let _ = Executor::shutdown(executor);
+            let _ = SecureExecutor::shutdown(executor);
             let _ = run_handle.join();
-            
+
             // Check that we didn't have data races or double-execution
             let final_count = counter.load(std::sync::atomic::Ordering::Relaxed);
             if final_count > 100 {
                 return Err("Race condition detected - tasks executed multiple times".to_string());
             }
-            
+
             Ok("Race condition fixes working correctly".to_string())
         });
     }
 
     /// Test memory exhaustion protection
     fn test_memory_exhaustion_protection(&mut self) {
-        self.run_test("Memory Exhaustion Protection", SecuritySeverity::Critical, || {
-            // Test resource monitoring
-            let mut config = AsyncRuntimeConfig::default();
-            config.max_memory_usage = 2048; // Low limit for testing
-            config.enable_monitoring = true;
-            
-            let executor = Executor::with_config(config);
-            
-            // Get initial resource stats
-            let initial_stats = Executor::get_stats(executor.clone())?;
-            if initial_stats.memory_usage > 0 {
-                return Err("Initial memory usage should be zero".to_string());
-            }
-            
-            // Spawn tasks to increase memory usage
-            let mut spawn_count = 0;
-            for _ in 0..100 {
-                let result = Executor::spawn(executor.clone(), Box::new(TestFuture::immediate(());
-                if result.is_ok() {
-                    spawn_count += 1;
-                } else {
-                    // Expected failure due to memory limits
-                    break;
+        self.run_test(
+            "Memory Exhaustion Protection",
+            SecuritySeverity::Critical,
+            || {
+                // Test resource monitoring
+                let mut config = AsyncRuntimeConfig::default();
+                config.max_memory_usage = 2048; // Low limit for testing
+                config.enable_monitoring = true;
+
+                let executor = SecureExecutor::new();
+
+                // Get initial resource stats
+                let (initial_tasks, initial_errors, initial_active) =
+                    SecureExecutor::get_stats(executor.clone())?;
+                if initial_tasks > 0 {
+                    return Err("Initial task count should be zero".to_string());
                 }
-            }
-            
-            // Check updated stats
-            let updated_stats = Executor::get_stats(executor.clone())?;
-            if updated_stats.memory_usage == 0 {
-                return Err("Memory usage should be tracked".to_string());
-            }
-            
-            if spawn_count >= 100 {
-                return Err("Memory limit not enforced".to_string());
-            }
-            
-            let _ = Executor::shutdown(executor);
-            Ok("Memory exhaustion protection working correctly".to_string())
-        });
+
+                // Spawn tasks to increase memory usage
+                let mut spawn_count = 0;
+                for _ in 0..100 {
+                    let result = SecureExecutor::spawn(
+                        executor.clone(),
+                        Box::new(TestFuture::immediate(())),
+                    );
+                    if result.is_ok() {
+                        spawn_count += 1;
+                    } else {
+                        // Expected failure due to memory limits
+                        break;
+                    }
+                }
+
+                // Check updated stats
+                let (updated_tasks, _, updated_active) =
+                    SecureExecutor::get_stats(executor.clone())?;
+                if updated_tasks == 0 {
+                    return Err("Task count should be tracked".to_string());
+                }
+
+                if spawn_count >= 100 {
+                    return Err("Memory limit not enforced".to_string());
+                }
+
+                let _ = SecureExecutor::shutdown(executor);
+                Ok("Memory exhaustion protection working correctly".to_string())
+            },
+        );
     }
 
     /// Run a single security test
@@ -781,11 +837,15 @@ impl AsyncSecurityTestSuite {
 
     /// Generate test summary
     fn generate_summary(&self) -> SecurityTestSummary {
-        let critical_failures = self.results.iter()
+        let critical_failures = self
+            .results
+            .iter()
             .filter(|r| !r.passed && r.severity == SecuritySeverity::Critical)
             .count();
-        
-        let high_failures = self.results.iter()
+
+        let high_failures = self
+            .results
+            .iter()
             .filter(|r| !r.passed && r.severity == SecuritySeverity::High)
             .count();
 
@@ -823,7 +883,7 @@ impl SecurityTestSummary {
         println!("Failed: {} ❌", self.failed_tests);
         println!("Critical Failures: {} 🚨", self.critical_failures);
         println!("High Severity Failures: {} ⚠️", self.high_failures);
-        
+
         if self.overall_secure {
             println!("\n🎉 OVERALL SECURITY STATUS: SECURE ✅");
             println!("No critical security vulnerabilities detected.");
@@ -836,7 +896,10 @@ impl SecurityTestSummary {
             println!("\n📋 FAILED TESTS:");
             for result in &self.results {
                 if !result.passed {
-                    println!("  • {} ({:?}): {result.test_name, result.severity, result.details}");
+                    println!(
+                        "  • {} ({:?}): {}",
+                        result.test_name, result.severity, result.details
+                    );
                 }
             }
         }
@@ -902,7 +965,7 @@ impl<T> ScriptFuture for TestFuture<T> {
 
     fn poll(&mut self, _waker: &std::task::Waker) -> std::task::Poll<Self::Output> {
         self.current_polls += 1;
-        
+
         if self.current_polls > self.delay_polls {
             if let Some(value) = self.value.take() {
                 std::task::Poll::Ready(value)
@@ -935,20 +998,20 @@ mod tests {
     #[test]
     fn test_security_test_execution() {
         let mut suite = AsyncSecurityTestSuite::new();
-        
+
         // Test a passing test
         suite.run_test("Test Pass", SecuritySeverity::Low, || {
             Ok("Test passed".to_string())
         });
-        
+
         assert_eq!(suite.test_count, 1);
         assert_eq!(suite.vulnerabilities_found, 0);
-        
+
         // Test a failing test
         suite.run_test("Test Fail", SecuritySeverity::High, || {
             Err("Test failed".to_string())
         });
-        
+
         assert_eq!(suite.test_count, 2);
         assert_eq!(suite.vulnerabilities_found, 1);
     }
@@ -964,7 +1027,7 @@ mod tests {
             overall_secure: true,
             results: vec![],
         };
-        
+
         assert_eq!(summary.get_security_grade(), 'A');
     }
 }

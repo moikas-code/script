@@ -51,7 +51,10 @@ impl std::fmt::Display for SecurityViolation {
                 operation,
             } => {
                 write!(
-                    f, "Unauthorized access: cannot {} on {}", operation, resource)
+                    f,
+                    "Unauthorized access: cannot {} on {}",
+                    operation, resource
+                )
             }
             SecurityViolation::ResourceLimitExceeded {
                 resource,
@@ -59,7 +62,10 @@ impl std::fmt::Display for SecurityViolation {
                 used,
             } => {
                 write!(
-                    f, "Resource limit exceeded: {} used {} but limit is {}", resource, used, limit)
+                    f,
+                    "Resource limit exceeded: {} used {} but limit is {}",
+                    resource, used, limit
+                )
             }
             SecurityViolation::CrossModuleViolation {
                 caller,
@@ -67,11 +73,17 @@ impl std::fmt::Display for SecurityViolation {
                 reason,
             } => {
                 write!(
-                    f, "Cross-module violation: {} cannot call {} - {}", caller, callee, reason)
+                    f,
+                    "Cross-module violation: {} cannot call {} - {}",
+                    caller, callee, reason
+                )
             }
             SecurityViolation::PermissionDenied { permission, module } => {
                 write!(
-                    f, "Permission denied: module {} lacks permission {}", module, permission)
+                    f,
+                    "Permission denied: module {} lacks permission {}",
+                    module, permission
+                )
             }
             SecurityViolation::InternalError { message } => {
                 write!(f, "Internal security error: {}", message)
@@ -517,12 +529,12 @@ impl SecurityReport {
             "  Resource Limit Violations: {}",
             self.resource_limit_violations
         );
-        println!("  Compilation Timeouts: {self.compilation_timeouts}");
+        println!("  Compilation Timeouts: {}", self.compilation_timeouts);
 
         println!("\nOverall Assessment:");
         println!("  Security Score: {}/100", self.calculate_security_score());
         println!("  Security Grade: {}", self.get_security_grade());
-        println!("  Total Security Events: {self.total_security_events}");
+        println!("  Total Security Events: {}", self.total_security_events);
 
         let status = match self.get_security_grade() {
             'A' | 'B' => "✅ PRODUCTION READY",
@@ -615,7 +627,10 @@ impl std::fmt::Display for SecurityError {
                 message,
             } => {
                 write!(
-                    f, "Array bounds violation: index {} out of bounds for array of size {}. {}", index, array_size, message)
+                    f,
+                    "Array bounds violation: index {} out of bounds for array of size {}. {}",
+                    index, array_size, message
+                )
             }
             SecurityError::InvalidFieldAccess {
                 type_name,
@@ -623,7 +638,10 @@ impl std::fmt::Display for SecurityError {
                 message,
             } => {
                 write!(
-                    f, "Invalid field access: field '{}' does not exist on type '{}'. {}", field_name, type_name, message)
+                    f,
+                    "Invalid field access: field '{}' does not exist on type '{}'. {}",
+                    field_name, type_name, message
+                )
             }
             SecurityError::ResourceLimitExceeded {
                 resource_type,
@@ -632,7 +650,10 @@ impl std::fmt::Display for SecurityError {
                 message,
             } => {
                 write!(
-                    f, "Resource limit exceeded: {:?} count {} exceeds limit {}. {}", resource_type, current_count, limit, message)
+                    f,
+                    "Resource limit exceeded: {:?} count {} exceeds limit {}. {}",
+                    resource_type, current_count, limit, message
+                )
             }
             SecurityError::CompilationTimeout {
                 duration,
@@ -640,7 +661,10 @@ impl std::fmt::Display for SecurityError {
                 message,
             } => {
                 write!(
-                    f, "Compilation timeout: duration {:?} exceeds limit {:?}. {}", duration, limit, message)
+                    f,
+                    "Compilation timeout: duration {:?} exceeds limit {:?}. {}",
+                    duration, limit, message
+                )
             }
             SecurityError::AsyncPointerViolation {
                 pointer_address,
@@ -648,7 +672,10 @@ impl std::fmt::Display for SecurityError {
                 message,
             } => {
                 write!(
-                    f, "Async pointer violation: pointer 0x{:x} failed validation ({}). {}", pointer_address, validation_failed, message)
+                    f,
+                    "Async pointer violation: pointer 0x{:x} failed validation ({}). {}",
+                    pointer_address, validation_failed, message
+                )
             }
             SecurityError::AsyncMemoryViolation {
                 task_id,
@@ -657,7 +684,10 @@ impl std::fmt::Display for SecurityError {
                 message,
             } => {
                 write!(
-                    f, "Async memory violation: task {} used {} bytes, exceeds limit {} bytes. {}", task_id, memory_used, memory_limit, message)
+                    f,
+                    "Async memory violation: task {} used {} bytes, exceeds limit {} bytes. {}",
+                    task_id, memory_used, memory_limit, message
+                )
             }
             SecurityError::AsyncFFIViolation {
                 function_name,
@@ -665,7 +695,10 @@ impl std::fmt::Display for SecurityError {
                 message,
             } => {
                 write!(
-                    f, "Async FFI violation: function '{}' violated {} security policy. {}", function_name, violation_type, message)
+                    f,
+                    "Async FFI violation: function '{}' violated {} security policy. {}",
+                    function_name, violation_type, message
+                )
             }
             SecurityError::AsyncRaceCondition {
                 resource_name,
@@ -673,7 +706,10 @@ impl std::fmt::Display for SecurityError {
                 message,
             } => {
                 write!(
-                    f, "Async race condition: resource '{}' accessed concurrently by threads {:?}. {}", resource_name, thread_ids, message)
+                    f,
+                    "Async race condition: resource '{}' accessed concurrently by threads {:?}. {}",
+                    resource_name, thread_ids, message
+                )
             }
             SecurityError::AsyncTaskLimitExceeded {
                 current_tasks,
@@ -681,7 +717,10 @@ impl std::fmt::Display for SecurityError {
                 message,
             } => {
                 write!(
-                    f, "Async task limit exceeded: {} tasks exceeds limit of {} tasks. {}", current_tasks, task_limit, message)
+                    f,
+                    "Async task limit exceeded: {} tasks exceeds limit of {} tasks. {}",
+                    current_tasks, task_limit, message
+                )
             }
             SecurityError::LockError {
                 resource_name,

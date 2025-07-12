@@ -296,7 +296,7 @@ mod resource_limit_tests {
             }
             Err(error) if error.kind() == &ErrorKind::SecurityViolation => {
                 // Expected failure due to resource limits
-                println!("Resource limit enforced: {}", error.message();
+                println!("Resource limit enforced: {}", error.message());
                 assert!(
                     error.message().contains("DoS attacks")
                         || error.message().contains("security")

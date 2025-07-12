@@ -518,7 +518,7 @@ impl SecurityMonitor {
 
                 if confidence >= pattern.confidence_threshold {
                     // Attack pattern detected
-                    let attack_event = SecurityEvent {
+                    let _attack_event = SecurityEvent {
                         event_type: SecurityEventType::AutomatedAttack,
                         severity: confidence,
                         description: format!("Attack pattern detected: {}", pattern.name),
@@ -615,7 +615,7 @@ impl SecurityMonitor {
                 description: "Memory corruption detected during validation".to_string(),
                 timestamp: SystemTime::now(),
                 context: [
-                    ("address".to_string(), format!("0x{}", address, :x)),
+                    ("address".to_string(), format!("0x{:x}", address)),
                     ("size".to_string(), size.to_string()),
                 ]
                 .iter()

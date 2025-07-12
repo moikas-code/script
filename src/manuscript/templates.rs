@@ -79,10 +79,10 @@ pub fn generate_main_file(package_name: &str) -> String {
 //!
 //! This is the main entry point for your Script application.
 
-use std::{}}
+use std::{{env, io}}
 
-fn main(, {}!", env, io) {{
-    println("Welcome to {)
+fn main() {{
+    println("Welcome to {}")
     
     // Get command line arguments
     let args = env::args()

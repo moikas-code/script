@@ -303,8 +303,8 @@ impl<'a> FunctionTranslator<'a> {
                             "Function '{}' expects {} argument{}, but {} {} provided",
                             ir_func.name,
                             expected_arg_count,
-                            if expected_arg_count == 1 { "" } else {},
-                            args.len(, "s"),
+                            if expected_arg_count == 1 { "" } else { "s" },
+                            args.len(),
                             if args.len() == 1 { "was" } else { "were" }
                         ),
                     ));
@@ -1593,16 +1593,31 @@ impl<'a> FunctionTranslator<'a> {
                         }
                     }
                 }
-                Some(VariantDataLayout::Struct(_fields)) => {
-                    // For struct variants, store fields sequentially for now
-                    // TODO: Implement proper struct field ordering
-                    let mut current_offset = data_offset;
-                    for arg in args {
-                        let arg_val = self.get_value(*arg)?;
-                        builder
-                            .ins()
-                            .store(memflags, arg_val, enum_ptr, current_offset);
-                        current_offset += 8; // Assume pointer-sized fields
+                Some(VariantDataLayout::Struct(fields)) => {
+                    // Proper struct field ordering with layout information
+                    for (i, (field_name, field_layout)) in fields.iter().enumerate() {
+                        if let Some(arg) = args.get(i) {
+                            let arg_val = self.get_value(*arg)?;
+
+                            // Calculate properly aligned offset for this field
+                            let field_offset = data_offset + field_layout.offset as i32;
+
+                            // Bounds check for field offset
+                            if field_offset < 0 || (field_offset as u32 + field_layout.size) > 1024
+                            {
+                                return Err(Error::new(
+                                    ErrorKind::RuntimeError,
+                                    format!(
+                                        "Field {} offset {} out of bounds for enum {}::{}",
+                                        field_name, field_offset, enum_name, variant
+                                    ),
+                                ));
+                            }
+
+                            builder
+                                .ins()
+                                .store(memflags, arg_val, enum_ptr, field_offset);
+                        }
                     }
                 }
                 Some(VariantDataLayout::Unit) => {

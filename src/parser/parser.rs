@@ -1210,7 +1210,7 @@ impl Parser {
         // Array literals and list comprehensions
         if self.match_token(&TokenKind::LeftBracket) {
             // Try to parse as a list comprehension first
-            let checkpoint = self.current;
+            let _checkpoint = self.current;
 
             if !self.check(&TokenKind::RightBracket) {
                 // Parse first element
@@ -1935,7 +1935,7 @@ impl Parser {
         if self.match_token(&TokenKind::LeftParen) {
             while !self.check(&TokenKind::RightParen) && !self.is_at_end() {
                 // Parse either a simple identifier or key=value pair
-                let arg_start = self.current;
+                let _arg_start = self.current;
                 let key = self.consume_identifier("Expected identifier in attribute arguments")?;
 
                 let arg = if self.match_token(&TokenKind::Equals) {

@@ -252,7 +252,7 @@ impl ScriptOption {
     /// Zip two Options into an Option of a tuple
     pub fn zip(&self, other: &ScriptOption) -> ScriptOption {
         match (self, other) {
-            (ScriptOption::Some(a), ScriptOption::Some(b)) => {
+            (ScriptOption::Some(_a), ScriptOption::Some(_b)) => {
                 // Create a tuple as an array with two elements
                 ScriptOption::Some(ScriptValue::Array(ScriptRc::new(
                     crate::stdlib::collections::ScriptVec::new(),
@@ -855,7 +855,7 @@ pub(crate) fn option_and_then_impl(args: &[ScriptValue]) -> Result<ScriptValue, 
     match &args[0] {
         ScriptValue::Option(opt) => {
             match **opt {
-                ScriptOption::Some(ref val) => {
+                ScriptOption::Some(ref _val) => {
                     // Call the function with the value
                     // For now, return the second argument as a placeholder
                     Ok(args[1].clone())

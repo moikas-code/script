@@ -125,8 +125,8 @@ impl InferenceContext {
                             if !self.trait_checker.implements_trait(&concrete_type, bound) {
                                 return Err(Error::new(
                                     crate::error::ErrorKind::TypeError,
-                                    format!("Type parameter {} (resolved to {}) does not implement trait {
-                                           type_param, concrete_type, bound}"),
+                                    format!("Type parameter {} (resolved to {}) does not implement trait {}",
+                                           type_param, concrete_type, bound),
                                 ).with_location(constraint.span.start));
                             }
                         }

@@ -573,7 +573,7 @@ impl AsyncResourceMonitor {
         // Clean up execution time history
         {
             let mut times = self.usage.execution_times.lock().unwrap();
-            let cutoff = now - Duration::from_secs(300); // Keep 5 minutes of history
+            let _cutoff = now - Duration::from_secs(300); // Keep 5 minutes of history
             times.retain(|_| true); // Duration doesn't have timestamps, keep all for now
         }
 
