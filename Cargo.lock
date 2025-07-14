@@ -2599,7 +2599,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "target-lexicon 0.12.16",
+ "target-lexicon 0.13.2",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
