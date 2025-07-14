@@ -257,7 +257,7 @@ impl<'a> FunctionTranslator<'a> {
                     if args.len() != 2 {
                         return Err(Error::new(
                             ErrorKind::RuntimeError,
-                            format!("script_print expects 2 arguments, got {}", args.len()),
+                            format!("script_print expects 2 arguments, got {args.len(}")),
                         ));
                     }
 
@@ -1246,7 +1246,7 @@ impl<'a> FunctionTranslator<'a> {
         }
 
         // Create a unique data ID for this string constant
-        let data_name = format!("str_const_{}", self.string_constants.len());
+        let data_name = format!("str_const_{self.string_constants.len(}"));
 
         // Declare the data in the module
         let data_id = self
@@ -1255,7 +1255,7 @@ impl<'a> FunctionTranslator<'a> {
             .map_err(|e| {
                 Error::new(
                     ErrorKind::RuntimeError,
-                    format!("Failed to declare string data: {}", e),
+                    format!("Failed to declare string data: {e}"),
                 )
             })?;
 
@@ -1274,7 +1274,7 @@ impl<'a> FunctionTranslator<'a> {
         self.module.define_data(data_id, &data_desc).map_err(|e| {
             Error::new(
                 ErrorKind::RuntimeError,
-                format!("Failed to define string data: {}", e),
+                format!("Failed to define string data: {e}"),
             )
         })?;
 
@@ -1336,7 +1336,7 @@ impl<'a> FunctionTranslator<'a> {
                         // SECURITY: Invalid field access detected
                         Err(crate::error::Error::new(
                             crate::error::ErrorKind::SecurityViolation,
-                            format!("Invalid field access: {}.{}", type_name, field_name),
+                            format!("Invalid field access: {}.{type_name, field_name}"),
                         ))
                     }
                     _ => {

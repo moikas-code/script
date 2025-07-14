@@ -124,7 +124,7 @@ impl ScriptError for IoError {
     }
 
     fn kind(&self) -> String {
-        format!("IoError::{}", self.kind)
+        format!("IoError::{self.kind}")
     }
 }
 
@@ -289,7 +289,7 @@ impl ScriptError for NetworkError {
     }
 
     fn kind(&self) -> String {
-        format!("NetworkError::{}", self.kind)
+        format!("NetworkError::{self.kind}")
     }
 
     fn is_recoverable(&self) -> bool {
@@ -345,7 +345,7 @@ impl ScriptError for ParseError {
     }
 
     fn kind(&self) -> String {
-        format!("ParseError::{}", self.format)
+        format!("ParseError::{self.format}")
     }
 
     fn is_recoverable(&self) -> bool {

@@ -80,7 +80,7 @@ impl PackageManifest {
     pub fn from_file(path: impl AsRef<Path>) -> PackageResult<Self> {
         let path = path.as_ref();
         let content = std::fs::read_to_string(path)
-            .map_err(|e| PackageError::ManifestParse(format!("Failed to read manifest: {}", e)))?;
+            .map_err(|e| PackageError::ManifestParse(format!("Failed to read manifest: {e}")))?;
 
         Self::from_str(&content)
     }
@@ -88,7 +88,7 @@ impl PackageManifest {
     /// Parse manifest from TOML string
     pub fn from_str(content: &str) -> PackageResult<Self> {
         let manifest: PackageManifest = toml::from_str(content)
-            .map_err(|e| PackageError::ManifestParse(format!("TOML parse error: {}", e)))?;
+            .map_err(|e| PackageError::ManifestParse(format!("TOML parse error: {e}")))?;
 
         manifest.validate()?;
         Ok(manifest)
@@ -97,10 +97,10 @@ impl PackageManifest {
     /// Save manifest to TOML file
     pub fn to_file(&self, path: impl AsRef<Path>) -> PackageResult<()> {
         let content = toml::to_string_pretty(self)
-            .map_err(|e| PackageError::ManifestParse(format!("TOML serialize error: {}", e)))?;
+            .map_err(|e| PackageError::ManifestParse(format!("TOML serialize error: {e}")))?;
 
         std::fs::write(path, content)
-            .map_err(|e| PackageError::ManifestParse(format!("Failed to write manifest: {}", e)))?;
+            .map_err(|e| PackageError::ManifestParse(format!("Failed to write manifest: {e}")))?;
 
         Ok(())
     }
@@ -125,7 +125,7 @@ impl PackageManifest {
         self.package
             .version
             .parse::<semver::Version>()
-            .map_err(|e| PackageError::ManifestParse(format!("Invalid version: {}", e)))?;
+            .map_err(|e| PackageError::ManifestParse(format!("Invalid version: {e}")))?;
 
         // Validate library path if present
         if let Some(ref lib) = self.lib {

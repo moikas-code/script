@@ -122,9 +122,9 @@ impl StackFrame {
         match (&self.file_name, &self.line_number) {
             (Some(file), Some(line)) => {
                 if let Some(col) = self.column_number {
-                    format!("{}:{}:{}", file, line, col)
+                    format!("{}:{}:{file, line, col}")
                 } else {
-                    format!("{}:{}", file, line)
+                    format!("{}:{file, line}")
                 }
             }
             (Some(file), None) => file.clone(),
@@ -198,7 +198,7 @@ impl StackTrace {
                     rest.trim().to_string()
                 }
             } else {
-                format!("frame_{}", i)
+                format!("frame_{i}")
             };
 
             frames.push(StackFrame::new(function_name));

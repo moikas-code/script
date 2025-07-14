@@ -174,7 +174,7 @@ impl Assertion {
     pub fn assert_empty<T>(collection: &[T]) -> Result<()> {
         if !collection.is_empty() {
             Err(AssertionError::new("Collection is not empty")
-                .with_values("empty", format!("length {}", collection.len()))
+                .with_values("empty", format!("length {collection.len(}")))
                 .into())
         } else {
             Ok(())
@@ -200,7 +200,7 @@ impl Assertion {
 
         if diff > tolerance {
             Err(
-                AssertionError::new(format!("Values differ by more than {}", tolerance))
+                AssertionError::new(format!("Values differ by more than {tolerance}"))
                     .with_values(expected, actual)
                     .into(),
             )

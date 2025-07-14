@@ -243,7 +243,7 @@ impl Runtime {
                 message: panic_info.to_string(),
                 location: panic_info
                     .location()
-                    .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column())),
+                    .map(|loc| format!("{}:{}:{loc.file(}"), loc.line(), loc.column())),
                 backtrace: std::backtrace::Backtrace::capture().to_string(),
                 timestamp: std::time::Instant::now(),
                 recovery_attempts: 0,
@@ -252,9 +252,9 @@ impl Runtime {
             };
 
             // Log panic
-            eprintln!("Script panic: {}", info.message);
+            eprintln!("Script panic: {info.message}");
             if let Some(loc) = &info.location {
-                eprintln!("  at {}", loc);
+                eprintln!("  at {loc}");
             }
 
             // Log memory stats at panic

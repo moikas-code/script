@@ -45,7 +45,7 @@ impl GenerateProcessor {
         } else {
             Err(Error::new(
                 ErrorKind::SemanticError,
-                &format!("Unknown generator: {}", generator_name),
+                &format!("Unknown generator: {generator_name}"),
             ))
         }
     }
@@ -119,7 +119,7 @@ pub fn execute_external_generator(command: &str, input: &str) -> Result<String> 
         .map_err(|e| {
             Error::new(
                 ErrorKind::SemanticError,
-                &format!("Failed to execute generator: {}", e),
+                &format!("Failed to execute generator: {e}"),
             )
         })?;
 
@@ -127,7 +127,7 @@ pub fn execute_external_generator(command: &str, input: &str) -> Result<String> 
         stdin.write_all(input.as_bytes()).map_err(|e| {
             Error::new(
                 ErrorKind::SemanticError,
-                &format!("Failed to write to generator: {}", e),
+                &format!("Failed to write to generator: {e}"),
             )
         })?;
     }
@@ -135,7 +135,7 @@ pub fn execute_external_generator(command: &str, input: &str) -> Result<String> 
     let output = child.wait_with_output().map_err(|e| {
         Error::new(
             ErrorKind::SemanticError,
-            &format!("Generator failed: {}", e),
+            &format!("Generator failed: {e}"),
         )
     })?;
 
@@ -143,7 +143,7 @@ pub fn execute_external_generator(command: &str, input: &str) -> Result<String> 
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(Error::new(
             ErrorKind::SemanticError,
-            &format!("Generator failed: {}", stderr),
+            &format!("Generator failed: {stderr}"),
         ));
     }
 

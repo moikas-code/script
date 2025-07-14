@@ -178,7 +178,7 @@ impl Debugger {
             }
             "help" | "h" | "?" => DebugCommand::Help,
             "quit" | "q" | "exit" => DebugCommand::Quit,
-            _ => DebugCommand::Invalid(format!("Unknown command: {}", parts[0])),
+            _ => DebugCommand::Invalid(format!("Unknown command: {parts[0]}")),
         }
     }
 

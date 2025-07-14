@@ -193,7 +193,7 @@ impl ClosureVerifier {
         // Generate proof obligations for preconditions
         for (i, precond) in spec.preconditions.iter().enumerate() {
             obligations.push(self.generate_obligation(
-                format!("pre_{}", i),
+                format!("pre_{i}"),
                 ObligationType::Precondition,
                 precond,
                 closure,
@@ -203,7 +203,7 @@ impl ClosureVerifier {
         // Generate proof obligations for postconditions
         for (i, postcond) in spec.postconditions.iter().enumerate() {
             obligations.push(self.generate_obligation(
-                format!("post_{}", i),
+                format!("post_{i}"),
                 ObligationType::Postcondition,
                 postcond,
                 closure,
@@ -213,7 +213,7 @@ impl ClosureVerifier {
         // Generate proof obligations for invariants
         for (i, invariant) in spec.invariants.iter().enumerate() {
             obligations.push(self.generate_obligation(
-                format!("inv_{}", i),
+                format!("inv_{i}"),
                 ObligationType::InvariantMaintenance,
                 invariant,
                 closure,
@@ -255,7 +255,7 @@ impl ClosureVerifier {
             Condition::ParamConstraint {
                 param_index,
                 constraint,
-            } => self.constraint_to_formula(format!("param_{}", param_index), constraint),
+            } => self.constraint_to_formula(format!("param_{param_index}"), constraint),
             Condition::ReturnConstraint(constraint) => {
                 self.constraint_to_formula("return".to_string(), constraint)
             }
@@ -283,13 +283,13 @@ impl ClosureVerifier {
                 if let Some(min) = min {
                     formula = Formula::And(
                         Box::new(formula),
-                        Box::new(Formula::Atom(format!("{} >= {}", var, min))),
+                        Box::new(Formula::Atom(format!("{} >= {var, min}"))),
                     );
                 }
                 if let Some(max) = max {
                     formula = Formula::And(
                         Box::new(formula),
-                        Box::new(Formula::Atom(format!("{} <= {}", var, max))),
+                        Box::new(Formula::Atom(format!("{} <= {var, max}"))),
                     );
                 }
                 formula
@@ -402,8 +402,8 @@ mod tests {
     #[test]
     fn test_simple_smt_solver() {
         let solver = SimpleSMTSolver::new();
-        assert!(solver.prove(&Formula::Atom("true".to_string())));
-        assert!(!solver.prove(&Formula::Atom("false".to_string())));
+        assert!(solver.prove(&Formula::Atom("true".to_string());
+        assert!(!solver.prove(&Formula::Atom("false".to_string());
     }
 
     #[test]

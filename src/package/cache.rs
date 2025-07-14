@@ -335,14 +335,14 @@ impl CacheIndex {
 
         let content = fs::read_to_string(path)?;
         let index: CacheIndex = serde_json::from_str(&content)
-            .map_err(|e| PackageError::Cache(format!("Failed to parse cache index: {}", e)))?;
+            .map_err(|e| PackageError::Cache(format!("Failed to parse cache index: {e}")))?;
 
         Ok(index)
     }
 
     fn save(&self, path: &Path) -> PackageResult<()> {
         let content = serde_json::to_string_pretty(self)
-            .map_err(|e| PackageError::Cache(format!("Failed to serialize cache index: {}", e)))?;
+            .map_err(|e| PackageError::Cache(format!("Failed to serialize cache index: {e}")))?;
 
         fs::write(path, content)?;
         Ok(())
@@ -541,7 +541,7 @@ impl MaintenanceReport {
 // Helper functions
 
 fn package_key(name: &str, version: &Version) -> String {
-    format!("{}-{}", name, version)
+    format!("{}-{name, version}")
 }
 
 fn current_timestamp() -> u64 {

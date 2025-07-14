@@ -190,8 +190,8 @@ fn calculate_state_size(
     // Add space for future storage at each await point
     let await_count = count_await_points(func)?;
     for i in 0..await_count {
-        context.allocate_variable(format!("__future_{}", i), 8); // Future pointer
-        context.allocate_variable(format!("__future_result_{}", i), 8); // Future result
+        context.allocate_variable(format!("__future_{i}"), 8); // Future pointer
+        context.allocate_variable(format!("__future_result_{i}"), 8); // Future result
     }
 
     Ok(context.current_offset)
@@ -238,7 +238,7 @@ fn analyze_local_variables(func: &Function) -> Result<HashMap<String, Type>, Err
             match inst {
                 Instruction::Alloc { ty } => {
                     // Allocate local variable storage
-                    let local_name = format!("__local_{}", value_id.0);
+                    let local_name = format!("__local_{value_id.0}");
                     locals.insert(local_name, ty.clone());
                 }
                 Instruction::Store { .. } | Instruction::Load { .. } => {
@@ -249,7 +249,7 @@ fn analyze_local_variables(func: &Function) -> Result<HashMap<String, Type>, Err
                     // Other instructions might create temporaries
                     // We'll allocate space for significant temporaries
                     if is_significant_instruction(inst) {
-                        let temp_name = format!("__temp_{}", value_id.0);
+                        let temp_name = format!("__temp_{value_id.0}");
                         locals.insert(temp_name, Type::Unknown);
                     }
                 }
@@ -445,7 +445,7 @@ fn transform_function_body(
             let inst = &inst_with_loc.instruction;
             if let Instruction::PollFuture { .. } = inst {
                 // Found an await point
-                let state_block = poll_func.create_block(format!("state_{}", next_state_id));
+                let state_block = poll_func.create_block(format!("state_{next_state_id}"));
                 state_blocks.push(state_block);
                 suspend_points.push(SuspendPoint {
                     state_id: next_state_id,
@@ -468,7 +468,7 @@ fn transform_function_body(
             .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to compare state"))?;
 
         let next_check = if i < state_blocks.len() - 1 {
-            poll_func.create_block(format!("check_state_{}", i + 1))
+            poll_func.create_block(format!("check_state_{i + 1}"))
         } else {
             // Invalid state - return error or panic
             poll_func.create_block("invalid_state".to_string())
@@ -547,7 +547,7 @@ fn transform_blocks(
 
                         // Store the future in state
                         let future_offset =
-                            context.allocate_variable(format!("__future_{}", state_id), 8);
+                            context.allocate_variable(format!("__future_{state_id}"), 8);
                         builder.build_store_async_state(state_ptr, future_offset, *future);
 
                         // Update state
@@ -558,7 +558,7 @@ fn transform_blocks(
                         builder.build_return(Some(pending));
 
                         // Create resume block
-                        let resume_block = poll_func.create_block(format!("resume_{}", state_id));
+                        let resume_block = poll_func.create_block(format!("resume_{state_id}"));
                         builder.set_current_block(resume_block);
 
                         // Load and poll the future again
@@ -588,9 +588,9 @@ fn transform_blocks(
                             })?;
 
                         let continue_block =
-                            poll_func.create_block(format!("continue_{}", state_id));
+                            poll_func.create_block(format!("continue_{state_id}"));
                         let still_pending =
-                            poll_func.create_block(format!("still_pending_{}", state_id));
+                            poll_func.create_block(format!("still_pending_{state_id}"));
 
                         builder.build_cond_branch(is_ready_cond, continue_block, still_pending);
 

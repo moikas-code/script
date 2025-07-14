@@ -295,13 +295,13 @@ mod tests {
 
         // Insert captures
         assert!(inline.insert("x".to_string(), Value::I32(42)));
-        assert!(inline.insert("y".to_string(), Value::String("hello".to_string())));
+        assert!(inline.insert("y".to_string(), Value::String("hello".to_string());
         assert_eq!(inline.len(), 2);
         assert!(!inline.is_empty());
 
         // Test retrieval
         assert_eq!(inline.get("x"), Some(&Value::I32(42)));
-        assert_eq!(inline.get("y"), Some(&Value::String("hello".to_string())));
+        assert_eq!(inline.get("y"), Some(&Value::String("hello".to_string());
         assert_eq!(inline.get("z"), None);
     }
 
@@ -311,7 +311,7 @@ mod tests {
 
         // Fill to capacity
         for i in 0..INLINE_THRESHOLD {
-            assert!(inline.insert(format!("var_{}", i), Value::I32(i as i32)));
+            assert!(inline.insert(format!("var_{i}"), Value::I32(i as i32)));
         }
         assert!(inline.is_full());
 
@@ -328,7 +328,7 @@ mod tests {
 
         // Add variables within inline threshold
         for i in 0..INLINE_THRESHOLD {
-            storage.insert(format!("var_{}", i), Value::I32(i as i32));
+            storage.insert(format!("var_{i}"), Value::I32(i as i32));
         }
         assert_eq!(storage.storage_type(), "inline");
 
@@ -339,7 +339,7 @@ mod tests {
         // Should still be able to access all variables
         for i in 0..INLINE_THRESHOLD {
             assert_eq!(
-                storage.get(&format!("var_{}", i)),
+                storage.get(&format!("var_{i}")),
                 Some(&Value::I32(i as i32))
             );
         }
@@ -358,7 +358,7 @@ mod tests {
 
         // Large capture count -> HashMap
         let large_captures: Vec<_> = (0..10)
-            .map(|i| (format!("var_{}", i), Value::I32(i)))
+            .map(|i| (format!("var_{i}"), Value::I32(i)))
             .collect();
         let large_storage = CaptureStorage::from_captures(large_captures);
         assert_eq!(large_storage.storage_type(), "hashmap");

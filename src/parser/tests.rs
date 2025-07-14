@@ -183,7 +183,7 @@ fn test_parse_binary_expressions() {
     let expr = parse_expr("1 + 2").unwrap();
     match &expr.kind {
         ExprKind::Binary { left, op, right } => {
-            assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0))));
+            assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0));
             assert_eq!(*op, BinaryOp::Add);
             assert!(matches!(
                 right.kind,
@@ -197,12 +197,12 @@ fn test_parse_binary_expressions() {
     let expr = parse_expr("1 + 2 * 3").unwrap();
     match &expr.kind {
         ExprKind::Binary { left, op, right } => {
-            assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0))));
+            assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0));
             assert_eq!(*op, BinaryOp::Add);
 
             match &right.kind {
                 ExprKind::Binary { left, op, right } => {
-                    assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(2.0))));
+                    assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(2.0));
                     assert_eq!(*op, BinaryOp::Mul);
                     assert!(matches!(
                         right.kind,
@@ -252,7 +252,7 @@ fn test_parse_grouped_expressions() {
 
             match &left.kind {
                 ExprKind::Binary { left, op, right } => {
-                    assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0))));
+                    assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0));
                     assert_eq!(*op, BinaryOp::Add);
                     assert!(matches!(
                         right.kind,
@@ -1018,14 +1018,14 @@ fn test_module_ast_types() {
     };
 
     // Verify Display implementations work
-    let import_str = format!("{}", import_stmt);
+    let import_str = format!("{import_stmt}");
     assert!(import_str.contains("import"));
     assert!(import_str.contains("React"));
     assert!(import_str.contains("useState"));
     assert!(import_str.contains("* as utils"));
     assert!(import_str.contains("from \"react\""));
 
-    let export_str = format!("{}", export_stmt);
+    let export_str = format!("{export_stmt}");
     assert!(export_str.contains("export"));
     assert!(export_str.contains("foo"));
 }
@@ -1645,7 +1645,7 @@ fn test_parse_type_parameter_patterns() {
     ];
 
     for (type_name, should_be_param) in patterns {
-        let program = parse(&format!("let x: {}", type_name)).unwrap();
+        let program = parse(&format!("let x: {type_name}")).unwrap();
         match &program.statements[0].kind {
             StmtKind::Let { type_ann, .. } => {
                 let type_ann = type_ann.as_ref().unwrap();
@@ -1827,11 +1827,11 @@ fn test_parse_common_generic_patterns() {
 fn test_parse_generic_display_implementation() {
     // Verify Display implementation for generic types
     let program = parse("let x: Vec<i32>").unwrap();
-    let stmt_str = format!("{}", program.statements[0]);
+    let stmt_str = format!("{program.statements[0]}");
     assert!(stmt_str.contains("Vec<i32>"));
 
     let program = parse("let map: HashMap<String, Vec<Option<T>>>").unwrap();
-    let stmt_str = format!("{}", program.statements[0]);
+    let stmt_str = format!("{program.statements[0]}");
     assert!(stmt_str.contains("HashMap<String, Vec<Option<T>>>"));
 }
 
@@ -2040,7 +2040,7 @@ fn test_parse_generic_function_complex_usage() {
 fn test_parse_generic_display() {
     // Test Display implementation
     let program = parse("fn test<T: Clone + Debug>(x: T) -> T { x }").unwrap();
-    let stmt_str = format!("{}", program.statements[0]);
+    let stmt_str = format!("{program.statements[0]}");
 
     assert!(stmt_str.contains("fn test<T: Clone + Debug>"));
     assert!(stmt_str.contains("(x: T)"));

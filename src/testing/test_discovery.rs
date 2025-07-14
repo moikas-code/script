@@ -168,7 +168,7 @@ impl TestModule {
         // Find all .script files in directory
         let dir = Path::new(path);
         if !dir.is_dir() {
-            return Err(Error::io(format!("Not a directory: {}", path)));
+            return Err(Error::io(format!("Not a directory: {path}")));
         }
 
         for entry in fs::read_dir(dir)? {

@@ -329,7 +329,7 @@ impl SecurityManager {
                 timestamp: SystemTime::now(),
                 session_id: Uuid::nil(),
                 event_type: AuditEventType::RateLimitExceeded,
-                message: format!("Rate limit exceeded for client: {}", client_id),
+                message: format!("Rate limit exceeded for client: {client_id}"),
                 context: {
                     let mut ctx = HashMap::new();
                     ctx.insert("client_id".to_string(), client_id.to_string());
@@ -362,7 +362,7 @@ impl SecurityManager {
         if self.config.strict_mode {
             if let Some(pattern) = self.detect_dangerous_patterns(input) {
                 return ValidationResult::Dangerous {
-                    reason: format!("Detected dangerous pattern: {}", pattern),
+                    reason: format!("Detected dangerous pattern: {pattern}"),
                 };
             }
         }

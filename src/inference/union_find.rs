@@ -177,7 +177,7 @@ impl UnionFind {
             // Generic types
             (Type::Generic { name: n1, args: a1 }, Type::Generic { name: n2, args: a2 }) => {
                 if n1 != n2 {
-                    return Err(format!("Generic type mismatch: {} vs {}", n1, n2));
+                    return Err(format!("Generic type mismatch: {} vs {n1, n2}"));
                 }
                 if a1.len() != a2.len() {
                     return Err(format!(
@@ -245,7 +245,7 @@ impl UnionFind {
             (t1, t2) if t1 == t2 => Ok(()),
 
             // Type mismatch
-            _ => Err(format!("Cannot unify {} with {}", t1, t2)),
+            _ => Err(format!("Cannot unify {} with {t1, t2}")),
         }
     }
 
@@ -450,7 +450,7 @@ mod tests {
 
         // Create: Array<T1> and Array<Option<T2>>
         let array1 = Type::Array(Box::new(var1.clone()));
-        let array2 = Type::Array(Box::new(Type::Option(Box::new(var2.clone()))));
+        let array2 = Type::Array(Box::new(Type::Option(Box::new(var2.clone()));
 
         uf.unify_types(&array1, &array2).unwrap();
 

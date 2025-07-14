@@ -453,7 +453,7 @@ impl MonomorphizationContext {
 
         // Check cache first
         if let Some(cached) = self.mangle_cache.get(type_args) {
-            return format!("{}_{}", base_name, cached);
+            return format!("{}_{base_name, cached}");
         }
 
         // Generate and cache the mangled suffix
@@ -461,7 +461,7 @@ impl MonomorphizationContext {
         self.mangle_cache
             .insert(type_args.to_vec(), type_suffix.clone());
 
-        format!("{}_{}", base_name, type_suffix)
+        format!("{}_{base_name, type_suffix}")
     }
 
     /// Cached type name mangling
@@ -485,10 +485,10 @@ impl MonomorphizationContext {
             Type::F32 => "f32".to_string(),
             Type::Bool => "bool".to_string(),
             Type::String => "string".to_string(),
-            Type::Array(elem) => format!("array_{}", self.mangle_type(elem)),
-            Type::Option(inner) => format!("option_{}", self.mangle_type(inner)),
+            Type::Array(elem) => format!("array_{self.mangle_type(elem}")),
+            Type::Option(inner) => format!("option_{self.mangle_type(inner}")),
             Type::Result { ok, err } => {
-                format!("result_{}_{}", self.mangle_type(ok), self.mangle_type(err))
+                format!("result_{}_{self.mangle_type(ok}"), self.mangle_type(err))
             }
             Type::Function { params, ret } => {
                 let param_mangles = params
@@ -496,28 +496,28 @@ impl MonomorphizationContext {
                     .map(|p| self.mangle_type(p))
                     .collect::<Vec<_>>()
                     .join("_");
-                format!("fn_{}_{}", param_mangles, self.mangle_type(ret))
+                format!("fn_{}_{param_mangles, self.mangle_type(ret}"))
             }
             Type::Generic { name, args } => {
                 if args.is_empty() {
                     name.clone()
                 } else {
-                    format!("{}_{}", name, self.mangle_type_args(args))
+                    format!("{}_{name, self.mangle_type_args(args}"))
                 }
             }
-            Type::TypeParam(name) => format!("param_{}", name),
-            Type::TypeVar(id) => format!("var_{}", id),
+            Type::TypeParam(name) => format!("param_{name}"),
+            Type::TypeVar(id) => format!("var_{id}"),
             Type::Named(name) => name.clone(),
             Type::Unknown => "unknown".to_string(),
             Type::Never => "never".to_string(),
-            Type::Future(inner) => format!("future_{}", self.mangle_type(inner)),
+            Type::Future(inner) => format!("future_{self.mangle_type(inner}")),
             Type::Tuple(types) => {
                 let type_mangles = types
                     .iter()
                     .map(|t| self.mangle_type(t))
                     .collect::<Vec<_>>()
                     .join("_");
-                format!("tuple_{}", type_mangles)
+                format!("tuple_{type_mangles}")
             }
             Type::Reference { mutable, inner } => {
                 format!(
@@ -531,14 +531,14 @@ impl MonomorphizationContext {
                 let field_mangles = fields
                     .iter()
                     .map(|(field_name, field_type)| {
-                        format!("{}_{}", field_name, self.mangle_type(field_type))
+                        format!("{}_{field_name, self.mangle_type(field_type}"))
                     })
                     .collect::<Vec<_>>()
                     .join("_");
                 if fields.is_empty() {
                     name.clone()
                 } else {
-                    format!("{}_{}", name, field_mangles)
+                    format!("{}_{name, field_mangles}")
                 }
             }
         }

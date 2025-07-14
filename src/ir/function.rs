@@ -314,7 +314,7 @@ mod tests {
             );
 
             // return %0
-            entry_block.add_instruction(ValueId(1), Instruction::Return(Some(ValueId(0))));
+            entry_block.add_instruction(ValueId(1), Instruction::Return(Some(ValueId(0));
         }
 
         let output = func.to_string();

@@ -74,7 +74,7 @@ pub fn fuzz_numeric_literals(data: &[u8]) {
 pub fn fuzz_comments(data: &[u8]) {
     if let Ok(input) = std::str::from_utf8(data) {
         // Test single-line comments
-        let single_line = format!("// {}", input);
+        let single_line = format!("// {input}");
         if let Ok(lexer) = Lexer::new(&single_line) {
             let _ = lexer.scan_tokens();
         }
@@ -86,7 +86,7 @@ pub fn fuzz_comments(data: &[u8]) {
         }
 
         // Test doc comments
-        let doc_comment = format!("/// {}", input);
+        let doc_comment = format!("/// {input}");
         if let Ok(lexer) = Lexer::new(&doc_comment) {
             let _ = lexer.scan_tokens();
         }

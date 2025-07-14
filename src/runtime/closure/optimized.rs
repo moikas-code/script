@@ -283,10 +283,10 @@ impl OptimizedClosureRuntime {
                 let name = closure
                     .function_name()
                     .map(|s| s.to_string())
-                    .unwrap_or_else(|| format!("#{}", function_id));
+                    .unwrap_or_else(|| format!("#{function_id}"));
                 Err(Error::new(
                     ErrorKind::RuntimeError,
-                    format!("Closure implementation not found: {}", name),
+                    format!("Closure implementation not found: {name}"),
                 ))
             }
         };
@@ -477,7 +477,7 @@ mod tests {
 
         // Large capture count should use HashMap
         let large_captures: Vec<_> = (0..10)
-            .map(|i| (format!("var_{}", i), Value::I32(i)))
+            .map(|i| (format!("var_{i}"), Value::I32(i)))
             .collect();
         let large_closure = OptimizedClosure::new("large".to_string(), vec![], large_captures);
         assert_eq!(large_closure.storage_type(), "hashmap");

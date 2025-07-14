@@ -1,13 +1,8 @@
 use crate::error::ErrorKind;
 use crate::inference::{type_ann_to_type, InferenceContext};
 use crate::parser::{
-<<<<<<< HEAD
-    BinaryOp, Block, ExportKind, Expr, ExprKind, GenericParams, ImportSpecifier, Literal, Param,
-    Program, Stmt, StmtKind, TraitBound, TypeAnn, UnaryOp,
-=======
-    BinaryOp, Block, ExportKind, Expr, ExprKind, ImportSpecifier, Literal, Param, Program, Stmt,
-    StmtKind, TypeAnn, TypeKind, UnaryOp, ImplBlock, Method, GenericParams,
->>>>>>> 289b5f6 (feat: Complete generic system implementation with full compilation pipeline)
+    BinaryOp, Block, ExportKind, Expr, ExprKind, GenericParams, ImplBlock, ImportSpecifier,
+    Literal, Method, Param, Program, Stmt, StmtKind, TraitBound, TypeAnn, TypeKind, UnaryOp,
 };
 use crate::source::Span;
 use crate::types::Type;
@@ -325,7 +320,7 @@ impl SemanticAnalyzer {
                     ) {
                         Ok(_) => imported_count += 1,
                         Err(err) => {
-                            eprintln!("Warning: Failed to import enum '{}': {}", symbol.name, err);
+                            eprintln!("Warning: Failed to import enum '{}': {symbol.name, err}");
                         }
                     }
                 }
@@ -492,7 +487,7 @@ impl SemanticAnalyzer {
     /// Add an error with enhanced context information
     fn add_enhanced_error(&mut self, error: SemanticError, source_context: Option<&str>) {
         let enhanced_error = if let Some(context) = source_context {
-            error.with_note(format!("Source context: {}", context))
+            error.with_note(format!("Source context: {context}"))
         } else {
             error
         };
@@ -3876,7 +3871,7 @@ impl SemanticAnalyzer {
     /// Analyze a method within an impl block
     fn analyze_method(&mut self, method: &Method, target_type: &TypeAnn) -> Result<()> {
         // Create a unique method name that includes the type
-        let method_name = format!("{}::{}", target_type, method.name);
+        let method_name = format!("{}::{target_type, method.name}");
 
         // Convert parameter types, including self parameter
         let mut param_types = Vec::new();
@@ -4412,7 +4407,7 @@ impl SemanticAnalyzer {
                     // Track this generic instantiation
                     if !inferred_args.is_empty() {
                         let instantiation = GenericInstantiation {
-                            function_name: format!("{}::{}", enum_name, variant_name),
+                            function_name: format!("{}::{enum_name, variant_name}"),
                             type_args: inferred_args.clone(),
                             span,
                         };
@@ -4612,7 +4607,7 @@ impl SemanticAnalyzer {
 
                         self.add_error(SemanticError::new(
                             SemanticErrorKind::VariantFormMismatch {
-                                variant: format!("{}::{}", enum_name, variant_name),
+                                variant: format!("{}::{enum_name, variant_name}"),
                                 expected: expected_form.to_string(),
                                 found: provided_form.to_string(),
                             },

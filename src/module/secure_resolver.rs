@@ -131,7 +131,7 @@ impl SecureFileSystemResolver {
         // Create operation guard for timeout tracking
         let _op_guard = self
             .resource_monitor
-            .begin_operation(format!("resolve:{}", module_path))?;
+            .begin_operation(format!("resolve:{module_path}"))?;
 
         // Check if it's a standard library module
         if module_path.is_std() {
@@ -156,7 +156,7 @@ impl SecureFileSystemResolver {
         if self.config.audit_all_operations {
             let event = SecurityEventBuilder::new(
                 SecurityEventCategory::ModuleLoad,
-                format!("Module not found: {}", module_path),
+                format!("Module not found: {module_path}"),
             )
             .severity(SecuritySeverity::Warning)
             .module(module_path.clone())
@@ -241,7 +241,7 @@ impl SecureFileSystemResolver {
         // Try module directory with index file
         for module_file in &self.config.module_file_names {
             for extension in &self.config.file_extensions {
-                let file_path = validated_path.join(format!("{}.{}", module_file, extension));
+                let file_path = validated_path.join(format!("{}.{module_file, extension}"));
 
                 if file_path.exists() && file_path.is_file() {
                     return Ok(Some(file_path));

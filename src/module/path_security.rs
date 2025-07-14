@@ -27,7 +27,7 @@ impl PathSecurityValidator {
     pub fn new(project_root: PathBuf) -> ModuleResult<Self> {
         // Ensure project root is absolute and canonical
         let canonical_root = project_root.canonicalize().map_err(|e| {
-            ModuleError::security_violation(format!("Failed to canonicalize project root: {}", e))
+            ModuleError::security_violation(format!("Failed to canonicalize project root: {e}"))
         })?;
 
         let mut allowed_extensions = HashSet::new();
@@ -196,7 +196,7 @@ impl PathSecurityValidator {
     fn validate_within_bounds(&self, path: &Path) -> ModuleResult<()> {
         // Canonicalize to resolve any remaining .. or symlinks
         let canonical = path.canonicalize().map_err(|e| {
-            ModuleError::security_violation(format!("Failed to canonicalize path: {}", e))
+            ModuleError::security_violation(format!("Failed to canonicalize path: {e}"))
         })?;
 
         // Check if canonical path is within project root

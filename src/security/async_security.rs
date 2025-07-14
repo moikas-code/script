@@ -558,7 +558,7 @@ impl AsyncFFIValidator {
                 return Err(SecurityError::AsyncFFIViolation {
                     function_name: function_name.to_string(),
                     violation_type: "blocked function pattern".to_string(),
-                    message: format!("Function matches blocked pattern: {}", pattern),
+                    message: format!("Function matches blocked pattern: {pattern}"),
                 });
             }
         }

@@ -160,7 +160,7 @@ impl SecurityAuditLogger {
             .create(true)
             .append(true)
             .open(&config.log_file)
-            .map_err(|e| ModuleError::io_error(format!("Failed to open audit log: {}", e)))?;
+            .map_err(|e| ModuleError::io_error(format!("Failed to open audit log: {e}")))?;
 
         let writer = BufWriter::new(file);
 
@@ -208,7 +208,7 @@ impl SecurityAuditLogger {
             severity: SecuritySeverity::Critical,
             category: SecurityEventCategory::PathTraversal,
             module,
-            description: format!("Path traversal attempt detected: {}", attempted_path),
+            description: format!("Path traversal attempt detected: {attempted_path}"),
             context: SecurityEventContext {
                 user_id: None,
                 source_ip: None,
@@ -359,18 +359,18 @@ impl SecurityAuditLogger {
         if let Some(writer) = writer_opt.as_mut() {
             // Serialize event to JSON
             let json = serde_json::to_string(event).map_err(|e| {
-                ModuleError::io_error(format!("Failed to serialize audit event: {}", e))
+                ModuleError::io_error(format!("Failed to serialize audit event: {e}"))
             })?;
 
             // Write with newline
             writeln!(writer, "{}", json).map_err(|e| {
-                ModuleError::io_error(format!("Failed to write audit event: {}", e))
+                ModuleError::io_error(format!("Failed to write audit event: {e}"))
             })?;
 
             // Flush for critical events
             if event.severity >= SecuritySeverity::Critical {
                 writer.flush().map_err(|e| {
-                    ModuleError::io_error(format!("Failed to flush audit log: {}", e))
+                    ModuleError::io_error(format!("Failed to flush audit log: {e}"))
                 })?;
             }
         }
@@ -432,7 +432,7 @@ impl SecurityAuditLogger {
     /// Rotate log file if needed
     pub fn rotate_if_needed(&self) -> ModuleResult<()> {
         let metadata = std::fs::metadata(&self.config.log_file).map_err(|e| {
-            ModuleError::io_error(format!("Failed to get log file metadata: {}", e))
+            ModuleError::io_error(format!("Failed to get log file metadata: {e}"))
         })?;
 
         if metadata.len() >= self.config.max_file_size {
@@ -453,16 +453,16 @@ impl SecurityAuditLogger {
 
         // Rename current log
         let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-        let rotated_name = format!("{}.{}", self.config.log_file.display(), timestamp);
+        let rotated_name = format!("{}.{self.config.log_file.display(}"), timestamp);
         std::fs::rename(&self.config.log_file, &rotated_name)
-            .map_err(|e| ModuleError::io_error(format!("Failed to rotate log file: {}", e)))?;
+            .map_err(|e| ModuleError::io_error(format!("Failed to rotate log file: {e}")))?;
 
         // Open new file
         let file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&self.config.log_file)
-            .map_err(|e| ModuleError::io_error(format!("Failed to create new log file: {}", e)))?;
+            .map_err(|e| ModuleError::io_error(format!("Failed to create new log file: {e}")))?;
 
         *writer_opt = Some(BufWriter::new(file));
 

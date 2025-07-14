@@ -676,9 +676,9 @@ impl OptimizationStats {
         println!("════════════════════════════════════════");
         
         println!("🏊 Object Pool:");
-        println!("  Available: {}", self.object_pool_available);
-        println!("  In Use: {}", self.object_pool_in_use);
-        println!("  Created: {}", self.object_pool_created);
+        println!("  Available: {self.object_pool_available}");
+        println!("  In Use: {self.object_pool_in_use}");
+        println!("  Created: {self.object_pool_created}");
         println!("  Pool Efficiency: {:.1}%", 
             if self.object_pool_created > 0 {
                 (self.object_pool_available as f64 / self.object_pool_created as f64) * 100.0
@@ -686,19 +686,19 @@ impl OptimizationStats {
         );
 
         println!("\n💾 Cache Performance:");
-        println!("  Size: {}", self.cache_size);
+        println!("  Size: {self.cache_size}");
         println!("  Hit Ratio: {:.1}%", self.cache_hit_ratio * 100.0);
-        println!("  Total Accesses: {}", self.cache_total_accesses);
+        println!("  Total Accesses: {self.cache_total_accesses}");
 
         println!("\n🔧 Optimizations:");
-        println!("  Allocations Avoided: {}", self.allocations_avoided);
-        println!("  Batch Operations: {}", self.batch_operations);
-        println!("  Scheduler Adaptations: {}", self.scheduler_adaptations);
+        println!("  Allocations Avoided: {self.allocations_avoided}");
+        println!("  Batch Operations: {self.batch_operations}");
+        println!("  Scheduler Adaptations: {self.scheduler_adaptations}");
         println!("  Current Strategy: {:?}", self.current_strategy);
 
         println!("\n📊 Performance Grade:");
         let grade = self.calculate_performance_grade();
-        println!("  Overall Grade: {} {}", grade, self.get_grade_emoji(grade));
+        println!("  Overall Grade: {} {grade, self.get_grade_emoji(grade}"));
     }
 
     /// Calculate overall performance grade

@@ -284,7 +284,7 @@ pub(crate) fn time_now(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError
     use std::time::{SystemTime, UNIX_EPOCH};
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| RuntimeError::InvalidOperation(format!("Time error: {}", e)))?;
+        .map_err(|e| RuntimeError::InvalidOperation(format!("Time error: {e}")))?;
 
     Ok(ScriptValue::F32(duration.as_secs_f32()))
 }

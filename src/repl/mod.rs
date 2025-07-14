@@ -124,7 +124,7 @@ impl EnhancedRepl {
 
     /// Print help information
     fn print_help(&self) {
-        println!("{}", "Available commands:".yellow().bold());
+        println!("{"Available commands:".yellow(}").bold());
         println!(
             "  {}  - Switch to interactive development mode (default)",
             ":interactive".cyan()
@@ -210,7 +210,7 @@ impl EnhancedRepl {
             ":save" => self.save_session(),
             ":load" => self.load_session(),
             _ => {
-                println!("{} Unknown command: {}", "Error:".red(), command);
+                println!("{} Unknown command: {"Error:".red(}"), command);
                 println!("Type {} for available commands", ":help".cyan());
             }
         }
@@ -219,35 +219,35 @@ impl EnhancedRepl {
 
     /// Show command history
     fn show_history(&self) {
-        println!("{}", "Command History:".yellow().bold());
+        println!("{"Command History:".yellow(}").bold());
         for (i, cmd) in self.history.recent(10).iter().enumerate() {
-            println!("  {}: {}", (i + 1).to_string().dimmed(), cmd);
+            println!("  {}: {(i + 1}").to_string().dimmed(), cmd);
         }
     }
 
     /// Show session variables
     fn show_variables(&self) {
-        println!("{}", "Session Variables:".yellow().bold());
+        println!("{"Session Variables:".yellow(}").bold());
         if self.session.variables().is_empty() {
-            println!("  {}", "No variables defined".dimmed());
+            println!("  {"No variables defined".dimmed(}"));
         } else {
             for (name, value) in self.session.variables() {
-                println!("  {} = {}", name.cyan(), format!("{:?}", value).green());
+                println!("  {} = {name.cyan(}"), format!("{:?}", value).green());
             }
         }
 
         // Also show types and functions
         if !self.session.types().is_empty() {
-            println!("\n{}", "Session Types:".yellow().bold());
+            println!("\n{"Session Types:".yellow(}").bold());
             for (name, type_def) in self.session.types() {
-                println!("  {} : {}", name.cyan(), format!("{:?}", type_def).green());
+                println!("  {} : {name.cyan(}"), format!("{:?}", type_def).green());
             }
         }
 
         if !self.session.functions().is_empty() {
-            println!("\n{}", "Session Functions:".yellow().bold());
+            println!("\n{"Session Functions:".yellow(}").bold());
             for (name, signature) in self.session.functions() {
-                println!("  {} : {}", name.cyan(), format!("{:?}", signature).green());
+                println!("  {} : {name.cyan(}"), format!("{:?}", signature).green());
             }
         }
     }
@@ -380,11 +380,11 @@ impl EnhancedRepl {
         match self.compile_and_run(&input) {
             Ok(result) => {
                 if let Some(value) = result {
-                    println!("=> {}", format!("{:?}", value).green());
+                    println!("=> {format!("{:?}", value}").green());
                 }
             }
             Err(error) => {
-                println!("{}", error);
+                println!("{error}");
             }
         }
     }
@@ -392,7 +392,7 @@ impl EnhancedRepl {
     /// Compile and run input, updating session state
     fn compile_and_run(&mut self, source: &str) -> Result<Option<Value>, String> {
         // Tokenize
-        let lexer = Lexer::new(source).map_err(|e| format!("Lexer error: {}", e))?;
+        let lexer = Lexer::new(source).map_err(|e| format!("Lexer error: {e}"))?;
         let (tokens, lex_errors) = lexer.scan_tokens();
 
         if !lex_errors.is_empty() {
@@ -405,7 +405,7 @@ impl EnhancedRepl {
 
         // Parse
         let mut parser = Parser::new(tokens);
-        let program = parser.parse().map_err(|e| format!("Parse error: {}", e))?;
+        let program = parser.parse().map_err(|e| format!("Parse error: {e}"))?;
 
         // Enhanced semantic analysis with session state
         let analyzer = self.analyze_with_session(&program)?;
@@ -433,7 +433,7 @@ impl EnhancedRepl {
         // Analyze the program
         analyzer
             .analyze_program(program)
-            .map_err(|e| format!("Semantic error: {}", e))?;
+            .map_err(|e| format!("Semantic error: {e}"))?;
 
         Ok(analyzer)
     }
@@ -560,7 +560,7 @@ impl EnhancedRepl {
                 if let Some(value) = self.session.get_variable(name) {
                     Ok(Some(value.clone()))
                 } else {
-                    Err(format!("Undefined variable: {}", name))
+                    Err(format!("Undefined variable: {name}"))
                 }
             }
             crate::parser::ExprKind::Binary { left, op, right } => {
@@ -687,17 +687,17 @@ impl EnhancedRepl {
             let placeholder_value = self.create_placeholder_value(&var_type);
             self.session
                 .define_variable(name.clone(), placeholder_value, var_type);
-            println!("  {} Imported variable: {}", "✓".green(), name.cyan());
+            println!("  {} Imported variable: {"✓".green(}"), name.cyan());
         }
 
         for (name, signature) in imported_exports.functions {
             self.session.define_function(name.clone(), signature);
-            println!("  {} Imported function: {}", "✓".green(), name.cyan());
+            println!("  {} Imported function: {"✓".green(}"), name.cyan());
         }
 
         for (name, type_def) in imported_exports.types {
             self.session.define_type(name.clone(), type_def);
-            println!("  {} Imported type: {}", "✓".green(), name.cyan());
+            println!("  {} Imported type: {"✓".green(}"), name.cyan());
         }
 
         Ok(())
@@ -729,7 +729,7 @@ impl EnhancedRepl {
                 Ok(Some(Value::F32(a + b)))
             }
             (Value::String(a), crate::parser::BinaryOp::Add, Value::String(b)) => {
-                Ok(Some(Value::String(format!("{}{}", a, b))))
+                Ok(Some(Value::String(format!("{}{a, b}"))))
             }
             // Add more binary operations as needed
             _ => Err(format!(
@@ -756,7 +756,7 @@ impl EnhancedRepl {
                 }
             }
             Err(error) => {
-                println!("Lexer error: {}", error);
+                println!("Lexer error: {error}");
             }
         }
     }
@@ -779,16 +779,16 @@ impl EnhancedRepl {
                 let mut parser = Parser::new(tokens);
                 match parser.parse() {
                     Ok(program) => {
-                        println!("{}", "Parse tree:".green().bold());
+                        println!("{"Parse tree:".green(}").bold());
                         println!("{:#?}", program);
                     }
                     Err(error) => {
-                        println!("Parse error: {}", error);
+                        println!("Parse error: {error}");
                     }
                 }
             }
             Err(error) => {
-                println!("Lexer error: {}", error);
+                println!("Lexer error: {error}");
             }
         }
     }
@@ -796,13 +796,13 @@ impl EnhancedRepl {
     /// Debug input processing
     fn debug_input(&mut self, input: String) {
         println!("{} Debug mode not fully implemented yet", "Note:".yellow());
-        println!("Input: {}", input.cyan());
+        println!("Input: {input.cyan(}"));
     }
 
     /// Print tokens in a nice format
     fn print_tokens(&self, tokens: &[Token]) {
-        println!("\n{}", "Tokens:".green().bold());
-        println!("{}", "─".repeat(60));
+        println!("\n{"Tokens:".green(}").bold());
+        println!("{"─".repeat(60}"));
 
         for token in tokens {
             if matches!(token.kind, TokenKind::Newline) {
@@ -827,35 +827,35 @@ impl EnhancedRepl {
 
     /// Show defined types
     fn show_types(&self) {
-        println!("{}", "Defined Types:".yellow().bold());
+        println!("{"Defined Types:".yellow(}").bold());
         if self.session.types().is_empty() {
-            println!("  {}", "No types defined".dimmed());
+            println!("  {"No types defined".dimmed(}"));
         } else {
             for (name, type_def) in self.session.types() {
-                println!("  {} : {}", name.cyan(), format!("{:?}", type_def).green());
+                println!("  {} : {name.cyan(}"), format!("{:?}", type_def).green());
             }
         }
     }
 
     /// Show defined functions
     fn show_functions(&self) {
-        println!("{}", "Defined Functions:".yellow().bold());
+        println!("{"Defined Functions:".yellow(}").bold());
         if self.session.functions().is_empty() {
-            println!("  {}", "No functions defined".dimmed());
+            println!("  {"No functions defined".dimmed(}"));
         } else {
             for (name, signature) in self.session.functions() {
-                println!("  {} : {}", name.cyan(), format!("{:?}", signature).green());
+                println!("  {} : {name.cyan(}"), format!("{:?}", signature).green());
             }
         }
     }
 
     /// Show imported modules
     fn show_modules(&self) {
-        println!("{}", "Imported Modules:".yellow().bold());
+        println!("{"Imported Modules:".yellow(}").bold());
         let loaded_modules = self.module_loader.list_loaded_modules();
 
         if loaded_modules.is_empty() {
-            println!("  {}", "No modules imported".dimmed());
+            println!("  {"No modules imported".dimmed(}"));
         } else {
             for module_name in loaded_modules {
                 if let Some(module_info) = self.module_loader.get_module_info(module_name) {
@@ -873,9 +873,9 @@ impl EnhancedRepl {
             }
         }
 
-        println!("\n{}", "Module Search Paths:".yellow().bold());
+        println!("\n{"Module Search Paths:".yellow(}").bold());
         for (i, path) in self.module_loader.search_paths().iter().enumerate() {
-            println!("  {}: {}", (i + 1).to_string().dimmed(), path.display());
+            println!("  {}: {(i + 1}").to_string().dimmed(), path.display());
         }
     }
 
@@ -883,7 +883,7 @@ impl EnhancedRepl {
     fn save_session(&mut self) {
         match self.session.save() {
             Ok(()) => println!("{} Session saved successfully", "✓".green()),
-            Err(e) => println!("{} Failed to save session: {}", "✗".red(), e),
+            Err(e) => println!("{} Failed to save session: {"✗".red(}"), e),
         }
     }
 
@@ -894,7 +894,7 @@ impl EnhancedRepl {
                 self.session = session;
                 println!("{} Session loaded successfully", "✓".green());
             }
-            Err(e) => println!("{} Failed to load session: {}", "✗".red(), e),
+            Err(e) => println!("{} Failed to load session: {"✗".red(}"), e),
         }
     }
 }

@@ -31,7 +31,7 @@ fn test_literal_inference() {
     assert!(result
         .expr_types
         .values()
-        .any(|t| matches!(t, Type::TypeVar(_))));
+        .any(|t| matches!(t, Type::TypeVar(_));
 
     // String literals
     let result = infer_types("\"hello world\";").unwrap();
@@ -70,14 +70,14 @@ fn test_arithmetic_operations() {
     assert!(result
         .expr_types
         .values()
-        .any(|t| matches!(t, Type::TypeVar(_))));
+        .any(|t| matches!(t, Type::TypeVar(_));
 
     // Complex arithmetic
     let result = infer_types("(1 + 2) * 3 - 4 / 2;").unwrap();
     assert!(result
         .expr_types
         .values()
-        .any(|t| matches!(t, Type::TypeVar(_))));
+        .any(|t| matches!(t, Type::TypeVar(_));
 
     // Variable arithmetic with explicit types
     let result = infer_types("let x: f32 = 10; let y: f32 = 20; x + y;").unwrap();
@@ -119,7 +119,7 @@ fn test_unary_operations() {
     assert!(result
         .expr_types
         .values()
-        .any(|t| matches!(t, Type::TypeVar(_))));
+        .any(|t| matches!(t, Type::TypeVar(_));
 
     // Logical not
     let result = infer_types("!true;").unwrap();
@@ -136,7 +136,7 @@ fn test_if_expressions() {
     assert!(result
         .expr_types
         .values()
-        .any(|t| matches!(t, Type::TypeVar(_))));
+        .any(|t| matches!(t, Type::TypeVar(_));
 
     // If with explicit type
     let result = infer_types("let x: i32 = if true { 1 } else { 2 }; x;").unwrap();
@@ -152,14 +152,14 @@ fn test_array_inference() {
     assert!(result
         .expr_types
         .values()
-        .any(|t| matches!(t, Type::Array(_))));
+        .any(|t| matches!(t, Type::Array(_));
 
     // Array with elements - numeric literals get type variables
     let result = infer_types("[1, 2, 3];").unwrap();
     assert!(result
         .expr_types
         .values()
-        .any(|t| matches!(t, Type::Array(_))));
+        .any(|t| matches!(t, Type::Array(_));
 
     // Array indexing with explicit type
     let result = infer_types("let arr: [i32] = [1, 2, 3]; arr[0];").unwrap();
@@ -221,7 +221,7 @@ fn test_block_expressions() {
     assert!(result
         .expr_types
         .values()
-        .any(|t| matches!(t, Type::TypeVar(_))));
+        .any(|t| matches!(t, Type::TypeVar(_));
 
     // Nested blocks with explicit types
     let code = r#"
@@ -258,7 +258,7 @@ fn test_for_loops() {
         }
     "#;
     let result = infer_types(code).unwrap();
-    assert!(has_type(&result, &Type::Array(Box::new(Type::I32))));
+    assert!(has_type(&result, &Type::Array(Box::new(Type::I32));
 }
 
 #[test]
@@ -324,7 +324,7 @@ fn test_complex_inference() {
         make_array(10);
     "#;
     let result = infer_types(code).unwrap();
-    assert!(has_type(&result, &Type::Array(Box::new(Type::I32))));
+    assert!(has_type(&result, &Type::Array(Box::new(Type::I32));
 
     // Higher-order function (function type annotation)
     let code = r#"

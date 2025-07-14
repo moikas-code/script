@@ -89,7 +89,7 @@ impl Optimizer {
 
             for pass in &mut self.passes {
                 if self.debug {
-                    eprintln!("Running optimization pass: {}", pass.name());
+                    eprintln!("Running optimization pass: {pass.name(}"));
                 }
 
                 if pass.optimize(module) {

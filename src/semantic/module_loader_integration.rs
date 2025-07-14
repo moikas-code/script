@@ -65,7 +65,7 @@ impl ModuleLoaderIntegration {
             .map_err(|e| {
                 Error::new(
                     ErrorKind::ModuleError,
-                    format!("Failed to resolve module '{}': {}", module_path, e),
+                    format!("Failed to resolve module '{}': {module_path, e}"),
                 )
                 .with_location(span.start)
             })?;
@@ -94,7 +94,7 @@ impl ModuleLoaderIntegration {
         let source = fs::read_to_string(file_path).map_err(|e| {
             Error::new(
                 ErrorKind::FileError,
-                format!("Failed to read module '{}': {}", module_name, e),
+                format!("Failed to read module '{}': {module_name, e}"),
             )
             .with_location(span.start)
         })?;

@@ -214,7 +214,7 @@ impl StateRecoveryManager {
         // Built-in validation checks
         if let Some(error) = &state.error_state {
             metrics.failed_validations += 1;
-            return ValidationResult::Invalid(format!("Error state: {}", error));
+            return ValidationResult::Invalid(format!("Error state: {error}"));
         }
 
         // Check for memory corruption

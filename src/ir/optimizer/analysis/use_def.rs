@@ -161,7 +161,7 @@ impl UseDefChains {
         let mut info = DefUseInfo::new();
 
         if self.debug {
-            eprintln!("Analyzing use-def chains for function: {}", func.name);
+            eprintln!("Analyzing use-def chains for function: {func.name}");
         }
 
         // Step 1: Collect all definitions and uses
@@ -183,7 +183,7 @@ impl UseDefChains {
     fn collect_def_use_sites(&self, func: &Function, info: &mut DefUseInfo) {
         for (block_id, block) in func.blocks() {
             for (value_id, inst_with_loc) in &block.instructions {
-                let inst_str = format!("{}", inst_with_loc.instruction);
+                let inst_str = format!("{inst_with_loc.instruction}");
 
                 // Record definition site
                 if inst_with_loc.instruction.result_type().is_some() {
@@ -282,7 +282,7 @@ impl UseDefChains {
                     let def_site = DefSite::new(
                         *block_id,
                         *value_id,
-                        format!("{}", inst_with_loc.instruction),
+                        format!("{inst_with_loc.instruction}"),
                     );
                     gen_set.entry(*value_id).or_default().push(def_site);
                     kill_set.insert(*value_id);
@@ -398,7 +398,7 @@ impl UseDefChains {
 
             // Process instructions in the block
             for (value_id, inst_with_loc) in &block.instructions {
-                let inst_str = format!("{}", inst_with_loc.instruction);
+                let inst_str = format!("{inst_with_loc.instruction}");
 
                 // For each value used by this instruction
                 let used_values = self.get_used_values(&inst_with_loc.instruction);

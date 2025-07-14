@@ -177,13 +177,13 @@ fn mangle_type(ty: &Type) -> String {
         Type::String => "string".to_string(),
         Type::Unknown => "unknown".to_string(),
         Type::Never => "never".to_string(),
-        Type::Array(elem) => format!("array_{}", mangle_type(elem)),
-        Type::Option(inner) => format!("option_{}", mangle_type(inner)),
-        Type::Result { ok, err } => format!("result_{}_{}", mangle_type(ok), mangle_type(err)),
-        Type::Future(inner) => format!("future_{}", mangle_type(inner)),
+        Type::Array(elem) => format!("array_{mangle_type(elem}")),
+        Type::Option(inner) => format!("option_{mangle_type(inner}")),
+        Type::Result { ok, err } => format!("result_{}_{mangle_type(ok}"), mangle_type(err)),
+        Type::Future(inner) => format!("future_{mangle_type(inner}")),
         Type::Named(name) => name.replace("::", "_"),
-        Type::TypeVar(id) => format!("var{}", id),
-        Type::TypeParam(name) => format!("param_{}", name),
+        Type::TypeVar(id) => format!("var{id}"),
+        Type::TypeParam(name) => format!("param_{name}"),
         Type::Generic { name, args } => {
             let mut result = name.clone();
             if !args.is_empty() {
@@ -217,12 +217,12 @@ fn mangle_type(ty: &Type) -> String {
         }
         Type::Reference { mutable, inner } => {
             if *mutable {
-                format!("refmut_{}", mangle_type(inner))
+                format!("refmut_{mangle_type(inner}"))
             } else {
-                format!("ref_{}", mangle_type(inner))
+                format!("ref_{mangle_type(inner}"))
             }
         }
-        Type::Struct { name, .. } => format!("struct_{}", name.replace("::", "_")),
+        Type::Struct { name, .. } => format!("struct_{name.replace("::", "_"}")),
     }
 }
 

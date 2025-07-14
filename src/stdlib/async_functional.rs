@@ -186,7 +186,7 @@ impl AsyncClosureContext {
             if *active >= self.config.max_concurrent_futures {
                 return Err(Error::new(
                     ErrorKind::RuntimeError,
-                    format!("Too many concurrent async operations: {}", *active),
+                    format!("Too many concurrent async operations: {*active}"),
                 ));
             }
 

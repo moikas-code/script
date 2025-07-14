@@ -529,12 +529,12 @@ impl SecurityReport {
             "  Resource Limit Violations: {}",
             self.resource_limit_violations
         );
-        println!("  Compilation Timeouts: {}", self.compilation_timeouts);
+        println!("  Compilation Timeouts: {self.compilation_timeouts}");
 
         println!("\nOverall Assessment:");
         println!("  Security Score: {}/100", self.calculate_security_score());
-        println!("  Security Grade: {}", self.get_security_grade());
-        println!("  Total Security Events: {}", self.total_security_events);
+        println!("  Security Grade: {self.get_security_grade(}"));
+        println!("  Total Security Events: {self.total_security_events}");
 
         let status = match self.get_security_grade() {
             'A' | 'B' => "✅ PRODUCTION READY",
@@ -945,7 +945,7 @@ mod tests {
             message: "Test bounds violation".to_string(),
         };
 
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert!(display.contains("bounds violation"));
         assert!(display.contains("15"));
         assert!(display.contains("10"));

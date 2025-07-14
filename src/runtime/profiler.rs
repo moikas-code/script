@@ -323,15 +323,15 @@ impl MemoryProfiler {
             // Report leaks by type
             for (type_name, leaks) in leaks_by_type {
                 let total_size: usize = leaks.iter().map(|l| l.size).sum();
-                eprintln!("\n  Type: {}", type_name);
-                eprintln!("  Count: {}", leaks.len());
+                eprintln!("\n  Type: {type_name}");
+                eprintln!("  Count: {leaks.len(}"));
                 eprintln!("  Total size: {} bytes", total_size);
 
                 // Show first few allocations with backtraces if available
                 for (i, leak) in leaks.iter().take(3).enumerate() {
                     eprintln!("  Allocation #{}: {} bytes", i + 1, leak.size);
                     if let Some(bt) = &leak.backtrace {
-                        eprintln!("    Backtrace:\n{}", bt);
+                        eprintln!("    Backtrace:\n{bt}");
                     }
                 }
 

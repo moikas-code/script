@@ -83,7 +83,7 @@ pub fn value_to_script_value(value: &Value) -> Result<ScriptValue, Error> {
                         _ => {
                             return Err(Error::new(
                                 ErrorKind::TypeError,
-                                format!("Unknown Option variant: {}", variant),
+                                format!("Unknown Option variant: {variant}"),
                             ));
                         }
                     };
@@ -115,7 +115,7 @@ pub fn value_to_script_value(value: &Value) -> Result<ScriptValue, Error> {
                         _ => {
                             return Err(Error::new(
                                 ErrorKind::TypeError,
-                                format!("Unknown Result variant: {}", variant),
+                                format!("Unknown Result variant: {variant}"),
                             ));
                         }
                     };

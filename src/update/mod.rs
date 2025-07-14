@@ -8,7 +8,7 @@ pub use updater::UpdateError;
 
 /// Check if an update is available
 pub fn check_update() -> Result<Option<String>, UpdateError> {
-    println!("{} {}", "Checking for updates...".bright_blue(), "⏳");
+    println!("{} {"Checking for updates...".bright_blue(}"), "⏳");
 
     let current_version = cargo_crate_version!();
     let updater = updater::ScriptUpdater::new()?;
@@ -59,7 +59,7 @@ pub fn update(force: bool) -> Result<(), UpdateError> {
                 io::stdin().read_line(&mut input)?;
 
                 if !input.trim().is_empty() && !input.trim().eq_ignore_ascii_case("y") {
-                    println!("{}", "Update cancelled.".yellow());
+                    println!("{"Update cancelled.".yellow(}"));
                     return Ok(());
                 }
             }
@@ -68,7 +68,7 @@ pub fn update(force: bool) -> Result<(), UpdateError> {
     }
 
     // Perform update
-    println!("\n{} {}", "Downloading update...".bright_blue(), "📦");
+    println!("\n{} {"Downloading update...".bright_blue(}"), "📦");
 
     let updater = updater::ScriptUpdater::new()?;
     let status = updater.update()?;
@@ -88,7 +88,7 @@ pub fn update(force: bool) -> Result<(), UpdateError> {
                 .bright_white()
         );
     } else {
-        println!("{} {}", "✓".green(), "Already up to date!".bright_white());
+        println!("{} {"✓".green(}"), "Already up to date!".bright_white());
     }
 
     Ok(())
@@ -133,7 +133,7 @@ pub fn update_to_version(version: &str) -> Result<(), UpdateError> {
 
 /// Show available versions
 pub fn list_versions() -> Result<(), UpdateError> {
-    println!("{}", "Available versions:".bright_blue().bold());
+    println!("{"Available versions:".bright_blue(}").bold());
 
     let updater = updater::ScriptUpdater::new()?;
     let versions = updater.get_available_versions()?;
@@ -149,7 +149,7 @@ pub fn list_versions() -> Result<(), UpdateError> {
                 "✓"
             );
         } else {
-            println!("  {}", version.bright_white());
+            println!("  {version.bright_white(}"));
         }
     }
 
@@ -166,7 +166,7 @@ pub fn list_versions() -> Result<(), UpdateError> {
 
 /// Rollback to the previous version
 pub fn rollback() -> Result<(), UpdateError> {
-    println!("{}", "Rolling back to previous version...".bright_blue());
+    println!("{"Rolling back to previous version...".bright_blue(}"));
 
     let updater = updater::ScriptUpdater::new()?;
     match updater.rollback()? {

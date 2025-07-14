@@ -81,7 +81,7 @@ impl Scheduler {
             });
 
             let thread = thread::Builder::new()
-                .name(format!("script-worker-{}", worker_id))
+                .name(format!("script-worker-{worker_id}"))
                 .spawn(move || {
                     worker_thread(
                         worker_id,

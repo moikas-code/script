@@ -485,12 +485,12 @@ fn analyze_local_variables(func: &Function) -> AsyncTransformResult<Vec<(String,
             match &inst_with_loc.instruction {
                 Instruction::Alloc { ty, .. } => {
                     // Found a local variable allocation
-                    let var_name = format!("__local_{}", local_vars.len());
+                    let var_name = format!("__local_{local_vars.len(}"));
                     local_vars.push((var_name, ty.clone()));
                 }
                 Instruction::Call { func, .. } => {
                     // Function calls might need temporary storage
-                    let temp_name = format!("__temp_call_{}", local_vars.len());
+                    let temp_name = format!("__temp_call_{local_vars.len(}"));
                     local_vars.push((temp_name, Type::Unknown));
                 }
                 _ => {
@@ -611,7 +611,7 @@ fn transform_function_body(
             ))?;
 
         let next_check = if i < state_blocks.len() - 1 {
-            poll_func.create_block(format!("check_state_{}", i + 1))
+            poll_func.create_block(format!("check_state_{i + 1}"))
         } else {
             // Should never reach here due to bounds check
             poll_func.create_block("unreachable_state".to_string())
@@ -696,7 +696,7 @@ fn analyze_suspend_points(
                 let state_id = context.next_state_id()?;
 
                 // Create resume block with validation
-                let resume_block = poll_func.create_block(format!("resume_{}", state_id));
+                let resume_block = poll_func.create_block(format!("resume_{state_id}"));
 
                 // Validate future value
                 if future.0 == u32::MAX {
@@ -762,7 +762,7 @@ fn transform_blocks_secure(
                         let mapped_future = context.get_mapped_value(*future);
 
                         // Store the future in state with validation
-                        let future_var_name = format!("__future_{}", state_id);
+                        let future_var_name = format!("__future_{state_id}");
                         let future_offset = context.allocate_variable(future_var_name, 8)?;
 
                         builder.build_store_async_state(state_ptr, future_offset, mapped_future);
@@ -778,7 +778,7 @@ fn transform_blocks_secure(
                         builder.build_return(Some(pending));
 
                         // Create resume block with validation
-                        let resume_block = poll_func.create_block(format!("resume_{}", state_id));
+                        let resume_block = poll_func.create_block(format!("resume_{state_id}"));
                         builder.set_current_block(resume_block);
 
                         // Load and poll the future again with error handling
@@ -807,9 +807,9 @@ fn transform_blocks_secure(
                             ))?;
 
                         let continue_block =
-                            poll_func.create_block(format!("continue_{}", state_id));
+                            poll_func.create_block(format!("continue_{state_id}"));
                         let still_pending =
-                            poll_func.create_block(format!("still_pending_{}", state_id));
+                            poll_func.create_block(format!("still_pending_{state_id}"));
 
                         builder.build_cond_branch(is_ready_cond, continue_block, still_pending);
 
@@ -832,7 +832,7 @@ fn transform_blocks_secure(
                     }
                     Instruction::Alloc { ty, .. } => {
                         // Transform local variable allocation to state access
-                        let var_name = format!("__alloc_{}", value_id.0);
+                        let var_name = format!("__alloc_{value_id.0}");
                         let size = calculate_type_size(ty)?;
                         let offset = context.allocate_variable(var_name, size)?;
 

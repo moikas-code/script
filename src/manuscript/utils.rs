@@ -49,9 +49,9 @@ pub fn format_size(bytes: u64) -> String {
     }
 
     if unit_index == 0 {
-        format!("{} {}", size as u64, UNITS[unit_index])
+        format!("{} {size as u64, UNITS[unit_index]}")
     } else {
-        format!("{:.1} {}", size, UNITS[unit_index])
+        format!("{:.1} {size, UNITS[unit_index]}")
     }
 }
 
@@ -87,5 +87,5 @@ pub fn is_valid_version(version: &str) -> bool {
 pub fn get_system_info() -> String {
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
-    format!("{}-{}", os, arch)
+    format!("{}-{os, arch}")
 }

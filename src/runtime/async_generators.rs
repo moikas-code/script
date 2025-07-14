@@ -122,7 +122,7 @@ impl AsyncGeneratorRuntime {
 
     /// Create a new async generator
     pub fn create_generator(&self, closure: ScriptRc<Closure>) -> Arc<AsyncGenerator> {
-        let id = format!("async_gen_{}", uuid::Uuid::new_v4());
+        let id = format!("async_gen_{uuid::Uuid::new_v4(}"));
         let generator = Arc::new(AsyncGenerator::new(closure, id));
         self.generators.lock().unwrap().push(Arc::clone(&generator));
         generator

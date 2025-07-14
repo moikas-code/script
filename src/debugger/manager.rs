@@ -155,7 +155,7 @@ impl BreakpointManager {
                 .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
             breakpoints
                 .remove(&id)
-                .ok_or_else(|| Error::key_not_found(format!("Breakpoint {}", id)))?
+                .ok_or_else(|| Error::key_not_found(format!("Breakpoint {id}")))?
         };
 
         // Remove from indexes
@@ -200,7 +200,7 @@ impl BreakpointManager {
         breakpoints
             .get(&id)
             .cloned()
-            .ok_or_else(|| Error::key_not_found(format!("Breakpoint {}", id)))
+            .ok_or_else(|| Error::key_not_found(format!("Breakpoint {id}")))
     }
 
     /// Get all breakpoints
@@ -277,7 +277,7 @@ impl BreakpointManager {
             breakpoint.enable();
             Ok(())
         } else {
-            Err(Error::key_not_found(format!("Breakpoint {}", id)))
+            Err(Error::key_not_found(format!("Breakpoint {id}")))
         }
     }
 
@@ -291,7 +291,7 @@ impl BreakpointManager {
             breakpoint.disable();
             Ok(())
         } else {
-            Err(Error::key_not_found(format!("Breakpoint {}", id)))
+            Err(Error::key_not_found(format!("Breakpoint {id}")))
         }
     }
 
@@ -305,7 +305,7 @@ impl BreakpointManager {
             breakpoint.toggle();
             Ok(breakpoint.enabled)
         } else {
-            Err(Error::key_not_found(format!("Breakpoint {}", id)))
+            Err(Error::key_not_found(format!("Breakpoint {id}")))
         }
     }
 
@@ -323,7 +323,7 @@ impl BreakpointManager {
             breakpoint.set_condition(condition);
             Ok(())
         } else {
-            Err(Error::key_not_found(format!("Breakpoint {}", id)))
+            Err(Error::key_not_found(format!("Breakpoint {id}")))
         }
     }
 
@@ -337,7 +337,7 @@ impl BreakpointManager {
             breakpoint.clear_condition();
             Ok(())
         } else {
-            Err(Error::key_not_found(format!("Breakpoint {}", id)))
+            Err(Error::key_not_found(format!("Breakpoint {id}")))
         }
     }
 
@@ -508,7 +508,7 @@ impl BreakpointManager {
             if let Some(breakpoint) = breakpoints.get_mut(&id) {
                 breakpoint.hit();
             } else {
-                return Err(Error::key_not_found(format!("Breakpoint {}", id)));
+                return Err(Error::key_not_found(format!("Breakpoint {id}")));
             }
         }
 

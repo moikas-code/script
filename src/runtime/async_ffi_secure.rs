@@ -188,7 +188,7 @@ pub extern "C" fn script_spawn_secure(future_ptr: *mut BoxedFuture<()>) -> u64 {
     match script_spawn_internal(future_ptr) {
         Ok(task_id) => task_id,
         Err(err) => {
-            eprintln!("Security error in script_spawn: {}", err);
+            eprintln!("Security error in script_spawn: {err}");
             0 // Return 0 to indicate failure
         }
     }
@@ -222,7 +222,7 @@ pub extern "C" fn script_block_on_secure(future_ptr: *mut BoxedFuture<Value>) ->
     match script_block_on_internal(future_ptr) {
         Ok(value_ptr) => value_ptr,
         Err(err) => {
-            eprintln!("Security error in script_block_on: {}", err);
+            eprintln!("Security error in script_block_on: {err}");
             std::ptr::null_mut()
         }
     }
@@ -264,7 +264,7 @@ pub extern "C" fn script_block_on_timeout_secure(
     match script_block_on_timeout_internal(future_ptr, timeout_ms) {
         Ok(value_ptr) => value_ptr,
         Err(err) => {
-            eprintln!("Security error in script_block_on_timeout: {}", err);
+            eprintln!("Security error in script_block_on_timeout: {err}");
             std::ptr::null_mut()
         }
     }
@@ -313,7 +313,7 @@ pub extern "C" fn script_sleep_secure(millis: u64) -> *mut BoxedFuture<()> {
     match script_sleep_internal(millis) {
         Ok(future_ptr) => future_ptr,
         Err(err) => {
-            eprintln!("Security error in script_sleep: {}", err);
+            eprintln!("Security error in script_sleep: {err}");
             std::ptr::null_mut()
         }
     }
@@ -347,7 +347,7 @@ pub extern "C" fn script_run_executor_secure() -> i32 {
     match script_run_executor_internal() {
         Ok(()) => 0, // Success
         Err(err) => {
-            eprintln!("Security error in script_run_executor: {}", err);
+            eprintln!("Security error in script_run_executor: {err}");
             1 // Error code
         }
     }
@@ -365,7 +365,7 @@ pub extern "C" fn script_shutdown_executor_secure() -> i32 {
     match script_shutdown_executor_internal() {
         Ok(()) => 0, // Success
         Err(err) => {
-            eprintln!("Security error in script_shutdown_executor: {}", err);
+            eprintln!("Security error in script_shutdown_executor: {err}");
             1 // Error code
         }
     }
@@ -394,7 +394,7 @@ pub extern "C" fn script_join_all_secure(
     match script_join_all_internal(futures_ptr, count) {
         Ok(future_ptr) => future_ptr,
         Err(err) => {
-            eprintln!("Security error in script_join_all: {}", err);
+            eprintln!("Security error in script_join_all: {err}");
             std::ptr::null_mut()
         }
     }
@@ -454,7 +454,7 @@ pub extern "C" fn script_init_secure_ffi() -> i32 {
     match get_global_executor() {
         Ok(_) => 0, // Success
         Err(err) => {
-            eprintln!("Failed to initialize secure FFI: {}", err);
+            eprintln!("Failed to initialize secure FFI: {err}");
             1 // Error
         }
     }
@@ -466,7 +466,7 @@ pub extern "C" fn script_cleanup_secure_ffi() -> i32 {
     match script_cleanup_internal() {
         Ok(()) => 0,
         Err(err) => {
-            eprintln!("Error during cleanup: {}", err);
+            eprintln!("Error during cleanup: {err}");
             1
         }
     }
@@ -501,7 +501,7 @@ mod tests {
     fn test_secure_spawn_with_validation() {
         script_init_secure_ffi();
 
-        let future = Box::new(ImmediateFuture(Some(())));
+        let future = Box::new(ImmediateFuture(Some(());
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<()>));
 
         // Register the pointer before use
@@ -533,7 +533,7 @@ mod tests {
         script_init_secure_ffi();
 
         // Create a pointer but don't register it
-        let future = Box::new(ImmediateFuture(Some(())));
+        let future = Box::new(ImmediateFuture(Some(());
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<()>));
 
         let task_id = script_spawn_secure(future_ptr);
@@ -550,7 +550,7 @@ mod tests {
         script_init_secure_ffi();
 
         let expected_value = Value::String("Secure test".to_string());
-        let future = Box::new(ImmediateFuture(Some(expected_value.clone())));
+        let future = Box::new(ImmediateFuture(Some(expected_value.clone());
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<Value>));
 
         // Register the pointer

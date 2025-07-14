@@ -65,7 +65,7 @@ impl Session {
                             println!("Loaded session with {} items", self.item_count());
                         }
                         Err(e) => {
-                            eprintln!("Warning: Failed to parse session file: {}", e);
+                            eprintln!("Warning: Failed to parse session file: {e}");
                             // Don't fail completely, just use empty session
                         }
                     }
@@ -143,7 +143,7 @@ impl Session {
     /// Deserialize session state from JSON
     fn deserialize_session(&mut self, content: &str) -> Result<(), String> {
         let json: serde_json::Value =
-            serde_json::from_str(content).map_err(|e| format!("JSON parse error: {}", e))?;
+            serde_json::from_str(content).map_err(|e| format!("JSON parse error: {e}"))?;
 
         if let Some(obj) = json.as_object() {
             // Check version compatibility
@@ -300,19 +300,19 @@ impl Session {
 
         for name in self.variables.keys() {
             if !all_names.insert(name) {
-                return Err(format!("Duplicate definition: {}", name));
+                return Err(format!("Duplicate definition: {name}"));
             }
         }
 
         for name in self.functions.keys() {
             if !all_names.insert(name) {
-                return Err(format!("Duplicate definition: {}", name));
+                return Err(format!("Duplicate definition: {name}"));
             }
         }
 
         for name in self.types.keys() {
             if !all_names.insert(name) {
-                return Err(format!("Duplicate definition: {}", name));
+                return Err(format!("Duplicate definition: {name}"));
             }
         }
 

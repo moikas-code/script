@@ -277,7 +277,7 @@ impl DocGenerator {
         };
 
         let result = SearchResult {
-            path: format!("{}::{}", self.current_module, name),
+            path: format!("{}::{self.current_module, name}"),
             name: name.to_string(),
             kind,
             summary,

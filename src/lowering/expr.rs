@@ -156,7 +156,7 @@ fn lower_identifier(lowerer: &mut AstLowerer, name: &str, expr: &Expr) -> Loweri
             })
     } else {
         Err(type_error(
-            format!("Undefined variable: {}", name),
+            format!("Undefined variable: {name}"),
             expr,
             "identifier",
         ))
@@ -348,7 +348,7 @@ fn lower_call(lowerer: &mut AstLowerer, callee: &Expr, args: &[Expr]) -> Lowerin
             // Special handling for print - generate a call to the runtime print function
             if args.len() != 1 {
                 return Err(type_error(
-                    format!("print expects exactly 1 argument, got {}", args.len()),
+                    format!("print expects exactly 1 argument, got {args.len(}"))),
                     callee,
                     "function call",
                 ));
@@ -865,7 +865,7 @@ fn lower_assign(lowerer: &mut AstLowerer, target: &Expr, value: &Expr) -> Loweri
                 Ok(value_id)
             } else {
                 Err(type_error(
-                    format!("Cannot assign to undefined variable: {}", name),
+                    format!("Cannot assign to undefined variable: {name}"),
                     target,
                     "assignment"
                 ))
@@ -1567,7 +1567,7 @@ fn lower_enum_constructor(
             ("Option", "None") => "Option::none",
             _ => {
                 return Err(runtime_error(
-                    format!("Unknown Result/Option variant: {}", variant),
+                    format!("Unknown Result/Option variant: {variant}"),
                     expr,
                     "enum constructor",
                 ))
@@ -1705,7 +1705,7 @@ fn lower_closure(
     expr: &Expr,
 ) -> LoweringResult<ValueId> {
     // Generate unique function ID for this closure
-    let function_id = format!("closure_{}", expr.id);
+    let function_id = format!("closure_{expr.id}");
 
     // Extract parameter names and types
     let param_names: Vec<String> = parameters.iter().map(|p| p.name.clone()).collect();

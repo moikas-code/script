@@ -35,7 +35,7 @@ mod integration_tests {
         // This should succeed since i32 implements Eq
         match ctx.solve_constraints() {
             Ok(()) => println!("✅ Trait bound constraint validation (success) working"),
-            Err(e) => panic!("Expected success but got error: {}", e),
+            Err(e) => panic!("Expected success but got error: {e}"),
         }
     }
 
@@ -75,7 +75,7 @@ mod integration_tests {
         // This should succeed since i32 implements both Eq and Clone
         match ctx.solve_constraints() {
             Ok(()) => println!("✅ Generic bounds constraint validation (success) working"),
-            Err(e) => panic!("Expected success but got error: {}", e),
+            Err(e) => panic!("Expected success but got error: {e}"),
         }
     }
 
@@ -115,7 +115,7 @@ mod integration_tests {
 
         match ctx.validate_trait_bounds(&Type::I32, &bounds) {
             Ok(()) => println!("✅ Trait bounds validation API (success) working"),
-            Err(e) => panic!("Expected success but got error: {}", e),
+            Err(e) => panic!("Expected success but got error: {e}"),
         }
 
         // Test validation with invalid bounds
@@ -180,7 +180,7 @@ mod integration_tests {
         // and i32 implements both Eq and Clone
         match ctx.solve_constraints() {
             Ok(()) => println!("✅ Complex constraint solving with trait bounds working"),
-            Err(e) => panic!("Expected success but got error: {}", e),
+            Err(e) => panic!("Expected success but got error: {e}"),
         }
     }
 

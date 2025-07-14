@@ -648,7 +648,7 @@ mod tests {
         let substituted = env.substitute_type(&Type::Named("T".to_string()));
         assert_eq!(substituted, Type::I32);
 
-        let array_type = Type::Array(Box::new(Type::Named("T".to_string())));
+        let array_type = Type::Array(Box::new(Type::Named("T".to_string());
         let substituted_array = env.substitute_type(&array_type);
         assert_eq!(substituted_array, Type::Array(Box::new(Type::I32)));
     }
@@ -702,7 +702,7 @@ mod tests {
             .with_bound(TraitBound::builtin(BuiltinTrait::Clone, test_span()));
 
         let params = GenericParams::new(vec![param1, param2], test_span());
-        let display = format!("{}", params);
+        let display = format!("{params}");
         assert_eq!(display, "<T: Eq, U: Ord + Clone>");
     }
 }

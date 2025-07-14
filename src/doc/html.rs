@@ -283,7 +283,7 @@ impl HtmlGenerator {
         ));
 
         if let Some(value) = &const_doc.value {
-            html.push_str(&format!(" = {}", self.escape_html(value)));
+            html.push_str(&format!(" = {self.escape_html(value}")));
         }
 
         html.push_str("</code></pre>");
@@ -329,7 +329,7 @@ impl HtmlGenerator {
                 }
 
                 if !param.description.is_empty() {
-                    html.push_str(&format!(" - {}", self.escape_html(&param.description)));
+                    html.push_str(&format!(" - {self.escape_html(&param.description}")));
                 }
 
                 html.push_str("</li>");

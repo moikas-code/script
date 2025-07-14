@@ -447,9 +447,9 @@ fn format_function_signature(name: &str, ty: &Type) -> String {
                 .map(|p| format_type(p))
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!("fn {}({}) -> {}", name, param_str, format_type(ret))
+            format!("fn {}({}) -> {name, param_str, format_type(ret}"))
         }
-        _ => format!("fn {}", name),
+        _ => format!("fn {name}"),
     }
 }
 
@@ -469,13 +469,13 @@ fn format_type(ty: &Type) -> String {
                 .map(|p| format_type(p))
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!("({}) -> {}", param_str, format_type(ret))
+            format!("({}) -> {param_str, format_type(ret}"))
         }
         Type::Named(name) => name.clone(),
         Type::Unknown => "?".to_string(),
         Type::Never => "never".to_string(),
         Type::Future(inner) => format!("Future<{}>", format_type(inner)),
-        Type::TypeVar(id) => format!("T{}", id),
+        Type::TypeVar(id) => format!("T{id}"),
         Type::Generic { name, args } => {
             if args.is_empty() {
                 name.clone()
@@ -499,9 +499,9 @@ fn format_type(ty: &Type) -> String {
         }
         Type::Reference { mutable, inner } => {
             if *mutable {
-                format!("&mut {}", format_type(inner))
+                format!("&mut {format_type(inner}"))
             } else {
-                format!("&{}", format_type(inner))
+                format!("&{format_type(inner}"))
             }
         }
         Type::Struct { name, .. } => name.clone(),

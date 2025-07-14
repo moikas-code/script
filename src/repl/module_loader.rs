@@ -176,11 +176,11 @@ impl ModuleLoader {
     fn parse_module(&self, module_name: &str, path: &Path) -> Result<ModuleInfo, String> {
         // Read module file
         let source = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read module '{}': {}", module_name, e))?;
+            .map_err(|e| format!("Failed to read module '{}': {module_name, e}"))?;
 
         // Tokenize
         let lexer = Lexer::new(&source)
-            .map_err(|e| format!("Lexer error in module '{}': {}", module_name, e))?;
+            .map_err(|e| format!("Lexer error in module '{}': {module_name, e}"))?;
 
         let (tokens, lex_errors) = lexer.scan_tokens();
         if !lex_errors.is_empty() {
@@ -195,11 +195,11 @@ impl ModuleLoader {
         let mut parser = Parser::new(tokens);
         let program = parser
             .parse()
-            .map_err(|e| format!("Parse error in module '{}': {}", module_name, e))?;
+            .map_err(|e| format!("Parse error in module '{}': {module_name, e}"))?;
 
         // Semantic analysis
         let analyzer = analyze(&program)
-            .map_err(|e| format!("Semantic error in module '{}': {}", module_name, e))?;
+            .map_err(|e| format!("Semantic error in module '{}': {module_name, e}"))?;
 
         // Extract exports
         let exports = self.extract_exports(&program, &analyzer)?;

@@ -197,13 +197,13 @@ fn main() {
     match config.transport {
         TransportMode::Stdio => {
             if let Err(e) = run_stdio_server(mcp_config, shutdown_flag, stats) {
-                eprintln!("Stdio server error: {}", e);
+                eprintln!("Stdio server error: {e}");
                 std::process::exit(1);
             }
         }
         TransportMode::Tcp => {
             if let Err(e) = run_tcp_server(config, mcp_config, shutdown_flag, stats) {
-                eprintln!("TCP server error: {}", e);
+                eprintln!("TCP server error: {e}");
                 std::process::exit(1);
             }
         }
@@ -234,11 +234,11 @@ fn create_mcp_config(config: &ServerConfig, strict_mode: bool) -> MCPConfig {
 
 /// Print startup information
 fn print_startup_info(config: &ServerConfig, mcp_config: &MCPConfig) {
-    eprintln!("🚀 Script MCP Server v{}", env!("CARGO_PKG_VERSION"));
+    eprintln!("🚀 Script MCP Server v{env!("CARGO_PKG_VERSION"}"));
     eprintln!("📡 Transport: {:?}", config.transport);
 
     if let TransportMode::Tcp = config.transport {
-        eprintln!("🌐 Port: {}", config.port);
+        eprintln!("🌐 Port: {config.port}");
     }
 
     eprintln!("🔒 Security Level: {:?}", config.security_level);
@@ -258,7 +258,7 @@ fn print_startup_info(config: &ServerConfig, mcp_config: &MCPConfig) {
         "⏱️  Request Timeout: {}s",
         mcp_config.request_timeout_ms / 1000
     );
-    eprintln!("🛡️  Strict Security: {}", mcp_config.strict_security);
+    eprintln!("🛡️  Strict Security: {mcp_config.strict_security}");
     eprintln!();
     eprintln!("Available tools:");
     eprintln!("  • script_analyzer - Comprehensive code analysis");
@@ -312,7 +312,7 @@ fn run_stdio_server(
             }
             Err(e) => {
                 stats.errors_encountered.fetch_add(1, Ordering::Relaxed);
-                eprintln!("Failed to parse JSON-RPC request: {}", e);
+                eprintln!("Failed to parse JSON-RPC request: {e}");
 
                 // Send error response
                 let error_response = json!({
@@ -321,7 +321,7 @@ fn run_stdio_server(
                     "error": {
                         "code": -32700,
                         "message": "Parse error",
-                        "data": format!("{}", e)
+                        "data": format!("{e}")
                     }
                 });
 
@@ -342,10 +342,10 @@ fn run_tcp_server(
     shutdown_flag: Arc<AtomicBool>,
     stats: Arc<ServerStatistics>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let address = format!("127.0.0.1:{}", config.port);
+    let address = format!("127.0.0.1:{config.port}");
     let listener = TcpListener::bind(&address)?;
 
-    eprintln!("🌐 TCP server listening on {}", address);
+    eprintln!("🌐 TCP server listening on {address}");
 
     // Set non-blocking to allow shutdown checks
     listener.set_nonblocking(true)?;
@@ -364,7 +364,7 @@ fn run_tcp_server(
         match listener.accept() {
             Ok((stream, addr)) => {
                 if active_connections >= config.max_connections {
-                    eprintln!("⚠️  Maximum connections reached, rejecting {}", addr);
+                    eprintln!("⚠️  Maximum connections reached, rejecting {addr}");
                     drop(stream);
                     continue;
                 }
@@ -372,7 +372,7 @@ fn run_tcp_server(
                 active_connections += 1;
                 stats.connections_handled.fetch_add(1, Ordering::Relaxed);
 
-                eprintln!("🔗 New connection from {}", addr);
+                eprintln!("🔗 New connection from {addr}");
 
                 let server_clone = server.clone();
                 let stats_clone = stats.clone();
@@ -385,7 +385,7 @@ fn run_tcp_server(
                         stats_clone,
                         shutdown_flag_clone,
                     ) {
-                        eprintln!("❌ Connection error for {}: {}", addr, e);
+                        eprintln!("❌ Connection error for {}: {addr, e}");
                     }
                     eprintln!("🔌 Connection from {} closed", addr);
                 });
@@ -396,7 +396,7 @@ fn run_tcp_server(
                 continue;
             }
             Err(e) => {
-                eprintln!("❌ Error accepting connection: {}", e);
+                eprintln!("❌ Error accepting connection: {e}");
                 stats.errors_encountered.fetch_add(1, Ordering::Relaxed);
             }
         }
@@ -448,7 +448,7 @@ fn handle_tcp_connection(
                             "error": {
                                 "code": -32700,
                                 "message": "Parse error",
-                                "data": format!("{}", e)
+                                "data": format!("{e}")
                             }
                         });
 
@@ -458,7 +458,7 @@ fn handle_tcp_connection(
                 }
             }
             Err(e) => {
-                eprintln!("Error reading from TCP stream: {}", e);
+                eprintln!("Error reading from TCP stream: {e}");
                 break;
             }
         }
@@ -484,7 +484,7 @@ fn handle_request(
         }
         Err(e) => {
             stats.errors_encountered.fetch_add(1, Ordering::Relaxed);
-            eprintln!("❌ Request {} failed: {}", request_id, e);
+            eprintln!("❌ Request {} failed: {request_id, e}");
 
             // Create error response
             Some(script::mcp::Response {
@@ -494,7 +494,7 @@ fn handle_request(
                 error: Some(json!({
                     "code": -32603,
                     "message": "Internal error",
-                    "data": format!("{}", e)
+                    "data": format!("{e}")
                 })),
             })
         }

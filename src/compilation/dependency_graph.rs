@@ -205,7 +205,7 @@ impl DependencyAnalyzer {
                     }
                     Err(err) => {
                         // Log error but continue processing other imports
-                        eprintln!("Warning: Failed to resolve import '{}': {}", module, err);
+                        eprintln!("Warning: Failed to resolve import '{}': {module, err}");
                     }
                 }
 
@@ -234,7 +234,7 @@ impl DependencyAnalyzer {
             // Relative import
             if let Some(current_path) = current_module_path {
                 let current_dir = current_path.parent().ok_or_else(|| {
-                    format!("Cannot resolve relative import from root: {}", module_path)
+                    format!("Cannot resolve relative import from root: {module_path}")
                 })?;
 
                 let relative_path = Path::new(module_path);
@@ -243,7 +243,7 @@ impl DependencyAnalyzer {
                 // Normalize and convert to canonical module name
                 let canonical = resolved
                     .canonicalize()
-                    .map_err(|e| format!("Cannot resolve path '{}': {}", module_path, e))?;
+                    .map_err(|e| format!("Cannot resolve path '{}': {module_path, e}"))?;
 
                 // Convert path to module name (remove .script extension, use :: separator)
                 self.path_to_module_name(&canonical)
@@ -262,7 +262,7 @@ impl DependencyAnalyzer {
             let absolute_path = base.join(&module_path[1..]); // Remove leading /
             let canonical = absolute_path
                 .canonicalize()
-                .map_err(|e| format!("Cannot resolve absolute path '{}': {}", module_path, e))?;
+                .map_err(|e| format!("Cannot resolve absolute path '{}': {module_path, e}"))?;
 
             self.path_to_module_name(&canonical)
         } else {

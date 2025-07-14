@@ -219,8 +219,8 @@ mod tests {
         assert_ne!(id1, id3);
 
         // Test display
-        assert_eq!(format!("{}", id1), "test_func");
-        assert_eq!(format!("{}", id3), "other_func");
+        assert_eq!(format!("{id1}"), "test_func");
+        assert_eq!(format!("{id3}"), "other_func");
     }
 
     #[test]

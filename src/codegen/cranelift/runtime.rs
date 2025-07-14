@@ -185,7 +185,7 @@ pub unsafe extern "C" fn script_free(ptr: *mut u8, size: usize) {
 
     // Validate size
     if size == 0 || size > MAX_ALLOCATION_SIZE {
-        eprintln!("Script error: Invalid deallocation size {}", size);
+        eprintln!("Script error: Invalid deallocation size {size}");
         return;
     }
 
@@ -301,7 +301,7 @@ pub unsafe extern "C" fn script_panic(msg: *const u8, len: usize) -> ! {
     };
 
     // Print to stderr
-    eprintln!("{}", message);
+    eprintln!("{message}");
 
     // Flush stderr to ensure message is visible
     use std::io::Write;
@@ -312,7 +312,7 @@ pub unsafe extern "C" fn script_panic(msg: *const u8, len: usize) -> ! {
     {
         eprintln!("\nBacktrace:");
         let backtrace = std::backtrace::Backtrace::capture();
-        eprintln!("{}", backtrace);
+        eprintln!("{backtrace}");
     }
 
     // Exit with error code

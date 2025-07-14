@@ -93,26 +93,26 @@ pub fn initialize() -> Result<()> {
     // Initialize security systems first
     let security_config = SecurityConfig::default();
     security::initialize_security_monitor(security_config).map_err(|e| {
-        RuntimeError::InvalidOperation(format!("Security initialization failed: {}", e))
+        RuntimeError::InvalidOperation(format!("Security initialization failed: {e}"))
     })?;
 
     safe_gc::initialize_secure_gc().map_err(|e| {
-        RuntimeError::CycleDetectionFailed(format!("Secure GC initialization failed: {}", e))
+        RuntimeError::CycleDetectionFailed(format!("Secure GC initialization failed: {e}"))
     })?;
 
     gc::initialize()
-        .map_err(|e| RuntimeError::InvalidOperation(format!("GC initialization failed: {}", e)))?;
+        .map_err(|e| RuntimeError::InvalidOperation(format!("GC initialization failed: {e}")))?;
     panic::initialize();
     recovery::initialize_state_recovery();
 
     // Initialize Tokio runtime bridge
     async_tokio_bridge::init_global_runtime().map_err(|e| {
-        RuntimeError::InvalidOperation(format!("Tokio runtime initialization failed: {}", e))
+        RuntimeError::InvalidOperation(format!("Tokio runtime initialization failed: {e}"))
     })?;
 
     // Initialize stack trace tracking
     stack_trace::initialize_stack_tracker().map_err(|e| {
-        RuntimeError::InvalidOperation(format!("Stack tracker initialization failed: {}", e))
+        RuntimeError::InvalidOperation(format!("Stack tracker initialization failed: {e}"))
     })?;
 
     Ok(())

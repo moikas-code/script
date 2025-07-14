@@ -139,7 +139,7 @@ impl CraneliftBackend {
         self.module.finalize_definitions().map_err(|e| {
             Error::new(
                 ErrorKind::RuntimeError,
-                format!("Failed to finalize module: {}", e),
+                format!("Failed to finalize module: {e}"),
             )
         })?;
 
@@ -160,7 +160,7 @@ impl CraneliftBackend {
                 .map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Failed to declare runtime function script_print: {}", e),
+                        format!("Failed to declare runtime function script_print: {e}"),
                     )
                 })?;
 
@@ -179,7 +179,7 @@ impl CraneliftBackend {
                 .map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Failed to declare runtime function script_alloc: {}", e),
+                        format!("Failed to declare runtime function script_alloc: {e}"),
                     )
                 })?;
 
@@ -197,7 +197,7 @@ impl CraneliftBackend {
                 .map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Failed to declare runtime function script_free: {}", e),
+                        format!("Failed to declare runtime function script_free: {e}"),
                     )
                 })?;
 
@@ -216,7 +216,7 @@ impl CraneliftBackend {
                 .map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Failed to declare runtime function script_panic: {}", e),
+                        format!("Failed to declare runtime function script_panic: {e}"),
                     )
                 })?;
 
@@ -239,7 +239,7 @@ impl CraneliftBackend {
             .map_err(|e| {
                 Error::new(
                     ErrorKind::RuntimeError,
-                    format!("Failed to declare function: {}", e),
+                    format!("Failed to declare function: {e}"),
                 )
             })?;
 
@@ -306,7 +306,7 @@ impl CraneliftBackend {
             .map_err(|e| {
                 Error::new(
                     ErrorKind::RuntimeError,
-                    format!("Failed to compile function: {}", e),
+                    format!("Failed to compile function: {e}"),
                 )
             })?;
 
