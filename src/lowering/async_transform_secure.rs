@@ -1086,7 +1086,7 @@ mod tests {
         for i in 0..MAX_SUSPEND_POINTS {
             context.suspend_points.push(SuspendPoint {
                 state_id: i as u32,
-                resume_block: BlockId(i),
+                resume_block: BlockId(i.try_into().unwrap()),
                 future_value: ValueId(i as u32),
                 validation_info: SuspendPointValidation {
                     future_value_validated: true,

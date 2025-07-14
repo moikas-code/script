@@ -484,6 +484,7 @@ fn script_cleanup_internal() -> SecureResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime::async_runtime_secure::ScriptFuture;
     use std::task::{Poll, Waker};
 
     struct ImmediateFuture<T>(Option<T>);
