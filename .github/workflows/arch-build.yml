@@ -1,0 +1,36 @@
+name: Arch Linux Build
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  arch-build:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    
+    steps:
+      - name: Update system
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel git cargo rust
+      
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Build with cargo
+        run: |
+          cargo build --release --all-features
+          cargo test --all-features
+      
+      - name: Test PKGBUILD
+        run: |
+          cd pkg/arch
+          # Create non-root user for makepkg
+          useradd -m builder
+          chown -R builder:builder .
+          # Build package
+          sudo -u builder makepkg -f
