@@ -777,15 +777,15 @@ fn run_doc_command(args: &[String]) {
     }
 
     println!("{} Generating documentation", "Script:".cyan().bold());
-    println!("  Source: {}", source_dir.display()"));
-    println!("  Output: {}", output_dir.display()"));
+    println!("  Source: {}", source_dir.display());
+    println!("  Output: {}", output_dir.display());
 
     // Create documentation generator
     let mut doc_generator = DocGenerator::new();
 
     // Process all .script files in the directory
     if let Err(e) = process_directory(&mut doc_generator, source_dir, "") {
-        eprintln!("{}: {"Error".red(}").bold(), e);
+        eprintln!("{}: {}", "Error".red().bold(), e);
         process::exit(1);
     }
 
