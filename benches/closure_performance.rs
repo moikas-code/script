@@ -3,7 +3,8 @@
 //! This module contains comprehensive benchmarks for measuring closure creation
 //! and execution performance, memory usage, and optimization effectiveness.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use script::runtime::closure::{create_closure_heap, Closure, ClosureRuntime};
 use script::runtime::gc;
 use script::runtime::Value;
@@ -329,14 +330,14 @@ fn bench_closure_cloning(c: &mut Criterion) {
     group.bench_function("call_stack_operations", |b| {
         let mut runtime = ClosureRuntime::new();
         let closure = Closure::new("test".to_string(), vec!["x".to_string()], HashMap::new());
+        
+        // Register a simple closure implementation
+        runtime.register_closure("test".to_string(), |_args| Ok(Value::Null));
 
         b.iter(|| {
-            // Simulate the call stack push/pop from execute_closure
-            let stack_depth_before = runtime.call_stack_depth();
-            runtime.call_stack.push(closure.clone()); // This is what's expensive
-            let stack_depth_after = runtime.call_stack_depth();
-            runtime.call_stack.pop();
-            black_box((stack_depth_before, stack_depth_after));
+            // Use execute_closure which handles call stack internally
+            let result = runtime.execute_closure(&closure, &[Value::I32(42)]);
+            black_box(result);
         });
     });
 
@@ -360,7 +361,7 @@ fn create_test_captures(count: usize) -> Vec<(String, Value)> {
         .collect()
 }
 
-/// Configure benchmark groups
+// Configure benchmark groups
 criterion_group!(
     name = closure_benches;
     config = Criterion::default()
