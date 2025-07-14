@@ -7,6 +7,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use script::runtime::closure::{create_closure_heap, Closure, ClosureRuntime};
 use script::runtime::gc;
 use script::runtime::Value;
+use script::runtime::Traceable;
 use std::collections::HashMap;
 use std::time::Duration;
 
