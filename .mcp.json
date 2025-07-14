@@ -15,7 +15,9 @@
         "-y",
         "@modelcontextprotocol/server-memory"
       ],
-      "env": {}
+      "env": {
+        "MEMORY_FILE_PATH": "./kb/memory.json"
+      }
     },
     "sequential-thinking": {
       "command": "npx",
@@ -36,7 +38,7 @@
     "kb-mcp": {
       "command": "npx",
       "args": [
-        "kb",
+        "@moikas/kb-mcp",
         "serve"
       ],
       "env": {}

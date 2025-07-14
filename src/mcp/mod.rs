@@ -3,11 +3,13 @@
 //! This module provides secure AI model integration for the Script language.
 
 pub mod protocol;
+pub mod sandbox;
 pub mod security;
 pub mod server;
 
 // Re-export main types
 pub use protocol::{Request, Response};
+pub use sandbox::{AnalysisResult, SandboxConfig, SandboxedAnalyzer};
 pub use security::SecurityContext;
 pub use server::MCPServer;
 

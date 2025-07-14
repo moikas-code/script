@@ -462,6 +462,16 @@ pub fn calculate_type_size(ty: &Type) -> AsyncTransformResult<u32> {
             let inner_size = calculate_type_size(inner_ty)?;
             Ok(inner_size + 16) // Future state + result
         }
+        Type::TypeVar(_) => Ok(8),   // Type variable pointer
+        Type::Never => Ok(0),        // Never type has no size
+        Type::TypeParam(_) => Ok(8), // Type parameter pointer
+        Type::Struct { fields, .. } => {
+            let mut total_size = 0u32;
+            for (_, field_ty) in fields {
+                total_size = total_size.saturating_add(calculate_type_size(field_ty)?);
+            }
+            Ok((total_size + 7) & !7) // Align to 8 bytes
+        }
     }
 }
 

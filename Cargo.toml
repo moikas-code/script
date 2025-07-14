@@ -20,6 +20,12 @@ path = "src/main.rs"
 name = "script-lang"
 path = "src/main.rs"
 
+# MCP Server binary (requires mcp feature)
+[[bin]]
+name = "script-mcp"
+path = "src/bin/script-mcp.rs"
+required-features = ["mcp"]
+
 [dependencies]
 colored = "2.1"
 unicode-width = "0.2"
@@ -63,6 +69,10 @@ unicode-normalization = "0.1.22"
 ahash = "0.8"
 # UUID generation
 uuid = { version = "1.10", features = ["v4", "serde"] }
+# Signal handling for graceful shutdown
+ctrlc = "3.4"
+# Logging
+log = "0.4"
 
 [dev-dependencies]
 criterion = "0.5"
@@ -129,10 +139,6 @@ path = "src/lsp/bin/main.rs"
 name = "manuscript"
 path = "src/manuscript/main.rs"
 
-[[bin]]
-name = "script-mcp"
-path = "src/mcp/bin/main.rs"
-required-features = ["mcp"]
 
 [[bin]]
 name = "script-debug"

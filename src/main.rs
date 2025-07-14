@@ -2,6 +2,7 @@ use colored::*;
 use script::compilation::CompilationContext;
 use script::debugger::{get_debugger, initialize_debugger, shutdown_debugger, Debugger};
 use script::doc::{generator::DocGenerator, html::HtmlGenerator};
+use script::repl::EnhancedRepl;
 use script::testing::TestingFramework;
 use script::{error::ErrorReporter, Lexer, Parser, SemanticAnalyzer, Token, TokenKind};
 use script::{AstLowerer, CodeGenerator};
@@ -170,16 +171,30 @@ fn run_file(path: &str, args: &[String]) {
 }
 
 fn run_repl() {
+    match EnhancedRepl::new() {
+        Ok(mut repl) => {
+            if let Err(e) = repl.run() {
+                eprintln!("REPL error: {}", e);
+                process::exit(1);
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to initialize REPL: {}", e);
+            eprintln!("Falling back to basic REPL...");
+            run_basic_repl();
+        }
+    }
+}
+
+/// Fallback basic REPL for when enhanced REPL fails
+fn run_basic_repl() {
     println!(
         "{} {} - The Script Programming Language",
         "Script".cyan().bold(),
-        "v0.1.0".green()
+        env!("CARGO_PKG_VERSION").green()
     );
-    println!("{}", "⚠️  ALPHA VERSION - Not production ready".yellow());
-    println!("Type 'exit' to quit");
-    println!("Type ':tokens' to switch to token mode");
-    println!("Type ':parse' to switch to parse mode (default)");
-    println!("Type ':debug' to switch to debug mode\n");
+    println!("{}", "Basic REPL mode".yellow());
+    println!("Type 'exit' to quit\n");
 
     let mut mode = Mode::Parse;
 
@@ -227,30 +242,25 @@ fn run_repl() {
                 Mode::Tokens => tokenize_and_display(line, None),
                 Mode::Parse => parse_and_display(line, None),
                 Mode::Run => {
-                    println!("{} Run mode is not supported in REPL", "Note:".yellow());
                     println!(
-                        "Use {} or {} mode instead",
-                        ":tokens".cyan(),
-                        ":parse".cyan()
+                        "{} Run mode is not supported in basic REPL",
+                        "Note:".yellow()
                     );
+                    println!("Use enhanced REPL for full functionality");
                 }
                 Mode::Test => {
-                    println!("{} Test mode is not supported in REPL", "Note:".yellow());
                     println!(
-                        "Use {} or {} mode instead",
-                        ":tokens".cyan(),
-                        ":parse".cyan()
+                        "{} Test mode is not supported in basic REPL",
+                        "Note:".yellow()
                     );
                 }
                 Mode::Debug => {
                     handle_debug_command(line);
                 }
                 Mode::Doc => {
-                    println!("{} Doc mode is not supported in REPL", "Note:".yellow());
                     println!(
-                        "Use {} or {} mode instead",
-                        ":tokens".cyan(),
-                        ":parse".cyan()
+                        "{} Doc mode is not supported in basic REPL",
+                        "Note:".yellow()
                     );
                 }
             }
