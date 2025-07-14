@@ -27,7 +27,7 @@ path = "src/bin/script-mcp.rs"
 required-features = ["mcp"]
 
 [dependencies]
-colored = "2.1"
+colored = "3.0"
 unicode-width = "0.2"
 cranelift = "0.110"
 cranelift-module = "0.110"
