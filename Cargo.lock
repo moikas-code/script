@@ -2575,7 +2575,7 @@ dependencies = [
  "colored",
  "cranelift",
  "cranelift-jit",
- "cranelift-module 0.110.3",
+ "cranelift-module 0.121.1",
  "cranelift-native",
  "criterion",
  "crossbeam",
