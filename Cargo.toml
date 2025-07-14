@@ -58,7 +58,7 @@ url = "2.5"
 # Package manager dependencies
 clap = { version = "4.5", features = ["derive", "env"] }
 dialoguer = "0.11"
-indicatif = "0.17"
+indicatif = "0.18"
 tempfile = "3.0"
 reqwest = { version = "0.12", features = ["json", "blocking"] }
 # Self-update functionality
