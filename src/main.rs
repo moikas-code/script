@@ -803,7 +803,7 @@ fn run_doc_command(args: &[String]) {
             );
         }
         Err(e) => {
-            eprintln!("{}: Failed to generate HTML: {"Error".red(}").bold(), e);
+            eprintln!("{}: Failed to generate HTML: {}", "Error".red().bold(), e);
             process::exit(1);
         }
     }
