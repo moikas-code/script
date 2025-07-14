@@ -276,7 +276,7 @@ impl ModuleLoader {
         return_type: Option<&crate::parser::TypeAnn>,
     ) -> Result<FunctionSignature, String> {
         Ok(FunctionSignature {
-            generic_params: None,
+            generic_params: Vec::new(),
             params: params
                 .iter()
                 .map(|param| (param.name.clone(), Type::Unknown)) // Simplified: convert TypeAnn to Type::Unknown for now

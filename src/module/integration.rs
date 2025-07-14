@@ -1287,7 +1287,11 @@ impl ModuleCompilationPipeline {
                 // Check if this function should be exported (based on visibility or export statements)
                 if self.should_export_symbol(name) {
                     let mut signature = self.create_function_signature(params, ret_type)?;
-                    signature.generic_params = generic_params.clone();
+                    signature.generic_params = generic_params.as_ref().map_or(Vec::new(), |gp| {
+                        gp.params.iter().map(|param| {
+                            (param.name.clone(), param.bounds.iter().map(|b| b.trait_name.clone()).collect())
+                        }).collect()
+                    });
                     signature.is_async = *is_async;
 
                     let function_info = FunctionExportInfo {
@@ -1493,7 +1497,7 @@ impl ModuleCompilationPipeline {
         };
 
         Ok(crate::semantic::FunctionSignature {
-            generic_params: None, // Would be passed from caller
+            generic_params: Vec::new(), // Would be passed from caller
             params: param_info?,
             return_type,
             is_const: false,

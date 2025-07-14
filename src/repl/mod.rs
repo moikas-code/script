@@ -622,7 +622,7 @@ impl EnhancedRepl {
         // This is a simplified implementation
         // In practice, we'd need to properly handle parameter types and defaults
         Ok(crate::semantic::FunctionSignature {
-            generic_params: None,
+            generic_params: Vec::new(),
             params: params
                 .iter()
                 .map(|param| {

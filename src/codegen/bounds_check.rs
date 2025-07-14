@@ -130,10 +130,10 @@ impl BoundsChecker {
             // because we don't have access to the module to convert FuncId to FuncRef.
             // This would need to be handled at a higher level in the translator.
             // Fall back to trap for now.
-            builder.ins().trap(TrapCode::HeapOutOfBounds);
+            builder.ins().trap(TrapCode::HEAP_OUT_OF_BOUNDS);
         } else {
             // Fallback to trap if no panic handler is set
-            builder.ins().trap(TrapCode::HeapOutOfBounds);
+            builder.ins().trap(TrapCode::HEAP_OUT_OF_BOUNDS);
         }
 
         // This block never returns

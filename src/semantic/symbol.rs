@@ -51,8 +51,8 @@ pub enum SymbolKind {
 /// Function signature information
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
-    /// Generic parameters (e.g., <T, U: Clone>)
-    pub generic_params: Option<crate::parser::GenericParams>,
+    /// Generic parameters with their bounds
+    pub generic_params: Vec<(String, Vec<String>)>,
     /// Parameter names and types
     pub params: Vec<(String, Type)>,
     /// Return type
@@ -61,8 +61,6 @@ pub struct FunctionSignature {
     pub is_const: bool,
     /// Whether this function is async (for actors)
     pub is_async: bool,
-    /// Generic parameters with their bounds
-    pub generic_params: Vec<(String, Vec<String>)>,
 }
 
 /// Struct type information

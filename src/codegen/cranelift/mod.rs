@@ -5,6 +5,7 @@
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module};
+use target_lexicon::Triple;
 
 use crate::codegen::debug::{DebugContext, DebugFlags};
 use crate::error::{Error, ErrorKind};
@@ -49,7 +50,7 @@ impl CraneliftBackend {
         use cranelift::codegen::isa;
 
         // Get the native target
-        let target_isa = isa::lookup(target_lexicon::HOST)
+        let target_isa = isa::lookup(Triple::host())
             .expect("Failed to lookup native target")
             .finish(cranelift::codegen::settings::Flags::new(
                 cranelift::codegen::settings::builder(),
@@ -338,7 +339,7 @@ impl CodegenBackend for CraneliftBackend {
         // For simplicity, create a new empty module
         let empty_module = {
             use cranelift::codegen::isa;
-            let target_isa = isa::lookup(target_lexicon::HOST)
+            let target_isa = isa::lookup(Triple::host())
                 .expect("Failed to lookup native target")
                 .finish(cranelift::codegen::settings::Flags::new(
                     cranelift::codegen::settings::builder(),

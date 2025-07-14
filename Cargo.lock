@@ -477,7 +477,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "smallvec",
- "target-lexicon 0.13.2",
+ "target-lexicon",
  "wasmtime-math",
 ]
 
@@ -525,7 +525,7 @@ dependencies = [
  "cranelift-codegen",
  "log",
  "smallvec",
- "target-lexicon 0.13.2",
+ "target-lexicon",
 ]
 
 [[package]]
@@ -549,7 +549,7 @@ dependencies = [
  "libc",
  "log",
  "region",
- "target-lexicon 0.13.2",
+ "target-lexicon",
  "wasmtime-jit-icache-coherence",
  "windows-sys 0.59.0",
 ]
@@ -573,7 +573,7 @@ checksum = "0975ce66adcf2e0729d06b1d3efea0398d793d1f39c2e0a6f52a347537836693"
 dependencies = [
  "cranelift-codegen",
  "libc",
- "target-lexicon 0.13.2",
+ "target-lexicon",
 ]
 
 [[package]]
@@ -2483,7 +2483,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "target-lexicon 0.12.16",
+ "target-lexicon",
  "tempfile",
  "thiserror 2.0.12",
  "tokio",
@@ -2778,12 +2778,6 @@ dependencies = [
  "libc",
  "xattr",
 ]
-
-[[package]]
-name = "target-lexicon"
-version = "0.12.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "target-lexicon"

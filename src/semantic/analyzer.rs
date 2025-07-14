@@ -1,7 +1,7 @@
 use crate::error::ErrorKind;
 use crate::inference::{type_ann_to_type, InferenceContext};
 use crate::parser::{
-    BinaryOp, Block, ExportKind, Expr, ExprKind, GenericParams, ImplBlock, ImportSpecifier,
+    BinaryOp, Block, CatchClause, ClosureParam, ExportKind, Expr, ExprKind, GenericParams, ImplBlock, ImportSpecifier,
     Literal, Method, Param, Program, Stmt, StmtKind, TraitBound, TypeAnn, TypeKind, UnaryOp,
 };
 use crate::source::Span;
@@ -562,12 +562,11 @@ impl SemanticAnalyzer {
 
         // Also add basic print function for backward compatibility
         let print_sig = FunctionSignature {
-            generic_params: None,
+            generic_params: Vec::new(),
             params: vec![("value".to_string(), Type::Unknown)],
             return_type: Type::Unknown, // void
             is_const: false,
             is_async: false,
-            generic_params: vec![],
         };
         self.symbol_table
             .define_function(
@@ -581,7 +580,7 @@ impl SemanticAnalyzer {
 
         // Add println function
         let println_sig = FunctionSignature {
-            generic_params: None,
+            generic_params: Vec::new(),
             params: vec![("value".to_string(), Type::Unknown)],
             return_type: Type::Unknown, // void
             is_const: false,
@@ -599,12 +598,11 @@ impl SemanticAnalyzer {
 
         // len function: ([T]) -> i32
         let len_sig = FunctionSignature {
-            generic_params: None,
+            generic_params: Vec::new(),
             params: vec![("array".to_string(), Type::Array(Box::new(Type::Unknown)))],
             return_type: Type::I32,
             is_const: true,
             is_async: false,
-            generic_params: vec![],
         };
         self.symbol_table
             .define_function(
@@ -718,7 +716,7 @@ impl SemanticAnalyzer {
         // In a complete implementation, this would parse the actual Type to extract
         // function parameters and return type
         FunctionSignature {
-            generic_params: None,
+            generic_params: Vec::new(),
             params: vec![("args".to_string(), Type::Unknown)],
             return_type: Type::Unknown,
             is_const: false,
@@ -1296,12 +1294,15 @@ impl SemanticAnalyzer {
 
         // Create function signature
         let signature = FunctionSignature {
-            generic_params: generic_params.cloned(),
+            generic_params: generic_params.map_or(Vec::new(), |gp| {
+                gp.params.iter().map(|param| {
+                    (param.name.clone(), param.bounds.iter().map(|b| b.trait_name.clone()).collect())
+                }).collect()
+            }),
             params: param_types.clone(),
             return_type: return_type.clone(),
             is_const: false, // Legacy method - const handled in new method
             is_async,
-            generic_params: vec![], // TODO: Implement generic parameter conversion
         };
 
         // Define the function
@@ -1346,9 +1347,7 @@ impl SemanticAnalyzer {
         // Extract generic parameters if present
         if let Some(generics) = generic_params {
             for param in &generics.params {
-                func_context
-                    .generic_params
-                    .insert(param.name.clone(), param.bounds.clone());
+                // Generic parameters are already stored in generic_param_names
             }
         }
 
@@ -1510,12 +1509,15 @@ impl SemanticAnalyzer {
 
         // Create function signature with const flag and generic params
         let signature = FunctionSignature {
-            generic_params: generic_params.cloned(),
+            generic_params: generic_params.map_or(Vec::new(), |gp| {
+                gp.params.iter().map(|param| {
+                    (param.name.clone(), param.bounds.iter().map(|b| b.trait_name.clone()).collect())
+                }).collect()
+            }),
             params: param_types.clone(),
             return_type: return_type.clone(),
             is_const,
             is_async,
-            generic_params: vec![], // TODO: Implement generic parameter conversion
         };
 
         // Define the function
@@ -1559,9 +1561,7 @@ impl SemanticAnalyzer {
         // Extract generic parameters if present
         if let Some(generics) = generic_params {
             for param in &generics.params {
-                func_context
-                    .generic_params
-                    .insert(param.name.clone(), param.bounds.clone());
+                // Generic parameters are already stored in generic_param_names
             }
         }
 
@@ -2042,7 +2042,7 @@ impl SemanticAnalyzer {
     fn analyze_identifier(&mut self, name: &str, span: crate::source::Span) -> Result<Type> {
         // First check if it's a type parameter in the current generic context
         let ctx = self.current_context();
-        if ctx.generic_params.contains_key(name) {
+        if ctx.generic_param_names.contains(&name.to_string()) {
             // This is a type parameter reference
             return Ok(Type::TypeParam(name.to_string()));
         }
@@ -2272,7 +2272,7 @@ impl SemanticAnalyzer {
             if let Some((func_id, symbol_type, maybe_signature)) = symbol_info {
                 if let Some(signature) = maybe_signature {
                     // Handle generic functions
-                    let instantiated_signature = if signature.generic_params.is_some() {
+                    let instantiated_signature = if !signature.generic_params.is_empty() {
                         // Create instantiation and track it for monomorphization
                         let instantiated =
                             self.instantiate_generic_function(&signature, &arg_types)?;
@@ -3686,7 +3686,7 @@ impl SemanticAnalyzer {
         signature: &FunctionSignature,
         arg_types: &[Type],
     ) -> Result<FunctionSignature> {
-        let _generic_params = signature.generic_params.as_ref().unwrap();
+        let _generic_params = &signature.generic_params;
 
         // Create a type substitution map
         let mut type_substitutions = HashMap::new();
@@ -3728,7 +3728,7 @@ impl SemanticAnalyzer {
         }
 
         Ok(FunctionSignature {
-            generic_params: None, // Instantiated functions have no generic params
+            generic_params: Vec::new(), // Instantiated functions have no generic params
             params: instantiated_params,
             return_type: instantiated_return,
             is_const: signature.is_const,
@@ -3895,7 +3895,11 @@ impl SemanticAnalyzer {
 
         // Create method signature
         let signature = FunctionSignature {
-            generic_params: method.generic_params.clone(),
+            generic_params: method.generic_params.as_ref().map_or(Vec::new(), |gp| {
+                gp.params.iter().map(|param| {
+                    (param.name.clone(), param.bounds.iter().map(|b| b.trait_name.clone()).collect())
+                }).collect()
+            }),
             params: param_types,
             return_type,
             is_const: false, // TODO: Support @const methods
