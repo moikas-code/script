@@ -157,7 +157,7 @@ Example GitHub Actions:
   run: script tests/ --test --format junit > results.xml
   
 - name: Publish Test Results
-  uses: actions/upload-artifact@v2
+  uses: actions/upload-artifact@v4
   with:
     name: test-results
     path: results.xml

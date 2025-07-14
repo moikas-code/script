@@ -441,7 +441,7 @@ jobs:
       - name: Run tests
         run: script tests/ --test --format junit > test-results.xml
       - name: Publish test results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: test-results.xml

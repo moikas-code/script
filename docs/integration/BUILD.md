@@ -692,7 +692,7 @@ jobs:
       run: cargo build --release
     
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: script-${{ matrix.os }}
         path: target/release/script*
