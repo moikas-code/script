@@ -87,6 +87,10 @@ fuzzing = []
 # Enable MCP (Model Context Protocol) support
 mcp = []
 
+# Benchmark configurations
+# CI-safe benchmarks (implemented features): lexer, parser
+# Development-only benchmarks (unimplemented features): compilation, features, scenarios, memory, tooling
+
 [[bench]]
 name = "lexer"
 harness = false
@@ -95,6 +99,7 @@ harness = false
 name = "parser"
 harness = false
 
+# WARNING: The following benchmarks test unimplemented features and may hang in CI
 [[bench]]
 name = "compilation"
 harness = false
