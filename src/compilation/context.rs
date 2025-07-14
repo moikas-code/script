@@ -32,7 +32,7 @@ impl CompilationUnit {
         let source = fs::read_to_string(path).map_err(|e| {
             Error::new(
                 ErrorKind::FileError,
-                format!("Failed to read file '{}': {path.display(}"), e),
+                format!("Failed to read file '{}': {}", path.display(), e),
             )
         })?;
 
@@ -234,7 +234,7 @@ impl CompilationContext {
         let entries = fs::read_dir(dir).map_err(|e| {
             Error::new(
                 ErrorKind::FileError,
-                format!("Failed to read directory '{}': {dir.display(}"), e),
+                format!("Failed to read directory '{}': {}", dir.display(), e),
             )
         })?;
 
@@ -304,7 +304,7 @@ impl CompilationContext {
                 if let Some(cycle_path) = cycle {
                     Err(Error::new(
                         ErrorKind::CompilationError,
-                        format!("Circular dependency detected: {cycle_path.join(" -> "}")),
+                        format!("Circular dependency detected: {}", cycle_path.join(" -> ")),
                     ))
                 } else {
                     Err(Error::new(

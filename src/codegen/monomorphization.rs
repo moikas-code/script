@@ -485,10 +485,10 @@ impl MonomorphizationContext {
             Type::F32 => "f32".to_string(),
             Type::Bool => "bool".to_string(),
             Type::String => "string".to_string(),
-            Type::Array(elem) => format!("array_{self.mangle_type(elem}")),
-            Type::Option(inner) => format!("option_{self.mangle_type(inner}")),
+            Type::Array(elem) => format!("array_{}", self.mangle_type(elem)),
+            Type::Option(inner) => format!("option_{}", self.mangle_type(inner)),
             Type::Result { ok, err } => {
-                format!("result_{}_{self.mangle_type(ok}"), self.mangle_type(err))
+                format!("result_{}_{}", self.mangle_type(ok), self.mangle_type(err))
             }
             Type::Function { params, ret } => {
                 let param_mangles = params
@@ -496,13 +496,13 @@ impl MonomorphizationContext {
                     .map(|p| self.mangle_type(p))
                     .collect::<Vec<_>>()
                     .join("_");
-                format!("fn_{}_{param_mangles, self.mangle_type(ret}"))
+                format!("fn_{}_{}", param_mangles, self.mangle_type(ret))
             }
             Type::Generic { name, args } => {
                 if args.is_empty() {
                     name.clone()
                 } else {
-                    format!("{}_{name, self.mangle_type_args(args}"))
+                    format!("{}_{}", name, self.mangle_type_args(args))
                 }
             }
             Type::TypeParam(name) => format!("param_{name}"),
@@ -510,7 +510,7 @@ impl MonomorphizationContext {
             Type::Named(name) => name.clone(),
             Type::Unknown => "unknown".to_string(),
             Type::Never => "never".to_string(),
-            Type::Future(inner) => format!("future_{self.mangle_type(inner}")),
+            Type::Future(inner) => format!("future_{}", self.mangle_type(inner)),
             Type::Tuple(types) => {
                 let type_mangles = types
                     .iter()
@@ -531,7 +531,7 @@ impl MonomorphizationContext {
                 let field_mangles = fields
                     .iter()
                     .map(|(field_name, field_type)| {
-                        format!("{}_{field_name, self.mangle_type(field_type}"))
+                        format!("{}_{}", field_name, self.mangle_type(field_type))
                     })
                     .collect::<Vec<_>>()
                     .join("_");
