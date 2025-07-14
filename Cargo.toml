@@ -62,7 +62,7 @@ indicatif = "0.17"
 tempfile = "3.0"
 reqwest = { version = "0.12", features = ["json", "blocking"] }
 # Self-update functionality
-self_update = { version = "0.40", features = ["archive-tar", "archive-zip", "compression-flate2"] }
+self_update = { version = "0.42", features = ["archive-tar", "archive-zip", "compression-flate2"] }
 # Unicode security dependencies
 unicode-normalization = "0.1.22"
 # Performance dependencies
