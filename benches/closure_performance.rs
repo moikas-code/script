@@ -44,7 +44,7 @@ fn bench_closure_creation(c: &mut Criterion) {
             param_count,
             |b, &param_count| {
                 b.iter(|| {
-                    let params = (0..*param_count).map(|i| format!("param_{}", i)).collect();
+                    let params = (0..param_count).map(|i| format!("param_{}", i)).collect();
                     let closure =
                         create_closure_heap("test_closure".to_string(), params, vec![], false);
                     black_box(closure);
