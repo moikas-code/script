@@ -108,7 +108,7 @@ impl ConsoleReporter {
             }
             TestStatus::Skipped(reason) => {
                 if self.verbose {
-                    println!("{} - {"skipped".yellow(}"), reason);
+                    println!("{} - {}", "skipped".yellow(), reason);
                 } else if self.format == ReportFormat::Minimal {
                     print!("{}", "s".yellow());
                     io::stdout().flush().unwrap();
@@ -121,7 +121,7 @@ impl ConsoleReporter {
                         "PANICKED".red().bold(),
                         result.duration.as_secs_f64()
                     );
-                    println!("  {}: {"panic".red(}"), msg);
+                    println!("  {}: {}", "panic".red(), msg);
                 } else if self.format == ReportFormat::Minimal {
                     print!("{}", "P".red().bold());
                     io::stdout().flush().unwrap();
@@ -131,21 +131,21 @@ impl ConsoleReporter {
 
         // Show captured output if requested
         if self.show_output && !result.output.is_empty() {
-            println!("\n{"---- output ----".dimmed(}"));
-            println!("{result.output}");
-            println!("{"----------------".dimmed(}"));
+            println!("\n{}", "---- output ----".dimmed());
+            println!("{}", result.output);
+            println!("{}", "----------------".dimmed());
         }
     }
 
     fn print_failure_details(&self, test_name: &str, failure: &TestFailure) {
-        println!("\n{"---- failure details ----".red(}").dimmed());
-        println!("{}: {"test".dimmed(}"), test_name);
-        println!("{}: {"error".red(}"), failure.message);
+        println!("\n{}", "---- failure details ----".red().dimmed());
+        println!("{}: {}", "test".dimmed(), test_name);
+        println!("{}: {}", "error".red(), failure.message);
 
         if let (Some(expected), Some(actual)) = (&failure.expected, &failure.actual) {
-            println!("\n{"comparison:".dimmed(}"));
-            println!("  {}: {"expected".green(}"), expected);
-            println!("  {}: {"actual".red(}"), actual);
+            println!("\n{}", "comparison:".dimmed());
+            println!("  {}: {}", "expected".green(), expected);
+            println!("  {}: {}", "actual".red(), actual);
         }
 
         if let Some(location) = &failure.location {
@@ -203,8 +203,8 @@ impl TestReporter for ConsoleReporter {
         skipped: usize,
         duration: Duration,
     ) -> Result<()> {
-        println!("\n{"Test Summary".bold(}"));
-        println!("{"=".repeat(50}"));
+        println!("\n{}", "Test Summary".bold());
+        println!("{}", "=".repeat(50));
 
         let status = if failed == 0 {
             "PASSED".green().bold()
@@ -240,7 +240,7 @@ impl TestReporter for ConsoleReporter {
         }
 
         println!("Duration: {:.3}s", duration.as_secs_f64());
-        println!("{"=".repeat(50}"));
+        println!("{}", "=".repeat(50));
 
         Ok(())
     }

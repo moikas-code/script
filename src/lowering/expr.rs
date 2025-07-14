@@ -348,7 +348,7 @@ fn lower_call(lowerer: &mut AstLowerer, callee: &Expr, args: &[Expr]) -> Lowerin
             // Special handling for print - generate a call to the runtime print function
             if args.len() != 1 {
                 return Err(type_error(
-                    format!("print expects exactly 1 argument, got {args.len(}"))),
+                    format!("print expects exactly 1 argument, got {}", args.len()),
                     callee,
                     "function call",
                 ));
@@ -1705,7 +1705,7 @@ fn lower_closure(
     expr: &Expr,
 ) -> LoweringResult<ValueId> {
     // Generate unique function ID for this closure
-    let function_id = format!("closure_{expr.id}");
+    let function_id = format!("closure_{}", expr.id);
 
     // Extract parameter names and types
     let param_names: Vec<String> = parameters.iter().map(|p| p.name.clone()).collect();

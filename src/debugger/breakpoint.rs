@@ -237,11 +237,11 @@ impl Breakpoint {
     pub fn description(&self) -> String {
         match &self.breakpoint_type {
             BreakpointType::Line { file, line } => {
-                format!("Line breakpoint at {}:{file, line}")
+                format!("Line breakpoint at {}:{}", file, line)
             }
             BreakpointType::Function { name, file } => {
                 if let Some(file) = file {
-                    format!("Function breakpoint at '{}' in {name, file}")
+                    format!("Function breakpoint at '{}' in {}", name, file)
                 } else {
                     format!("Function breakpoint at '{}'", name)
                 }
@@ -293,7 +293,7 @@ impl BreakpointCondition {
     pub fn evaluate(&self, _context: &BreakpointEvaluationContext) -> Result<bool, String> {
         // TODO: Implement condition evaluation
         // For now, always return true
-        println!("Evaluating condition: {self.expression}");
+        println!("Evaluating condition: {}", self.expression);
         Ok(true)
     }
 }
@@ -328,7 +328,7 @@ impl BreakpointHit {
 
     /// Get a human-readable description of this breakpoint hit
     pub fn description(&self) -> String {
-        let base = format!("Breakpoint {} hit at {self.breakpoint.id, self.location}");
+        let base = format!("Breakpoint {} hit at {}", self.breakpoint.id, self.location);
         if let Some(function) = &self.function_name {
             format!("{} in function '{}'", base, function)
         } else {

@@ -388,14 +388,14 @@ impl ModuleError {
     pub fn resource_exhausted(message: impl Into<String>) -> Self {
         ModuleError::runtime_error(
             "<resource_monitor>",
-            format!("Resource exhausted: {message.into(}")),
+            format!("Resource exhausted: {}", message.into()),
         )
     }
 
     pub fn timeout(message: impl Into<String>) -> Self {
         ModuleError::runtime_error(
             "<resource_monitor>",
-            format!("Operation timeout: {message.into(}")),
+            format!("Operation timeout: {}", message.into()),
         )
     }
 }

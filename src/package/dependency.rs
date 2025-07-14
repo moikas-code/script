@@ -239,7 +239,7 @@ impl Dependency {
                 id
             }
             DependencyKind::Path { path } => {
-                format!("path+{path.display(}"))
+                format!("path+{}", path.display())
             }
         }
     }

@@ -15,7 +15,7 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
             if occurs_check(*id, ty) {
                 Err(Error::new(
                     ErrorKind::TypeError,
-                    format!("Infinite type: T{} cannot be unified with {id, ty}"),
+                    format!("Infinite type: T{} cannot be unified with {}", id, ty),
                 )
                 .with_location(span.start))
             } else {
@@ -28,7 +28,7 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
             if occurs_check(*id, ty) {
                 Err(Error::new(
                     ErrorKind::TypeError,
-                    format!("Infinite type: T{} cannot be unified with {id, ty}"),
+                    format!("Infinite type: T{} cannot be unified with {}", id, ty),
                 )
                 .with_location(span.start))
             } else {
@@ -102,7 +102,7 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
             if n1 != n2 {
                 return Err(Error::new(
                     ErrorKind::TypeError,
-                    format!("Generic type mismatch: {} != {n1, n2}"),
+                    format!("Generic type mismatch: {} != {}", n1, n2),
                 )
                 .with_location(span.start));
             }
@@ -182,7 +182,7 @@ pub fn unify(t1: &Type, t2: &Type, span: Span) -> Result<Substitution, Error> {
         // Type mismatch
         _ => Err(Error::new(
             ErrorKind::TypeError,
-            format!("Type mismatch: cannot unify {} with {t1, t2}"),
+            format!("Type mismatch: cannot unify {} with {}", t1, t2),
         )
         .with_location(span.start)),
     }
@@ -457,7 +457,7 @@ pub fn unify_optimized(t1: &Type, t2: &Type, span: Span) -> Result<OptimizedSubs
             if optimized_occurs_check(*id, ty) {
                 Err(Error::new(
                     ErrorKind::TypeError,
-                    format!("Infinite type: T{} cannot be unified with {id, ty}"),
+                    format!("Infinite type: T{} cannot be unified with {}", id, ty),
                 )
                 .with_location(span.start))
             } else {
@@ -470,7 +470,7 @@ pub fn unify_optimized(t1: &Type, t2: &Type, span: Span) -> Result<OptimizedSubs
             if optimized_occurs_check(*id, ty) {
                 Err(Error::new(
                     ErrorKind::TypeError,
-                    format!("Infinite type: T{} cannot be unified with {id, ty}"),
+                    format!("Infinite type: T{} cannot be unified with {}", id, ty),
                 )
                 .with_location(span.start))
             } else {
@@ -531,7 +531,7 @@ pub fn unify_optimized(t1: &Type, t2: &Type, span: Span) -> Result<OptimizedSubs
         // All other cases are unification failures
         _ => Err(Error::new(
             ErrorKind::TypeError,
-            format!("Cannot unify {} with {t1, t2}"),
+            format!("Cannot unify {} with {}", t1, t2),
         )
         .with_location(span.start)),
     }

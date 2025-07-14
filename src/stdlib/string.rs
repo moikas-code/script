@@ -145,7 +145,7 @@ impl ScriptString {
 
     /// Concatenate with another string
     pub fn concat(&self, other: &ScriptString) -> ScriptString {
-        ScriptString::new(format!("{}{self.data, other.data}"))
+        ScriptString::new(format!("{}{}", self.data, other.data))
     }
 
     /// Repeat the string n times
@@ -170,7 +170,7 @@ impl ScriptString {
         self.data
             .trim()
             .parse::<i32>()
-            .map_err(|e| format!("Failed to parse '{}' as i32: {self.data, e}"))
+            .map_err(|e| format!("Failed to parse '{}' as i32: {}", self.data, e))
     }
 
     /// Parse the string as a float
@@ -178,7 +178,7 @@ impl ScriptString {
         self.data
             .trim()
             .parse::<f32>()
-            .map_err(|e| format!("Failed to parse '{}' as f32: {self.data, e}"))
+            .map_err(|e| format!("Failed to parse '{}' as f32: {}", self.data, e))
     }
 
     /// Join a vector of strings with this string as the delimiter

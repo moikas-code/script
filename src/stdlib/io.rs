@@ -60,7 +60,7 @@ pub fn read_file(path: &str) -> Result<String, IoError> {
         Ok(contents) => Ok(contents),
         Err(e) => {
             let mut io_err = io_error_from_std(e);
-            io_err.message = format!("Failed to read file '{}': {path, io_err.message}");
+            io_err.message = format!("Failed to read file '{}': {}", path, io_err.message);
             Err(io_err)
         }
     }
@@ -88,7 +88,7 @@ pub fn write_file(path: &str, contents: &str) -> Result<(), IoError> {
         Ok(()) => Ok(()),
         Err(e) => {
             let mut io_err = io_error_from_std(e);
-            io_err.message = format!("Failed to write file '{}': {path, io_err.message}");
+            io_err.message = format!("Failed to write file '{}': {}", path, io_err.message);
             Err(io_err)
         }
     }
@@ -266,7 +266,7 @@ pub fn create_dir(path: &str) -> Result<(), IoError> {
         Ok(()) => Ok(()),
         Err(e) => {
             let mut io_err = io_error_from_std(e);
-            io_err.message = format!("Failed to create directory '{}': {path, io_err.message}");
+            io_err.message = format!("Failed to create directory '{}': {}", path, io_err.message);
             Err(io_err)
         }
     }
@@ -279,7 +279,7 @@ pub fn delete_file(path: &str) -> Result<(), IoError> {
         Ok(()) => Ok(()),
         Err(e) => {
             let mut io_err = io_error_from_std(e);
-            io_err.message = format!("Failed to delete file '{}': {path, io_err.message}");
+            io_err.message = format!("Failed to delete file '{}': {}", path, io_err.message);
             Err(io_err)
         }
     }
@@ -292,7 +292,7 @@ pub fn copy_file(from: &str, to: &str) -> Result<(), IoError> {
         Ok(_) => Ok(()),
         Err(e) => {
             let mut io_err = io_error_from_std(e);
-            io_err.message = format!("Failed to copy '{}' to '{}': {from, to, io_err.message}");
+            io_err.message = format!("Failed to copy '{}' to '{}': {}", from, to, io_err.message);
             Err(io_err)
         }
     }
@@ -324,7 +324,7 @@ pub fn append_file(path: &str, contents: &str) -> Result<(), IoError> {
             Ok(()) => Ok(()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to append to file '{}': {path, io_err.message}");
+                io_err.message = format!("Failed to append to file '{}': {}", path, io_err.message);
                 Err(io_err)
             }
         },
@@ -346,7 +346,7 @@ pub fn delete_dir(path: &str) -> Result<(), IoError> {
         Ok(()) => Ok(()),
         Err(e) => {
             let mut io_err = io_error_from_std(e);
-            io_err.message = format!("Failed to delete directory '{}': {path, io_err.message}");
+            io_err.message = format!("Failed to delete directory '{}': {}", path, io_err.message);
             Err(io_err)
         }
     }
@@ -379,7 +379,7 @@ pub fn list_dir(path: &str) -> Result<Vec<String>, IoError> {
         }
         Err(e) => {
             let mut io_err = io_error_from_std(e);
-            io_err.message = format!("Failed to read directory '{}': {path, io_err.message}");
+            io_err.message = format!("Failed to read directory '{}': {}", path, io_err.message);
             Err(io_err)
         }
     }
@@ -415,7 +415,7 @@ pub fn file_metadata(
         }
         Err(e) => {
             let mut io_err = io_error_from_std(e);
-            io_err.message = format!("Failed to get metadata for '{}': {path, io_err.message}");
+            io_err.message = format!("Failed to get metadata for '{}': {}", path, io_err.message);
             Err(io_err)
         }
     }
@@ -721,7 +721,7 @@ mod tests {
     #[test]
     fn test_script_value_implementations() {
         // Test print_impl
-        let str_val = ScriptValue::String(ScriptRc::new(ScriptString::new("test".to_string());
+        let str_val = ScriptValue::String(ScriptRc::new(ScriptString::new("test".to_string())));
         let result = print_impl(&[str_val.clone()]);
         assert!(result.is_ok());
         assert!(result.unwrap().is_unit());

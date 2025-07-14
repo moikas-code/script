@@ -55,7 +55,7 @@ impl ModulePath {
 
     /// Create a standard library module path
     pub fn std_module(path: impl AsRef<str>) -> ModuleResult<Self> {
-        let path_str = format!("std.{path.as_ref(}"));
+        let path_str = format!("std.{}", path.as_ref());
         Self::from_string(path_str)
     }
 
@@ -118,7 +118,7 @@ impl ModulePath {
         let segment_str = segment.as_ref();
         if !is_valid_identifier(segment_str) {
             return Err(ModuleError::invalid_path(
-                format!("{}.{self, segment_str}"),
+                format!("{}.{}", self, segment_str),
                 format!("invalid identifier '{}'", segment_str),
             ));
         }

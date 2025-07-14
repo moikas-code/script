@@ -459,6 +459,6 @@ mod tests {
         assert!(matches!(yield_future.poll(&waker), Poll::Pending));
 
         // Second poll should return ready
-        assert!(matches!(yield_future.poll(&waker), Poll::Ready(());
+        assert!(matches!(yield_future.poll(&waker), Poll::Ready(())));
     }
 }

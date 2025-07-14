@@ -238,7 +238,7 @@ fn analyze_local_variables(func: &Function) -> Result<HashMap<String, Type>, Err
             match inst {
                 Instruction::Alloc { ty } => {
                     // Allocate local variable storage
-                    let local_name = format!("__local_{value_id.0}");
+                    let local_name = format!("__local_{}", value_id.0);
                     locals.insert(local_name, ty.clone());
                 }
                 Instruction::Store { .. } | Instruction::Load { .. } => {
@@ -249,7 +249,7 @@ fn analyze_local_variables(func: &Function) -> Result<HashMap<String, Type>, Err
                     // Other instructions might create temporaries
                     // We'll allocate space for significant temporaries
                     if is_significant_instruction(inst) {
-                        let temp_name = format!("__temp_{value_id.0}");
+                        let temp_name = format!("__temp_{}", value_id.0);
                         locals.insert(temp_name, Type::Unknown);
                     }
                 }
@@ -468,7 +468,7 @@ fn transform_function_body(
             .ok_or_else(|| Error::new(ErrorKind::RuntimeError, "Failed to compare state"))?;
 
         let next_check = if i < state_blocks.len() - 1 {
-            poll_func.create_block(format!("check_state_{i + 1}"))
+            poll_func.create_block(format!("check_state_{}", i + 1))
         } else {
             // Invalid state - return error or panic
             poll_func.create_block("invalid_state".to_string())

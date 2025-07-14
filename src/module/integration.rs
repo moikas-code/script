@@ -996,17 +996,17 @@ impl ModuleCompilationPipeline {
         // For now, we'll prefix all imports with the namespace name
 
         for (name, function_info) in &exports.functions {
-            let qualified_name = format!("{}::{namespace_name, name}");
+            let qualified_name = format!("{}::{}", namespace_name, name);
             self.add_function_symbol(symbol_table, &qualified_name, function_info)?;
         }
 
         for (name, variable_info) in &exports.variables {
-            let qualified_name = format!("{}::{namespace_name, name}");
+            let qualified_name = format!("{}::{}", namespace_name, name);
             self.add_variable_symbol(symbol_table, &qualified_name, variable_info)?;
         }
 
         for (name, type_info) in &exports.type_definitions {
-            let qualified_name = format!("{}::{namespace_name, name}");
+            let qualified_name = format!("{}::{}", namespace_name, name);
             self.add_type_symbol(symbol_table, &qualified_name, type_info)?;
         }
 

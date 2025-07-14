@@ -321,17 +321,17 @@ impl DebugHook for DefaultDebugHook {
         // Log debug events
         match event {
             DebugEvent::ExecutionStarted { file, entry_point } => {
-                println!("Debug: Execution started in {} at {file, entry_point}");
+                println!("Debug: Execution started in {} at {}", file, entry_point);
             }
             DebugEvent::ExecutionStopped { reason, location } => {
                 if let Some(loc) = location {
-                    println!("Debug: Execution stopped at {}: {loc, reason}");
+                    println!("Debug: Execution stopped at {}: {}", loc, reason);
                 } else {
-                    println!("Debug: Execution stopped: {reason}");
+                    println!("Debug: Execution stopped: {}", reason);
                 }
             }
             DebugEvent::FunctionEntered { name, location, .. } => {
-                println!("Debug: Entered function '{}' at {name, location}");
+                println!("Debug: Entered function '{}' at {}", name, location);
             }
             DebugEvent::FunctionExited {
                 name,
@@ -344,7 +344,7 @@ impl DebugHook for DefaultDebugHook {
                         name, location, value
                     );
                 } else {
-                    println!("Debug: Exited function '{}' at {name, location}");
+                    println!("Debug: Exited function '{}' at {}", name, location);
                 }
             }
             DebugEvent::BreakpointHit {
@@ -358,7 +358,7 @@ impl DebugHook for DefaultDebugHook {
                         breakpoint_id, location, func
                     );
                 } else {
-                    println!("Debug: Breakpoint {} hit at {breakpoint_id, location}");
+                    println!("Debug: Breakpoint {} hit at {}", breakpoint_id, location);
                 }
             }
             DebugEvent::ExceptionThrown {

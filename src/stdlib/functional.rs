@@ -751,7 +751,7 @@ impl FunctionComposition {
             .collect();
 
         let partial_closure = crate::runtime::closure::create_closure_heap(
-            format!("partial_{closure_ref.function_id}"),
+            format!("partial_{}", closure_ref.function_id),
             remaining_params,
             captured_vars,
             false, // by-value capture
@@ -782,7 +782,7 @@ impl FunctionComposition {
 
         // Create a curried version that returns nested closures
         let curried_closure = crate::runtime::closure::create_closure_heap(
-            format!("curried_{closure_ref.function_id}"),
+            format!("curried_{}", closure_ref.function_id),
             vec![closure_ref.parameters[0].clone()], // Take first parameter
             vec![("original_func".to_string(), func.clone())],
             false, // by-value capture
@@ -917,7 +917,7 @@ fn runtime_value_to_script_value(runtime_val: &Value) -> Result<ScriptValue> {
             }
             _ => Err(Error::new(
                 ErrorKind::TypeError,
-                format!("Unknown enum type: {}::{type_name, variant}"),
+                format!("Unknown enum type: {}::{}", type_name, variant),
             )),
         },
         Value::Closure(closure) => {

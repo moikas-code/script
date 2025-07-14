@@ -143,7 +143,7 @@ impl FieldValidator {
         // Pre-populate fast lookup cache for common field accesses
         if self.config.enable_fast_path {
             for (field_name, field_info) in &type_info.fields {
-                let cache_key = format!("{}::{type_info.name, field_name}");
+                let cache_key = format!("{}::{}", type_info.name, field_name);
                 self.field_type_cache
                     .insert(cache_key, field_info.field_type.clone());
             }
@@ -204,7 +204,7 @@ impl FieldValidator {
         type_name: &str,
         field_name: &str,
     ) -> FieldValidationResult {
-        let cache_key = format!("{}::{type_name, field_name}");
+        let cache_key = format!("{}::{}", type_name, field_name);
 
         // Fast path: check field type cache first
         if self.config.enable_fast_path {

@@ -122,9 +122,9 @@ impl StackFrame {
         match (&self.file_name, &self.line_number) {
             (Some(file), Some(line)) => {
                 if let Some(col) = self.column_number {
-                    format!("{}:{}:{file, line, col}")
+                    format!("{}:{}:{}", file, line, col)
                 } else {
-                    format!("{}:{file, line}")
+                    format!("{}:{}", file, line)
                 }
             }
             (Some(file), None) => file.clone(),

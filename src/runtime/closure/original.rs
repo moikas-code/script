@@ -227,7 +227,7 @@ impl ClosureRuntime {
         } else {
             Err(Error::new(
                 ErrorKind::RuntimeError,
-                format!("Closure implementation not found: {closure.function_id}"),
+                format!("Closure implementation not found: {}", closure.function_id),
             ))
         };
 

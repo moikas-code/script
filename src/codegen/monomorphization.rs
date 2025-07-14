@@ -453,7 +453,7 @@ impl MonomorphizationContext {
 
         // Check cache first
         if let Some(cached) = self.mangle_cache.get(type_args) {
-            return format!("{}_{base_name, cached}");
+            return format!("{}_{}", base_name, cached);
         }
 
         // Generate and cache the mangled suffix
@@ -461,7 +461,7 @@ impl MonomorphizationContext {
         self.mangle_cache
             .insert(type_args.to_vec(), type_suffix.clone());
 
-        format!("{}_{base_name, type_suffix}")
+        format!("{}_{}", base_name, type_suffix)
     }
 
     /// Cached type name mangling
@@ -538,7 +538,7 @@ impl MonomorphizationContext {
                 if fields.is_empty() {
                     name.clone()
                 } else {
-                    format!("{}_{name, field_mangles}")
+                    format!("{}_{}", name, field_mangles)
                 }
             }
         }

@@ -30,7 +30,7 @@ impl ScriptTcpStream {
             Ok(stream) => Ok(ScriptTcpStream::new(stream)),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to connect to '{}': {addr, io_err.message}");
+                io_err.message = format!("Failed to connect to '{}': {}", addr, io_err.message);
                 Err(io_err)
             }
         }
@@ -60,7 +60,7 @@ impl ScriptTcpStream {
                     Err(e) => {
                         let mut io_err = io_error_from_std(e);
                         io_err.message =
-                            format!("Failed to resolve address '{}': {addr, io_err.message}");
+                            format!("Failed to resolve address '{}': {}", addr, io_err.message);
                         return Err(io_err);
                     }
                 }
@@ -90,7 +90,7 @@ impl ScriptTcpStream {
             }
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to read from TCP stream: {io_err.message}");
+                io_err.message = format!("Failed to read from TCP stream: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -117,7 +117,7 @@ impl ScriptTcpStream {
             }
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to read line from TCP stream: {io_err.message}");
+                io_err.message = format!("Failed to read line from TCP stream: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -129,14 +129,14 @@ impl ScriptTcpStream {
             Ok(n) => {
                 if let Err(e) = self.stream.flush() {
                     let mut io_err = io_error_from_std(e);
-                    io_err.message = format!("Failed to flush TCP stream: {io_err.message}");
+                    io_err.message = format!("Failed to flush TCP stream: {}", io_err.message);
                     return Err(io_err);
                 }
                 Ok(n)
             }
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to write to TCP stream: {io_err.message}");
+                io_err.message = format!("Failed to write to TCP stream: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -154,7 +154,7 @@ impl ScriptTcpStream {
             Ok(()) => Ok(()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to set read timeout: {io_err.message}");
+                io_err.message = format!("Failed to set read timeout: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -167,7 +167,7 @@ impl ScriptTcpStream {
             Ok(()) => Ok(()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to set write timeout: {io_err.message}");
+                io_err.message = format!("Failed to set write timeout: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -179,7 +179,7 @@ impl ScriptTcpStream {
             Ok(addr) => Ok(addr.to_string()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to get local address: {io_err.message}");
+                io_err.message = format!("Failed to get local address: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -191,7 +191,7 @@ impl ScriptTcpStream {
             Ok(addr) => Ok(addr.to_string()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to get peer address: {io_err.message}");
+                io_err.message = format!("Failed to get peer address: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -221,7 +221,7 @@ impl ScriptTcpStream {
             Ok(()) => Ok(()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to shutdown connection: {io_err.message}");
+                io_err.message = format!("Failed to shutdown connection: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -245,7 +245,7 @@ impl ScriptTcpListener {
             Ok(listener) => Ok(ScriptTcpListener::new(listener)),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to bind to '{}': {addr, io_err.message}");
+                io_err.message = format!("Failed to bind to '{}': {}", addr, io_err.message);
                 Err(io_err)
             }
         }
@@ -257,7 +257,7 @@ impl ScriptTcpListener {
             Ok((stream, addr)) => Ok((ScriptTcpStream::new(stream), addr.to_string())),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to accept connection: {io_err.message}");
+                io_err.message = format!("Failed to accept connection: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -269,7 +269,7 @@ impl ScriptTcpListener {
             Ok(addr) => Ok(addr.to_string()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to get local address: {io_err.message}");
+                io_err.message = format!("Failed to get local address: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -323,7 +323,7 @@ impl ScriptUdpSocket {
             Ok(n) => Ok(n),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to send UDP data: {io_err.message}");
+                io_err.message = format!("Failed to send UDP data: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -339,7 +339,7 @@ impl ScriptUdpSocket {
             }
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to receive UDP data: {io_err.message}");
+                io_err.message = format!("Failed to receive UDP data: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -352,7 +352,7 @@ impl ScriptUdpSocket {
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
                 io_err.message =
-                    format!("Failed to send UDP data to '{}': {addr, io_err.message}");
+                    format!("Failed to send UDP data to '{}': {}", addr, io_err.message);
                 Err(io_err)
             }
         }
@@ -368,7 +368,7 @@ impl ScriptUdpSocket {
             }
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to receive UDP data: {io_err.message}");
+                io_err.message = format!("Failed to receive UDP data: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -380,7 +380,7 @@ impl ScriptUdpSocket {
             Ok(addr) => Ok(addr.to_string()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to get local address: {io_err.message}");
+                io_err.message = format!("Failed to get local address: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -393,7 +393,7 @@ impl ScriptUdpSocket {
             Ok(()) => Ok(()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to set read timeout: {io_err.message}");
+                io_err.message = format!("Failed to set read timeout: {}", io_err.message);
                 Err(io_err)
             }
         }
@@ -406,7 +406,7 @@ impl ScriptUdpSocket {
             Ok(()) => Ok(()),
             Err(e) => {
                 let mut io_err = io_error_from_std(e);
-                io_err.message = format!("Failed to set write timeout: {io_err.message}");
+                io_err.message = format!("Failed to set write timeout: {}", io_err.message);
                 Err(io_err)
             }
         }

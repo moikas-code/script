@@ -464,7 +464,7 @@ impl PackageManager {
 
         if !absolute_path.exists() {
             return Err(PackageError::PackageNotFound {
-                name: format!("Path dependency at {path.display(}")),
+                name: format!("Path dependency at {}", path.display()),
             });
         }
 
@@ -490,7 +490,7 @@ impl PackageManager {
         // For path dependencies, we don't need to copy files to cache
         // Instead, we'll create a symlink or reference to the local path
         // For now, we'll just store a marker indicating this is a path dependency
-        let marker_data = format!("path:{absolute_path.display(}")).into_bytes();
+        let marker_data = format!("path:{}", absolute_path.display()).into_bytes();
         self.cache
             .store_package(name, resolved_version, marker_data)?;
 

@@ -283,13 +283,13 @@ impl ClosureVerifier {
                 if let Some(min) = min {
                     formula = Formula::And(
                         Box::new(formula),
-                        Box::new(Formula::Atom(format!("{} >= {var, min}"))),
+                        Box::new(Formula::Atom(format!("{} >= {}", var, min))),
                     );
                 }
                 if let Some(max) = max {
                     formula = Formula::And(
                         Box::new(formula),
-                        Box::new(Formula::Atom(format!("{} <= {var, max}"))),
+                        Box::new(Formula::Atom(format!("{} <= {}", var, max))),
                     );
                 }
                 formula
@@ -402,8 +402,8 @@ mod tests {
     #[test]
     fn test_simple_smt_solver() {
         let solver = SimpleSMTSolver::new();
-        assert!(solver.prove(&Formula::Atom("true".to_string());
-        assert!(!solver.prove(&Formula::Atom("false".to_string());
+        assert!(solver.prove(&Formula::Atom("true".to_string())));
+        assert!(!solver.prove(&Formula::Atom("false".to_string())));
     }
 
     #[test]

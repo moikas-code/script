@@ -123,7 +123,7 @@ pub async fn execute(
     if !errors.is_empty() {
         println!();
         for (name, error) in &errors {
-            print_error(&format!("Failed to build {}: {name.red(}"), error));
+            print_error(&format!("Failed to build {}: {}", name.red(), error));
         }
         return Err(PackageError::ManifestParse(format!(
             "Build failed with {} errors",
@@ -187,7 +187,7 @@ async fn build_target(
     // Parse
     let mut parser = Parser::new(tokens);
     let ast = parser.parse().map_err(|e| {
-        PackageError::ManifestParse(format!("Parse error in {}: {target.path.display(}"), e))
+        PackageError::ManifestParse(format!("Parse error in {}: {}", target.path.display(), e))
     })?;
 
     // Lower to IR

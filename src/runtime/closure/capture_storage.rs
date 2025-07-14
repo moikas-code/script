@@ -295,13 +295,13 @@ mod tests {
 
         // Insert captures
         assert!(inline.insert("x".to_string(), Value::I32(42)));
-        assert!(inline.insert("y".to_string(), Value::String("hello".to_string());
+        assert!(inline.insert("y".to_string(), Value::String("hello".to_string())));
         assert_eq!(inline.len(), 2);
         assert!(!inline.is_empty());
 
         // Test retrieval
         assert_eq!(inline.get("x"), Some(&Value::I32(42)));
-        assert_eq!(inline.get("y"), Some(&Value::String("hello".to_string());
+        assert_eq!(inline.get("y"), Some(&Value::String("hello".to_string())));
         assert_eq!(inline.get("z"), None);
     }
 

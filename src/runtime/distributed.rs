@@ -173,7 +173,7 @@ impl DistributedNode {
         _closure: &Closure,
         args: &[Value],
     ) -> Result<String, RuntimeError> {
-        let closure_id = format!("closure_{uuid::Uuid::new_v4(}"));
+        let closure_id = format!("closure_{}", uuid::Uuid::new_v4());
 
         // Serialize closure (simplified - in reality would need proper serialization)
         let serialized_closure = vec![]; // TODO: Implement closure serialization

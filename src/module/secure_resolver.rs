@@ -241,7 +241,7 @@ impl SecureFileSystemResolver {
         // Try module directory with index file
         for module_file in &self.config.module_file_names {
             for extension in &self.config.file_extensions {
-                let file_path = validated_path.join(format!("{}.{module_file, extension}"));
+                let file_path = validated_path.join(format!("{}.{}", module_file, extension));
 
                 if file_path.exists() && file_path.is_file() {
                     return Ok(Some(file_path));

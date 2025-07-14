@@ -518,7 +518,7 @@ impl ResourceStats {
 
         // Check constraints
         if self.constraint_count > (limits.max_constraints * 80) / 100 {
-            concerns.push(format!("Constraint count high: {self.constraint_count}"));
+            concerns.push(format!("Constraint count high: {}", self.constraint_count));
         }
 
         concerns

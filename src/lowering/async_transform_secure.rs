@@ -485,12 +485,12 @@ fn analyze_local_variables(func: &Function) -> AsyncTransformResult<Vec<(String,
             match &inst_with_loc.instruction {
                 Instruction::Alloc { ty, .. } => {
                     // Found a local variable allocation
-                    let var_name = format!("__local_{local_vars.len(}"));
+                    let var_name = format!("__local_{}", local_vars.len());
                     local_vars.push((var_name, ty.clone()));
                 }
                 Instruction::Call { func, .. } => {
                     // Function calls might need temporary storage
-                    let temp_name = format!("__temp_call_{local_vars.len(}"));
+                    let temp_name = format!("__temp_call_{}", local_vars.len());
                     local_vars.push((temp_name, Type::Unknown));
                 }
                 _ => {
@@ -611,7 +611,7 @@ fn transform_function_body(
             ))?;
 
         let next_check = if i < state_blocks.len() - 1 {
-            poll_func.create_block(format!("check_state_{i + 1}"))
+            poll_func.create_block(format!("check_state_{}", i + 1))
         } else {
             // Should never reach here due to bounds check
             poll_func.create_block("unreachable_state".to_string())
@@ -832,7 +832,7 @@ fn transform_blocks_secure(
                     }
                     Instruction::Alloc { ty, .. } => {
                         // Transform local variable allocation to state access
-                        let var_name = format!("__alloc_{value_id.0}");
+                        let var_name = format!("__alloc_{}", value_id.0);
                         let size = calculate_type_size(ty)?;
                         let offset = context.allocate_variable(var_name, size)?;
 

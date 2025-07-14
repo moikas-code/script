@@ -418,7 +418,7 @@ impl SemanticError {
             let notes_str = self.notes.join("\n    note: ");
             error = Error::new(
                 ErrorKind::SemanticError,
-                format!("{}\n    note: {error.message, notes_str}"),
+                format!("{}\n    note: {}", error.message, notes_str),
             )
             .with_location(self.span.start);
 

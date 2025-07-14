@@ -412,7 +412,7 @@ impl ModuleSecurityEnforcer {
             .map_err(|_violation| {
                 Error::new(
                     ErrorKind::SecurityViolation,
-                    format!("Cross-module call denied from {} to {caller, callee}"),
+                    format!("Cross-module call denied from {} to {}", caller, callee),
                 )
             })?;
 

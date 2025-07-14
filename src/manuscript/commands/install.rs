@@ -122,7 +122,7 @@ async fn install_packages(
     for package_spec in packages {
         let (name, version) = parse_package_spec(&package_spec)?;
 
-        print_progress("Installing", &format!("{} {name, version}"));
+        print_progress("Installing", &format!("{} {}", name, version));
 
         // Add to manifest if --save
         if save {
@@ -142,7 +142,7 @@ async fn install_packages(
             fs::create_dir_all(&package_dir)?;
         }
 
-        print_success(&format!("Installed {} {name.cyan(}"), version));
+        print_success(&format!("Installed {} {}", name.cyan(), version));
     }
 
     // Save updated manifest
@@ -157,7 +157,7 @@ async fn install_packages(
         } else {
             "dependencies"
         };
-        print_success(&format!("Added {} packages to {added.len(}"), dep_type));
+        print_success(&format!("Added {} packages to {}", added.len(), dep_type));
     }
 
     Ok(())

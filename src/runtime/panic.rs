@@ -545,7 +545,7 @@ impl StackTrace {
         let mut output = String::new();
 
         for (i, frame) in self.frames.iter().enumerate() {
-            output.push_str(&format!("  {} at {i, frame.function}"));
+            output.push_str(&format!("  {} at {}", i, frame.function));
 
             if let Some(file) = &frame.file {
                 output.push_str(&format!("\n      {file}"));
@@ -603,11 +603,11 @@ pub fn script_panic_with_policy(message: impl Into<String>, policy: RecoveryPoli
         if last_panic.recovered {
             // Recovery successful, but we still need to panic because of the ! return type
             // In a real implementation, this would need different handling
-            panic!("Recovery successful: {info.message}");
+            panic!("Recovery successful: {}", info.message);
         }
     }
 
-    panic!("{info.message}");
+    panic!("{}", info.message);
 }
 
 /// Create a Script panic with location
@@ -625,7 +625,7 @@ pub fn script_panic_at_with_policy(
 ) -> ! {
     let mut info = PanicInfo {
         message: message.into(),
-        location: Some(format!("{}:{}:{file, line, column}")),
+        location: Some(format!("{}:{}:{}", file, line, column)),
         backtrace: StackTrace::capture().format(),
         timestamp: Instant::now(),
         recovery_attempts: 0,
@@ -640,11 +640,11 @@ pub fn script_panic_at_with_policy(
         if last_panic.recovered {
             // Recovery successful, but we still need to panic because of the ! return type
             // In a real implementation, this would need different handling
-            panic!("Recovery successful: {info.message}");
+            panic!("Recovery successful: {}", info.message);
         }
     }
 
-    panic!("{info.message}");
+    panic!("{}", info.message);
 }
 
 /// Assert with Script panic

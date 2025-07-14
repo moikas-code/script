@@ -320,7 +320,7 @@ impl SemanticAnalyzer {
                     ) {
                         Ok(_) => imported_count += 1,
                         Err(err) => {
-                            eprintln!("Warning: Failed to import enum '{}': {symbol.name, err}");
+                            eprintln!("Warning: Failed to import enum '{}': {}", symbol.name, err);
                         }
                     }
                 }
@@ -3871,7 +3871,7 @@ impl SemanticAnalyzer {
     /// Analyze a method within an impl block
     fn analyze_method(&mut self, method: &Method, target_type: &TypeAnn) -> Result<()> {
         // Create a unique method name that includes the type
-        let method_name = format!("{}::{target_type, method.name}");
+        let method_name = format!("{}::{}", target_type, method.name);
 
         // Convert parameter types, including self parameter
         let mut param_types = Vec::new();
@@ -4407,7 +4407,7 @@ impl SemanticAnalyzer {
                     // Track this generic instantiation
                     if !inferred_args.is_empty() {
                         let instantiation = GenericInstantiation {
-                            function_name: format!("{}::{enum_name, variant_name}"),
+                            function_name: format!("{}::{}", enum_name, variant_name),
                             type_args: inferred_args.clone(),
                             span,
                         };
@@ -4607,7 +4607,7 @@ impl SemanticAnalyzer {
 
                         self.add_error(SemanticError::new(
                             SemanticErrorKind::VariantFormMismatch {
-                                variant: format!("{}::{enum_name, variant_name}"),
+                                variant: format!("{}::{}", enum_name, variant_name),
                                 expected: expected_form.to_string(),
                                 found: provided_form.to_string(),
                             },

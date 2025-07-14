@@ -982,7 +982,7 @@ impl ScriptHashSet {
             ScriptValue::I32(i) => Ok(format!("i32:{i}")),
             ScriptValue::F32(f) => Ok(format!("f32:{f}")),
             ScriptValue::Bool(b) => Ok(format!("bool:{b}")),
-            ScriptValue::String(s) => Ok(format!("string:{s.as_str(}"))),
+            ScriptValue::String(s) => Ok(format!("string:{}", s.as_str())),
             ScriptValue::Unit => Ok("unit".to_string()),
             _ => Err(crate::error::Error::type_error(format!(
                 "HashSet can only contain hashable types (i32, f32, bool, string, unit), got {:?}",
@@ -1021,7 +1021,7 @@ impl ScriptHashSet {
         if let Some(stripped) = key.strip_prefix("string:") {
             return Ok(ScriptValue::String(ScriptRc::new(ScriptString::from_str(
                 stripped,
-            ));
+            ))));
         }
 
         Err(crate::error::Error::type_error(

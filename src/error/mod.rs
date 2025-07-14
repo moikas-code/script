@@ -108,14 +108,14 @@ impl Error {
     pub fn key_not_found(key: impl Into<String>) -> Self {
         Self::new(
             ErrorKind::KeyNotFound,
-            format!("Key not found: {key.into(}")),
+            format!("Key not found: {}", key.into()),
         )
     }
 
     pub fn index_out_of_bounds(index: usize, len: usize) -> Self {
         Self::new(
             ErrorKind::IndexOutOfBounds,
-            format!("Index {} out of bounds for length {index, len}"),
+            format!("Index {} out of bounds for length {}", index, len),
         )
     }
 
@@ -130,7 +130,7 @@ impl Error {
     pub fn resource_not_found(resource: impl Into<String>) -> Self {
         Self::new(
             ErrorKind::ResourceNotFound,
-            format!("Resource not found: {resource.into(}")),
+            format!("Resource not found: {}", resource.into()),
         )
     }
 

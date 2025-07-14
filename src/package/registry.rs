@@ -82,9 +82,9 @@ impl RegistryClient {
 
     fn build_url(&self, path: &str) -> String {
         if self.base_url.ends_with('/') {
-            format!("{}{self.base_url, path.trim_start_matches('/'}"))
+            format!("{}{}", self.base_url, path.trim_start_matches('/'))
         } else {
-            format!("{}/{self.base_url, path.trim_start_matches('/'}"))
+            format!("{}/{}", self.base_url, path.trim_start_matches('/'))
         }
     }
 

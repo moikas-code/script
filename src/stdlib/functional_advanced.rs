@@ -342,7 +342,7 @@ mod tests {
 
         // Test put and get
         cache.put("test".to_string(), ScriptValue::I32(42));
-        assert!(matches!(cache.get("test"), Some(ScriptValue::I32(42));
+        assert!(matches!(cache.get("test"), Some(ScriptValue::I32(42))));
 
         // Test missing key
         assert!(cache.get("missing").is_none());

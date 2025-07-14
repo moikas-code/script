@@ -1336,7 +1336,7 @@ impl<'a> FunctionTranslator<'a> {
                         // SECURITY: Invalid field access detected
                         Err(crate::error::Error::new(
                             crate::error::ErrorKind::SecurityViolation,
-                            format!("Invalid field access: {}.{type_name, field_name}"),
+                            format!("Invalid field access: {}.{}", type_name, field_name),
                         ))
                     }
                     _ => {

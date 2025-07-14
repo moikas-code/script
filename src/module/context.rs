@@ -69,9 +69,9 @@ impl ModuleDependencyChain {
     pub fn format_chain(&self) -> String {
         let mut result = String::new();
         for (i, module) in self.chain.iter().enumerate() {
-            result.push_str(&format!("{}{"  ".repeat(i}"), module));
+            result.push_str(&format!("{}{}", "  ".repeat(i), module));
             if i < self.imports.len() {
-                result.push_str(&format!(" imports {self.imports[i]}"));
+                result.push_str(&format!(" imports {}", self.imports[i]));
             }
             result.push('\n');
         }

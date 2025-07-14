@@ -16,7 +16,7 @@ impl HttpClient {
     pub fn with_timeout(timeout: Duration) -> PackageResult<Self> {
         let client = ClientBuilder::new()
             .timeout(timeout)
-            .user_agent(format!("manuscript/{env!("CARGO_PKG_VERSION"}")))
+            .user_agent(format!("manuscript/{}", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|e| PackageError::Registry(format!("Failed to build HTTP client: {e}")))?;
 

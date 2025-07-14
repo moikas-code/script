@@ -648,7 +648,7 @@ mod tests {
         let substituted = env.substitute_type(&Type::Named("T".to_string()));
         assert_eq!(substituted, Type::I32);
 
-        let array_type = Type::Array(Box::new(Type::Named("T".to_string());
+        let array_type = Type::Array(Box::new(Type::Named("T".to_string())));
         let substituted_array = env.substitute_type(&array_type);
         assert_eq!(substituted_array, Type::Array(Box::new(Type::I32)));
     }

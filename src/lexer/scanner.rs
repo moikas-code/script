@@ -632,7 +632,7 @@ impl Lexer {
             > 1;
 
         if is_potentially_confusable {
-            let warning_key = format!("{}:{skeleton, normalized}");
+            let warning_key = format!("{}:{}", skeleton, normalized);
 
             // Only warn once per confusable pair
             if !self.unicode_cache.warned_confusables.contains(&warning_key) {

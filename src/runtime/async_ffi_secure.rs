@@ -501,7 +501,7 @@ mod tests {
     fn test_secure_spawn_with_validation() {
         script_init_secure_ffi();
 
-        let future = Box::new(ImmediateFuture(Some(());
+        let future = Box::new(ImmediateFuture(Some(())));
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<()>));
 
         // Register the pointer before use
@@ -533,7 +533,7 @@ mod tests {
         script_init_secure_ffi();
 
         // Create a pointer but don't register it
-        let future = Box::new(ImmediateFuture(Some(());
+        let future = Box::new(ImmediateFuture(Some(())));
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<()>));
 
         let task_id = script_spawn_secure(future_ptr);
@@ -550,7 +550,7 @@ mod tests {
         script_init_secure_ffi();
 
         let expected_value = Value::String("Secure test".to_string());
-        let future = Box::new(ImmediateFuture(Some(expected_value.clone());
+        let future = Box::new(ImmediateFuture(Some(expected_value.clone())));
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<Value>));
 
         // Register the pointer

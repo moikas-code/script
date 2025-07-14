@@ -303,13 +303,13 @@ impl TaskWaker {
 impl Wake for TaskWaker {
     fn wake(self: Arc<Self>) {
         if let Err(e) = TaskWaker::wake(&self) {
-            eprintln!("Failed to wake task {:?}: {self.task_id, e}");
+            eprintln!("Failed to wake task {:?}: {}", self.task_id, e);
         }
     }
 
     fn wake_by_ref(self: &Arc<Self>) {
         if let Err(e) = TaskWaker::wake(self) {
-            eprintln!("Failed to wake task {:?}: {self.task_id, e}");
+            eprintln!("Failed to wake task {:?}: {}", self.task_id, e);
         }
     }
 }
@@ -503,7 +503,7 @@ impl Executor {
                     }
                     Err(e) => {
                         // Task failed
-                        eprintln!("Task {:?} failed: {task_id, e}");
+                        eprintln!("Task {:?} failed: {}", task_id, e);
                         let mut exec = executor.lock().secure_lock()?;
                         exec.tasks[task_id.0] = None;
                         task.set_state(TaskState::Failed);
@@ -1017,7 +1017,7 @@ impl BlockingExecutor {
                         }
                         Err(e) => {
                             // Task failed
-                            eprintln!("Blocking task {:?} failed: {task_id, e}");
+                            eprintln!("Blocking task {:?} failed: {}", task_id, e);
                             let mut exec = executor.lock().secure_lock()?;
                             exec.tasks[task_id.0] = None;
                             task.set_state(TaskState::Failed);

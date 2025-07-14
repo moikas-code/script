@@ -74,7 +74,7 @@ impl ModuleError {
 
         Self::new(
             ModuleErrorKind::CircularDependency,
-            format!("Circular dependency detected: {cycle.join(" -> "}")),
+            format!("Circular dependency detected: {}", cycle.join(" -> ")),
         )
         .with_module_path(current.to_string())
     }
@@ -83,7 +83,7 @@ impl ModuleError {
         let path_str = path.into();
         Self::new(
             ModuleErrorKind::InvalidPath,
-            format!("Invalid module path '{}': {path_str, reason.into(}")),
+            format!("Invalid module path '{}': {}", path_str, reason.into()),
         )
         .with_module_path(path_str)
     }
@@ -92,7 +92,7 @@ impl ModuleError {
         let path_buf = path.into();
         Self::new(
             ModuleErrorKind::FileSystem,
-            format!("File system error for '{}': {path_buf.display(}"), error),
+            format!("File system error for '{}': {}", path_buf.display(), error),
         )
         .with_file_path(path_buf)
     }
@@ -101,7 +101,7 @@ impl ModuleError {
         let path = module_path.into();
         Self::new(
             ModuleErrorKind::ParseError,
-            format!("Parse error in module '{}': {path, error.into(}")),
+            format!("Parse error in module '{}': {}", path, error.into()),
         )
         .with_module_path(path)
     }
@@ -128,7 +128,7 @@ impl ModuleError {
         let path = module_path.into();
         Self::new(
             ModuleErrorKind::ConfigError, // Using ConfigError for runtime errors
-            format!("Runtime error in module '{}': {path, error.into(}")),
+            format!("Runtime error in module '{}': {}", path, error.into()),
         )
         .with_module_path(path)
     }
@@ -136,7 +136,7 @@ impl ModuleError {
     pub fn security_violation(message: impl Into<String>) -> Self {
         Self::new(
             ModuleErrorKind::ConfigError, // Using ConfigError for security violations
-            format!("Security violation: {message.into(}")),
+            format!("Security violation: {}", message.into()),
         )
     }
 

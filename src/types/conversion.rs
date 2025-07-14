@@ -86,7 +86,7 @@ pub fn binary_op_result_type(left: &Type, right: &Type, op: &BinaryOp) -> Result
             } else if matches!(left, Type::Unknown) || matches!(right, Type::Unknown) {
                 Ok(Type::Bool)
             } else {
-                Err(format!("Cannot compare types {} and {left, right}"))
+                Err(format!("Cannot compare types {} and {}", left, right))
             }
         }
 

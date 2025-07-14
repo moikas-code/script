@@ -521,7 +521,7 @@ impl SecurityMonitor {
                     let _attack_event = SecurityEvent {
                         event_type: SecurityEventType::AutomatedAttack,
                         severity: confidence,
-                        description: format!("Attack pattern detected: {pattern.name}"),
+                        description: format!("Attack pattern detected: {}", pattern.name),
                         timestamp: SystemTime::now(),
                         context: [
                             ("pattern_name".to_string(), pattern.name.clone()),

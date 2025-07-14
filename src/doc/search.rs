@@ -71,7 +71,7 @@ impl SearchEngine {
             .to_string();
 
         let result = SearchResult {
-            path: format!("{}::{module_path, func.name}"),
+            path: format!("{}::{}", module_path, func.name),
             name: func.name.clone(),
             kind: ItemKind::Function,
             summary,
@@ -90,7 +90,7 @@ impl SearchEngine {
             .to_string();
 
         let result = SearchResult {
-            path: format!("{}::{module_path, type_doc.name}"),
+            path: format!("{}::{}", module_path, type_doc.name),
             name: type_doc.name.clone(),
             kind: ItemKind::Type,
             summary,
@@ -101,7 +101,7 @@ impl SearchEngine {
         // Also index methods
         for method in &type_doc.methods {
             let method_result = SearchResult {
-                path: format!("{}::{}::{module_path, type_doc.name, method.name}"),
+                path: format!("{}::{}::{}", module_path, type_doc.name, method.name),
                 name: method.name.clone(),
                 kind: ItemKind::Method,
                 summary: method
@@ -126,7 +126,7 @@ impl SearchEngine {
             .to_string();
 
         let result = SearchResult {
-            path: format!("{}::{module_path, const_doc.name}"),
+            path: format!("{}::{}", module_path, const_doc.name),
             name: const_doc.name.clone(),
             kind: ItemKind::Constant,
             summary,

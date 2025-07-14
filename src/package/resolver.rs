@@ -258,7 +258,7 @@ impl Default for ResolverConfig {
             verify_checksums: true,
             allow_insecure: false,
             proxy_url: None,
-            user_agent: format!("script/{env!("CARGO_PKG_VERSION"}")),
+            user_agent: format!("script/{}", env!("CARGO_PKG_VERSION")),
         }
     }
 }
@@ -297,7 +297,7 @@ impl ResolvedPackage {
 
     /// Generate a cache key for this package
     pub fn cache_key(&self) -> String {
-        format!("{}-{self.name, self.version}")
+        format!("{}-{}", self.name, self.version)
     }
 }
 
@@ -336,7 +336,7 @@ impl PackageSource for RegistrySource {
     fn resolve_package(&self, dependency: &Dependency) -> PackageResult<ResolvedPackage> {
         // In a real implementation, this would query the registry API
         let version = Version::new(1, 0, 0); // Placeholder
-        let source_url = format!("{}/packages/{}/{self.base_url, dependency.name, version}");
+        let source_url = format!("{}/packages/{}/{}", self.base_url, dependency.name, version);
 
         Ok(ResolvedPackage::new(
             dependency.name.clone(),
@@ -423,7 +423,7 @@ impl PathSource {
 impl PackageSource for PathSource {
     fn resolve_package(&self, dependency: &Dependency) -> PackageResult<ResolvedPackage> {
         if let DependencyKind::Path { path } = &dependency.kind {
-            let source_url = format!("file://{path.display(}"));
+            let source_url = format!("file://{}", path.display());
 
             // Try to read version from manifest
             let manifest_path = path.join("script.toml");

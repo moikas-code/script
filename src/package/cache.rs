@@ -541,7 +541,7 @@ impl MaintenanceReport {
 // Helper functions
 
 fn package_key(name: &str, version: &Version) -> String {
-    format!("{}-{name, version}")
+    format!("{}-{}", name, version)
 }
 
 fn current_timestamp() -> u64 {

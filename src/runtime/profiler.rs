@@ -324,7 +324,7 @@ impl MemoryProfiler {
             for (type_name, leaks) in leaks_by_type {
                 let total_size: usize = leaks.iter().map(|l| l.size).sum();
                 eprintln!("\n  Type: {type_name}");
-                eprintln!("  Count: {leaks.len(}"));
+                eprintln!("  Count: {}", leaks.len());
                 eprintln!("  Total size: {} bytes", total_size);
 
                 // Show first few allocations with backtraces if available

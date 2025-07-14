@@ -519,7 +519,7 @@ mod tests {
         if let Some(func) = module.get_function_mut(func_id) {
             let entry = func.create_block("entry".to_string());
             if let Some(block) = func.get_block_mut(entry) {
-                block.add_instruction(ValueId(0), Instruction::Return(Some(ValueId(999));
+                block.add_instruction(ValueId(0), Instruction::Return(Some(ValueId(999))));
             }
         }
 

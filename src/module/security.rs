@@ -351,9 +351,9 @@ mod tests {
         assert!(TrustLevel::System.allows_capability(&ModuleCapability::UnsafeCode));
 
         // Trusted level allows most things
-        assert!(TrustLevel::Trusted.allows_capability(&ModuleCapability::FileRead(PathBuf::new());
+        assert!(TrustLevel::Trusted.allows_capability(&ModuleCapability::FileRead(PathBuf::new())));
         assert!(TrustLevel::Trusted
-            .allows_capability(&ModuleCapability::NetworkConnect("example.com".to_string());
+            .allows_capability(&ModuleCapability::NetworkConnect("example.com".to_string())));
         assert!(!TrustLevel::Trusted.allows_capability(&ModuleCapability::SystemCall));
 
         // Untrusted level is restricted
@@ -364,10 +364,10 @@ mod tests {
             !TrustLevel::Untrusted.allows_capability(&ModuleCapability::FileWrite(PathBuf::new()))
         );
         assert!(!TrustLevel::Untrusted
-            .allows_capability(&ModuleCapability::NetworkConnect("example.com".to_string());
+            .allows_capability(&ModuleCapability::NetworkConnect("example.com".to_string())));
 
         // Sandbox level is highly restricted
-        assert!(!TrustLevel::Sandbox.allows_capability(&ModuleCapability::FileRead(PathBuf::new());
+        assert!(!TrustLevel::Sandbox.allows_capability(&ModuleCapability::FileRead(PathBuf::new())));
         assert!(
             TrustLevel::Sandbox.allows_capability(&ModuleCapability::ResourceAllocation {
                 cpu_time: 500,

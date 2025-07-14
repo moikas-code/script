@@ -554,7 +554,7 @@ fn script_join_all_impl(
         return Err(SecurityError::AsyncFFIViolation {
             function_name: "script_join_all".to_string(),
             violation_type: "future count limit exceeded".to_string(),
-            message: format!("Future count {} exceeds maximum {count, MAX_FUTURES}"),
+            message: format!("Future count {} exceeds maximum {}", count, MAX_FUTURES),
         });
     }
 
@@ -588,7 +588,7 @@ fn script_join_all_impl(
         return Err(SecurityError::AsyncFFIViolation {
             function_name: "script_join_all".to_string(),
             violation_type: "count mismatch".to_string(),
-            message: format!("Expected {} futures, got {count, futures.len(}"))),
+            message: format!("Expected {} futures, got {}", count, futures.len()),
         });
     }
 
@@ -645,7 +645,7 @@ mod tests {
 
     #[test]
     fn test_spawn() {
-        let future = Box::new(ImmediateFuture(Some(());
+        let future = Box::new(ImmediateFuture(Some(())));
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<()>));
 
         let task_id = script_spawn(future_ptr);
@@ -658,7 +658,7 @@ mod tests {
     #[test]
     fn test_block_on_immediate_value() {
         let expected_value = Value::String("Hello, World!".to_string());
-        let future = Box::new(ImmediateFuture(Some(expected_value.clone());
+        let future = Box::new(ImmediateFuture(Some(expected_value.clone())));
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<Value>));
 
         let result_ptr = script_block_on(future_ptr);
@@ -672,7 +672,7 @@ mod tests {
     #[test]
     fn test_block_on_number_value() {
         let expected_value = Value::I32(42);
-        let future = Box::new(ImmediateFuture(Some(expected_value.clone());
+        let future = Box::new(ImmediateFuture(Some(expected_value.clone())));
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<Value>));
 
         let result_ptr = script_block_on(future_ptr);
@@ -738,7 +738,7 @@ mod tests {
     #[test]
     fn test_block_on_timeout_success() {
         let expected_value = Value::String("Fast result".to_string());
-        let future = Box::new(ImmediateFuture(Some(expected_value.clone());
+        let future = Box::new(ImmediateFuture(Some(expected_value.clone())));
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<Value>));
 
         let result_ptr = script_block_on_timeout(future_ptr, 1000); // 1 second timeout
@@ -778,7 +778,7 @@ mod tests {
     #[test]
     fn test_block_on_boolean_value() {
         let expected_value = Value::Bool(true);
-        let future = Box::new(ImmediateFuture(Some(expected_value.clone());
+        let future = Box::new(ImmediateFuture(Some(expected_value.clone())));
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<Value>));
 
         let result_ptr = script_block_on(future_ptr);
@@ -792,7 +792,7 @@ mod tests {
     #[test]
     fn test_block_on_null_value() {
         let expected_value = Value::Null;
-        let future = Box::new(ImmediateFuture(Some(expected_value.clone());
+        let future = Box::new(ImmediateFuture(Some(expected_value.clone())));
         let future_ptr = Box::into_raw(Box::new(future as BoxedFuture<Value>));
 
         let result_ptr = script_block_on(future_ptr);

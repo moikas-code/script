@@ -453,7 +453,7 @@ impl SecurityAuditLogger {
 
         // Rename current log
         let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-        let rotated_name = format!("{}.{self.config.log_file.display(}"), timestamp);
+        let rotated_name = format!("{}.{}", self.config.log_file.display(), timestamp);
         std::fs::rename(&self.config.log_file, &rotated_name)
             .map_err(|e| ModuleError::io_error(format!("Failed to rotate log file: {e}")))?;
 

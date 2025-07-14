@@ -823,7 +823,7 @@ impl InferenceEngine {
                             if enum_name != name {
                                 return Err(Error::new(
                                     ErrorKind::TypeError,
-                                    format!("Pattern expects enum {}, but got {enum_name, name}"),
+                                    format!("Pattern expects enum {}, but got {}", enum_name, name),
                                 ));
                             }
                         }
@@ -893,7 +893,7 @@ mod tests {
         // Check that literals have correct types
         let expr_types: Vec<_> = result.expr_types.values().collect();
         // Numbers get type variables now
-        assert!(expr_types.iter().any(|t| matches!(t, Type::TypeVar(_));
+        assert!(expr_types.iter().any(|t| matches!(t, Type::TypeVar(_))));
         assert!(expr_types.contains(&&Type::Bool)); // Boolean
         assert!(expr_types.contains(&&Type::String)); // String
     }
@@ -940,7 +940,7 @@ mod tests {
         assert!(result
             .expr_types
             .values()
-            .any(|t| matches!(t, Type::Array(_));
+            .any(|t| matches!(t, Type::Array(_))));
     }
 
     #[test]

@@ -118,7 +118,7 @@ impl ClosureDebugger {
     /// Register an optimized closure for debugging
     pub fn register_optimized_closure(&mut self, closure: &OptimizedClosure) {
         let debug_info = self.extract_optimized_debug_info(closure);
-        let function_id = format!("{closure.function_id}"); // Convert to string
+        let function_id = format!("{}", closure.function_id); // Convert to string
         self.closures.insert(function_id, debug_info);
     }
 
@@ -218,7 +218,7 @@ impl ClosureDebugger {
         };
 
         ClosureDebugInfo {
-            function_id: format!("{closure.function_id}"),
+            function_id: format!("{}", closure.function_id),
             parameters: closure.parameters.to_vec(),
             captured_vars: captured_vars.clone(),
             captures_by_ref: closure.captures_by_ref,
@@ -241,7 +241,7 @@ impl ClosureDebugger {
             Value::Null => DebugValue::Unit,
             Value::Closure(closure) => DebugValue::ClosureRef(closure.function_id.clone()),
             Value::OptimizedClosure(closure) => {
-                DebugValue::ClosureRef(format!("{closure.function_id}"))
+                DebugValue::ClosureRef(format!("{}", closure.function_id))
             }
             _ => DebugValue::Complex(format!("{:?}", value)),
         }
@@ -379,7 +379,7 @@ pub fn debug_print_closure_state(function_id: &str) {
 /// Print a full debug report
 pub fn debug_print_full_report() {
     if let Some(debugger) = get_closure_debugger() {
-        println!("{debugger.generate_report(}"));
+        println!("{}", debugger.generate_report());
 
         println!("\n=== Individual Closure Details ===");
         for info in debugger.list_closures() {
@@ -396,7 +396,7 @@ macro_rules! closure_debug {
     ($($arg:tt)*) => {
         #[cfg(debug_assertions)]
         {
-            println!("[CLOSURE DEBUG] {format!($($arg}")*));
+            println!("[CLOSURE DEBUG] {}", format!($($arg)*));
         }
     };
 }

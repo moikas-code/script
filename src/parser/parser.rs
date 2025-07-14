@@ -1948,11 +1948,11 @@ impl Parser {
                         }
                         TokenKind::Identifier(value) => {
                             self.advance();
-                            format!("{} = {key, value}")
+                            format!("{} = {}", key, value)
                         }
                         TokenKind::Number(n) => {
                             self.advance();
-                            format!("{} = {key, n}")
+                            format!("{} = {}", key, n)
                         }
                         _ => {
                             return Err(self.error("Expected value after '=' in attribute"));
