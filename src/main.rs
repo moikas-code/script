@@ -844,7 +844,7 @@ fn process_directory(
             match fs::read_to_string(&path) {
                 Ok(source) => {
                     if let Err(e) = doc_generator.generate_from_source(&source, &module_name) {
-                        eprintln!("    {}: {"Warning".yellow(}"), e);
+                        eprintln!("    {}: {}", "Warning".yellow(), e);
                     }
                 }
                 Err(e) => {
