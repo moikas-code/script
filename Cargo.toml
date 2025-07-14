@@ -29,7 +29,7 @@ required-features = ["mcp"]
 [dependencies]
 colored = "2.1"
 unicode-width = "0.2"
-cranelift = "0.110"
+cranelift = "0.121"
 cranelift-module = "0.110"
 cranelift-jit = "0.110"
 cranelift-native = "0.110"
