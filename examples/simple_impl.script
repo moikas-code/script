@@ -1,0 +1,5 @@
+impl Point {
+    fn new() -> Point {
+        Point { x: 0, y: 0 }
+    }
+}

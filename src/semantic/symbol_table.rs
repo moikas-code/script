@@ -3,7 +3,7 @@ use crate::source::Span;
 use crate::types::Type;
 use std::collections::HashMap;
 
-use super::symbol::{FunctionSignature, Symbol, SymbolId, SymbolKind};
+use super::symbol::{EnumInfo, FunctionSignature, StructInfo, Symbol, SymbolId, SymbolKind};
 
 /// A unique identifier for a scope
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -371,6 +371,28 @@ impl SymbolTable {
         self.symbols.get(&id)
     }
 
+    /// Look up a symbol by name starting from a specific scope
+    pub fn lookup_in_scope(&self, name: &str, start_scope: ScopeId) -> Option<&Symbol> {
+        let mut current = Some(start_scope);
+
+        while let Some(scope_id) = current {
+            if let Some(scope) = self.scopes.get(&scope_id) {
+                // Check if symbol exists in this scope
+                if let Some(symbol_ids) = scope.symbols.get(name) {
+                    if let Some(&symbol_id) = symbol_ids.first() {
+                        return self.symbols.get(&symbol_id);
+                    }
+                }
+                // Move to parent scope
+                current = scope.parent;
+            } else {
+                break;
+            }
+        }
+
+        None
+    }
+
     /// Get a mutable reference to a symbol by ID
     pub fn get_symbol_mut(&mut self, id: SymbolId) -> Option<&mut Symbol> {
         self.symbols.get_mut(&id)
@@ -410,6 +432,79 @@ impl SymbolTable {
         self.current_scope == ScopeId(0)
     }
 
+    /// Define a struct type in the current scope
+    pub fn define_struct(
+        &mut self,
+        name: String,
+        info: StructInfo,
+        def_span: Span,
+    ) -> Result<SymbolId, String> {
+        // Check if already defined in current scope
+        if let Some(scope) = self.scopes.get(&self.current_scope) {
+            if let Some(existing_ids) = scope.symbols.get(&name) {
+                if !existing_ids.is_empty() {
+                    return Err(format!("Struct '{}' already defined in this scope", name));
+                }
+            }
+        }
+
+        let symbol_id = SymbolId(self.next_symbol_id);
+        self.next_symbol_id += 1;
+
+        let symbol =
+            Symbol::struct_type(symbol_id, name.clone(), info, def_span, self.current_scope);
+
+        // Add to symbols map
+        self.symbols.insert(symbol_id, symbol);
+
+        // Add to current scope
+        if let Some(scope) = self.scopes.get_mut(&self.current_scope) {
+            scope
+                .symbols
+                .entry(name)
+                .or_insert_with(Vec::new)
+                .push(symbol_id);
+        }
+
+        Ok(symbol_id)
+    }
+
+    /// Define an enum type in the current scope
+    pub fn define_enum(
+        &mut self,
+        name: String,
+        info: EnumInfo,
+        def_span: Span,
+    ) -> Result<SymbolId, String> {
+        // Check if already defined in current scope
+        if let Some(scope) = self.scopes.get(&self.current_scope) {
+            if let Some(existing_ids) = scope.symbols.get(&name) {
+                if !existing_ids.is_empty() {
+                    return Err(format!("Enum '{}' already defined in this scope", name));
+                }
+            }
+        }
+
+        let symbol_id = SymbolId(self.next_symbol_id);
+        self.next_symbol_id += 1;
+
+        let symbol = Symbol::enum_type(symbol_id, name.clone(), info, def_span, self.current_scope);
+
+        // Add to symbols map
+        self.symbols.insert(symbol_id, symbol);
+
+        // Add to current scope
+        if let Some(scope) = self.scopes.get_mut(&self.current_scope) {
+            scope
+                .symbols
+                .entry(name)
+                .or_insert_with(Vec::new)
+                .push(symbol_id);
+        }
+
+        Ok(symbol_id)
+    }
+
     /// Create a new module
     pub fn create_module(&mut self, name: String) -> ModuleId {
         let module_id = ModuleId(self.next_module_id);
@@ -440,6 +535,51 @@ impl SymbolTable {
         self.modules.insert(module_id, module_info);
 
         module_id
+    }
+
+    /// Register an existing module's symbols for import resolution
+    pub fn register_module(&mut self, module_name: &str, source_table: &SymbolTable) {
+        // Create a module entry if it doesn't exist
+        let module_id = self.find_or_create_module(module_name);
+
+        // Copy all symbols from the source table's global scope to this module
+        if let Some(source_global_scope) = source_table.scopes.values().find(|s| s.parent.is_none())
+        {
+            // Get the module info for updating
+            if let Some(module_info) = self.modules.get_mut(&module_id) {
+                // Copy symbols from source global scope to our module's root scope
+                if let Some(target_scope) = self.scopes.get_mut(&module_info.root_scope) {
+                    for (name, symbol_ids) in &source_global_scope.symbols {
+                        for &symbol_id in symbol_ids {
+                            if let Some(source_symbol) = source_table.symbols.get(&symbol_id) {
+                                // Create a new symbol in our table
+                                let new_symbol_id = SymbolId(self.next_symbol_id);
+                                self.next_symbol_id += 1;
+
+                                let new_symbol = Symbol {
+                                    id: new_symbol_id,
+                                    name: source_symbol.name.clone(),
+                                    kind: source_symbol.kind.clone(),
+                                    ty: source_symbol.ty.clone(),
+                                    def_span: source_symbol.def_span,
+                                    is_mutable: source_symbol.is_mutable,
+                                    is_used: false,
+                                    scope_id: self.current_scope,
+                                };
+
+                                // Add to our symbols and scope
+                                self.symbols.insert(new_symbol_id, new_symbol);
+                                target_scope
+                                    .symbols
+                                    .entry(name.clone())
+                                    .or_insert_with(Vec::new)
+                                    .push(new_symbol_id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Switch to a different module context
@@ -509,7 +649,34 @@ impl SymbolTable {
                 self.process_named_export_item(name, None, span)?;
             }
             ExportKind::Default { .. } => {
-                // TODO: Implement default export
+                // Create a special symbol for default export
+                let symbol_id = SymbolId(self.next_symbol_id);
+                self.next_symbol_id += 1;
+
+                let symbol = Symbol {
+                    id: symbol_id,
+                    name: "default".to_string(),
+                    kind: SymbolKind::Variable,
+                    ty: Type::Unknown, // Type will be set during semantic analysis
+                    def_span: span,
+                    is_mutable: false,
+                    is_used: false,
+                    scope_id: self.current_scope,
+                };
+
+                self.symbols.insert(symbol_id, symbol);
+
+                // Mark it as exported from current module
+                if let Some(module) = self.modules.get_mut(&self.current_module) {
+                    module.exports.insert(
+                        "default".to_string(),
+                        ExportedSymbol {
+                            symbol_id,
+                            external_name: "default".to_string(),
+                            export_span: span,
+                        },
+                    );
+                }
             }
             ExportKind::Declaration(_) => {
                 // Declaration exports are handled by the analyzer
@@ -554,8 +721,19 @@ impl SymbolTable {
             }
         }
 
-        // Create new module
+        // For now, still create placeholder modules for missing imports
+        // In a proper implementation, this should return an error
         self.create_module(module_path.to_string())
+    }
+
+    /// Find a module by name without creating a placeholder
+    fn find_module(&self, module_path: &str) -> Option<ModuleId> {
+        for module in self.modules.values() {
+            if module.name == module_path {
+                return Some(module.id);
+            }
+        }
+        None
     }
 
     /// Helper method to process named imports
@@ -568,30 +746,72 @@ impl SymbolTable {
     ) -> Result<(), String> {
         let local_name = alias.map(|s| s.as_str()).unwrap_or(name);
 
-        // Check if the symbol exists in the source module
-        if let Some(source_symbol_id) = self.lookup_in_module(name, source_module_id).map(|s| s.id)
-        {
-            let imported_symbol = ImportedSymbol {
-                source_symbol_id,
-                source_module: source_module_id,
-                original_name: name.to_string(),
-                local_name: local_name.to_string(),
-                import_span: span,
-            };
+        // Check if the source module actually has the requested symbol
+        if let Some(source_module) = self.modules.get(&source_module_id) {
+            if let Some(source_scope) = self.scopes.get(&source_module.root_scope) {
+                // Look for the symbol in the source module's scope
+                if let Some(symbol_ids) = source_scope.symbols.get(name) {
+                    if symbol_ids.is_empty() {
+                        return Err(format!(
+                            "Symbol '{}' not found in module '{}'",
+                            name, source_module.name
+                        ));
+                    }
 
-            if let Some(module) = self.modules.get_mut(&self.current_module) {
-                if module.imports.contains_key(local_name) {
-                    return Err(format!("Symbol '{}' is already imported", local_name));
+                    // For now, just take the first symbol (could be improved for overloading)
+                    let source_symbol_id = symbol_ids[0];
+
+                    if let Some(source_symbol) = self.symbols.get(&source_symbol_id) {
+                        // Create imported symbol record
+                        let imported_symbol = ImportedSymbol {
+                            source_symbol_id,
+                            source_module: source_module_id,
+                            original_name: name.to_string(),
+                            local_name: local_name.to_string(),
+                            import_span: span,
+                        };
+
+                        // Add to current module's imports
+                        if let Some(current_module) = self.modules.get_mut(&self.current_module) {
+                            current_module
+                                .imports
+                                .insert(local_name.to_string(), imported_symbol);
+                        }
+
+                        // Add symbol to current scope with local name
+                        let new_symbol_id = SymbolId(self.next_symbol_id);
+                        self.next_symbol_id += 1;
+
+                        let new_symbol = Symbol {
+                            id: new_symbol_id,
+                            name: local_name.to_string(),
+                            kind: source_symbol.kind.clone(),
+                            ty: source_symbol.ty.clone(),
+                            def_span: span,
+                            is_mutable: source_symbol.is_mutable,
+                            is_used: false,
+                            scope_id: self.current_scope,
+                        };
+
+                        self.symbols.insert(new_symbol_id, new_symbol);
+
+                        // Add to current scope
+                        if let Some(current_scope) = self.scopes.get_mut(&self.current_scope) {
+                            current_scope
+                                .symbols
+                                .entry(local_name.to_string())
+                                .or_insert_with(Vec::new)
+                                .push(new_symbol_id);
+                        }
+
+                        return Ok(());
+                    }
                 }
-                module
-                    .imports
-                    .insert(local_name.to_string(), imported_symbol);
             }
-        } else {
-            return Err(format!("Symbol '{}' not found in module", name));
         }
 
-        Ok(())
+        // Symbol not found in registered module
+        Err(format!("Symbol '{}' not found in module", name))
     }
 
     /// Helper method to process namespace imports
@@ -729,16 +949,19 @@ impl SymbolTable {
         }
     }
 
-    /// Look up a symbol in a specific scope
-    fn lookup_in_scope(&self, name: &str, scope_id: ScopeId) -> Option<&Symbol> {
-        if let Some(scope) = self.scopes.get(&scope_id) {
-            if let Some(symbol_ids) = scope.symbols.get(name) {
-                if let Some(first_id) = symbol_ids.first() {
-                    return self.symbols.get(first_id);
+    /// Get all symbols in the table for export extraction
+    pub fn all_symbols(&self) -> impl Iterator<Item = (&String, &Symbol)> + '_ {
+        self.symbols.values().filter_map(move |symbol| {
+            // Find the symbol's name by searching through all scopes
+            for scope in self.scopes.values() {
+                for (name, symbol_ids) in &scope.symbols {
+                    if symbol_ids.contains(&symbol.id) {
+                        return Some((name, symbol));
+                    }
                 }
             }
-        }
-        None
+            None
+        })
     }
 }
 
@@ -828,6 +1051,7 @@ mod tests {
 
         // Define function with one parameter
         let sig1 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -840,6 +1064,7 @@ mod tests {
 
         // Define overload with two parameters
         let sig2 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32), ("y".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -885,6 +1110,7 @@ mod tests {
 
         // Define function
         let sig1 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -897,6 +1123,7 @@ mod tests {
 
         // Try to define with same signature (different return type doesn't matter)
         let sig2 = FunctionSignature {
+            generic_params: None,
             params: vec![("y".to_string(), Type::I32)], // Different param name doesn't matter
             return_type: Type::F32,
             is_const: true,

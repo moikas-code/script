@@ -17,7 +17,7 @@ fn test_generic_type_parsing() {
     ];
 
     for (input, expected_type) in test_cases {
-        let lexer = Lexer::new(input);
+        let lexer = Lexer::new(input).expect("Failed to create lexer");
         let (tokens, errors) = lexer.scan_tokens();
         assert!(
             errors.is_empty(),
@@ -53,7 +53,7 @@ fn test_generic_constructor_expression() {
     ];
 
     for input in test_cases {
-        let lexer = Lexer::new(input);
+        let lexer = Lexer::new(input).expect("Failed to create lexer");
         let (tokens, errors) = lexer.scan_tokens();
         assert!(
             errors.is_empty(),
@@ -105,7 +105,7 @@ fn test_type_parameter_recognition() {
     ];
 
     for (input, expected_param) in inputs {
-        let lexer = Lexer::new(input);
+        let lexer = Lexer::new(input).expect("Failed to create lexer");
         let (tokens, errors) = lexer.scan_tokens();
         assert!(errors.is_empty());
 
@@ -143,7 +143,7 @@ fn test_nested_generic_types() {
     ];
 
     for input in test_cases {
-        let lexer = Lexer::new(input);
+        let lexer = Lexer::new(input).expect("Failed to create lexer");
         let (tokens, errors) = lexer.scan_tokens();
         assert!(
             errors.is_empty(),

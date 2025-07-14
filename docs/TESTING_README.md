@@ -182,7 +182,7 @@ Example GitHub Actions:
 
 ## Learn More
 
-- [Full Testing Documentation](testing_framework.md)
+- [Full Testing Documentation](development/TESTING_FRAMEWORK.md)
 - [Example Tests](../examples/test_basics.script)
 - [Advanced Examples](../examples/test_stdlib.script)
 

@@ -1,0 +1,21 @@
+// Test control flow
+fn main() {
+    let flag = true
+    
+    print("Testing control flow in Script:")
+    
+    if flag {
+        print("If statement works - condition was true")
+    } else {
+        print("This should not appear")
+    }
+    
+    let number = 5
+    if number > 0 {
+        print("Comparison operators work - number is positive")
+    }
+    
+    print("Control flow validation complete!")
+}
+
+main()

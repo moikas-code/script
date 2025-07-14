@@ -13,6 +13,7 @@ use std::panic::{self, AssertUnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
 
+use crate::error::Error;
 use crate::runtime::gc::CollectionStats;
 use crate::runtime::panic::PanicInfo;
 use crate::runtime::{Result, RuntimeError};
@@ -24,10 +25,12 @@ static RUNTIME: RwLock<Option<Arc<Runtime>>> = RwLock::new(None);
 pub fn runtime() -> Result<Arc<Runtime>> {
     RUNTIME
         .read()
-        .unwrap()
+        .map_err(|_| {
+            RuntimeError::InvalidOperation("Failed to acquire read lock on runtime".to_string())
+        })?
         .as_ref()
         .cloned()
-        .ok_or(RuntimeError::NotInitialized)
+        .ok_or_else(|| RuntimeError::NotInitialized)
 }
 
 /// Configuration for the Script runtime
@@ -141,7 +144,9 @@ impl Runtime {
 
     /// Initialize the runtime with the given configuration
     pub fn initialize_with_config(config: RuntimeConfig) -> Result<()> {
-        let mut runtime_lock = RUNTIME.write().unwrap();
+        let mut runtime_lock = RUNTIME.write().map_err(|_| {
+            RuntimeError::InvalidOperation("Failed to acquire write lock on runtime".to_string())
+        })?;
         if runtime_lock.is_some() {
             return Err(RuntimeError::AlreadyInitialized);
         }
@@ -176,9 +181,14 @@ impl Runtime {
     }
 
     /// Register a type with the runtime
-    pub fn register_type<T: Any>(&self) {
-        let mut registry = self.type_registry.write().unwrap();
+    pub fn register_type<T: Any>(&self) -> Result<()> {
+        let mut registry = self.type_registry.write().map_err(|_| {
+            RuntimeError::InvalidOperation(
+                "Failed to acquire write lock on type registry".to_string(),
+            )
+        })?;
         registry.register::<T>();
+        Ok(())
     }
 
     /// Get runtime statistics
@@ -192,20 +202,35 @@ impl Runtime {
 
     /// Get runtime uptime
     pub fn uptime(&self) -> std::time::Duration {
-        let metadata = self.metadata.read().unwrap();
-        metadata.start_time.elapsed()
+        let metadata = self
+            .metadata
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on metadata"));
+        match metadata {
+            Ok(data) => data.start_time.elapsed(),
+            Err(_) => std::time::Duration::new(0, 0), // Return zero duration on lock failure
+        }
     }
 
     /// Set custom metadata
-    pub fn set_metadata(&self, key: String, value: String) {
-        let mut metadata = self.metadata.write().unwrap();
+    pub fn set_metadata(&self, key: String, value: String) -> Result<()> {
+        let mut metadata = self.metadata.write().map_err(|_| {
+            RuntimeError::InvalidOperation("Failed to acquire write lock on metadata".to_string())
+        })?;
         metadata.custom.insert(key, value);
+        Ok(())
     }
 
     /// Get custom metadata
     pub fn get_metadata(&self, key: &str) -> Option<String> {
-        let metadata = self.metadata.read().unwrap();
-        metadata.custom.get(key).cloned()
+        let metadata = self
+            .metadata
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on metadata"));
+        match metadata {
+            Ok(data) => data.custom.get(key).cloned(),
+            Err(_) => None, // Return None on lock failure
+        }
     }
 
     /// Install the panic handler
@@ -220,6 +245,10 @@ impl Runtime {
                     .location()
                     .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column())),
                 backtrace: std::backtrace::Backtrace::capture().to_string(),
+                timestamp: std::time::Instant::now(),
+                recovery_attempts: 0,
+                recovered: false,
+                recovery_policy: crate::runtime::panic::RecoveryPolicy::default(),
             };
 
             // Log panic
@@ -317,10 +346,8 @@ impl MemoryManager {
     }
 
     /// Deallocate memory
-    pub fn deallocate(&self, ptr: *mut u8, layout: Layout) {
-        unsafe {
-            std::alloc::dealloc(ptr, layout);
-        }
+    pub unsafe fn deallocate(&self, ptr: *mut u8, layout: Layout) {
+        std::alloc::dealloc(ptr, layout);
 
         self.heap_used.fetch_sub(layout.size(), Ordering::Relaxed);
         self.total_deallocations.fetch_add(1, Ordering::Relaxed);
@@ -407,7 +434,9 @@ unsafe impl GlobalAlloc for ScriptAllocator {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         if let Ok(runtime) = runtime() {
-            runtime.memory().deallocate(ptr, layout);
+            unsafe {
+                runtime.memory().deallocate(ptr, layout);
+            }
         } else {
             // Fallback to system allocator
             std::alloc::dealloc(ptr, layout);
@@ -457,7 +486,9 @@ mod tests {
         assert_eq!(stats.total_allocations, 1);
 
         // Deallocate
-        runtime.memory().deallocate(ptr, layout);
+        unsafe {
+            runtime.memory().deallocate(ptr, layout);
+        }
 
         // Check stats again
         let stats = runtime.memory().stats();

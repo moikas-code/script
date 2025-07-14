@@ -11,6 +11,7 @@ use crate::debugger::breakpoint::{
     Breakpoint, BreakpointCondition, BreakpointEvaluationContext, BreakpointHit, BreakpointId,
     BreakpointType,
 };
+use crate::error::{Error, Result};
 use crate::source::SourceLocation;
 
 /// Manages all breakpoints in the debugger
@@ -29,43 +30,6 @@ pub struct BreakpointManager {
     max_history_size: usize,
 }
 
-/// Error types for breakpoint manager operations
-#[derive(Debug, Clone, PartialEq)]
-pub enum BreakpointManagerError {
-    /// Breakpoint with the given ID was not found
-    BreakpointNotFound(BreakpointId),
-    /// Invalid breakpoint configuration
-    InvalidBreakpoint(String),
-    /// IO error when working with files
-    IoError(String),
-    /// Condition evaluation error
-    ConditionError(String),
-}
-
-impl std::fmt::Display for BreakpointManagerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BreakpointManagerError::BreakpointNotFound(id) => {
-                write!(f, "Breakpoint {} not found", id)
-            }
-            BreakpointManagerError::InvalidBreakpoint(msg) => {
-                write!(f, "Invalid breakpoint: {}", msg)
-            }
-            BreakpointManagerError::IoError(msg) => {
-                write!(f, "IO error: {}", msg)
-            }
-            BreakpointManagerError::ConditionError(msg) => {
-                write!(f, "Condition error: {}", msg)
-            }
-        }
-    }
-}
-
-impl std::error::Error for BreakpointManagerError {}
-
-/// Result type for breakpoint manager operations
-pub type BreakpointManagerResult<T> = std::result::Result<T, BreakpointManagerError>;
-
 impl BreakpointManager {
     /// Create a new breakpoint manager
     pub fn new() -> Self {
@@ -80,36 +44,35 @@ impl BreakpointManager {
     }
 
     /// Add a line breakpoint
-    pub fn add_line_breakpoint(
-        &self,
-        file: String,
-        line: usize,
-    ) -> BreakpointManagerResult<BreakpointId> {
+    pub fn add_line_breakpoint(&self, file: String, line: usize) -> Result<BreakpointId> {
         // Validate the file path
         if file.is_empty() {
-            return Err(BreakpointManagerError::InvalidBreakpoint(
-                "File path cannot be empty".to_string(),
-            ));
+            return Err(Error::invalid_conversion("File path cannot be empty"));
         }
 
         if line == 0 {
-            return Err(BreakpointManagerError::InvalidBreakpoint(
-                "Line number must be greater than 0".to_string(),
+            return Err(Error::invalid_conversion(
+                "Line number must be greater than 0",
             ));
         }
 
-        let id = self.get_next_id();
+        let id = self.get_next_id()?;
         let breakpoint = Breakpoint::line(id, file.clone(), line);
 
         // Store the breakpoint
         {
-            let mut breakpoints = self.breakpoints.write().unwrap();
+            let mut breakpoints = self
+                .breakpoints
+                .write()
+                .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
             breakpoints.insert(id, breakpoint);
         }
 
         // Update line breakpoint index
         {
-            let mut line_index = self.line_breakpoints_by_file.write().unwrap();
+            let mut line_index = self.line_breakpoints_by_file.write().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire write lock on line breakpoints index")
+            })?;
             line_index
                 .entry(file)
                 .or_insert_with(HashSet::new)
@@ -124,25 +87,28 @@ impl BreakpointManager {
         &self,
         name: String,
         file: Option<String>,
-    ) -> BreakpointManagerResult<BreakpointId> {
+    ) -> Result<BreakpointId> {
         if name.is_empty() {
-            return Err(BreakpointManagerError::InvalidBreakpoint(
-                "Function name cannot be empty".to_string(),
-            ));
+            return Err(Error::invalid_conversion("Function name cannot be empty"));
         }
 
-        let id = self.get_next_id();
+        let id = self.get_next_id()?;
         let breakpoint = Breakpoint::function(id, name.clone(), file);
 
         // Store the breakpoint
         {
-            let mut breakpoints = self.breakpoints.write().unwrap();
+            let mut breakpoints = self
+                .breakpoints
+                .write()
+                .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
             breakpoints.insert(id, breakpoint);
         }
 
         // Update function breakpoint index
         {
-            let mut function_index = self.function_breakpoints_by_name.write().unwrap();
+            let mut function_index = self.function_breakpoints_by_name.write().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire write lock on function breakpoints index")
+            })?;
             function_index
                 .entry(name)
                 .or_insert_with(HashSet::new)
@@ -153,43 +119,51 @@ impl BreakpointManager {
     }
 
     /// Add an address breakpoint
-    pub fn add_address_breakpoint(&self, address: usize) -> BreakpointManagerResult<BreakpointId> {
-        let id = self.get_next_id();
+    pub fn add_address_breakpoint(&self, address: usize) -> Result<BreakpointId> {
+        let id = self.get_next_id()?;
         let breakpoint = Breakpoint::address(id, address);
 
-        let mut breakpoints = self.breakpoints.write().unwrap();
+        let mut breakpoints = self
+            .breakpoints
+            .write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
         breakpoints.insert(id, breakpoint);
 
         Ok(id)
     }
 
     /// Add an exception breakpoint
-    pub fn add_exception_breakpoint(
-        &self,
-        exception_type: Option<String>,
-    ) -> BreakpointManagerResult<BreakpointId> {
-        let id = self.get_next_id();
+    pub fn add_exception_breakpoint(&self, exception_type: Option<String>) -> Result<BreakpointId> {
+        let id = self.get_next_id()?;
         let breakpoint = Breakpoint::exception(id, exception_type);
 
-        let mut breakpoints = self.breakpoints.write().unwrap();
+        let mut breakpoints = self
+            .breakpoints
+            .write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
         breakpoints.insert(id, breakpoint);
 
         Ok(id)
     }
 
     /// Remove a breakpoint by ID
-    pub fn remove_breakpoint(&self, id: BreakpointId) -> BreakpointManagerResult<()> {
+    pub fn remove_breakpoint(&self, id: BreakpointId) -> Result<()> {
         let breakpoint = {
-            let mut breakpoints = self.breakpoints.write().unwrap();
+            let mut breakpoints = self
+                .breakpoints
+                .write()
+                .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
             breakpoints
                 .remove(&id)
-                .ok_or(BreakpointManagerError::BreakpointNotFound(id))?
+                .ok_or_else(|| Error::key_not_found(format!("Breakpoint {}", id)))?
         };
 
         // Remove from indexes
         match &breakpoint.breakpoint_type {
             BreakpointType::Line { file, .. } => {
-                let mut line_index = self.line_breakpoints_by_file.write().unwrap();
+                let mut line_index = self.line_breakpoints_by_file.write().map_err(|_| {
+                    Error::lock_poisoned("Failed to acquire write lock on line breakpoints index")
+                })?;
                 if let Some(file_breakpoints) = line_index.get_mut(file) {
                     file_breakpoints.remove(&id);
                     if file_breakpoints.is_empty() {
@@ -198,7 +172,12 @@ impl BreakpointManager {
                 }
             }
             BreakpointType::Function { name, .. } => {
-                let mut function_index = self.function_breakpoints_by_name.write().unwrap();
+                let mut function_index =
+                    self.function_breakpoints_by_name.write().map_err(|_| {
+                        Error::lock_poisoned(
+                            "Failed to acquire write lock on function breakpoints index",
+                        )
+                    })?;
                 if let Some(function_breakpoints) = function_index.get_mut(name) {
                     function_breakpoints.remove(&id);
                     if function_breakpoints.is_empty() {
@@ -213,82 +192,120 @@ impl BreakpointManager {
     }
 
     /// Get a breakpoint by ID
-    pub fn get_breakpoint(&self, id: BreakpointId) -> BreakpointManagerResult<Breakpoint> {
-        let breakpoints = self.breakpoints.read().unwrap();
+    pub fn get_breakpoint(&self, id: BreakpointId) -> Result<Breakpoint> {
+        let breakpoints = self
+            .breakpoints
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on breakpoints"))?;
         breakpoints
             .get(&id)
             .cloned()
-            .ok_or(BreakpointManagerError::BreakpointNotFound(id))
+            .ok_or_else(|| Error::key_not_found(format!("Breakpoint {}", id)))
     }
 
     /// Get all breakpoints
     pub fn get_all_breakpoints(&self) -> Vec<Breakpoint> {
-        let breakpoints = self.breakpoints.read().unwrap();
-        breakpoints.values().cloned().collect()
+        let breakpoints = self
+            .breakpoints
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on breakpoints"));
+        match breakpoints {
+            Ok(bps) => bps.values().cloned().collect(),
+            Err(_) => Vec::new(), // Return empty vec on lock failure
+        }
     }
 
     /// Get breakpoints for a specific file
     pub fn get_breakpoints_for_file(&self, file: &str) -> Vec<Breakpoint> {
-        let line_index = self.line_breakpoints_by_file.read().unwrap();
-        let breakpoints = self.breakpoints.read().unwrap();
+        let line_index = self.line_breakpoints_by_file.read().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire read lock on line breakpoints index")
+        });
+        let breakpoints = self
+            .breakpoints
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on breakpoints"));
 
-        if let Some(breakpoint_ids) = line_index.get(file) {
-            breakpoint_ids
-                .iter()
-                .filter_map(|id| breakpoints.get(id))
-                .cloned()
-                .collect()
-        } else {
-            Vec::new()
+        match (line_index, breakpoints) {
+            (Ok(line_idx), Ok(bps)) => {
+                if let Some(breakpoint_ids) = line_idx.get(file) {
+                    breakpoint_ids
+                        .iter()
+                        .filter_map(|id| bps.get(id))
+                        .cloned()
+                        .collect()
+                } else {
+                    Vec::new()
+                }
+            }
+            _ => Vec::new(), // Return empty vec on lock failure
         }
     }
 
     /// Get breakpoints for a specific function
     pub fn get_breakpoints_for_function(&self, function_name: &str) -> Vec<Breakpoint> {
-        let function_index = self.function_breakpoints_by_name.read().unwrap();
-        let breakpoints = self.breakpoints.read().unwrap();
+        let function_index = self.function_breakpoints_by_name.read().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire read lock on function breakpoints index")
+        });
+        let breakpoints = self
+            .breakpoints
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on breakpoints"));
 
-        if let Some(breakpoint_ids) = function_index.get(function_name) {
-            breakpoint_ids
-                .iter()
-                .filter_map(|id| breakpoints.get(id))
-                .cloned()
-                .collect()
-        } else {
-            Vec::new()
+        match (function_index, breakpoints) {
+            (Ok(func_idx), Ok(bps)) => {
+                if let Some(breakpoint_ids) = func_idx.get(function_name) {
+                    breakpoint_ids
+                        .iter()
+                        .filter_map(|id| bps.get(id))
+                        .cloned()
+                        .collect()
+                } else {
+                    Vec::new()
+                }
+            }
+            _ => Vec::new(), // Return empty vec on lock failure
         }
     }
 
     /// Enable a breakpoint
-    pub fn enable_breakpoint(&self, id: BreakpointId) -> BreakpointManagerResult<()> {
-        let mut breakpoints = self.breakpoints.write().unwrap();
+    pub fn enable_breakpoint(&self, id: BreakpointId) -> Result<()> {
+        let mut breakpoints = self
+            .breakpoints
+            .write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
         if let Some(breakpoint) = breakpoints.get_mut(&id) {
             breakpoint.enable();
             Ok(())
         } else {
-            Err(BreakpointManagerError::BreakpointNotFound(id))
+            Err(Error::key_not_found(format!("Breakpoint {}", id)))
         }
     }
 
     /// Disable a breakpoint
-    pub fn disable_breakpoint(&self, id: BreakpointId) -> BreakpointManagerResult<()> {
-        let mut breakpoints = self.breakpoints.write().unwrap();
+    pub fn disable_breakpoint(&self, id: BreakpointId) -> Result<()> {
+        let mut breakpoints = self
+            .breakpoints
+            .write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
         if let Some(breakpoint) = breakpoints.get_mut(&id) {
             breakpoint.disable();
             Ok(())
         } else {
-            Err(BreakpointManagerError::BreakpointNotFound(id))
+            Err(Error::key_not_found(format!("Breakpoint {}", id)))
         }
     }
 
     /// Toggle a breakpoint's enabled state
-    pub fn toggle_breakpoint(&self, id: BreakpointId) -> BreakpointManagerResult<bool> {
-        let mut breakpoints = self.breakpoints.write().unwrap();
+    pub fn toggle_breakpoint(&self, id: BreakpointId) -> Result<bool> {
+        let mut breakpoints = self
+            .breakpoints
+            .write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
         if let Some(breakpoint) = breakpoints.get_mut(&id) {
             breakpoint.toggle();
             Ok(breakpoint.enabled)
         } else {
-            Err(BreakpointManagerError::BreakpointNotFound(id))
+            Err(Error::key_not_found(format!("Breakpoint {}", id)))
         }
     }
 
@@ -297,24 +314,30 @@ impl BreakpointManager {
         &self,
         id: BreakpointId,
         condition: BreakpointCondition,
-    ) -> BreakpointManagerResult<()> {
-        let mut breakpoints = self.breakpoints.write().unwrap();
+    ) -> Result<()> {
+        let mut breakpoints = self
+            .breakpoints
+            .write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
         if let Some(breakpoint) = breakpoints.get_mut(&id) {
             breakpoint.set_condition(condition);
             Ok(())
         } else {
-            Err(BreakpointManagerError::BreakpointNotFound(id))
+            Err(Error::key_not_found(format!("Breakpoint {}", id)))
         }
     }
 
     /// Clear a condition from a breakpoint
-    pub fn clear_breakpoint_condition(&self, id: BreakpointId) -> BreakpointManagerResult<()> {
-        let mut breakpoints = self.breakpoints.write().unwrap();
+    pub fn clear_breakpoint_condition(&self, id: BreakpointId) -> Result<()> {
+        let mut breakpoints = self
+            .breakpoints
+            .write()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
         if let Some(breakpoint) = breakpoints.get_mut(&id) {
             breakpoint.clear_condition();
             Ok(())
         } else {
-            Err(BreakpointManagerError::BreakpointNotFound(id))
+            Err(Error::key_not_found(format!("Breakpoint {}", id)))
         }
     }
 
@@ -328,7 +351,16 @@ impl BreakpointManager {
         function_name: Option<&str>,
     ) -> bool {
         // Quick check: if no breakpoints are set, return false immediately
-        let breakpoints = self.breakpoints.read().unwrap();
+        let breakpoints = self
+            .breakpoints
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on breakpoints"));
+
+        let breakpoints = match breakpoints {
+            Ok(bps) => bps,
+            Err(_) => return false, // Return false on lock failure
+        };
+
         if breakpoints.is_empty() {
             return false;
         }
@@ -366,9 +398,26 @@ impl BreakpointManager {
         function_name: Option<&str>,
     ) -> bool {
         // Check line breakpoints for this file first (most common case)
-        let line_index = self.line_breakpoints_by_file.read().unwrap();
+        let line_index = self.line_breakpoints_by_file.read().map_err(|_| {
+            Error::lock_poisoned("Failed to acquire read lock on line breakpoints index")
+        });
+
+        let line_index = match line_index {
+            Ok(idx) => idx,
+            Err(_) => return false, // Return false on lock failure
+        };
+
         if let Some(breakpoint_ids) = line_index.get(file) {
-            let breakpoints = self.breakpoints.read().unwrap();
+            let breakpoints = self
+                .breakpoints
+                .read()
+                .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on breakpoints"));
+
+            let breakpoints = match breakpoints {
+                Ok(bps) => bps,
+                Err(_) => return false, // Return false on lock failure
+            };
+
             for id in breakpoint_ids {
                 if let Some(breakpoint) = breakpoints.get(id) {
                     if breakpoint.matches_location(location, Some(file), function_name) {
@@ -395,9 +444,25 @@ impl BreakpointManager {
 
         // Check function breakpoints if we have a function name
         if let Some(func_name) = function_name {
-            let function_index = self.function_breakpoints_by_name.read().unwrap();
+            let function_index = self.function_breakpoints_by_name.read().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire read lock on function breakpoints index")
+            });
+
+            let function_index = match function_index {
+                Ok(idx) => idx,
+                Err(_) => return false, // Return false on lock failure
+            };
+
             if let Some(breakpoint_ids) = function_index.get(func_name) {
-                let breakpoints = self.breakpoints.read().unwrap();
+                let breakpoints = self.breakpoints.read().map_err(|_| {
+                    Error::lock_poisoned("Failed to acquire read lock on breakpoints")
+                });
+
+                let breakpoints = match breakpoints {
+                    Ok(bps) => bps,
+                    Err(_) => return false, // Return false on lock failure
+                };
+
                 for id in breakpoint_ids {
                     if let Some(breakpoint) = breakpoints.get(id) {
                         if breakpoint.matches_location(location, Some(file), Some(func_name)) {
@@ -433,14 +498,17 @@ impl BreakpointManager {
         location: SourceLocation,
         function_name: Option<String>,
         thread_id: Option<usize>,
-    ) -> BreakpointManagerResult<()> {
+    ) -> Result<()> {
         // Update hit count
         {
-            let mut breakpoints = self.breakpoints.write().unwrap();
+            let mut breakpoints = self
+                .breakpoints
+                .write()
+                .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
             if let Some(breakpoint) = breakpoints.get_mut(&id) {
                 breakpoint.hit();
             } else {
-                return Err(BreakpointManagerError::BreakpointNotFound(id));
+                return Err(Error::key_not_found(format!("Breakpoint {}", id)));
             }
         }
 
@@ -449,7 +517,10 @@ impl BreakpointManager {
             let breakpoint = self.get_breakpoint(id)?;
             let hit = BreakpointHit::new(breakpoint, location, function_name, thread_id);
 
-            let mut history = self.hit_history.lock().unwrap();
+            let mut history = self
+                .hit_history
+                .lock()
+                .map_err(|_| Error::lock_poisoned("Failed to acquire lock on hit history"))?;
             history.push(hit);
 
             // Limit history size
@@ -463,31 +534,47 @@ impl BreakpointManager {
 
     /// Get breakpoint hit history
     pub fn get_hit_history(&self) -> Vec<BreakpointHit> {
-        let history = self.hit_history.lock().unwrap();
-        history.clone()
+        let history = self
+            .hit_history
+            .lock()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire lock on hit history"));
+        match history {
+            Ok(hist) => hist.clone(),
+            Err(_) => Vec::new(), // Return empty vec on lock failure
+        }
     }
 
     /// Clear hit history
-    pub fn clear_hit_history(&self) -> BreakpointManagerResult<()> {
-        let mut history = self.hit_history.lock().unwrap();
+    pub fn clear_hit_history(&self) -> Result<()> {
+        let mut history = self
+            .hit_history
+            .lock()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire lock on hit history"))?;
         history.clear();
         Ok(())
     }
 
     /// Clear all breakpoints
-    pub fn clear_all_breakpoints(&self) -> BreakpointManagerResult<()> {
+    pub fn clear_all_breakpoints(&self) -> Result<()> {
         {
-            let mut breakpoints = self.breakpoints.write().unwrap();
+            let mut breakpoints = self
+                .breakpoints
+                .write()
+                .map_err(|_| Error::lock_poisoned("Failed to acquire write lock on breakpoints"))?;
             breakpoints.clear();
         }
 
         {
-            let mut line_index = self.line_breakpoints_by_file.write().unwrap();
+            let mut line_index = self.line_breakpoints_by_file.write().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire write lock on line breakpoints index")
+            })?;
             line_index.clear();
         }
 
         {
-            let mut function_index = self.function_breakpoints_by_name.write().unwrap();
+            let mut function_index = self.function_breakpoints_by_name.write().map_err(|_| {
+                Error::lock_poisoned("Failed to acquire write lock on function breakpoints index")
+            })?;
             function_index.clear();
         }
 
@@ -496,8 +583,32 @@ impl BreakpointManager {
 
     /// Get statistics about breakpoints
     pub fn get_statistics(&self) -> BreakpointStatistics {
-        let breakpoints = self.breakpoints.read().unwrap();
-        let history = self.hit_history.lock().unwrap();
+        let breakpoints = self
+            .breakpoints
+            .read()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire read lock on breakpoints"));
+        let history = self
+            .hit_history
+            .lock()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire lock on hit history"));
+
+        let (breakpoints, history) = match (breakpoints, history) {
+            (Ok(bps), Ok(hist)) => (bps, hist),
+            _ => {
+                // Return empty stats on lock failure
+                return BreakpointStatistics {
+                    total_breakpoints: 0,
+                    enabled_breakpoints: 0,
+                    disabled_breakpoints: 0,
+                    line_breakpoints: 0,
+                    function_breakpoints: 0,
+                    address_breakpoints: 0,
+                    exception_breakpoints: 0,
+                    conditional_breakpoints: 0,
+                    total_hits: 0,
+                };
+            }
+        };
 
         let mut stats = BreakpointStatistics {
             total_breakpoints: breakpoints.len(),
@@ -534,11 +645,14 @@ impl BreakpointManager {
     }
 
     /// Get the next available breakpoint ID
-    fn get_next_id(&self) -> BreakpointId {
-        let mut next_id = self.next_id.lock().unwrap();
+    fn get_next_id(&self) -> Result<BreakpointId> {
+        let mut next_id = self
+            .next_id
+            .lock()
+            .map_err(|_| Error::lock_poisoned("Failed to acquire lock on next_id"))?;
         let id = *next_id;
         *next_id += 1;
-        id
+        Ok(id)
     }
 }
 

@@ -1,0 +1,166 @@
+// Enum Pattern Matching Demo
+// This example demonstrates Script's enum pattern matching capabilities
+
+// Define a simple Option type
+enum Option<T> {
+    Some(T),
+    None
+}
+
+// Define a Result type for error handling
+enum Result<T, E> {
+    Ok(T),
+    Err(E)
+}
+
+// Define a color enum with unit variants
+enum Color {
+    Red,
+    Green,
+    Blue,
+    RGB(i32, i32, i32)
+}
+
+// Example 1: Basic enum matching with exhaustiveness
+fn unwrap_or_default(opt: Option<i32>) -> i32 {
+    match opt {
+        Some(value) => value,
+        None => 0
+    }
+}
+
+// Example 2: Qualified enum patterns
+fn handle_result(res: Result<string, string>) -> string {
+    match res {
+        Result::Ok(msg) => "Success: " + msg,
+        Result::Err(err) => "Error: " + err
+    }
+}
+
+// Example 3: Pattern guards with enums
+fn describe_option(opt: Option<i32>) -> string {
+    match opt {
+        Some(n) if n > 0 => "positive",
+        Some(n) if n < 0 => "negative", 
+        Some(_) => "zero",
+        None => "nothing"
+    }
+}
+
+// Example 4: Or-patterns with enum variants
+fn is_primary_color(color: Color) -> bool {
+    match color {
+        Red | Green | Blue => true,
+        RGB(_, _, _) => false
+    }
+}
+
+// Example 5: Nested enum patterns
+fn extract_nested(res: Result<Option<i32>, string>) -> i32 {
+    match res {
+        Ok(Some(value)) => value,
+        Ok(None) => -1,
+        Err(_) => -2
+    }
+}
+
+// Example 6: Enum patterns in let bindings
+fn process_option(opt: Option<string>) {
+    // Destructure in let binding
+    let Some(value) = opt else {
+        print("Option was None")
+        return
+    }
+    
+    print("Got value: " + value)
+}
+
+// Example 7: Match with multiple enum types
+enum Status {
+    Active,
+    Pending,
+    Inactive
+}
+
+fn combine_status(opt: Option<Status>) -> string {
+    match opt {
+        Some(Active) => "System is active",
+        Some(Pending) => "System is pending",
+        Some(Inactive) => "System is inactive",
+        None => "No status available"
+    }
+}
+
+// Example 8: Complex patterns with tuple variants
+enum Message {
+    Text(string),
+    Number(i32),
+    Point(i32, i32),
+    Quit
+}
+
+fn process_message(msg: Message) -> string {
+    match msg {
+        Text(s) => "Text: " + s,
+        Number(n) => "Number: " + n.to_string(),
+        Point(x, y) => "Point at (" + x.to_string() + ", " + y.to_string() + ")",
+        Quit => "Goodbye!"
+    }
+}
+
+// Main function demonstrating all examples
+fn main() {
+    // Test basic matching
+    print(unwrap_or_default(Option::Some(42)))  // 42
+    print(unwrap_or_default(Option::None))      // 0
+    
+    // Test qualified patterns
+    let ok_result = Result::Ok("Everything worked!")
+    print(handle_result(ok_result))
+    
+    let err_result = Result::Err("Something went wrong")
+    print(handle_result(err_result))
+    
+    // Test pattern guards
+    print(describe_option(Some(10)))   // "positive"
+    print(describe_option(Some(-5)))   // "negative"
+    print(describe_option(Some(0)))    // "zero"
+    print(describe_option(None))       // "nothing"
+    
+    // Test or-patterns
+    print(is_primary_color(Color::Red))           // true
+    print(is_primary_color(Color::RGB(255, 0, 0))) // false
+    
+    // Test nested patterns
+    let nested_ok = Result::Ok(Option::Some(100))
+    print(extract_nested(nested_ok))  // 100
+    
+    let nested_none = Result::Ok(Option::None)
+    print(extract_nested(nested_none))  // -1
+    
+    // Test enum in let binding
+    process_option(Some("Hello"))  // "Got value: Hello"
+    process_option(None)          // "Option was None"
+    
+    // Test complex message patterns
+    print(process_message(Message::Text("Hello world")))
+    print(process_message(Message::Point(10, 20)))
+    print(process_message(Message::Quit))
+}
+
+// NOTE: The following would cause compilation errors due to non-exhaustive patterns:
+//
+// fn bad_match(opt: Option<i32>) -> i32 {
+//     match opt {
+//         Some(n) => n
+//         // Error: missing None case!
+//     }
+// }
+//
+// fn guard_not_exhaustive(x: Option<i32>) -> string {
+//     match x {
+//         Some(n) if n > 0 => "positive",
+//         None => "none"
+//         // Error: Some(n) where n <= 0 is not covered!
+//     }
+// }

@@ -1,0 +1,13 @@
+type: filesystem
+filesystem:
+  root_path: /home/moika/code/script/kb
+  enable_versioning: false
+  enable_compression: false
+graph:
+  connection:
+    host: localhost
+    port: 6380
+    database: kb_graph
+  vector_dimensions: 1536
+  enable_temporal_queries: true
+  enable_semantic_search: true

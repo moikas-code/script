@@ -212,7 +212,7 @@ impl TestReporter for ConsoleReporter {
             "FAILED".red().bold()
         };
 
-        println!("Status: {}", status);
+        println!("Status: {status}");
         println!("Total:  {} tests", total);
 
         if passed > 0 {

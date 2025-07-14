@@ -1,7 +1,11 @@
+mod lru_cache;
 mod scanner;
 mod token;
 
-pub use scanner::Lexer;
+#[cfg(feature = "fuzzing")]
+pub mod fuzz;
+
+pub use scanner::{Lexer, UnicodeSecurityConfig, UnicodeSecurityLevel};
 pub use token::{Token, TokenKind};
 
 #[cfg(test)]

@@ -148,7 +148,7 @@ impl Scheduler {
         self.shutdown.store(true, Ordering::Relaxed);
 
         // Wake all workers
-        for worker in &self.workers {
+        for _worker in &self.workers {
             // Signal shutdown by pushing empty tasks
             self.injector.push(Task {
                 id: TaskId(usize::MAX),

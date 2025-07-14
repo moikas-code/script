@@ -159,7 +159,7 @@ impl DebugHook for DefaultDebugHook {
                         if let Err(e) = debugger
                             .handle_breakpoint(context.location, context.function_name.as_deref())
                         {
-                            eprintln!("Error handling breakpoint: {}", e);
+                            eprintln!("Error handling breakpoint: {e}");
                         }
                         return false; // Pause execution
                     }
@@ -169,7 +169,7 @@ impl DebugHook for DefaultDebugHook {
                     if let Err(e) = debugger
                         .handle_breakpoint(context.location, context.function_name.as_deref())
                     {
-                        eprintln!("Error handling breakpoint: {}", e);
+                        eprintln!("Error handling breakpoint: {e}");
                     }
                     return false; // Pause execution
                 }
@@ -222,7 +222,7 @@ impl DebugHook for DefaultDebugHook {
                             if let Err(e) =
                                 debugger.handle_breakpoint(context.location, Some(function_name))
                             {
-                                eprintln!("Error handling function breakpoint: {}", e);
+                                eprintln!("Error handling function breakpoint: {e}");
                             }
                             break;
                         }
@@ -275,7 +275,7 @@ impl DebugHook for DefaultDebugHook {
                                     context.location,
                                     context.function_name.as_deref(),
                                 ) {
-                                    eprintln!("Error handling exception breakpoint: {}", e);
+                                    eprintln!("Error handling exception breakpoint: {e}");
                                 }
                                 break;
                             }
@@ -327,7 +327,7 @@ impl DebugHook for DefaultDebugHook {
                 if let Some(loc) = location {
                     println!("Debug: Execution stopped at {}: {}", loc, reason);
                 } else {
-                    println!("Debug: Execution stopped: {}", reason);
+                    println!("Debug: Execution stopped: {reason}");
                 }
             }
             DebugEvent::FunctionEntered { name, location, .. } => {

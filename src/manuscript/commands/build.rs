@@ -6,6 +6,7 @@ use crate::package::{Package, PackageError, PackageResult};
 use crate::{parser::Parser, AstLowerer, CodeGenerator, Lexer};
 use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -172,7 +173,7 @@ async fn build_target(
     context.set_release_mode(release);
 
     // Tokenize
-    let lexer = Lexer::new(&source);
+    let lexer = Lexer::new(&source).map_err(|e| PackageError::ManifestParse(e.to_string()))?;
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     if !lex_errors.is_empty() {
@@ -192,7 +193,8 @@ async fn build_target(
     // Lower to IR
     let symbol_table = crate::semantic::SymbolTable::new();
     let type_info = std::collections::HashMap::new();
-    let mut lowerer = AstLowerer::new(symbol_table, type_info);
+    let closure_captures = HashMap::new();
+    let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new(), closure_captures);
     let ir_module = lowerer.lower_program(&ast).map_err(|e| {
         PackageError::ManifestParse(format!(
             "Lowering error in {}: {}",

@@ -1,0 +1,214 @@
+/**
+ * Type System Validation Example
+ * 
+ * This example tests:
+ * - Type annotations
+ * - Type inference  
+ * - Generic types (if supported)
+ * - Complex type combinations
+ * - Array types
+ * - Function types
+ */
+
+// Test explicit type annotations
+fn test_explicit_types() {
+    let number: i32 = 42
+    let decimal: f32 = 3.14
+    let text: string = "Hello"
+    let flag: bool = true
+    
+    print("Explicit i32: " + number)
+    print("Explicit f32: " + decimal)
+    print("Explicit string: " + text)
+    print("Explicit bool: " + flag)
+}
+
+// Test type inference
+fn test_type_inference() {
+    let auto_int = 100      // Should infer i32
+    let auto_float = 2.718  // Should infer f32
+    let auto_string = "World" // Should infer string
+    let auto_bool = false   // Should infer bool
+    
+    print("Inferred i32: " + auto_int)
+    print("Inferred f32: " + auto_float)
+    print("Inferred string: " + auto_string)
+    print("Inferred bool: " + auto_bool)
+}
+
+// Test array types
+fn test_arrays() {
+    let numbers: Array<i32> = [1, 2, 3, 4, 5]
+    let words: Array<string> = ["hello", "world", "script"]
+    let flags: Array<bool> = [true, false, true]
+    
+    print("Number array length: " + numbers.len())
+    print("Word array length: " + words.len())
+    print("Flag array length: " + flags.len())
+    
+    // Test array access (if supported)
+    if numbers.len() > 0 {
+        print("First number: " + numbers[0])
+    }
+}
+
+// Test function with complex type signature
+fn process_data(
+    items: Array<i32>, 
+    multiplier: f32, 
+    prefix: string
+) -> Array<string> {
+    let results: Array<string> = []
+    
+    for item in items {
+        let scaled = item as f32 * multiplier
+        let formatted = prefix + scaled
+        results.push(formatted)
+    }
+    
+    results
+}
+
+// Test generic function (if supported)
+fn identity<T>(value: T) -> T {
+    value
+}
+
+// Test optional types
+fn test_optional_types() {
+    let maybe_number: Option<i32> = Some(42)
+    let empty: Option<i32> = None
+    
+    match maybe_number {
+        Some(n) => print("Found number: " + n),
+        None => print("No number found")
+    }
+    
+    match empty {
+        Some(n) => print("Found number: " + n),
+        None => print("Empty option as expected")
+    }
+}
+
+// Test result types for error handling
+fn divide_safe(a: f32, b: f32) -> Result<f32, string> {
+    if b == 0.0 {
+        Err("Division by zero")
+    } else {
+        Ok(a / b)
+    }
+}
+
+fn test_result_types() {
+    let good_result = divide_safe(10.0, 2.0)
+    let bad_result = divide_safe(10.0, 0.0)
+    
+    match good_result {
+        Ok(value) => print("Division result: " + value),
+        Err(msg) => print("Error: " + msg)
+    }
+    
+    match bad_result {
+        Ok(value) => print("Division result: " + value),
+        Err(msg) => print("Expected error: " + msg)
+    }
+}
+
+// Test tuple types (if supported)
+fn test_tuples() -> (i32, string, bool) {
+    let coordinates: (f32, f32) = (3.14, 2.71)
+    let person_info: (string, i32, bool) = ("Alice", 30, true)
+    
+    print("Coordinates: " + coordinates.0 + ", " + coordinates.1)
+    print("Person: " + person_info.0 + ", age " + person_info.1)
+    
+    (42, "test", false)
+}
+
+// Test struct-like types (if supported)
+struct Point {
+    x: f32,
+    y: f32
+}
+
+fn test_struct_types() {
+    let origin = Point { x: 0.0, y: 0.0 }
+    let point = Point { x: 3.0, y: 4.0 }
+    
+    print("Origin: (" + origin.x + ", " + origin.y + ")")
+    print("Point: (" + point.x + ", " + point.y + ")")
+    
+    let distance = sqrt(point.x * point.x + point.y * point.y)
+    print("Distance from origin: " + distance)
+}
+
+// Test enum types (if supported)
+enum Color {
+    Red,
+    Green,
+    Blue,
+    RGB(i32, i32, i32)
+}
+
+fn test_enum_types() {
+    let red = Color::Red
+    let custom = Color::RGB(255, 128, 0)
+    
+    match red {
+        Color::Red => print("It's red!"),
+        Color::Green => print("It's green!"),
+        Color::Blue => print("It's blue!"),
+        Color::RGB(r, g, b) => print("Custom RGB: " + r + ", " + g + ", " + b)
+    }
+    
+    match custom {
+        Color::Red => print("It's red!"),
+        Color::Green => print("It's green!"),
+        Color::Blue => print("It's blue!"),
+        Color::RGB(r, g, b) => print("Custom RGB: " + r + ", " + g + ", " + b)
+    }
+}
+
+// Main function to run all type tests
+fn main() {
+    print("=== Script Language Type System Validation ===")
+    
+    print("\n--- Explicit Type Annotations ---")
+    test_explicit_types()
+    
+    print("\n--- Type Inference ---")
+    test_type_inference()
+    
+    print("\n--- Array Types ---")
+    test_arrays()
+    
+    print("\n--- Complex Function Types ---")
+    let processed = process_data([1, 2, 3], 2.5, "Result: ")
+    print("Processed data length: " + processed.len())
+    
+    print("\n--- Generic Types ---")
+    let id_int = identity(42)
+    let id_string = identity("hello")
+    print("Identity int: " + id_int)
+    print("Identity string: " + id_string)
+    
+    print("\n--- Optional Types ---")
+    test_optional_types()
+    
+    print("\n--- Result Types ---")
+    test_result_types()
+    
+    print("\n--- Tuple Types ---")
+    let tuple_result = test_tuples()
+    print("Tuple result: " + tuple_result.0 + ", " + tuple_result.1 + ", " + tuple_result.2)
+    
+    print("\n--- Struct Types ---")
+    test_struct_types()
+    
+    print("\n--- Enum Types ---")
+    test_enum_types()
+    
+    print("\n=== Type system validation complete ===")
+}
+
+main()

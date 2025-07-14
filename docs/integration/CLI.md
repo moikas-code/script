@@ -197,7 +197,7 @@ script
 
 ```
 $ script
-Script v0.1.0 - The Script Programming Language
+Script v0.5.0-alpha - The Script Programming Language
 Type 'exit' to quit
 Type ':tokens' to switch to token mode
 Type ':parse' to switch to parse mode (default)

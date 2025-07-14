@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "0g": "^0.4.2",
+    "@moikas/mcp-curator": "^0.0.3"
+  }
+}

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 pub mod conversion;
+pub mod definitions;
 pub mod generics;
 
 /// The main type representation in the Script language
@@ -37,6 +38,15 @@ pub enum Type {
     Generic { name: String, args: Vec<Type> },
     /// Type parameter in generic context (named type variable)
     TypeParam(String),
+    /// Tuple type (e.g., (i32, string), (T, U, V))
+    Tuple(Vec<Type>),
+    /// Reference type (e.g., &T, &mut T)
+    Reference { mutable: bool, inner: Box<Type> },
+    /// Struct type with fields
+    Struct {
+        name: String,
+        fields: Vec<(String, Type)>,
+    },
 }
 
 impl Type {
@@ -100,6 +110,44 @@ impl Type {
 
             // Type parameters are equal if they have the same name
             (Type::TypeParam(n1), Type::TypeParam(n2)) => n1 == n2,
+
+            // Tuple types must have matching element types
+            (Type::Tuple(t1), Type::Tuple(t2)) => {
+                t1.len() == t2.len() && t1.iter().zip(t2.iter()).all(|(a, b)| a.equals(b))
+            }
+
+            // Reference types must have matching mutability and inner types
+            (
+                Type::Reference {
+                    mutable: m1,
+                    inner: i1,
+                },
+                Type::Reference {
+                    mutable: m2,
+                    inner: i2,
+                },
+            ) => m1 == m2 && i1.equals(i2),
+
+            // Struct types must have matching names and fields
+            (
+                Type::Struct {
+                    name: n1,
+                    fields: f1,
+                },
+                Type::Struct {
+                    name: n2,
+                    fields: f2,
+                },
+            ) => {
+                n1 == n2
+                    && f1.len() == f2.len()
+                    && f1
+                        .iter()
+                        .zip(f2.iter())
+                        .all(|((name1, type1), (name2, type2))| {
+                            name1 == name2 && type1.equals(type2)
+                        })
+            }
 
             // All other combinations are not equal
             _ => false,
@@ -215,6 +263,37 @@ impl fmt::Display for Type {
                 Ok(())
             }
             Type::TypeParam(name) => write!(f, "{}", name),
+            Type::Tuple(types) => {
+                write!(f, "(")?;
+                for (i, ty) in types.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", ty)?;
+                }
+                write!(f, ")")
+            }
+            Type::Reference { mutable, inner } => {
+                if *mutable {
+                    write!(f, "&mut {}", inner)
+                } else {
+                    write!(f, "&{}", inner)
+                }
+            }
+            Type::Struct { name, fields } => {
+                write!(f, "struct {}", name)?;
+                if !fields.is_empty() {
+                    write!(f, " {{ ")?;
+                    for (i, (field_name, field_type)) in fields.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}: {}", field_name, field_type)?;
+                    }
+                    write!(f, " }}")?;
+                }
+                Ok(())
+            }
         }
     }
 }

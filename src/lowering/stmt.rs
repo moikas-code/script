@@ -30,6 +30,23 @@ pub fn lower_statement(lowerer: &mut AstLowerer, stmt: &Stmt) -> LoweringResult<
             // Exports are handled during semantic analysis
             Ok(())
         }
+        StmtKind::Struct { name, .. } => {
+            // TODO: Implement struct definition lowering
+            // Structs are handled during semantic analysis
+            let _ = name; // suppress warning
+            Ok(())
+        }
+        StmtKind::Enum { name, .. } => {
+            // TODO: Implement enum definition lowering
+            // Enums are handled during semantic analysis
+            let _ = name; // suppress warning
+            Ok(())
+        }
+        StmtKind::Impl(_) => {
+            // TODO: Implement impl block lowering
+            // Impl blocks are handled during semantic analysis
+            Ok(())
+        }
     }
 }
 
@@ -92,7 +109,7 @@ mod tests {
     use std::collections::HashMap;
 
     fn parse_statement(source: &str) -> Stmt {
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source).unwrap();
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         let program = parser.parse().expect("Failed to parse");
@@ -105,7 +122,8 @@ mod tests {
 
         let symbol_table = SymbolTable::new();
         let type_info = HashMap::new();
-        let mut lowerer = AstLowerer::new(symbol_table, type_info);
+        let closure_captures = HashMap::new();
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new(), closure_captures);
 
         // Create a dummy function context
         lowerer
@@ -125,7 +143,8 @@ mod tests {
 
         let symbol_table = SymbolTable::new();
         let type_info = HashMap::new();
-        let mut lowerer = AstLowerer::new(symbol_table, type_info);
+        let closure_captures = HashMap::new();
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new(), closure_captures);
 
         // Create a dummy function context
         lowerer

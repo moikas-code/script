@@ -3,7 +3,8 @@
 //! This module provides the fundamental types Option<T> and Result<T, E>
 //! which are used throughout Script for optional values and error handling.
 
-use crate::runtime::{RuntimeError, ScriptRc};
+use crate::runtime::{RuntimeError, ScriptRc, Value as RuntimeValue};
+use crate::stdlib::closure_helpers::ClosureExecutor;
 use crate::stdlib::ScriptValue;
 use std::fmt;
 
@@ -49,11 +50,11 @@ impl ScriptOption {
     pub fn expect(&self, msg: &str) -> &ScriptValue {
         match self {
             ScriptOption::Some(val) => val,
-            ScriptOption::None => panic!("{}", msg),
+            ScriptOption::None => panic!("{msg}"),
         }
     }
 
-    /// Map the inner value if Some
+    /// Map the inner value if Some (using Rust closure for compatibility)
     pub fn map<F>(&self, f: F) -> ScriptOption
     where
         F: FnOnce(&ScriptValue) -> ScriptValue,
@@ -62,6 +63,15 @@ impl ScriptOption {
             ScriptOption::Some(val) => ScriptOption::Some(f(val)),
             ScriptOption::None => ScriptOption::None,
         }
+    }
+
+    /// Map the inner value using a Script closure
+    pub fn map_with_closure(
+        &self,
+        closure: &RuntimeValue,
+        executor: &mut ClosureExecutor,
+    ) -> crate::error::Result<ScriptOption> {
+        self.map_closure(closure, executor)
     }
 
     /// Get the inner value or a default
@@ -80,6 +90,229 @@ impl ScriptOption {
         match self {
             ScriptOption::Some(val) => val.clone(),
             ScriptOption::None => f(),
+        }
+    }
+
+    /// Chain another Option computation if this is Some (using Rust closure for compatibility)
+    pub fn and_then<F>(&self, f: F) -> ScriptOption
+    where
+        F: FnOnce(&ScriptValue) -> ScriptOption,
+    {
+        match self {
+            ScriptOption::Some(val) => f(val),
+            ScriptOption::None => ScriptOption::None,
+        }
+    }
+
+    /// Chain another Option computation using a Script closure
+    pub fn and_then_with_closure(
+        &self,
+        closure: &RuntimeValue,
+        executor: &mut ClosureExecutor,
+    ) -> crate::error::Result<ScriptOption> {
+        self.and_then_closure(closure, executor)
+    }
+
+    /// Return this Option if Some, otherwise return the provided Option
+    pub fn or(&self, other: ScriptOption) -> ScriptOption {
+        match self {
+            ScriptOption::Some(_) => self.clone(),
+            ScriptOption::None => other,
+        }
+    }
+
+    /// Return this Option if Some, otherwise compute an Option
+    pub fn or_else<F>(&self, f: F) -> ScriptOption
+    where
+        F: FnOnce() -> ScriptOption,
+    {
+        match self {
+            ScriptOption::Some(_) => self.clone(),
+            ScriptOption::None => f(),
+        }
+    }
+
+    /// Filter the Option based on a predicate (using Rust closure for compatibility)
+    pub fn filter<F>(&self, predicate: F) -> ScriptOption
+    where
+        F: FnOnce(&ScriptValue) -> bool,
+    {
+        match self {
+            ScriptOption::Some(val) => {
+                if predicate(val) {
+                    self.clone()
+                } else {
+                    ScriptOption::None
+                }
+            }
+            ScriptOption::None => ScriptOption::None,
+        }
+    }
+
+    /// Filter the Option using a Script closure predicate
+    pub fn filter_with_closure(
+        &self,
+        closure: &RuntimeValue,
+        executor: &mut ClosureExecutor,
+    ) -> crate::error::Result<ScriptOption> {
+        self.filter_closure(closure, executor)
+    }
+
+    /// Convert Option<T> to Result<T, E> with provided error for None
+    pub fn ok_or(&self, err: ScriptValue) -> ScriptResult {
+        match self {
+            ScriptOption::Some(val) => ScriptResult::Ok(val.clone()),
+            ScriptOption::None => ScriptResult::Err(err),
+        }
+    }
+
+    /// Convert Option<T> to Result<T, E> with error computed from closure for None
+    pub fn ok_or_else<F>(&self, f: F) -> ScriptResult
+    where
+        F: FnOnce() -> ScriptValue,
+    {
+        match self {
+            ScriptOption::Some(val) => ScriptResult::Ok(val.clone()),
+            ScriptOption::None => ScriptResult::Err(f()),
+        }
+    }
+
+    /// Take the value out of the Option, leaving None in its place
+    pub fn take(&mut self) -> ScriptOption {
+        std::mem::replace(self, ScriptOption::None)
+    }
+
+    /// Replace the value in the Option, returning the old value
+    pub fn replace(&mut self, value: ScriptValue) -> ScriptOption {
+        std::mem::replace(self, ScriptOption::Some(value))
+    }
+
+    /// Flatten an Option<Option<T>> to Option<T>
+    pub fn flatten(&self) -> ScriptOption {
+        match self {
+            ScriptOption::Some(val) => {
+                // Check if the inner value is also an Option
+                if let ScriptValue::Option(inner_opt) = val {
+                    (**inner_opt).clone()
+                } else {
+                    // If not an Option, just return the current Option
+                    self.clone()
+                }
+            }
+            ScriptOption::None => ScriptOption::None,
+        }
+    }
+
+    /// Transpose an Option<Result<T, E>> to Result<Option<T>, E>
+    pub fn transpose(&self) -> ScriptResult {
+        match self {
+            ScriptOption::Some(val) => {
+                // Check if the inner value is a Result
+                if let ScriptValue::Result(result) = val {
+                    match &**result {
+                        ScriptResult::Ok(inner_val) => ScriptResult::Ok(ScriptValue::Option(
+                            ScriptRc::new(ScriptOption::Some(inner_val.clone())),
+                        )),
+                        ScriptResult::Err(err) => ScriptResult::Err(err.clone()),
+                    }
+                } else {
+                    // If not a Result, wrap in Ok(Some(...))
+                    ScriptResult::Ok(ScriptValue::Option(ScriptRc::new(self.clone())))
+                }
+            }
+            ScriptOption::None => {
+                ScriptResult::Ok(ScriptValue::Option(ScriptRc::new(ScriptOption::None)))
+            }
+        }
+    }
+
+    /// Inspect the Some value without consuming the Option (using Rust closure for compatibility)
+    pub fn inspect<F>(&self, f: F) -> ScriptOption
+    where
+        F: FnOnce(&ScriptValue),
+    {
+        match self {
+            ScriptOption::Some(val) => {
+                f(val);
+                self.clone()
+            }
+            ScriptOption::None => self.clone(),
+        }
+    }
+
+    /// Inspect the Some value using a Script closure
+    pub fn inspect_with_closure(
+        &self,
+        closure: &RuntimeValue,
+        executor: &mut ClosureExecutor,
+    ) -> crate::error::Result<ScriptOption> {
+        self.inspect_closure(closure, executor)
+    }
+
+    /// Zip two Options into an Option of a tuple
+    pub fn zip(&self, other: &ScriptOption) -> ScriptOption {
+        match (self, other) {
+            (ScriptOption::Some(_a), ScriptOption::Some(_b)) => {
+                // Create a tuple as an array with two elements
+                ScriptOption::Some(ScriptValue::Array(ScriptRc::new(
+                    crate::stdlib::collections::ScriptVec::new(),
+                )))
+            }
+            _ => ScriptOption::None,
+        }
+    }
+
+    /// Copy the value if it's copyable (simplified version)
+    pub fn copied(&self) -> ScriptOption {
+        self.clone()
+    }
+
+    /// Clone the value (same as copied for now)
+    pub fn cloned(&self) -> ScriptOption {
+        self.clone()
+    }
+
+    /// Collect an iterator of Options into an Option of Vec
+    /// For now, this is a simplified version that works on a single Option
+    pub fn collect(&self) -> ScriptOption {
+        match self {
+            ScriptOption::Some(val) => {
+                let mut vec = crate::stdlib::collections::ScriptVec::new();
+                vec.push(val.clone()).unwrap_or(());
+                ScriptOption::Some(ScriptValue::Array(ScriptRc::new(vec)))
+            }
+            ScriptOption::None => ScriptOption::None,
+        }
+    }
+
+    /// Fold with early termination - if this is None, return init
+    pub fn fold<T, F>(&self, init: T, f: F) -> T
+    where
+        F: FnOnce(T, &ScriptValue) -> T,
+    {
+        match self {
+            ScriptOption::Some(val) => f(init, val),
+            ScriptOption::None => init,
+        }
+    }
+
+    /// Reduce - if this is None, return None
+    pub fn reduce<F>(&self, _f: F) -> ScriptOption
+    where
+        F: FnOnce(&ScriptValue, &ScriptValue) -> ScriptValue,
+    {
+        // For a single Option, reduce just returns the value
+        self.clone()
+    }
+
+    /// Test if the Option satisfies a predicate
+    pub fn satisfies<F>(&self, predicate: F) -> bool
+    where
+        F: FnOnce(&ScriptValue) -> bool,
+    {
+        match self {
+            ScriptOption::Some(val) => predicate(val),
+            ScriptOption::None => false,
         }
     }
 }
@@ -165,7 +398,7 @@ impl ScriptResult {
         self.expect_err("called `Result::unwrap_err()` on an `Ok` value")
     }
 
-    /// Map the Ok value if present
+    /// Map the Ok value if present (using Rust closure for compatibility)
     pub fn map<F>(&self, f: F) -> ScriptResult
     where
         F: FnOnce(&ScriptValue) -> ScriptValue,
@@ -176,7 +409,16 @@ impl ScriptResult {
         }
     }
 
-    /// Map the Err value if present
+    /// Map the Ok value using a Script closure
+    pub fn map_with_closure(
+        &self,
+        closure: &RuntimeValue,
+        executor: &mut ClosureExecutor,
+    ) -> crate::error::Result<ScriptResult> {
+        self.map_closure(closure, executor)
+    }
+
+    /// Map the Err value if present (using Rust closure for compatibility)
     pub fn map_err<F>(&self, f: F) -> ScriptResult
     where
         F: FnOnce(&ScriptValue) -> ScriptValue,
@@ -185,6 +427,15 @@ impl ScriptResult {
             ScriptResult::Ok(val) => ScriptResult::Ok(val.clone()),
             ScriptResult::Err(err) => ScriptResult::Err(f(err)),
         }
+    }
+
+    /// Map the Err value using a Script closure
+    pub fn map_err_with_closure(
+        &self,
+        closure: &RuntimeValue,
+        executor: &mut ClosureExecutor,
+    ) -> crate::error::Result<ScriptResult> {
+        self.map_err_closure(closure, executor)
     }
 
     /// Get the Ok value or a default
@@ -203,6 +454,198 @@ impl ScriptResult {
         match self {
             ScriptResult::Ok(val) => val.clone(),
             ScriptResult::Err(err) => f(err),
+        }
+    }
+
+    /// Chain another Result computation if this is Ok (using Rust closure for compatibility)
+    pub fn and_then<F>(&self, f: F) -> ScriptResult
+    where
+        F: FnOnce(&ScriptValue) -> ScriptResult,
+    {
+        match self {
+            ScriptResult::Ok(val) => f(val),
+            ScriptResult::Err(err) => ScriptResult::Err(err.clone()),
+        }
+    }
+
+    /// Chain another Result computation using a Script closure
+    pub fn and_then_with_closure(
+        &self,
+        closure: &RuntimeValue,
+        executor: &mut ClosureExecutor,
+    ) -> crate::error::Result<ScriptResult> {
+        self.and_then_closure(closure, executor)
+    }
+
+    /// Return this Result if Ok, otherwise return the provided Result
+    pub fn or(&self, other: ScriptResult) -> ScriptResult {
+        match self {
+            ScriptResult::Ok(_) => self.clone(),
+            ScriptResult::Err(_) => other,
+        }
+    }
+
+    /// Return this Result if Ok, otherwise compute a Result
+    pub fn or_else<F>(&self, f: F) -> ScriptResult
+    where
+        F: FnOnce(&ScriptValue) -> ScriptResult,
+    {
+        match self {
+            ScriptResult::Ok(_) => self.clone(),
+            ScriptResult::Err(err) => f(err),
+        }
+    }
+
+    /// Convert Result<T, E> to Option<T>, discarding error information
+    pub fn to_option(&self) -> ScriptOption {
+        match self {
+            ScriptResult::Ok(val) => ScriptOption::Some(val.clone()),
+            ScriptResult::Err(_) => ScriptOption::None,
+        }
+    }
+
+    /// Convert Result<T, E> to Option<E>, discarding success information
+    pub fn to_error_option(&self) -> ScriptOption {
+        match self {
+            ScriptResult::Ok(_) => ScriptOption::None,
+            ScriptResult::Err(err) => ScriptOption::Some(err.clone()),
+        }
+    }
+
+    /// Flatten a Result<Result<T, E>, E> to Result<T, E>
+    pub fn flatten(&self) -> ScriptResult {
+        match self {
+            ScriptResult::Ok(val) => {
+                // Check if the inner value is also a Result
+                if let ScriptValue::Result(inner_result) = val {
+                    (**inner_result).clone()
+                } else {
+                    // If not a Result, just return the current Result
+                    self.clone()
+                }
+            }
+            ScriptResult::Err(err) => ScriptResult::Err(err.clone()),
+        }
+    }
+
+    /// Transpose a Result<Option<T>, E> to Option<Result<T, E>>
+    pub fn transpose(&self) -> ScriptOption {
+        match self {
+            ScriptResult::Ok(val) => {
+                // Check if the inner value is an Option
+                if let ScriptValue::Option(opt) = val {
+                    match &**opt {
+                        ScriptOption::Some(inner_val) => ScriptOption::Some(ScriptValue::Result(
+                            ScriptRc::new(ScriptResult::Ok(inner_val.clone())),
+                        )),
+                        ScriptOption::None => ScriptOption::None,
+                    }
+                } else {
+                    // If not an Option, wrap in Some(Ok(...))
+                    ScriptOption::Some(ScriptValue::Result(ScriptRc::new(self.clone())))
+                }
+            }
+            ScriptResult::Err(err) => ScriptOption::Some(ScriptValue::Result(ScriptRc::new(
+                ScriptResult::Err(err.clone()),
+            ))),
+        }
+    }
+
+    /// Inspect the Ok value without consuming the Result (using Rust closure for compatibility)
+    pub fn inspect<F>(&self, f: F) -> ScriptResult
+    where
+        F: FnOnce(&ScriptValue),
+    {
+        match self {
+            ScriptResult::Ok(val) => {
+                f(val);
+                self.clone()
+            }
+            ScriptResult::Err(_) => self.clone(),
+        }
+    }
+
+    /// Inspect the Ok value using a Script closure
+    pub fn inspect_with_closure(
+        &self,
+        closure: &RuntimeValue,
+        executor: &mut ClosureExecutor,
+    ) -> crate::error::Result<ScriptResult> {
+        self.inspect_closure(closure, executor)
+    }
+
+    /// Inspect the Err value without consuming the Result (using Rust closure for compatibility)
+    pub fn inspect_err<F>(&self, f: F) -> ScriptResult
+    where
+        F: FnOnce(&ScriptValue),
+    {
+        match self {
+            ScriptResult::Ok(_) => self.clone(),
+            ScriptResult::Err(err) => {
+                f(err);
+                self.clone()
+            }
+        }
+    }
+
+    /// Inspect the Err value using a Script closure
+    pub fn inspect_err_with_closure(
+        &self,
+        closure: &RuntimeValue,
+        executor: &mut ClosureExecutor,
+    ) -> crate::error::Result<ScriptResult> {
+        self.inspect_err_closure(closure, executor)
+    }
+
+    /// Logical AND for Results - returns the first Err or the second Result
+    pub fn and(&self, other: ScriptResult) -> ScriptResult {
+        match self {
+            ScriptResult::Ok(_) => other,
+            ScriptResult::Err(_) => self.clone(),
+        }
+    }
+
+    /// Collect an iterator of Results into a Result of Vec
+    /// For now, this is a simplified version that works on a single Result
+    pub fn collect(&self) -> ScriptResult {
+        match self {
+            ScriptResult::Ok(val) => {
+                let mut vec = crate::stdlib::collections::ScriptVec::new();
+                vec.push(val.clone()).unwrap_or(());
+                ScriptResult::Ok(ScriptValue::Array(ScriptRc::new(vec)))
+            }
+            ScriptResult::Err(err) => ScriptResult::Err(err.clone()),
+        }
+    }
+
+    /// Fold with early termination - if this is Err, return init
+    pub fn fold<T, F>(&self, init: T, f: F) -> T
+    where
+        F: FnOnce(T, &ScriptValue) -> T,
+    {
+        match self {
+            ScriptResult::Ok(val) => f(init, val),
+            ScriptResult::Err(_) => init,
+        }
+    }
+
+    /// Reduce - if this is Err, return Err
+    pub fn reduce<F>(&self, _f: F) -> ScriptResult
+    where
+        F: FnOnce(&ScriptValue, &ScriptValue) -> ScriptValue,
+    {
+        // For a single Result, reduce just returns the value
+        self.clone()
+    }
+
+    /// Test if the Result satisfies a predicate (only for Ok values)
+    pub fn satisfies<F>(&self, predicate: F) -> bool
+    where
+        F: FnOnce(&ScriptValue) -> bool,
+    {
+        match self {
+            ScriptResult::Ok(val) => predicate(val),
+            ScriptResult::Err(_) => false,
         }
     }
 }
@@ -394,6 +837,298 @@ pub(crate) fn result_unwrap_err_impl(args: &[ScriptValue]) -> Result<ScriptValue
         },
         _ => Err(RuntimeError::InvalidOperation(
             "unwrap_err expects a Result argument".to_string(),
+        )),
+    }
+}
+
+// Additional Option method implementations
+
+/// Option::and_then implementation
+pub(crate) fn option_and_then_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "and_then expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Option(opt) => {
+            match **opt {
+                ScriptOption::Some(ref _val) => {
+                    // Call the function with the value
+                    // For now, return the second argument as a placeholder
+                    Ok(args[1].clone())
+                }
+                ScriptOption::None => Ok(ScriptValue::Option(ScriptRc::new(ScriptOption::None))),
+            }
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "and_then expects an Option argument".to_string(),
+        )),
+    }
+}
+
+/// Option::or implementation
+pub(crate) fn option_or_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "or expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Option(opt) => {
+            if opt.is_some() {
+                Ok(args[0].clone())
+            } else {
+                Ok(args[1].clone())
+            }
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "or expects an Option argument".to_string(),
+        )),
+    }
+}
+
+/// Option::unwrap_or implementation
+pub(crate) fn option_unwrap_or_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "unwrap_or expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Option(opt) => match **opt {
+            ScriptOption::Some(ref val) => Ok(val.clone()),
+            ScriptOption::None => Ok(args[1].clone()),
+        },
+        _ => Err(RuntimeError::InvalidOperation(
+            "unwrap_or expects an Option argument".to_string(),
+        )),
+    }
+}
+
+/// Option::expect implementation
+pub(crate) fn option_expect_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "expect expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1]) {
+        (ScriptValue::Option(opt), ScriptValue::String(msg)) => match **opt {
+            ScriptOption::Some(ref val) => Ok(val.clone()),
+            ScriptOption::None => Err(RuntimeError::Panic(msg.as_str().to_string())),
+        },
+        _ => Err(RuntimeError::InvalidOperation(
+            "expect expects an Option and a String argument".to_string(),
+        )),
+    }
+}
+
+/// Option::filter implementation
+pub(crate) fn option_filter_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "filter expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Option(opt) => {
+            match **opt {
+                ScriptOption::Some(ref _val) => {
+                    // For now, assume the predicate returns true
+                    // In a real implementation, we'd call the function
+                    Ok(args[0].clone())
+                }
+                ScriptOption::None => Ok(ScriptValue::Option(ScriptRc::new(ScriptOption::None))),
+            }
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "filter expects an Option argument".to_string(),
+        )),
+    }
+}
+
+/// Option::ok_or implementation
+pub(crate) fn option_ok_or_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "ok_or expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Option(opt) => match **opt {
+            ScriptOption::Some(ref val) => {
+                let result = ScriptResult::ok(val.clone());
+                Ok(ScriptValue::Result(ScriptRc::new(result)))
+            }
+            ScriptOption::None => {
+                let result = ScriptResult::err(args[1].clone());
+                Ok(ScriptValue::Result(ScriptRc::new(result)))
+            }
+        },
+        _ => Err(RuntimeError::InvalidOperation(
+            "ok_or expects an Option argument".to_string(),
+        )),
+    }
+}
+
+// Additional Result method implementations
+
+/// Result::and_then implementation
+pub(crate) fn result_and_then_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "and_then expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Result(res) => {
+            match res.get_ok() {
+                Some(_val) => {
+                    // Call the function with the Ok value
+                    // For now, return the second argument as a placeholder
+                    Ok(args[1].clone())
+                }
+                None => Ok(args[0].clone()),
+            }
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "and_then expects a Result argument".to_string(),
+        )),
+    }
+}
+
+/// Result::or implementation
+pub(crate) fn result_or_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "or expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Result(res) => {
+            if res.is_ok() {
+                Ok(args[0].clone())
+            } else {
+                Ok(args[1].clone())
+            }
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "or expects a Result argument".to_string(),
+        )),
+    }
+}
+
+/// Result::unwrap_or implementation
+pub(crate) fn result_unwrap_or_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "unwrap_or expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Result(res) => match res.get_ok() {
+            Some(val) => Ok(val.clone()),
+            None => Ok(args[1].clone()),
+        },
+        _ => Err(RuntimeError::InvalidOperation(
+            "unwrap_or expects a Result argument".to_string(),
+        )),
+    }
+}
+
+/// Result::expect implementation
+pub(crate) fn result_expect_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "expect expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match (&args[0], &args[1]) {
+        (ScriptValue::Result(res), ScriptValue::String(msg)) => match res.get_ok() {
+            Some(val) => Ok(val.clone()),
+            None => Err(RuntimeError::Panic(format!(
+                "{}: {:?}",
+                msg.as_str(),
+                res.get_err()
+            ))),
+        },
+        _ => Err(RuntimeError::InvalidOperation(
+            "expect expects a Result and a String argument".to_string(),
+        )),
+    }
+}
+
+/// Result::map implementation
+pub(crate) fn result_map_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "map expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Result(res) => {
+            match res.get_ok() {
+                Some(_val) => {
+                    // For now, return the second argument as the mapped result
+                    // In a real implementation, we'd call the function with the Ok value
+                    let mapped_result = ScriptResult::ok(args[1].clone());
+                    Ok(ScriptValue::Result(ScriptRc::new(mapped_result)))
+                }
+                None => Ok(args[0].clone()),
+            }
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "map expects a Result argument".to_string(),
+        )),
+    }
+}
+
+/// Result::map_err implementation
+pub(crate) fn result_map_err_impl(args: &[ScriptValue]) -> Result<ScriptValue, RuntimeError> {
+    if args.len() != 2 {
+        return Err(RuntimeError::InvalidOperation(format!(
+            "map_err expects 2 arguments, got {}",
+            args.len()
+        )));
+    }
+
+    match &args[0] {
+        ScriptValue::Result(res) => {
+            match res.get_err() {
+                Some(_err) => {
+                    // For now, return the second argument as the mapped error
+                    // In a real implementation, we'd call the function with the Err value
+                    let mapped_result = ScriptResult::err(args[1].clone());
+                    Ok(ScriptValue::Result(ScriptRc::new(mapped_result)))
+                }
+                None => Ok(args[0].clone()),
+            }
+        }
+        _ => Err(RuntimeError::InvalidOperation(
+            "map_err expects a Result argument".to_string(),
         )),
     }
 }

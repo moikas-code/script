@@ -1,0 +1,351 @@
+// Advanced Error Handling Examples for Script Language
+// Demonstrating the complete error handling system with advanced methods
+
+// Example 1: Flattening nested Results
+fn parse_and_validate(input: string) -> Result<i32, string> {
+    // Parse the string to an integer
+    let parsed = parse_integer(input)?;
+    
+    // Validate the parsed value
+    if parsed < 0 {
+        Err("Value must be non-negative")
+    } else {
+        Ok(parsed)
+    }
+}
+
+fn process_nested_result(input: string) -> Result<i32, string> {
+    // This creates a Result<Result<i32, string>, string>
+    let nested_result = Ok(parse_and_validate(input));
+    
+    // Flatten it to Result<i32, string>
+    nested_result.flatten()
+}
+
+// Example 2: Transposing between Result and Option
+fn find_and_parse(data: [string], target: string) -> Result<Option<i32>, string> {
+    // Find the target in the array
+    let found = find_in_array(data, target);
+    
+    // Transpose Option<Result<i32, string>> to Result<Option<i32>, string>
+    found.transpose()
+}
+
+fn find_in_array(arr: [string], target: string) -> Option<Result<i32, string>> {
+    for item in arr {
+        if item == target {
+            return Some(parse_integer(item));
+        }
+    }
+    None
+}
+
+// Example 3: Using inspect for debugging without consuming values
+fn debug_pipeline(input: string) -> Result<i32, string> {
+    parse_integer(input)
+        .inspect(|val| println("Parsed value: {}", val))
+        .inspect_err(|err| println("Parse error: {}", err))
+        .and_then(|val| {
+            if val > 100 {
+                Err("Value too large")
+            } else {
+                Ok(val * 2)
+            }
+        })
+        .inspect(|val| println("Final value: {}", val))
+}
+
+// Example 4: Complex error recovery strategies
+fn robust_data_processing(inputs: [string]) -> Result<[i32], string> {
+    let mut results = [];
+    let mut errors = [];
+    
+    for input in inputs {
+        match parse_integer(input) {
+            Ok(val) => results.push(val),
+            Err(e) => {
+                errors.push(e);
+                // Continue processing other inputs
+            }
+        }
+    }
+    
+    if errors.is_empty() {
+        Ok(results)
+    } else {
+        Err(format!("Errors encountered: {}", errors.join(", ")))
+    }
+}
+
+// Example 5: Combining multiple Results with logical operations
+fn validate_range(min: string, max: string, value: string) -> Result<i32, string> {
+    let min_val = parse_integer(min)?;
+    let max_val = parse_integer(max)?;
+    let val = parse_integer(value)?;
+    
+    // Use logical AND to combine validation results
+    let min_check = if val >= min_val { Ok(val) } else { Err("Value below minimum") };
+    let max_check = if val <= max_val { Ok(val) } else { Err("Value above maximum") };
+    
+    min_check.and(max_check)
+}
+
+// Example 6: Advanced Option patterns
+fn process_optional_data(opt_data: Option<[string]>) -> Option<[i32]> {
+    opt_data
+        .inspect(|data| println("Processing {} items", data.len()))
+        .and_then(|data| {
+            let mut parsed = [];
+            for item in data {
+                match parse_integer(item) {
+                    Ok(val) => parsed.push(val),
+                    Err(_) => return None  // Early termination on parse error
+                }
+            }
+            Some(parsed)
+        })
+        .inspect(|result| println("Successfully parsed {} values", result.len()))
+}
+
+// Example 7: Flattening nested Options
+fn get_nested_config() -> Option<Option<string>> {
+    Some(get_config_value("database.host"))
+}
+
+fn get_config_value(key: string) -> Option<string> {
+    if key == "database.host" {
+        Some("localhost")
+    } else {
+        None
+    }
+}
+
+fn get_database_host() -> Option<string> {
+    get_nested_config().flatten()
+}
+
+// Example 8: Collecting Results into collections
+fn parse_all_numbers(inputs: [string]) -> Result<[i32], string> {
+    let mut results = [];
+    
+    for input in inputs {
+        results.push(parse_integer(input)?);
+    }
+    
+    Ok(results)
+}
+
+// Example 9: Using fold for accumulation with error handling
+fn sum_valid_numbers(inputs: [string]) -> Result<i32, string> {
+    let mut sum = 0;
+    
+    for input in inputs {
+        let parsed = parse_integer(input)?;
+        sum += parsed;
+    }
+    
+    Ok(sum)
+}
+
+// Example 10: Custom error types and hierarchies
+enum ValidationError {
+    Empty,
+    TooLong(i32),
+    InvalidFormat(string),
+    OutOfRange(i32, i32, i32),  // min, max, actual
+}
+
+fn validate_username(username: string) -> Result<string, ValidationError> {
+    if username.is_empty() {
+        return Err(ValidationError::Empty);
+    }
+    
+    if username.len() > 20 {
+        return Err(ValidationError::TooLong(username.len()));
+    }
+    
+    if !username.is_alphanumeric() {
+        return Err(ValidationError::InvalidFormat(username));
+    }
+    
+    Ok(username)
+}
+
+fn format_validation_error(err: ValidationError) -> string {
+    match err {
+        ValidationError::Empty => "Username cannot be empty",
+        ValidationError::TooLong(len) => format!("Username too long: {} characters", len),
+        ValidationError::InvalidFormat(name) => format!("Invalid username format: {}", name),
+        ValidationError::OutOfRange(min, max, actual) => {
+            format!("Value {} is not between {} and {}", actual, min, max)
+        }
+    }
+}
+
+// Example 11: Chaining multiple operations with error propagation
+fn process_user_input(input: string) -> Result<string, string> {
+    let cleaned = clean_input(input)?;
+    let validated = validate_username(cleaned)
+        .map_err(|e| format_validation_error(e))?;
+    let normalized = normalize_case(validated)?;
+    
+    Ok(format!("Welcome, {}!", normalized))
+}
+
+fn clean_input(input: string) -> Result<string, string> {
+    if input.contains("  ") {
+        Err("Input contains double spaces")
+    } else {
+        Ok(input.trim())
+    }
+}
+
+fn normalize_case(input: string) -> Result<string, string> {
+    Ok(input.to_lowercase())
+}
+
+// Example 12: Performance considerations and best practices
+fn efficient_error_handling(large_dataset: [string]) -> Result<[i32], string> {
+    // Pre-allocate result vector for better performance
+    let mut results = Vec::with_capacity(large_dataset.len());
+    
+    // Process in batches to avoid memory issues
+    let batch_size = 1000;
+    let mut batch_errors = [];
+    
+    for i in 0..large_dataset.len() step batch_size {
+        let end = min(i + batch_size, large_dataset.len());
+        let batch = large_dataset[i..end];
+        
+        // Process batch
+        for item in batch {
+            match parse_integer(item) {
+                Ok(val) => results.push(val),
+                Err(e) => {
+                    batch_errors.push(format!("Item {}: {}", i, e));
+                    // Continue processing instead of failing fast
+                }
+            }
+        }
+        
+        // Check if we have too many errors
+        if batch_errors.len() > 100 {
+            return Err(format!("Too many errors: {}", batch_errors.len()));
+        }
+    }
+    
+    if batch_errors.is_empty() {
+        Ok(results)
+    } else {
+        Err(format!("Batch errors: {}", batch_errors.join("; ")))
+    }
+}
+
+// Helper function (simplified implementation)
+fn parse_integer(s: string) -> Result<i32, string> {
+    if s.is_empty() {
+        Err("Cannot parse empty string")
+    } else if s == "invalid" {
+        Err("Invalid number format")
+    } else if s.starts_with("-") {
+        Err("Negative numbers not supported")
+    } else {
+        // Simplified: return length as the "parsed" value
+        Ok(s.len() as i32)
+    }
+}
+
+// Main function demonstrating all examples
+fn main() -> Result<(), string> {
+    println("=== Advanced Error Handling Examples ===");
+    
+    // Example 1: Flattening
+    println("\n1. Flattening nested Results:");
+    match process_nested_result("42") {
+        Ok(val) => println("Flattened result: {}", val),
+        Err(e) => println("Error: {}", e),
+    }
+    
+    // Example 2: Transposing
+    println("\n2. Transposing Result and Option:");
+    let data = ["10", "20", "30"];
+    match find_and_parse(data, "20") {
+        Ok(Some(val)) => println("Found and parsed: {}", val),
+        Ok(None) => println("Not found"),
+        Err(e) => println("Error: {}", e),
+    }
+    
+    // Example 3: Debugging with inspect
+    println("\n3. Debugging with inspect:");
+    let _ = debug_pipeline("42");
+    
+    // Example 4: Robust processing
+    println("\n4. Robust data processing:");
+    let inputs = ["10", "invalid", "30", "40"];
+    match robust_data_processing(inputs) {
+        Ok(results) => println("Processed: {:?}", results),
+        Err(e) => println("Processing errors: {}", e),
+    }
+    
+    // Example 5: Validation with range
+    println("\n5. Range validation:");
+    match validate_range("0", "100", "50") {
+        Ok(val) => println("Valid value: {}", val),
+        Err(e) => println("Validation error: {}", e),
+    }
+    
+    // Example 6: Optional data processing
+    println("\n6. Optional data processing:");
+    let opt_data = Some(["10", "20", "30"]);
+    match process_optional_data(opt_data) {
+        Some(results) => println("Processed optional data: {:?}", results),
+        None => println("Failed to process optional data"),
+    }
+    
+    // Example 7: Nested Options
+    println("\n7. Flattening nested Options:");
+    match get_database_host() {
+        Some(host) => println("Database host: {}", host),
+        None => println("Database host not configured"),
+    }
+    
+    // Example 8: Collecting results
+    println("\n8. Collecting results:");
+    let numbers = ["1", "2", "3"];
+    match parse_all_numbers(numbers) {
+        Ok(parsed) => println("All numbers: {:?}", parsed),
+        Err(e) => println("Parse error: {}", e),
+    }
+    
+    // Example 9: Folding with error handling
+    println("\n9. Summing valid numbers:");
+    match sum_valid_numbers(["1", "2", "3"]) {
+        Ok(sum) => println("Sum: {}", sum),
+        Err(e) => println("Sum error: {}", e),
+    }
+    
+    // Example 10: Custom error types
+    println("\n10. Custom error validation:");
+    match validate_username("john_doe") {
+        Ok(name) => println("Valid username: {}", name),
+        Err(e) => println("Validation error: {}", format_validation_error(e)),
+    }
+    
+    // Example 11: Chaining operations
+    println("\n11. Chaining operations:");
+    match process_user_input("  John_Doe  ") {
+        Ok(result) => println("Processed: {}", result),
+        Err(e) => println("Processing error: {}", e),
+    }
+    
+    // Example 12: Performance considerations
+    println("\n12. Efficient error handling:");
+    let large_data = ["1", "2", "3", "4", "5"];
+    match efficient_error_handling(large_data) {
+        Ok(results) => println("Efficiently processed {} items", results.len()),
+        Err(e) => println("Efficient processing error: {}", e),
+    }
+    
+    println("\n=== All examples completed successfully! ===");
+    Ok(())
+}

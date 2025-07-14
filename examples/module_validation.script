@@ -1,0 +1,221 @@
+/**
+ * Module System Validation Example
+ * 
+ * This example tests:
+ * - Module imports
+ * - Function imports from modules
+ * - Standard library imports
+ * - Module namespacing
+ */
+
+// Test importing from standard library modules
+import std.math
+import std.string
+import std.collections
+
+// Test importing specific functions
+from std.io import read_file, write_file
+from std.random import random, random_int
+
+// Test importing with aliases
+import std.network as net
+from std.time import now as current_time
+
+// Test using imported math functions
+fn test_math_imports() {
+    print("=== Math Module Tests ===")
+    
+    let x = 16.0
+    let y = 3.14159
+    
+    print("sqrt(16) = " + math.sqrt(x))
+    print("sin(π) = " + math.sin(y))
+    print("cos(π) = " + math.cos(y))
+    print("abs(-42) = " + math.abs(-42))
+    print("max(10, 20) = " + math.max(10, 20))
+    print("min(10, 20) = " + math.min(10, 20))
+    print("pow(2, 8) = " + math.pow(2, 8))
+    print("log(10) = " + math.log(10))
+}
+
+// Test using imported string functions
+fn test_string_imports() {
+    print("\n=== String Module Tests ===")
+    
+    let text = "  Hello, Script World!  "
+    
+    print("Original: '" + text + "'")
+    print("Trimmed: '" + string.trim(text) + "'")
+    print("Uppercase: '" + string.to_uppercase(text) + "'")
+    print("Lowercase: '" + string.to_lowercase(text) + "'")
+    print("Length: " + string.length(text))
+    print("Contains 'Script': " + string.contains(text, "Script"))
+    print("Replace 'Hello' with 'Hi': '" + string.replace(text, "Hello", "Hi") + "'")
+    
+    let words = string.split(text.trim(), " ")
+    print("Words: " + words.len() + " parts")
+}
+
+// Test using imported collection functions  
+fn test_collections_imports() {
+    print("\n=== Collections Module Tests ===")
+    
+    // Test Vec operations
+    let numbers = collections.Vec<i32>::new()
+    numbers.push(1)
+    numbers.push(2)
+    numbers.push(3)
+    
+    print("Vec length: " + numbers.len())
+    print("Vec contains 2: " + collections.contains(numbers, 2))
+    
+    // Test HashMap operations
+    let scores = collections.HashMap<string, i32>::new()
+    scores.insert("Alice", 95)
+    scores.insert("Bob", 87)
+    scores.insert("Charlie", 92)
+    
+    print("HashMap size: " + scores.len())
+    print("Alice's score: " + scores.get("Alice"))
+    
+    // Test set operations
+    let unique_numbers = collections.HashSet<i32>::new()
+    unique_numbers.insert(1)
+    unique_numbers.insert(2)
+    unique_numbers.insert(2) // Duplicate
+    unique_numbers.insert(3)
+    
+    print("Set size (should be 3): " + unique_numbers.len())
+}
+
+// Test using directly imported functions
+fn test_direct_imports() {
+    print("\n=== Direct Import Tests ===")
+    
+    // Test I/O functions (imported directly)
+    let test_content = "This is test content for file operations"
+    
+    // Note: These might fail if file system access is restricted
+    // but they test the import mechanism
+    match write_file("test.txt", test_content) {
+        Ok(_) => print("File write successful"),
+        Err(msg) => print("File write failed: " + msg)
+    }
+    
+    match read_file("test.txt") {
+        Ok(content) => print("File content: " + content),
+        Err(msg) => print("File read failed: " + msg)
+    }
+    
+    // Test random functions (imported directly)
+    print("Random float: " + random())
+    print("Random int 1-10: " + random_int(1, 10))
+    print("Random int 1-100: " + random_int(1, 100))
+}
+
+// Test using aliased imports
+fn test_aliased_imports() {
+    print("\n=== Aliased Import Tests ===")
+    
+    // Test network module with alias
+    let local_ip = net.get_local_ip()
+    print("Local IP: " + local_ip)
+    
+    let is_connected = net.check_connection("google.com", 80)
+    print("Internet connectivity: " + is_connected)
+    
+    // Test time function with alias
+    let timestamp = current_time()
+    print("Current timestamp: " + timestamp)
+}
+
+// Test importing user-defined modules (if they exist)
+fn test_user_modules() {
+    print("\n=== User Module Tests ===")
+    
+    // These would test importing from user-created modules
+    // For now, we'll use conditional imports to avoid errors
+    
+    print("Note: User module tests would go here")
+    print("Example: import my_module.utils")
+    print("Example: from my_module.math import custom_function")
+}
+
+// Test module-scoped functions and variables
+fn test_module_scope() {
+    print("\n=== Module Scope Tests ===")
+    
+    // Test that imported functions work in different scopes
+    let nested_result = {
+        let inner_value = math.sqrt(25.0)
+        string.trim("  " + inner_value + "  ")
+    }
+    
+    print("Nested scope result: '" + nested_result + "'")
+    
+    // Test that imports work in function calls
+    let formatted = format_number(math.pi)
+    print("Formatted PI: " + formatted)
+}
+
+// Helper function that uses imported modules
+fn format_number(num: f32) -> string {
+    let rounded = math.round(num * 100.0) / 100.0
+    "Number: " + rounded
+}
+
+// Test error handling with modules
+fn test_module_error_handling() {
+    print("\n=== Module Error Handling Tests ===")
+    
+    // Test handling errors from module functions
+    let invalid_operation = math.sqrt(-1.0) // This might return NaN or error
+    print("sqrt(-1): " + invalid_operation)
+    
+    // Test with file operations that might fail
+    match read_file("nonexistent_file.txt") {
+        Ok(content) => print("Unexpected success: " + content),
+        Err(msg) => print("Expected error reading nonexistent file: " + msg)
+    }
+}
+
+// Test module constants and static values
+fn test_module_constants() {
+    print("\n=== Module Constants Tests ===")
+    
+    // Test accessing module constants
+    print("PI from math module: " + math.PI)
+    print("E from math module: " + math.E)
+    print("MAX_INT: " + math.MAX_INT)
+    print("MIN_INT: " + math.MIN_INT)
+    
+    // Test string module constants (if any)
+    print("Empty string constant: '" + string.EMPTY + "'")
+    print("Newline constant: '" + string.NEWLINE + "'")
+}
+
+// Main function to run all module tests
+fn main() {
+    print("=== Script Language Module System Validation ===")
+    
+    // Test core module functionality
+    test_math_imports()
+    test_string_imports()
+    test_collections_imports()
+    
+    // Test import variations
+    test_direct_imports()
+    test_aliased_imports()
+    test_user_modules()
+    test_module_scope()
+    
+    // Test edge cases
+    test_module_error_handling()
+    test_module_constants()
+    
+    print("\n=== Module system validation complete ===")
+    print("Note: Some tests may show errors if modules are not fully implemented")
+    print("or if file system access is restricted in the test environment.")
+}
+
+main()

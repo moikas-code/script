@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 // Helper function to parse source code directly
 fn parse_source(source: &str) -> Result<Program, Error> {
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, errors) = lexer.scan_tokens();
 
     if !errors.is_empty() {

@@ -1,0 +1,38 @@
+// Example demonstrating generic struct and enum construction
+
+struct Point<T> {
+    x: T,
+    y: T
+}
+
+struct Box<T> {
+    value: T
+}
+
+enum Option<T> {
+    Some(T),
+    None
+}
+
+enum Result<T, E> {
+    Ok(T),
+    Err(E)
+}
+
+fn main() {
+    // Construct generic structs
+    let p_i32 = Point { x: 10, y: 20 };
+    let p_f32 = Point { x: 1.5, y: 2.5 };
+    
+    // Nested generic structs  
+    let boxed_point = Box { value: p_i32 };
+    
+    // Construct generic enums
+    let some_value = Option::Some(42);
+    let none_value = Option::None;
+    
+    let ok_result = Result::Ok("success");
+    let err_result = Result::Err("failure");
+    
+    print("Generic structs and enums created successfully");
+}

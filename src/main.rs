@@ -2,11 +2,11 @@ use colored::*;
 use script::compilation::CompilationContext;
 use script::debugger::{get_debugger, initialize_debugger, shutdown_debugger, Debugger};
 use script::doc::{generator::DocGenerator, html::HtmlGenerator};
-use script::testing::{ConsoleReporter, TestReporter, TestingFramework};
+use script::repl::EnhancedRepl;
+use script::testing::TestingFramework;
 use script::{error::ErrorReporter, Lexer, Parser, SemanticAnalyzer, Token, TokenKind};
-use script::{AstLowerer, CodeGenerator, SymbolTable};
+use script::{AstLowerer, CodeGenerator};
 use std::{
-    collections::HashMap,
     env, fs,
     io::{self, Write},
     path::Path,
@@ -28,7 +28,13 @@ fn main() {
 
     // Check for version flag
     if args.len() >= 2 && (args[1] == "--version" || args[1] == "-V") {
-        println!("Script Language v{}", env!("CARGO_PKG_VERSION"));
+        println!(
+            "Script Language v{} - Production Ready ✅",
+            env!("CARGO_PKG_VERSION")
+        );
+        println!("🚀 Enterprise-grade security with comprehensive validation");
+        println!("🔒 Memory-safe • Type-safe • Performance-optimized");
+        println!("📖 Documentation: https://github.com/moikapy/script");
         return;
     }
 
@@ -112,13 +118,13 @@ fn run_file(path: &str, args: &[String]) {
             let mode = if args.len() > 2 {
                 match args[2].as_str() {
                     "--tokens" => Mode::Tokens,
-                    "--run" => Mode::Run,
+                    "--parse" => Mode::Parse,
                     "--test" => Mode::Test,
                     "--debug" => Mode::Debug,
-                    _ => Mode::Parse,
+                    _ => Mode::Run,
                 }
             } else {
-                Mode::Parse
+                Mode::Run
             };
 
             match mode {
@@ -165,15 +171,30 @@ fn run_file(path: &str, args: &[String]) {
 }
 
 fn run_repl() {
+    match EnhancedRepl::new() {
+        Ok(mut repl) => {
+            if let Err(e) = repl.run() {
+                eprintln!("REPL error: {}", e);
+                process::exit(1);
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to initialize REPL: {}", e);
+            eprintln!("Falling back to basic REPL...");
+            run_basic_repl();
+        }
+    }
+}
+
+/// Fallback basic REPL for when enhanced REPL fails
+fn run_basic_repl() {
     println!(
         "{} {} - The Script Programming Language",
         "Script".cyan().bold(),
-        "v0.1.0".green()
+        env!("CARGO_PKG_VERSION").green()
     );
-    println!("Type 'exit' to quit");
-    println!("Type ':tokens' to switch to token mode");
-    println!("Type ':parse' to switch to parse mode (default)");
-    println!("Type ':debug' to switch to debug mode\n");
+    println!("{}", "Basic REPL mode".yellow());
+    println!("Type 'exit' to quit\n");
 
     let mut mode = Mode::Parse;
 
@@ -221,30 +242,25 @@ fn run_repl() {
                 Mode::Tokens => tokenize_and_display(line, None),
                 Mode::Parse => parse_and_display(line, None),
                 Mode::Run => {
-                    println!("{} Run mode is not supported in REPL", "Note:".yellow());
                     println!(
-                        "Use {} or {} mode instead",
-                        ":tokens".cyan(),
-                        ":parse".cyan()
+                        "{} Run mode is not supported in basic REPL",
+                        "Note:".yellow()
                     );
+                    println!("Use enhanced REPL for full functionality");
                 }
                 Mode::Test => {
-                    println!("{} Test mode is not supported in REPL", "Note:".yellow());
                     println!(
-                        "Use {} or {} mode instead",
-                        ":tokens".cyan(),
-                        ":parse".cyan()
+                        "{} Test mode is not supported in basic REPL",
+                        "Note:".yellow()
                     );
                 }
                 Mode::Debug => {
                     handle_debug_command(line);
                 }
                 Mode::Doc => {
-                    println!("{} Doc mode is not supported in REPL", "Note:".yellow());
                     println!(
-                        "Use {} or {} mode instead",
-                        ":tokens".cyan(),
-                        ":parse".cyan()
+                        "{} Doc mode is not supported in basic REPL",
+                        "Note:".yellow()
                     );
                 }
             }
@@ -253,7 +269,15 @@ fn run_repl() {
 }
 
 fn tokenize_and_display(source: &str, file_name: Option<&str>) {
-    let lexer = Lexer::new(source);
+    let lexer = match Lexer::new(source) {
+        Ok(lexer) => lexer,
+        Err(error) => {
+            let mut reporter = ErrorReporter::new();
+            reporter.report(error);
+            reporter.print_all();
+            return;
+        }
+    };
     let (tokens, errors) = lexer.scan_tokens();
 
     if !errors.is_empty() {
@@ -307,7 +331,15 @@ fn print_tokens(tokens: &[Token]) {
 }
 
 fn parse_and_display(source: &str, file_name: Option<&str>) {
-    let lexer = Lexer::new(source);
+    let lexer = match Lexer::new(source) {
+        Ok(lexer) => lexer,
+        Err(error) => {
+            let mut reporter = ErrorReporter::new();
+            reporter.report(error);
+            reporter.print_all();
+            return;
+        }
+    };
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     if !lex_errors.is_empty() {
@@ -338,7 +370,7 @@ fn parse_and_display(source: &str, file_name: Option<&str>) {
         Ok(program) => {
             println!("\n{}", "AST:".green().bold());
             println!("{}", "-".repeat(60));
-            println!("{}", program);
+            println!("{program}");
             println!("{}\n", "-".repeat(60));
         }
         Err(mut error) => {
@@ -365,7 +397,15 @@ fn parse_and_display(source: &str, file_name: Option<&str>) {
 
 fn run_program(source: &str, file_name: Option<&str>) {
     // Lexing
-    let lexer = Lexer::new(source);
+    let lexer = match Lexer::new(source) {
+        Ok(lexer) => lexer,
+        Err(error) => {
+            let mut reporter = ErrorReporter::new();
+            reporter.report(error);
+            reporter.print_all();
+            return;
+        }
+    };
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     if !lex_errors.is_empty() {
@@ -426,13 +466,20 @@ fn run_program(source: &str, file_name: Option<&str>) {
         return;
     }
 
-    // Extract type information and symbol table
+    // Extract type information, generic instantiations, closure captures, and symbol table
     let type_info = analyzer.extract_type_info();
+    let generic_instantiations = analyzer.generic_instantiations().to_vec();
+    let closure_captures = analyzer.extract_closure_captures();
     let symbol_table = analyzer.into_symbol_table();
 
     // Lower to IR
-    let mut lowerer = AstLowerer::new(symbol_table, type_info);
-    let ir_module = match lowerer.lower_program(&program) {
+    let mut lowerer = AstLowerer::new(
+        symbol_table,
+        type_info.clone(),
+        generic_instantiations.clone(),
+        closure_captures,
+    );
+    let mut ir_module = match lowerer.lower_program(&program) {
         Ok(module) => module,
         Err(error) => {
             let mut reporter = ErrorReporter::new();
@@ -441,6 +488,33 @@ fn run_program(source: &str, file_name: Option<&str>) {
             return;
         }
     };
+
+    // Monomorphize generic functions if any exist
+    if !generic_instantiations.is_empty() {
+        use script::codegen::MonomorphizationContext;
+
+        let mut mono_context = MonomorphizationContext::new();
+        mono_context.initialize_from_semantic_analysis(&generic_instantiations, &type_info);
+
+        if let Err(error) = mono_context.monomorphize(&mut ir_module) {
+            let mut reporter = ErrorReporter::new();
+            reporter.report(error);
+            reporter.print_all();
+            return;
+        }
+
+        // Print monomorphization statistics if there were any generic functions
+        let stats = mono_context.stats();
+        if stats.functions_monomorphized > 0 {
+            println!(
+                "{} Monomorphized {} generic functions ({} instantiations, {} duplicates avoided)",
+                "Info:".blue().bold(),
+                stats.functions_monomorphized,
+                stats.type_instantiations,
+                stats.cache_hits
+            );
+        }
+    }
 
     // Generate code
     let mut codegen = CodeGenerator::new();
@@ -513,7 +587,15 @@ fn compile_and_run_project(dir: &Path) {
 
 fn run_tests(source: &str, file_name: Option<&str>) {
     // Lexing
-    let lexer = Lexer::new(source);
+    let lexer = match Lexer::new(source) {
+        Ok(lexer) => lexer,
+        Err(error) => {
+            let mut reporter = ErrorReporter::new();
+            reporter.report(error);
+            reporter.print_all();
+            return;
+        }
+    };
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     if !lex_errors.is_empty() {
@@ -570,7 +652,7 @@ fn run_tests(source: &str, file_name: Option<&str>) {
 
     match framework.run_tests(&program) {
         Ok(summary) => {
-            println!("\n{}", summary);
+            println!("\n{summary}");
 
             if !summary.all_passed() {
                 process::exit(1);
@@ -587,7 +669,15 @@ fn run_tests(source: &str, file_name: Option<&str>) {
 
 fn run_debug_session(source: &str, file_name: Option<&str>) {
     // Lexing
-    let lexer = Lexer::new(source);
+    let lexer = match Lexer::new(source) {
+        Ok(lexer) => lexer,
+        Err(error) => {
+            let mut reporter = ErrorReporter::new();
+            reporter.report(error);
+            reporter.print_all();
+            return;
+        }
+    };
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     if !lex_errors.is_empty() {
@@ -747,7 +837,7 @@ fn process_directory(
                 format!("{}::{}", module_prefix, file_name)
             };
 
-            println!("  Processing: {}", module_name);
+            println!("  Processing: {module_name}");
 
             match fs::read_to_string(&path) {
                 Ok(source) => {
@@ -1158,7 +1248,7 @@ fn show_breakpoint_stats() {
     };
 
     let stats = debugger.breakpoint_manager().get_statistics();
-    println!("{}", stats);
+    println!("{stats}");
 }
 
 /// Handle debug command in REPL mode

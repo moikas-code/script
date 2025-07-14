@@ -17,7 +17,7 @@ fn multiply(a: float, b: float) -> float {
 let PI: float = 3.14159
 "#;
 
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     assert!(
@@ -55,7 +55,7 @@ fn distance(p1: Point2D, p2: Point2D) -> float {
 }
 "#;
 
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     assert!(
@@ -83,7 +83,7 @@ fn main() {
 }
 "#;
 
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     assert!(
@@ -122,7 +122,7 @@ fn lowercase(s: string) -> string {
 }
 "#;
 
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     assert!(
@@ -163,7 +163,7 @@ fn unwrap_or(opt: Option, default: any) -> any {
 }
 "#;
 
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, lex_errors) = lexer.scan_tokens();
 
     assert!(

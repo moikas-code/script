@@ -1,0 +1,50 @@
+// Test the stages of generic compilation
+// This file tests parsing and semantic analysis separately
+
+// Stage 1: Basic generic function
+fn identity<T>(x: T) -> T {
+    x
+}
+
+// Stage 2: Multiple type parameters
+fn swap<A, B>(a: A, b: B) -> (B, A) {
+    (b, a)
+}
+
+// Stage 3: Generic struct
+struct Pair<T, U> {
+    first: T,
+    second: U,
+}
+
+// Stage 4: Generic impl block
+impl<T, U> Pair<T, U> {
+    fn new(f: T, s: U) -> Pair<T, U> {
+        Pair { first: f, second: s }
+    }
+}
+
+// Stage 5: Trait definition
+trait Display {
+    fn display(self) -> string;
+}
+
+// Stage 6: Generic function with trait bounds (simplified for now)
+fn show<T>(item: T) -> T {
+    item
+}
+
+// Main function to test instantiation
+fn main() -> i32 {
+    // Test identity with different types
+    let i = identity(42);
+    let b = identity(true);
+    
+    // Test swap
+    let (x, y) = swap(1, "hello");
+    
+    // Test generic struct
+    let p = Pair::new(10, 20);
+    
+    0
+}

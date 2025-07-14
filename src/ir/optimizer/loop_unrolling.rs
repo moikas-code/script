@@ -140,9 +140,9 @@ impl LoopUnrolling {
     /// Analyze an induction variable to determine loop count
     fn analyze_induction_variable(
         &self,
-        function: &Function,
+        _function: &Function,
         loop_info: &LoopInfo,
-        induction_var: &super::loop_analysis::InductionVariable,
+        _induction_var: &super::loop_analysis::InductionVariable,
     ) -> Option<usize> {
         // For now, return a conservative estimate
         // In a full implementation, we'd analyze the actual values

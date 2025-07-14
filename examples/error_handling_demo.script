@@ -1,0 +1,46 @@
+// Demo of Result and Option error handling
+
+// Function that may fail
+fn divide(a: f32, b: f32) -> Result<f32, String> {
+    if b == 0.0 {
+        Err("Division by zero")
+    } else {
+        Ok(a / b)
+    }
+}
+
+// Function using ? operator
+fn calculate() -> Result<f32, String> {
+    let x = divide(10.0, 2.0)?;
+    let y = divide(x, 0.0)?;  // This will propagate the error
+    Ok(y + 1.0)
+}
+
+// Function with Option
+fn find_value(key: String) -> Option<i32> {
+    if key == "answer" {
+        Some(42)
+    } else {
+        None
+    }
+}
+
+// Function using ? with Option
+fn process_value() -> Option<i32> {
+    let val = find_value("answer")?;
+    Some(val * 2)
+}
+
+fn main() {
+    // Test Result handling
+    match calculate() {
+        Ok(result) => print("Result: " + result),
+        Err(msg) => print("Error: " + msg)
+    }
+    
+    // Test Option handling
+    match process_value() {
+        Some(val) => print("Value: " + val),
+        None => print("No value found")
+    }
+}

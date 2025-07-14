@@ -1,0 +1,56 @@
+// Generic struct definition
+struct Vec<T> {
+    items: [T],
+    length: i32
+}
+
+// Generic enum definition
+enum Option<T> {
+    Some(T),
+    None
+}
+
+// Generic enum with multiple type parameters
+enum Result<T, E> {
+    Ok(T),
+    Err(E)
+}
+
+// Struct with multiple generic parameters
+struct Pair<A, B> {
+    first: A,
+    second: B
+}
+
+// Enum with struct variants
+enum Shape<T> {
+    Circle { radius: T },
+    Rectangle { width: T, height: T },
+    Point
+}
+
+fn main() {
+    // Test basic generic struct parsing
+    let vec_type: Vec<i32> = Vec { items: [], length: 0 };
+    
+    // Test enum variant parsing
+    let some_value = Option::Some(42);
+    let no_value = Option::None;
+    
+    // Test Result enum
+    let success = Result::Ok("success");
+    let failure = Result::Err("error");
+    
+    // Test struct with multiple type parameters
+    let pair = Pair {
+        first: 10,
+        second: "ten"
+    };
+    
+    // Test enum with struct variants
+    let circle = Shape::Circle { radius: 5.0 };
+    let rect = Shape::Rectangle { width: 10.0, height: 20.0 };
+    let point = Shape::Point;
+    
+    print("Generic structs and enums parsing works!")
+}

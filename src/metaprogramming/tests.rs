@@ -13,6 +13,7 @@ fn test_derive_debug() {
             generic_params: None,
             params: vec![],
             ret_type: None,
+            where_clause: None,
             body: Block {
                 statements: vec![],
                 final_expr: None,
@@ -48,6 +49,7 @@ fn test_derive_multiple_traits() {
             generic_params: None,
             params: vec![],
             ret_type: None,
+            where_clause: None,
             body: Block {
                 statements: vec![],
                 final_expr: None,
@@ -100,11 +102,13 @@ fn test_const_function_registration() {
                 kind: TypeKind::Named("Number".to_string()),
                 span: Span::dummy(),
             }),
+            where_clause: None,
             body: Block {
                 statements: vec![],
                 final_expr: Some(Box::new(Expr {
                     kind: ExprKind::Literal(Literal::Number(1.0)),
                     span: Span::dummy(),
+                    id: 0,
                 })),
             },
             is_async: false,
@@ -130,6 +134,7 @@ fn test_const_evaluator() {
     let expr = Expr {
         kind: ExprKind::Literal(Literal::Number(42.0)),
         span: Span::dummy(),
+        id: 0,
     };
     let result = evaluator.evaluate_expr(&expr).unwrap();
     assert_eq!(result, ConstValue::Number(42.0));
@@ -140,14 +145,17 @@ fn test_const_evaluator() {
             left: Box::new(Expr {
                 kind: ExprKind::Literal(Literal::Number(10.0)),
                 span: Span::dummy(),
+                id: 1,
             }),
             op: BinaryOp::Add,
             right: Box::new(Expr {
                 kind: ExprKind::Literal(Literal::Number(5.0)),
                 span: Span::dummy(),
+                id: 2,
             }),
         },
         span: Span::dummy(),
+        id: 3,
     };
     let result = evaluator.evaluate_expr(&expr).unwrap();
     assert_eq!(result, ConstValue::Number(15.0));
@@ -158,13 +166,16 @@ fn test_const_evaluator() {
             Expr {
                 kind: ExprKind::Literal(Literal::Number(1.0)),
                 span: Span::dummy(),
+                id: 0,
             },
             Expr {
                 kind: ExprKind::Literal(Literal::Number(2.0)),
                 span: Span::dummy(),
+                id: 1,
             },
         ]),
         span: Span::dummy(),
+        id: 2,
     };
     let result = evaluator.evaluate_expr(&expr).unwrap();
     if let ConstValue::Array(values) = result {
@@ -188,6 +199,7 @@ fn test_invalid_attribute_target() {
             init: Some(Expr {
                 kind: ExprKind::Literal(Literal::Number(42.0)),
                 span: Span::dummy(),
+                id: 3,
             }),
         },
         span: Span::dummy(),

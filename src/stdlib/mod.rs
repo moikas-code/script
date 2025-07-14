@@ -6,19 +6,37 @@
 //! All functions in this module are designed to be called from Script code
 //! and integrate with the Script runtime system.
 
+pub mod async_functional;
 pub mod async_std;
+pub mod closure_helpers;
 pub mod collections;
 pub mod core_types;
+pub mod error;
+pub mod functional;
+pub mod functional_advanced;
 pub mod game;
 pub mod io;
+pub mod iterators;
 pub mod math;
+pub mod network;
+pub mod parallel;
+pub mod random;
 pub mod string;
+pub mod time;
 
 // Re-export commonly used items
+pub use async_functional::{AsyncFunctionalConfig, AsyncFunctionalOps, FutureCombinators};
 pub use async_std::{interval, join_all, race, sleep, timeout, yield_now};
-pub use collections::{ScriptHashMap, ScriptVec};
+pub use collections::{ScriptHashMap, ScriptHashSet, ScriptVec};
 pub use core_types::{ScriptOption, ScriptResult};
-pub use io::{eprintln, print, println, read_file, read_line, write_file};
+pub use functional::{FunctionComposition, FunctionalExecutor, FunctionalOps};
+pub use io::{
+    append_file, copy_file, create_dir, delete_dir, delete_file, dir_exists, eprintln, file_exists,
+    file_metadata, list_dir, print, println, read_file, read_line, write_file,
+};
+pub use iterators::{Generators, RangeIterator, ScriptIterator, VecIterator};
+pub use network::{ScriptTcpListener, ScriptTcpStream, ScriptUdpSocket};
+pub use parallel::{ParallelConfig, ParallelExecutor};
 pub use string::{ScriptString, StringOps};
 
 use crate::runtime::{RuntimeError, ScriptRc};
@@ -42,7 +60,7 @@ pub struct StdLibFunction {
 }
 
 /// A value in the Script runtime
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum ScriptValue {
     /// 32-bit integer
     I32(i32),
@@ -56,6 +74,8 @@ pub enum ScriptValue {
     Array(ScriptRc<ScriptVec>),
     /// HashMap
     HashMap(ScriptRc<ScriptHashMap>),
+    /// HashSet
+    HashSet(ScriptRc<ScriptHashSet>),
     /// Option type
     Option(ScriptRc<ScriptOption>),
     /// Result type
@@ -64,6 +84,10 @@ pub enum ScriptValue {
     Unit,
     /// Object type (for vectors, matrices, etc.)
     Object(ScriptRc<HashMap<String, ScriptValue>>),
+    /// Iterator type for lazy evaluation
+    Iterator(ScriptRc<Box<dyn iterators::ScriptIterator>>),
+    /// Closure type for functional programming
+    Closure(ScriptRc<crate::runtime::closure::Closure>),
 }
 
 impl ScriptValue {
@@ -76,10 +100,16 @@ impl ScriptValue {
             ScriptValue::String(_) => Type::String,
             ScriptValue::Array(_) => Type::Named("Array".to_string()),
             ScriptValue::HashMap(_) => Type::Named("HashMap".to_string()),
+            ScriptValue::HashSet(_) => Type::Named("HashSet".to_string()),
             ScriptValue::Option(_) => Type::Named("Option".to_string()),
             ScriptValue::Result(_) => Type::Named("Result".to_string()),
             ScriptValue::Unit => Type::Named("unit".to_string()),
             ScriptValue::Object(_) => Type::Named("Object".to_string()),
+            ScriptValue::Iterator(_) => Type::Named("Iterator".to_string()),
+            ScriptValue::Closure(_) => Type::Function {
+                params: vec![Type::Unknown],  // TODO: Extract actual parameter types
+                ret: Box::new(Type::Unknown), // TODO: Extract actual return type
+            },
         }
     }
 
@@ -123,6 +153,22 @@ impl ScriptValue {
         }
     }
 
+    /// Convert to closure if possible
+    pub fn as_closure(&self) -> Option<&crate::runtime::closure::Closure> {
+        match self {
+            ScriptValue::Closure(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Convert to iterator if possible
+    pub fn as_iterator(&self) -> Option<&Box<dyn iterators::ScriptIterator>> {
+        match self {
+            ScriptValue::Iterator(val) => Some(val),
+            _ => None,
+        }
+    }
+
     /// Check if this is a unit value
     pub fn is_unit(&self) -> bool {
         matches!(self, ScriptValue::Unit)
@@ -153,6 +199,28 @@ impl ScriptValue {
     }
 }
 
+impl PartialEq for ScriptValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (ScriptValue::I32(a), ScriptValue::I32(b)) => a == b,
+            (ScriptValue::F32(a), ScriptValue::F32(b)) => a == b,
+            (ScriptValue::Bool(a), ScriptValue::Bool(b)) => a == b,
+            (ScriptValue::String(a), ScriptValue::String(b)) => a == b,
+            (ScriptValue::Array(a), ScriptValue::Array(b)) => a == b,
+            (ScriptValue::HashMap(a), ScriptValue::HashMap(b)) => a == b,
+            (ScriptValue::HashSet(a), ScriptValue::HashSet(b)) => a == b,
+            (ScriptValue::Option(a), ScriptValue::Option(b)) => a == b,
+            (ScriptValue::Result(a), ScriptValue::Result(b)) => a == b,
+            (ScriptValue::Unit, ScriptValue::Unit) => true,
+            (ScriptValue::Object(a), ScriptValue::Object(b)) => a == b,
+            // Iterators and Closures cannot be compared for equality
+            (ScriptValue::Iterator(_), ScriptValue::Iterator(_)) => false,
+            (ScriptValue::Closure(_), ScriptValue::Closure(_)) => false,
+            _ => false,
+        }
+    }
+}
+
 impl StdLib {
     /// Create a new standard library instance with all built-in functions
     pub fn new() -> Self {
@@ -165,8 +233,12 @@ impl StdLib {
         stdlib.register_string_functions();
         stdlib.register_core_type_functions();
         stdlib.register_collection_functions();
+        stdlib.register_functional_programming_functions();
         stdlib.register_math_functions();
         stdlib.register_game_functions();
+        stdlib.register_network_functions();
+        stdlib.register_random_functions();
+        stdlib.register_time_functions();
 
         stdlib
     }
@@ -268,6 +340,123 @@ impl StdLib {
             },
             io::write_file_impl,
         );
+
+        // file_exists function: (string) -> Result<bool, string>
+        self.register_function(
+            "file_exists",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Result {
+                    ok: Box::new(Type::Bool),
+                    err: Box::new(Type::String),
+                }),
+            },
+            io::file_exists_impl,
+        );
+
+        // dir_exists function: (string) -> Result<bool, string>
+        self.register_function(
+            "dir_exists",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Result {
+                    ok: Box::new(Type::Bool),
+                    err: Box::new(Type::String),
+                }),
+            },
+            io::dir_exists_impl,
+        );
+
+        // create_dir function: (string) -> Result<unit, string>
+        self.register_function(
+            "create_dir",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Result {
+                    ok: Box::new(Type::Named("unit".to_string())),
+                    err: Box::new(Type::String),
+                }),
+            },
+            io::create_dir_impl,
+        );
+
+        // delete_file function: (string) -> Result<unit, string>
+        self.register_function(
+            "delete_file",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Result {
+                    ok: Box::new(Type::Named("unit".to_string())),
+                    err: Box::new(Type::String),
+                }),
+            },
+            io::delete_file_impl,
+        );
+
+        // copy_file function: (string, string) -> Result<unit, string>
+        self.register_function(
+            "copy_file",
+            Type::Function {
+                params: vec![Type::String, Type::String],
+                ret: Box::new(Type::Result {
+                    ok: Box::new(Type::Named("unit".to_string())),
+                    err: Box::new(Type::String),
+                }),
+            },
+            io::copy_file_impl,
+        );
+
+        // append_file function: (string, string) -> Result<unit, string>
+        self.register_function(
+            "append_file",
+            Type::Function {
+                params: vec![Type::String, Type::String],
+                ret: Box::new(Type::Result {
+                    ok: Box::new(Type::Named("unit".to_string())),
+                    err: Box::new(Type::String),
+                }),
+            },
+            io::append_file_impl,
+        );
+
+        // delete_dir function: (string) -> Result<unit, string>
+        self.register_function(
+            "delete_dir",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Result {
+                    ok: Box::new(Type::Named("unit".to_string())),
+                    err: Box::new(Type::String),
+                }),
+            },
+            io::delete_dir_impl,
+        );
+
+        // list_dir function: (string) -> Result<Array<string>, string>
+        self.register_function(
+            "list_dir",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Result {
+                    ok: Box::new(Type::Array(Box::new(Type::String))),
+                    err: Box::new(Type::String),
+                }),
+            },
+            io::list_dir_impl,
+        );
+
+        // file_metadata function: (string) -> Result<Object, string>
+        self.register_function(
+            "file_metadata",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Result {
+                    ok: Box::new(Type::Named("Object".to_string())),
+                    err: Box::new(Type::String),
+                }),
+            },
+            io::file_metadata_impl,
+        );
     }
 
     /// Register string manipulation functions
@@ -339,6 +528,139 @@ impl StdLib {
                 ret: Box::new(Type::String),
             },
             string::string_replace_impl,
+        );
+
+        // String join
+        self.register_function(
+            "join",
+            Type::Function {
+                params: vec![Type::String, Type::Array(Box::new(Type::String))],
+                ret: Box::new(Type::String),
+            },
+            string::string_join_impl,
+        );
+
+        // String padding
+        self.register_function(
+            "pad_left",
+            Type::Function {
+                params: vec![Type::String, Type::I32, Type::String],
+                ret: Box::new(Type::String),
+            },
+            string::string_pad_left_impl,
+        );
+
+        self.register_function(
+            "pad_right",
+            Type::Function {
+                params: vec![Type::String, Type::I32, Type::String],
+                ret: Box::new(Type::String),
+            },
+            string::string_pad_right_impl,
+        );
+
+        self.register_function(
+            "center",
+            Type::Function {
+                params: vec![Type::String, Type::I32, Type::String],
+                ret: Box::new(Type::String),
+            },
+            string::string_center_impl,
+        );
+
+        // String strip prefix/suffix
+        self.register_function(
+            "strip_prefix",
+            Type::Function {
+                params: vec![Type::String, Type::String],
+                ret: Box::new(Type::String),
+            },
+            string::string_strip_prefix_impl,
+        );
+
+        self.register_function(
+            "strip_suffix",
+            Type::Function {
+                params: vec![Type::String, Type::String],
+                ret: Box::new(Type::String),
+            },
+            string::string_strip_suffix_impl,
+        );
+
+        // String case conversion
+        self.register_function(
+            "capitalize",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::String),
+            },
+            string::string_capitalize_impl,
+        );
+
+        self.register_function(
+            "title_case",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::String),
+            },
+            string::string_title_case_impl,
+        );
+
+        // String analysis
+        self.register_function(
+            "count_matches",
+            Type::Function {
+                params: vec![Type::String, Type::String],
+                ret: Box::new(Type::I32),
+            },
+            string::string_count_matches_impl,
+        );
+
+        self.register_function(
+            "lines",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Array(Box::new(Type::String))),
+            },
+            string::string_lines_impl,
+        );
+
+        self.register_function(
+            "reverse",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::String),
+            },
+            string::string_reverse_impl,
+        );
+
+        // String predicates
+        self.register_function(
+            "is_alphabetic",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Bool),
+            },
+            string::string_is_alphabetic_impl,
+        );
+
+        self.register_function(
+            "is_numeric",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Bool),
+            },
+            string::string_is_numeric_impl,
+        );
+
+        // String formatting
+        self.register_function(
+            "truncate",
+            Type::Function {
+                params: vec![Type::String, Type::I32, Type::String],
+                ret: Box::new(Type::String),
+            },
+            string::string_truncate_impl,
         );
     }
 
@@ -444,6 +766,704 @@ impl StdLib {
             },
             core_types::result_unwrap_err_impl,
         );
+
+        // Additional Option methods
+        self.register_function(
+            "option_and_then",
+            Type::Function {
+                params: vec![Type::Named("Option".to_string()), Type::Unknown],
+                ret: Box::new(Type::Named("Option".to_string())),
+            },
+            core_types::option_and_then_impl,
+        );
+
+        self.register_function(
+            "option_or",
+            Type::Function {
+                params: vec![
+                    Type::Named("Option".to_string()),
+                    Type::Named("Option".to_string()),
+                ],
+                ret: Box::new(Type::Named("Option".to_string())),
+            },
+            core_types::option_or_impl,
+        );
+
+        self.register_function(
+            "option_unwrap_or",
+            Type::Function {
+                params: vec![Type::Named("Option".to_string()), Type::Unknown],
+                ret: Box::new(Type::Unknown),
+            },
+            core_types::option_unwrap_or_impl,
+        );
+
+        self.register_function(
+            "option_expect",
+            Type::Function {
+                params: vec![Type::Named("Option".to_string()), Type::String],
+                ret: Box::new(Type::Unknown),
+            },
+            core_types::option_expect_impl,
+        );
+
+        self.register_function(
+            "option_filter",
+            Type::Function {
+                params: vec![Type::Named("Option".to_string()), Type::Unknown],
+                ret: Box::new(Type::Named("Option".to_string())),
+            },
+            core_types::option_filter_impl,
+        );
+
+        self.register_function(
+            "option_ok_or",
+            Type::Function {
+                params: vec![Type::Named("Option".to_string()), Type::Unknown],
+                ret: Box::new(Type::Named("Result".to_string())),
+            },
+            core_types::option_ok_or_impl,
+        );
+
+        // Additional Result methods
+        self.register_function(
+            "result_and_then",
+            Type::Function {
+                params: vec![Type::Named("Result".to_string()), Type::Unknown],
+                ret: Box::new(Type::Named("Result".to_string())),
+            },
+            core_types::result_and_then_impl,
+        );
+
+        self.register_function(
+            "result_or",
+            Type::Function {
+                params: vec![
+                    Type::Named("Result".to_string()),
+                    Type::Named("Result".to_string()),
+                ],
+                ret: Box::new(Type::Named("Result".to_string())),
+            },
+            core_types::result_or_impl,
+        );
+
+        self.register_function(
+            "result_unwrap_or",
+            Type::Function {
+                params: vec![Type::Named("Result".to_string()), Type::Unknown],
+                ret: Box::new(Type::Unknown),
+            },
+            core_types::result_unwrap_or_impl,
+        );
+
+        self.register_function(
+            "result_expect",
+            Type::Function {
+                params: vec![Type::Named("Result".to_string()), Type::String],
+                ret: Box::new(Type::Unknown),
+            },
+            core_types::result_expect_impl,
+        );
+
+        self.register_function(
+            "result_map",
+            Type::Function {
+                params: vec![Type::Named("Result".to_string()), Type::Unknown],
+                ret: Box::new(Type::Named("Result".to_string())),
+            },
+            core_types::result_map_impl,
+        );
+
+        self.register_function(
+            "result_map_err",
+            Type::Function {
+                params: vec![Type::Named("Result".to_string()), Type::Unknown],
+                ret: Box::new(Type::Named("Result".to_string())),
+            },
+            core_types::result_map_err_impl,
+        );
+    }
+
+    /// Register functional programming functions
+    fn register_functional_programming_functions(&mut self) {
+        // Vector functional operations
+        self.register_function(
+            "vec_map",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::vec_map_impl,
+        );
+
+        self.register_function(
+            "vec_filter",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::vec_filter_impl,
+        );
+
+        self.register_function(
+            "vec_reduce",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                    Type::Unknown,
+                ],
+                ret: Box::new(Type::Unknown),
+            },
+            functional::vec_reduce_impl,
+        );
+
+        self.register_function(
+            "vec_for_each",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Named("unit".to_string())),
+            },
+            functional::vec_for_each_impl,
+        );
+
+        self.register_function(
+            "vec_find",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Named("Option".to_string())),
+            },
+            functional::vec_find_impl,
+        );
+
+        self.register_function(
+            "vec_every",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Bool),
+            },
+            functional::vec_every_impl,
+        );
+
+        self.register_function(
+            "vec_some",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Bool),
+            },
+            functional::vec_some_impl,
+        );
+
+        // Function composition utilities
+        self.register_function(
+            "compose",
+            Type::Function {
+                params: vec![
+                    Type::Named("Closure".to_string()),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Named("Closure".to_string())),
+            },
+            functional::compose_impl,
+        );
+
+        self.register_function(
+            "partial",
+            Type::Function {
+                params: vec![
+                    Type::Named("Closure".to_string()),
+                    Type::Array(Box::new(Type::Unknown)),
+                ],
+                ret: Box::new(Type::Named("Closure".to_string())),
+            },
+            functional::partial_impl,
+        );
+
+        self.register_function(
+            "curry",
+            Type::Function {
+                params: vec![Type::Named("Closure".to_string())],
+                ret: Box::new(Type::Named("Closure".to_string())),
+            },
+            functional::curry_impl,
+        );
+
+        // Iterator functions
+        self.register_function(
+            "range",
+            Type::Function {
+                params: vec![Type::I32, Type::I32, Type::I32],
+                ret: Box::new(Type::Named("Iterator".to_string())),
+            },
+            functional::range_impl,
+        );
+
+        self.register_function(
+            "iter_collect",
+            Type::Function {
+                params: vec![Type::Named("Iterator".to_string())],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::iter_collect_impl,
+        );
+
+        self.register_function(
+            "iter_take",
+            Type::Function {
+                params: vec![Type::Named("Iterator".to_string()), Type::I32],
+                ret: Box::new(Type::Named("Iterator".to_string())),
+            },
+            functional::iter_take_impl,
+        );
+
+        self.register_function(
+            "iter_skip",
+            Type::Function {
+                params: vec![Type::Named("Iterator".to_string()), Type::I32],
+                ret: Box::new(Type::Named("Iterator".to_string())),
+            },
+            functional::iter_skip_impl,
+        );
+
+        // Advanced combinators
+        self.register_function(
+            "vec_flat_map",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::vec_flat_map_impl,
+        );
+
+        self.register_function(
+            "vec_zip",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Array(Box::new(Type::Unknown)),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::vec_zip_impl,
+        );
+
+        self.register_function(
+            "vec_chain",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Array(Box::new(Type::Unknown)),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::vec_chain_impl,
+        );
+
+        self.register_function(
+            "vec_take_while",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::vec_take_while_impl,
+        );
+
+        self.register_function(
+            "vec_drop_while",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::vec_drop_while_impl,
+        );
+
+        self.register_function(
+            "vec_partition",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::vec_partition_impl,
+        );
+
+        self.register_function(
+            "vec_group_by",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional::vec_group_by_impl,
+        );
+
+        // Parallel operations
+        self.register_function(
+            "vec_parallel_map",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            parallel::vec_parallel_map_impl,
+        );
+
+        self.register_function(
+            "vec_parallel_filter",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            parallel::vec_parallel_filter_impl,
+        );
+
+        self.register_function(
+            "vec_parallel_reduce",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                    Type::Unknown,
+                ],
+                ret: Box::new(Type::Unknown),
+            },
+            parallel::vec_parallel_reduce_impl,
+        );
+
+        self.register_function(
+            "parallel_config_create",
+            Type::Function {
+                params: vec![Type::I32, Type::I32, Type::Bool, Type::I32],
+                ret: Box::new(Type::Named("Object".to_string())),
+            },
+            parallel::parallel_config_create_impl,
+        );
+
+        // Async operations
+        self.register_function(
+            "vec_async_map",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            async_functional::vec_async_map_impl,
+        );
+
+        self.register_function(
+            "vec_async_filter",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            async_functional::vec_async_filter_impl,
+        );
+
+        self.register_function(
+            "future_join_all",
+            Type::Function {
+                params: vec![Type::Array(Box::new(Type::Unknown))],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            async_functional::future_join_all_impl,
+        );
+
+        self.register_function(
+            "future_race",
+            Type::Function {
+                params: vec![Type::Array(Box::new(Type::Unknown))],
+                ret: Box::new(Type::Unknown),
+            },
+            async_functional::future_race_impl,
+        );
+
+        self.register_function(
+            "future_timeout",
+            Type::Function {
+                params: vec![Type::Unknown, Type::I32],
+                ret: Box::new(Type::Unknown),
+            },
+            async_functional::future_timeout_impl,
+        );
+
+        // Async generators
+        self.register_function(
+            "async_generate",
+            Type::Function {
+                params: vec![Type::Named("Closure".to_string())],
+                ret: Box::new(Type::Named("AsyncGenerator".to_string())),
+            },
+            async_functional::async_generate_impl,
+        );
+        self.register_function(
+            "async_yield",
+            Type::Function {
+                params: vec![Type::Unknown],
+                ret: Box::new(Type::Unknown),
+            },
+            async_functional::async_yield_impl,
+        );
+        self.register_function(
+            "async_collect",
+            Type::Function {
+                params: vec![Type::Named("AsyncGenerator".to_string())],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            async_functional::async_collect_impl,
+        );
+
+        // Distributed computing
+        self.register_function(
+            "remote_execute",
+            Type::Function {
+                params: vec![
+                    Type::String,
+                    Type::Named("Closure".to_string()),
+                    Type::Array(Box::new(Type::Unknown)),
+                ],
+                ret: Box::new(Type::Named("Future".to_string())),
+            },
+            crate::runtime::distributed::remote_execute_impl,
+        );
+        self.register_function(
+            "distribute_map",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                ],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            crate::runtime::distributed::distribute_map_impl,
+        );
+        self.register_function(
+            "cluster_reduce",
+            Type::Function {
+                params: vec![
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Closure".to_string()),
+                    Type::Unknown,
+                ],
+                ret: Box::new(Type::Unknown),
+            },
+            crate::runtime::distributed::cluster_reduce_impl,
+        );
+
+        // Advanced functional utilities
+        self.register_function(
+            "transduce",
+            Type::Function {
+                params: vec![
+                    Type::Named("Transducer".to_string()),
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Unknown,
+                ],
+                ret: Box::new(Type::Unknown),
+            },
+            functional_advanced::transduce_impl,
+        );
+        self.register_function(
+            "lazy_seq",
+            Type::Function {
+                params: vec![Type::Named("Closure".to_string())],
+                ret: Box::new(Type::Named("LazySeq".to_string())),
+            },
+            functional_advanced::lazy_seq_impl,
+        );
+        self.register_function(
+            "memoize_with_ttl",
+            Type::Function {
+                params: vec![Type::Named("Closure".to_string()), Type::I32],
+                ret: Box::new(Type::Named("Closure".to_string())),
+            },
+            functional_advanced::memoize_with_ttl_impl,
+        );
+        self.register_function(
+            "lazy_take",
+            Type::Function {
+                params: vec![Type::Named("LazySeq".to_string()), Type::I32],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional_advanced::lazy_take_impl,
+        );
+        self.register_function(
+            "lazy_force",
+            Type::Function {
+                params: vec![Type::Named("LazySeq".to_string()), Type::I32],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            functional_advanced::lazy_force_impl,
+        );
+
+        // Sandboxing
+        self.register_function(
+            "sandbox_execute",
+            Type::Function {
+                params: vec![
+                    Type::Named("Closure".to_string()),
+                    Type::Array(Box::new(Type::Unknown)),
+                    Type::Named("Object".to_string()),
+                ],
+                ret: Box::new(Type::Unknown),
+            },
+            crate::runtime::sandbox::sandbox_execute_impl,
+        );
+        self.register_function(
+            "sandbox_create",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::Named("Sandbox".to_string())),
+            },
+            crate::runtime::sandbox::sandbox_create_impl,
+        );
+
+        // Formal verification
+        self.register_function(
+            "verify_closure",
+            Type::Function {
+                params: vec![
+                    Type::Named("Closure".to_string()),
+                    Type::Named("ClosureSpec".to_string()),
+                ],
+                ret: Box::new(Type::Named("VerificationResult".to_string())),
+            },
+            crate::verification::closure_verifier::verify_closure_impl,
+        );
+        self.register_function(
+            "create_spec",
+            Type::Function {
+                params: vec![Type::Named("Object".to_string())],
+                ret: Box::new(Type::Named("ClosureSpec".to_string())),
+            },
+            crate::verification::closure_verifier::create_spec_impl,
+        );
+
+        // Debug functions
+        self.register_function(
+            "debug_init_closure_debugger",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::Named("unit".to_string())),
+            },
+            functional::debug_init_closure_debugger_impl,
+        );
+
+        self.register_function(
+            "debug_print_closure",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Named("unit".to_string())),
+            },
+            functional::debug_print_closure_impl,
+        );
+
+        self.register_function(
+            "debug_print_closure_report",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::Named("unit".to_string())),
+            },
+            functional::debug_print_closure_report_impl,
+        );
+
+        // Closure serialization functions
+        self.register_function(
+            "closure_serialize_binary",
+            Type::Function {
+                params: vec![Type::Named("Closure".to_string())],
+                ret: Box::new(Type::Array(Box::new(Type::I32))),
+            },
+            functional::closure_serialize_binary_impl,
+        );
+        self.register_function(
+            "closure_serialize_json",
+            Type::Function {
+                params: vec![Type::Named("Closure".to_string())],
+                ret: Box::new(Type::String),
+            },
+            functional::closure_serialize_json_impl,
+        );
+        self.register_function(
+            "closure_serialize_compact",
+            Type::Function {
+                params: vec![Type::Named("Closure".to_string())],
+                ret: Box::new(Type::Array(Box::new(Type::I32))),
+            },
+            functional::closure_serialize_compact_impl,
+        );
+        self.register_function(
+            "optimized_closure_serialize_binary",
+            Type::Function {
+                params: vec![Type::Named("OptimizedClosure".to_string())],
+                ret: Box::new(Type::Array(Box::new(Type::I32))),
+            },
+            functional::optimized_closure_serialize_binary_impl,
+        );
+        self.register_function(
+            "closure_get_metadata",
+            Type::Function {
+                params: vec![Type::Named("Closure".to_string())],
+                ret: Box::new(Type::Named("Object".to_string())),
+            },
+            functional::closure_get_metadata_impl,
+        );
+        self.register_function(
+            "closure_can_serialize",
+            Type::Function {
+                params: vec![Type::Unknown],
+                ret: Box::new(Type::Bool),
+            },
+            functional::closure_can_serialize_impl,
+        );
+        self.register_function(
+            "closure_create_serialize_config",
+            Type::Function {
+                params: vec![Type::Bool, Type::Bool, Type::I32, Type::Bool, Type::Bool],
+                ret: Box::new(Type::Named("Object".to_string())),
+            },
+            functional::closure_create_serialize_config_impl,
+        );
     }
 
     /// Register collection functions
@@ -533,6 +1553,85 @@ impl StdLib {
                 ret: Box::new(Type::Bool),
             },
             collections::hashmap_contains_key_impl,
+        );
+
+        // HashSet functions
+        self.register_function(
+            "HashSet::new",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::Named("HashSet".to_string())),
+            },
+            collections::hashset_new_impl,
+        );
+
+        self.register_function(
+            "hashset_insert",
+            Type::Function {
+                params: vec![Type::Named("HashSet".to_string()), Type::Unknown],
+                ret: Box::new(Type::Bool),
+            },
+            collections::hashset_insert_impl,
+        );
+
+        self.register_function(
+            "hashset_contains",
+            Type::Function {
+                params: vec![Type::Named("HashSet".to_string()), Type::Unknown],
+                ret: Box::new(Type::Bool),
+            },
+            collections::hashset_contains_impl,
+        );
+
+        self.register_function(
+            "hashset_remove",
+            Type::Function {
+                params: vec![Type::Named("HashSet".to_string()), Type::Unknown],
+                ret: Box::new(Type::Bool),
+            },
+            collections::hashset_remove_impl,
+        );
+
+        self.register_function(
+            "hashset_len",
+            Type::Function {
+                params: vec![Type::Named("HashSet".to_string())],
+                ret: Box::new(Type::I32),
+            },
+            collections::hashset_len_impl,
+        );
+
+        self.register_function(
+            "hashset_is_empty",
+            Type::Function {
+                params: vec![Type::Named("HashSet".to_string())],
+                ret: Box::new(Type::Bool),
+            },
+            collections::hashset_is_empty_impl,
+        );
+
+        self.register_function(
+            "hashset_union",
+            Type::Function {
+                params: vec![
+                    Type::Named("HashSet".to_string()),
+                    Type::Named("HashSet".to_string()),
+                ],
+                ret: Box::new(Type::Named("HashSet".to_string())),
+            },
+            collections::hashset_union_impl,
+        );
+
+        self.register_function(
+            "hashset_intersection",
+            Type::Function {
+                params: vec![
+                    Type::Named("HashSet".to_string()),
+                    Type::Named("HashSet".to_string()),
+                ],
+                ret: Box::new(Type::Named("HashSet".to_string())),
+            },
+            collections::hashset_intersection_impl,
         );
     }
 
@@ -917,6 +2016,327 @@ impl StdLib {
                 ret: Box::new(Type::F32),
             },
             game::rad_to_deg,
+        );
+    }
+
+    /// Register network functions
+    fn register_network_functions(&mut self) {
+        // TCP functions
+        self.register_function(
+            "tcp_connect",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Named("Result".to_string())),
+            },
+            network::tcp_connect_impl,
+        );
+
+        self.register_function(
+            "tcp_bind",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Named("Result".to_string())),
+            },
+            network::tcp_bind_impl,
+        );
+
+        // UDP functions
+        self.register_function(
+            "udp_bind",
+            Type::Function {
+                params: vec![Type::String],
+                ret: Box::new(Type::Named("Result".to_string())),
+            },
+            network::udp_bind_impl,
+        );
+
+        // Note: Additional network operations like tcp_read, tcp_write, tcp_accept,
+        // udp_send, udp_recv, etc. would need implementation functions that handle
+        // the network object handles properly. This is a simplified initial implementation.
+    }
+
+    /// Register random number generation functions
+    fn register_random_functions(&mut self) {
+        // Basic random functions
+        self.register_function(
+            "random",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::F32),
+            },
+            random::random_impl,
+        );
+
+        self.register_function(
+            "random_range",
+            Type::Function {
+                params: vec![Type::F32, Type::F32],
+                ret: Box::new(Type::F32),
+            },
+            random::random_range_impl,
+        );
+
+        self.register_function(
+            "random_int",
+            Type::Function {
+                params: vec![Type::I32, Type::I32],
+                ret: Box::new(Type::I32),
+            },
+            random::random_int_impl,
+        );
+
+        self.register_function(
+            "random_bool",
+            Type::Function {
+                params: vec![Type::F32],
+                ret: Box::new(Type::Bool),
+            },
+            random::random_bool_impl,
+        );
+
+        self.register_function(
+            "random_seed",
+            Type::Function {
+                params: vec![Type::I32],
+                ret: Box::new(Type::String),
+            },
+            random::random_seed_impl,
+        );
+
+        // Array shuffle
+        self.register_function(
+            "shuffle",
+            Type::Function {
+                params: vec![Type::Array(Box::new(Type::Unknown))],
+                ret: Box::new(Type::Array(Box::new(Type::Unknown))),
+            },
+            random::shuffle_impl,
+        );
+
+        self.register_function(
+            "pick_random",
+            Type::Function {
+                params: vec![Type::Array(Box::new(Type::Unknown))],
+                ret: Box::new(Type::Unknown),
+            },
+            random::pick_random_impl,
+        );
+
+        // Vector generation
+        self.register_function(
+            "random_unit_vec2",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::Named("Object".to_string())),
+            },
+            random::random_unit_vec2_impl,
+        );
+
+        self.register_function(
+            "random_unit_vec3",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::Named("Object".to_string())),
+            },
+            random::random_unit_vec3_impl,
+        );
+
+        self.register_function(
+            "random_in_circle",
+            Type::Function {
+                params: vec![Type::F32],
+                ret: Box::new(Type::Named("Object".to_string())),
+            },
+            random::random_in_circle_impl,
+        );
+
+        // Weighted random
+        self.register_function(
+            "weighted_random",
+            Type::Function {
+                params: vec![Type::Array(Box::new(Type::F32))],
+                ret: Box::new(Type::I32),
+            },
+            random::weighted_random_impl,
+        );
+    }
+
+    /// Register time-related functions
+    fn register_time_functions(&mut self) {
+        // Basic time functions
+        self.register_function(
+            "time_now",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::F32),
+            },
+            time::time_now_impl,
+        );
+
+        self.register_function(
+            "time_now_millis",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::F32),
+            },
+            time::time_now_millis_impl,
+        );
+
+        self.register_function(
+            "time_unix",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::F32),
+            },
+            time::time_unix_impl,
+        );
+
+        self.register_function(
+            "time_unix_millis",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::F32),
+            },
+            time::time_unix_millis_impl,
+        );
+
+        self.register_function(
+            "time_delta",
+            Type::Function {
+                params: vec![Type::F32, Type::F32],
+                ret: Box::new(Type::F32),
+            },
+            time::time_delta_impl,
+        );
+
+        self.register_function(
+            "sleep",
+            Type::Function {
+                params: vec![Type::F32],
+                ret: Box::new(Type::Named("unit".to_string())),
+            },
+            time::sleep_impl,
+        );
+
+        // Stopwatch functions
+        self.register_function(
+            "stopwatch_new",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::Named("Object".to_string())),
+            },
+            time::stopwatch_new_impl,
+        );
+
+        self.register_function(
+            "stopwatch_start",
+            Type::Function {
+                params: vec![Type::Named("Object".to_string())],
+                ret: Box::new(Type::Named("unit".to_string())),
+            },
+            time::stopwatch_start_impl,
+        );
+
+        self.register_function(
+            "stopwatch_stop",
+            Type::Function {
+                params: vec![Type::Named("Object".to_string())],
+                ret: Box::new(Type::Named("unit".to_string())),
+            },
+            time::stopwatch_stop_impl,
+        );
+
+        self.register_function(
+            "stopwatch_reset",
+            Type::Function {
+                params: vec![Type::Named("Object".to_string())],
+                ret: Box::new(Type::Named("unit".to_string())),
+            },
+            time::stopwatch_reset_impl,
+        );
+
+        self.register_function(
+            "stopwatch_elapsed",
+            Type::Function {
+                params: vec![Type::Named("Object".to_string())],
+                ret: Box::new(Type::F32),
+            },
+            time::stopwatch_elapsed_impl,
+        );
+
+        // Frame timer functions
+        self.register_function(
+            "frame_timer_new",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::Named("Object".to_string())),
+            },
+            time::frame_timer_new_impl,
+        );
+
+        self.register_function(
+            "frame_timer_update",
+            Type::Function {
+                params: vec![Type::Named("Object".to_string())],
+                ret: Box::new(Type::Named("unit".to_string())),
+            },
+            time::frame_timer_update_impl,
+        );
+
+        self.register_function(
+            "frame_timer_delta",
+            Type::Function {
+                params: vec![Type::Named("Object".to_string())],
+                ret: Box::new(Type::F32),
+            },
+            time::frame_timer_delta_impl,
+        );
+
+        self.register_function(
+            "frame_timer_fps",
+            Type::Function {
+                params: vec![Type::Named("Object".to_string())],
+                ret: Box::new(Type::F32),
+            },
+            time::frame_timer_fps_impl,
+        );
+
+        // Time formatting
+        self.register_function(
+            "format_time",
+            Type::Function {
+                params: vec![Type::F32],
+                ret: Box::new(Type::String),
+            },
+            time::format_time_impl,
+        );
+
+        self.register_function(
+            "format_time_millis",
+            Type::Function {
+                params: vec![Type::F32],
+                ret: Box::new(Type::String),
+            },
+            time::format_time_millis_impl,
+        );
+
+        // Performance measurement
+        self.register_function(
+            "perf_counter",
+            Type::Function {
+                params: vec![],
+                ret: Box::new(Type::F32),
+            },
+            time::perf_counter_impl,
+        );
+
+        self.register_function(
+            "measure_time",
+            Type::Function {
+                params: vec![Type::Unknown], // Function type
+                ret: Box::new(Type::F32),
+            },
+            time::measure_time_impl,
         );
     }
 }

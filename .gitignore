@@ -53,4 +53,8 @@ Thumbs.db
 *.tmp
 *.temp
 *.bak
-*.backup
+*.backup*
+
+# VS Code Extension (moved to separate repo)
+/vscode-script-extension/
+simple_perf_test

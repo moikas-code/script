@@ -1,0 +1,74 @@
+// Example demonstrating constructor type inference for generic structs and enums
+
+// Simple generic struct
+struct Box<T> {
+    value: T
+}
+
+// Generic struct with multiple type parameters
+struct Pair<A, B> {
+    first: A,
+    second: B
+}
+
+// Nested generics
+struct Container<T> {
+    items: Vec<T>
+}
+
+// Generic enum
+enum Option<T> {
+    Some(T),
+    None
+}
+
+enum Result<T, E> {
+    Ok(T),
+    Err(E)
+}
+
+// Generic struct with type constraints
+struct Sortable<T: Ord> {
+    data: Vec<T>
+}
+
+fn main() {
+    // Full type inference - no annotations needed
+    let box1 = Box { value: 42 };              // Inferred as Box<i32>
+    let box2 = Box { value: "hello" };         // Inferred as Box<string>
+    let box3 = Box { value: true };            // Inferred as Box<bool>
+    
+    // Multiple type parameters
+    let pair = Pair { 
+        first: 3.14, 
+        second: "pi" 
+    };  // Inferred as Pair<f32, string>
+    
+    // Nested generics
+    let nested = Box { 
+        value: Some(42) 
+    };  // Inferred as Box<Option<i32>>
+    
+    // Partial type annotations
+    let annotated: Box<_> = Box { value: [1, 2, 3] };  // Inferred as Box<[i32]>
+    
+    // Enum inference
+    let some_value = Option::Some(100);        // Inferred as Option<i32>
+    let none_value = Option::None;             // Type parameter needs context
+    
+    let ok_result = Result::Ok("success");     // Needs error type
+    let err_result = Result::Err(404);         // Needs success type
+    
+    // Complex nested inference
+    let complex = Pair {
+        first: Box { value: vec![1, 2, 3] },
+        second: Some("nested")
+    };  // Inferred as Pair<Box<Vec<i32>>, Option<string>>
+    
+    // With constraints
+    let sortable = Sortable {
+        data: vec![3, 1, 4, 1, 5]
+    };  // Valid because i32 implements Ord
+    
+    print("Type inference working!");
+}

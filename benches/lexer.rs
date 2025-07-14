@@ -16,7 +16,7 @@ fn benchmark_small_program(c: &mut Criterion) {
 
     c.bench_function("lexer_small_program", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(source));
+            let lexer = Lexer::new(black_box(source)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             tokens
         })
@@ -36,7 +36,7 @@ fn benchmark_large_program(c: &mut Criterion) {
 
     c.bench_function("lexer_large_program", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&source));
+            let lexer = Lexer::new(black_box(&source)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             tokens
         })
@@ -55,7 +55,7 @@ fn benchmark_string_heavy(c: &mut Criterion) {
 
     c.bench_function("lexer_string_heavy", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&source));
+            let lexer = Lexer::new(black_box(&source)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             tokens
         })

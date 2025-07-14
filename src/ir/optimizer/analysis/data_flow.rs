@@ -211,7 +211,7 @@ impl DataFlowSolver {
     fn iterative_analysis<T, P>(
         &self,
         problem: &P,
-        func: &Function,
+        _func: &Function,
         cfg: &ControlFlowGraph,
         result: &mut DataFlowResult<T>,
     ) where
@@ -236,7 +236,7 @@ impl DataFlowSolver {
             iteration += 1;
 
             if self.debug && iteration % 10 == 0 {
-                eprintln!("  Iteration {}", iteration);
+                eprintln!("  Iteration {iteration}");
             }
 
             for &block_id in &blocks {

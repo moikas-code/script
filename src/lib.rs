@@ -3,23 +3,29 @@ pub mod compilation;
 pub mod debugger;
 pub mod doc;
 pub mod error;
+pub mod formatter;
 pub mod inference;
 pub mod ir;
 pub mod lexer;
 pub mod lowering;
 pub mod lsp;
 pub mod manuscript;
+#[cfg(feature = "mcp")]
+pub mod mcp;
 pub mod metaprogramming;
 pub mod module;
 pub mod package;
 pub mod parser;
+pub mod repl;
 pub mod runtime;
+pub mod security;
 pub mod semantic;
 pub mod source;
 pub mod stdlib;
 pub mod testing;
 pub mod types;
 pub mod update;
+pub mod verification;
 
 #[cfg(test)]
 mod tests {
@@ -27,11 +33,11 @@ mod tests {
 }
 
 pub use codegen::{CodeGenerator, ExecutableModule};
+pub use compilation::{DependencyAnalyzer, DependencyGraph};
 pub use debugger::{
     get_debugger, initialize_debugger, is_debugger_initialized, shutdown_debugger, Breakpoint,
     BreakpointCondition, BreakpointId, BreakpointManager, BreakpointType, DebugEvent, DebugHook,
-    DebugSession, Debugger, DebuggerError, DebuggerResult, DebuggerState, ExecutionContext,
-    RuntimeDebugInterface,
+    DebugSession, Debugger, DebuggerState, ExecutionContext, RuntimeDebugInterface,
 };
 pub use error::{Error, Result};
 pub use inference::{InferenceEngine, InferenceResult};

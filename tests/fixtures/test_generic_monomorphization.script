@@ -1,0 +1,17 @@
+// Test generic function monomorphization
+
+fn identity<T>(x: T) -> T {
+    return x
+}
+
+fn main() {
+    // Use identity with different types
+    let int_result = identity(42)
+    let bool_result = identity(true)
+    let string_result = identity("hello")
+    
+    // Print results (assuming print is a built-in)
+    print(int_result)
+    print(bool_result)
+    print(string_result)
+}

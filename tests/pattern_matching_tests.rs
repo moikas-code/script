@@ -1,7 +1,10 @@
-use script::{parser::ast::*, Lexer, Parser, Result, SemanticAnalyzer};
+use script::{
+    parser::{Expr, ExprKind, Literal, MatchArm, Pattern, PatternKind, Program, Stmt, StmtKind},
+    Lexer, Parser, Result, SemanticAnalyzer,
+};
 
 fn parse_program(input: &str) -> Result<Program> {
-    let lexer = Lexer::new(input);
+    let lexer = Lexer::new(input)?;
     let (tokens, errors) = lexer.scan_tokens();
 
     if !errors.is_empty() {
@@ -15,7 +18,7 @@ fn parse_program(input: &str) -> Result<Program> {
 fn parse_and_analyze(input: &str) -> Result<Program> {
     let program = parse_program(input)?;
     let mut analyzer = SemanticAnalyzer::new();
-    analyzer.analyze(&program)?;
+    analyzer.analyze_program(&program)?;
     Ok(program)
 }
 
@@ -485,10 +488,10 @@ fn test_match_with_complex_expressions() {
     assert_eq!(program.statements.len(), 3);
 }
 
-// Test to verify current limitations
+// Test or-patterns are now implemented!
 #[test]
-fn test_or_patterns_not_implemented() {
-    // OR patterns (|) are not implemented yet - should fail to parse
+fn test_or_patterns_implemented() {
+    // OR patterns (|) are now fully implemented
     let input = r#"
         let x = 5
         let result = match x {
@@ -497,7 +500,293 @@ fn test_or_patterns_not_implemented() {
         }
     "#;
 
-    // This should fail because pipe token doesn't exist
-    let result = parse_program(input);
+    // This should parse successfully now
+    let program = parse_program(input).unwrap();
+    assert_eq!(program.statements.len(), 2);
+
+    if let StmtKind::Let {
+        init: Some(expr), ..
+    } = &program.statements[1].kind
+    {
+        if let ExprKind::Match { arms, .. } = &expr.kind {
+            assert_eq!(arms.len(), 2);
+
+            // Check first arm has or-pattern
+            assert!(matches!(
+                arms[0].pattern.kind,
+                PatternKind::Or(ref patterns) if patterns.len() == 3
+            ));
+        }
+    }
+}
+
+// Test guard parsing
+#[test]
+fn test_match_guards_implemented() {
+    let input = r#"
+        let x = 10
+        let result = match x {
+            n if n > 0 => "positive",
+            n if n < 0 => "negative",
+            _ => "zero"
+        }
+    "#;
+
+    let program = parse_program(input).unwrap();
+    assert_eq!(program.statements.len(), 2);
+
+    if let StmtKind::Let {
+        init: Some(expr), ..
+    } = &program.statements[1].kind
+    {
+        if let ExprKind::Match { arms, .. } = &expr.kind {
+            assert_eq!(arms.len(), 3);
+
+            // Check first two arms have guards
+            assert!(arms[0].guard.is_some());
+            assert!(arms[1].guard.is_some());
+            assert!(arms[2].guard.is_none());
+        }
+    }
+}
+
+// Test exhaustiveness checking with semantic analysis
+#[test]
+fn test_non_exhaustive_match_error() {
+    let input = r#"
+        let x = true
+        let result = match x {
+            true => "yes"
+            // Missing false case - should error
+        }
+    "#;
+
+    // Parse should succeed
+    let program = parse_program(input).unwrap();
+
+    // But semantic analysis should fail due to non-exhaustive patterns
+    let result = parse_and_analyze(input);
     assert!(result.is_err());
+
+    if let Err(err) = result {
+        let error_msg = format!("{}", err);
+        assert!(error_msg.contains("exhaustive") || error_msg.contains("missing"));
+    }
+}
+
+// Test exhaustiveness with boolean type is satisfied
+#[test]
+fn test_exhaustive_boolean_match() {
+    let input = r#"
+        let x = true
+        let result = match x {
+            true => "yes",
+            false => "no"
+        }
+    "#;
+
+    // Should pass both parsing and semantic analysis
+    let program = parse_and_analyze(input).unwrap();
+    assert_eq!(program.statements.len(), 2);
+}
+
+// Test enum pattern parsing
+#[test]
+fn test_enum_pattern_parsing() {
+    let input = r#"
+        enum Option<T> {
+            Some(T),
+            None
+        }
+        
+        let x = Option::Some(42)
+        let result = match x {
+            Some(value) => value,
+            None => 0
+        }
+    "#;
+
+    let program = parse_program(input).unwrap();
+    assert_eq!(program.statements.len(), 3);
+
+    // Check the match expression
+    if let StmtKind::Let {
+        init: Some(expr), ..
+    } = &program.statements[2].kind
+    {
+        if let ExprKind::Match { arms, .. } = &expr.kind {
+            assert_eq!(arms.len(), 2);
+
+            // Check first arm has enum constructor pattern
+            assert!(matches!(
+                arms[0].pattern.kind,
+                PatternKind::EnumConstructor { variant, args: Some(_), .. } if variant == "Some"
+            ));
+
+            // Check second arm has unit enum constructor pattern
+            assert!(matches!(
+                arms[1].pattern.kind,
+                PatternKind::EnumConstructor { variant, args: None, .. } if variant == "None"
+            ));
+        }
+    }
+}
+
+// Test qualified enum patterns
+#[test]
+fn test_qualified_enum_patterns() {
+    let input = r#"
+        enum Result<T, E> {
+            Ok(T),
+            Err(E)
+        }
+        
+        let x = Result::Ok("success")
+        let result = match x {
+            Result::Ok(msg) => msg,
+            Result::Err(e) => e
+        }
+    "#;
+
+    let program = parse_program(input).unwrap();
+
+    // Check qualified patterns
+    if let StmtKind::Let {
+        init: Some(expr), ..
+    } = &program.statements[2].kind
+    {
+        if let ExprKind::Match { arms, .. } = &expr.kind {
+            // Check first arm has qualified enum pattern
+            if let PatternKind::EnumConstructor {
+                enum_name, variant, ..
+            } = &arms[0].pattern.kind
+            {
+                assert_eq!(enum_name.as_ref().unwrap(), "Result");
+                assert_eq!(variant, "Ok");
+            }
+        }
+    }
+}
+
+// Test enum exhaustiveness checking
+#[test]
+fn test_enum_non_exhaustive_error() {
+    let input = r#"
+        enum Option<T> {
+            Some(T),
+            None
+        }
+        
+        let x = Option::Some(42)
+        let result = match x {
+            Some(value) => value
+            // Missing None case - should error
+        }
+    "#;
+
+    // Parse should succeed
+    let program = parse_program(input).unwrap();
+
+    // But semantic analysis should fail due to non-exhaustive patterns
+    let result = parse_and_analyze(input);
+    assert!(result.is_err());
+
+    if let Err(err) = result {
+        let error_msg = format!("{}", err);
+        assert!(error_msg.contains("exhaustive") || error_msg.contains("None"));
+    }
+}
+
+// Test enum with or-patterns
+#[test]
+fn test_enum_or_patterns() {
+    let input = r#"
+        enum Color {
+            Red,
+            Green,
+            Blue
+        }
+        
+        let c = Color::Red
+        let result = match c {
+            Red | Green => "warm",
+            Blue => "cool"
+        }
+    "#;
+
+    let program = parse_program(input).unwrap();
+
+    // Check or-pattern with enum constructors
+    if let StmtKind::Let {
+        init: Some(expr), ..
+    } = &program.statements[2].kind
+    {
+        if let ExprKind::Match { arms, .. } = &expr.kind {
+            // Check first arm has or-pattern with enum constructors
+            if let PatternKind::Or(patterns) = &arms[0].pattern.kind {
+                assert_eq!(patterns.len(), 2);
+                assert!(matches!(
+                    patterns[0].kind,
+                    PatternKind::EnumConstructor { variant, .. } if variant == "Red"
+                ));
+                assert!(matches!(
+                    patterns[1].kind,
+                    PatternKind::EnumConstructor { variant, .. } if variant == "Green"
+                ));
+            }
+        }
+    }
+}
+
+// Test nested enum patterns
+#[test]
+fn test_nested_enum_patterns() {
+    let input = r#"
+        enum Option<T> {
+            Some(T),
+            None
+        }
+        
+        enum Result<T, E> {
+            Ok(T),
+            Err(E)
+        }
+        
+        let x = Result::Ok(Option::Some(42))
+        let result = match x {
+            Ok(Some(n)) => n,
+            Ok(None) => 0,
+            Err(_) => -1
+        }
+    "#;
+
+    let program = parse_program(input).unwrap();
+
+    // Check nested pattern
+    if let StmtKind::Let {
+        init: Some(expr), ..
+    } = &program.statements[3].kind
+    {
+        if let ExprKind::Match { arms, .. } = &expr.kind {
+            // Check first arm has nested enum pattern
+            if let PatternKind::EnumConstructor {
+                variant,
+                args: Some(args),
+                ..
+            } = &arms[0].pattern.kind
+            {
+                assert_eq!(variant, "Ok");
+                assert_eq!(args.len(), 1);
+
+                // Check nested Some pattern
+                if let PatternKind::EnumConstructor {
+                    variant: inner_variant,
+                    ..
+                } = &args[0].kind
+                {
+                    assert_eq!(inner_variant, "Some");
+                }
+            }
+        }
+    }
 }

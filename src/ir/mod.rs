@@ -13,6 +13,7 @@ use std::fmt;
 pub mod block;
 pub mod function;
 pub mod instruction;
+pub mod layout;
 pub mod module;
 pub mod optimizer;
 pub mod value;
@@ -21,6 +22,10 @@ pub use block::{BasicBlock, BlockId};
 pub use function::{Function, FunctionId, Parameter};
 pub use instruction::{
     BinaryOp, ComparisonOp, Constant, Instruction, InstructionWithLocation, UnaryOp,
+};
+pub use layout::{
+    EnumLayout, FieldLayout, LayoutCalculator, StructLayout, TypeLayout, VariantDataLayout,
+    VariantLayout,
 };
 pub use module::Module;
 pub use value::{Value, ValueId};
@@ -73,9 +78,33 @@ impl IrBuilder {
         func_id
     }
 
+    /// Create a new async function
+    pub fn create_async_function(
+        &mut self,
+        name: String,
+        params: Vec<Parameter>,
+        return_type: Type,
+    ) -> FunctionId {
+        let func_id = self.module.create_async_function(name, params, return_type);
+        self.current_function = Some(func_id);
+
+        // Create entry block for the function
+        if let Some(func) = self.module.get_function_mut(func_id) {
+            let entry_block = func.create_block("entry".to_string());
+            self.current_block = Some(entry_block);
+        }
+
+        func_id
+    }
+
     /// Get current function
     pub fn current_function(&self) -> Option<FunctionId> {
         self.current_function
+    }
+
+    /// Get a mutable reference to the module
+    pub fn module_mut(&mut self) -> &mut Module {
+        &mut self.module
     }
 
     /// Set current function
@@ -242,6 +271,221 @@ impl IrBuilder {
             field_name,
             value,
         });
+    }
+
+    /// Build an allocate struct instruction
+    pub fn build_alloc_struct(&mut self, struct_name: String, ty: Type) -> Option<ValueId> {
+        self.add_instruction(Instruction::AllocStruct { struct_name, ty })
+    }
+
+    /// Build a construct struct instruction
+    pub fn build_construct_struct(
+        &mut self,
+        struct_name: String,
+        fields: Vec<(String, ValueId)>,
+        ty: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::ConstructStruct {
+            struct_name,
+            fields,
+            ty,
+        })
+    }
+
+    /// Build an allocate enum instruction
+    pub fn build_alloc_enum(
+        &mut self,
+        enum_name: String,
+        variant_size: u32,
+        ty: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::AllocEnum {
+            enum_name,
+            variant_size,
+            ty,
+        })
+    }
+
+    /// Build a construct enum instruction
+    pub fn build_construct_enum(
+        &mut self,
+        enum_name: String,
+        variant: String,
+        tag: u32,
+        args: Vec<ValueId>,
+        ty: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::ConstructEnum {
+            enum_name,
+            variant,
+            tag,
+            args,
+            ty,
+        })
+    }
+
+    /// Build a get enum tag instruction
+    pub fn build_get_enum_tag(&mut self, enum_value: ValueId) -> Option<ValueId> {
+        self.add_instruction(Instruction::GetEnumTag { enum_value })
+    }
+
+    /// Build a set enum tag instruction
+    pub fn build_set_enum_tag(&mut self, enum_ptr: ValueId, tag: u32) -> Option<ValueId> {
+        self.add_instruction(Instruction::SetEnumTag { enum_ptr, tag })
+    }
+
+    /// Build an extract enum data instruction
+    pub fn build_extract_enum_data(
+        &mut self,
+        enum_value: ValueId,
+        variant_index: u32,
+        ty: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::ExtractEnumData {
+            enum_value,
+            variant_index,
+            ty,
+        })
+    }
+
+    /// Check if the current block has a terminator instruction
+    pub fn current_block_has_terminator(&self) -> bool {
+        if let (Some(func_id), Some(block_id)) = (self.current_function, self.current_block) {
+            if let Some(func) = self.module.get_function(func_id) {
+                if let Some(block) = func.get_block(block_id) {
+                    return block.has_terminator();
+                }
+            }
+        }
+        false
+    }
+
+    /// Build a suspend instruction for async functions
+    pub fn build_suspend(&mut self, state: ValueId, resume_block: BlockId) {
+        self.add_instruction(Instruction::Suspend {
+            state,
+            resume_block,
+        });
+    }
+
+    /// Build a poll future instruction
+    pub fn build_poll_future(&mut self, future: ValueId, output_ty: Type) -> Option<ValueId> {
+        self.add_instruction(Instruction::PollFuture { future, output_ty })
+    }
+
+    /// Build a create async state instruction
+    pub fn build_create_async_state(
+        &mut self,
+        initial_state: u32,
+        state_size: u32,
+        output_ty: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::CreateAsyncState {
+            initial_state,
+            state_size,
+            output_ty,
+        })
+    }
+
+    /// Build a store async state instruction
+    pub fn build_store_async_state(&mut self, state_ptr: ValueId, offset: u32, value: ValueId) {
+        self.add_instruction(Instruction::StoreAsyncState {
+            state_ptr,
+            offset,
+            value,
+        });
+    }
+
+    /// Build a load async state instruction
+    pub fn build_load_async_state(
+        &mut self,
+        state_ptr: ValueId,
+        offset: u32,
+        ty: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::LoadAsyncState {
+            state_ptr,
+            offset,
+            ty,
+        })
+    }
+
+    /// Build a get async state instruction
+    pub fn build_get_async_state(&mut self, state_ptr: ValueId) -> Option<ValueId> {
+        self.add_instruction(Instruction::GetAsyncState { state_ptr })
+    }
+
+    /// Build a set async state instruction
+    pub fn build_set_async_state(&mut self, state_ptr: ValueId, new_state: u32) -> Option<ValueId> {
+        self.add_instruction(Instruction::SetAsyncState {
+            state_ptr,
+            new_state,
+        })
+    }
+
+    /// Build an error propagation instruction (? operator)
+    pub fn build_error_propagation(
+        &mut self,
+        value: ValueId,
+        value_type: Type,
+        success_type: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::ErrorPropagation {
+            value,
+            value_type,
+            success_type,
+        })
+    }
+
+    /// Build a stdlib function call
+    /// This is a placeholder implementation that maps to regular function calls
+    /// In a full implementation, this would integrate with the stdlib function registry
+    pub fn build_stdlib_call(
+        &mut self,
+        function_name: String,
+        args: Vec<ValueId>,
+        return_type: Type,
+    ) -> Option<ValueId> {
+        // For now, create a placeholder function ID based on the function name
+        // In a real implementation, this would look up the function in the stdlib registry
+        let func_id = FunctionId(function_name.len() as u32); // Placeholder ID
+
+        // Generate a regular function call instruction
+        self.add_instruction(Instruction::Call {
+            func: func_id,
+            args,
+            ty: return_type,
+        })
+    }
+
+    /// Build a closure creation instruction
+    pub fn build_create_closure(
+        &mut self,
+        function_id: String,
+        parameters: Vec<String>,
+        captured_vars: Vec<(String, ValueId)>,
+        captures_by_ref: bool,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::CreateClosure {
+            function_id,
+            parameters,
+            captured_vars,
+            captures_by_ref,
+        })
+    }
+
+    /// Build a closure invocation instruction
+    pub fn build_invoke_closure(
+        &mut self,
+        closure: ValueId,
+        args: Vec<ValueId>,
+        return_type: Type,
+    ) -> Option<ValueId> {
+        self.add_instruction(Instruction::InvokeClosure {
+            closure,
+            args,
+            return_type,
+        })
     }
 }
 

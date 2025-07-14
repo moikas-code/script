@@ -5,7 +5,7 @@ use crate::types::Type;
 
 /// Helper function to parse and infer types for a program
 fn infer_types(input: &str) -> Result<InferenceResult, Error> {
-    let lexer = Lexer::new(input);
+    let lexer = Lexer::new(input)?;
     let (tokens, errors) = lexer.scan_tokens();
     if !errors.is_empty() {
         return Err(errors[0].clone());

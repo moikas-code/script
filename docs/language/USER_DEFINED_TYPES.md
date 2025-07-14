@@ -1,5 +1,7 @@
 # User-Defined Types Specification
 
+> **Implementation Status**: ✅ Structs and enums fully implemented as of v0.5.0-alpha. Includes pattern matching integration, memory management, and type system integration.
+
 ## Table of Contents
 
 1. [Introduction](#introduction)

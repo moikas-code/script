@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 
 /// Result type for debug operations
-pub type DebugResult<T> = std::result::Result<T, DebuggerError>;
+pub type DebugResult<T> = DebuggerResult<T>;
 
 /// Available debug commands
 #[derive(Debug, Clone, PartialEq)]
@@ -80,7 +80,7 @@ impl Debugger {
             return Err(DebuggerError::NoProgramLoaded);
         }
 
-        println!("{}", "Script Debugger v0.1.0".cyan().bold());
+        println!("{"Script Debugger v0.1.0".cyan(}")).bold());
         println!("Type 'help' for available commands\n");
 
         // Start execution in paused state
@@ -93,7 +93,7 @@ impl Debugger {
         }
 
         if self.execution_state.is_finished() {
-            println!("{}", "Program execution finished.".green());
+            println!("{"Program execution finished.".green(}");
         }
 
         Ok(())
@@ -102,10 +102,10 @@ impl Debugger {
     /// Main command processing loop
     fn command_loop(&mut self) -> DebugResult<()> {
         print!("{} ", "(debug)".cyan().bold());
-        io::stdout().flush().unwrap();
+        io::stdout().flush().map_err(|e| DebuggerError::IoError(e.to_string())?;
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin().read_line(&mut input).map_err(|e| DebuggerError::IoError(e.to_string())?;
         let input = input.trim();
 
         if input.is_empty() {
@@ -203,7 +203,7 @@ impl Debugger {
                 Ok(())
             }
             DebugCommand::Invalid(msg) => {
-                println!("{}: {}", "Error".red().bold(), msg);
+                println!("{}: {"Error".red(}")).bold(), msg);
                 Ok(())
             }
         }
@@ -212,12 +212,12 @@ impl Debugger {
     /// Handle run/continue command
     fn handle_run(&mut self) -> DebugResult<()> {
         if self.execution_state.is_finished() {
-            println!("{}", "Program has already finished".yellow());
+            println!("{"Program has already finished".yellow(}");
             return Ok(());
         }
 
         self.execution_state.continue_execution()?;
-        println!("{}", "Continuing execution...".green());
+        println!("{"Continuing execution...".green(}");
 
         // Simulate execution until breakpoint or end
         self.simulate_execution_until_breakpoint()?;
@@ -229,7 +229,7 @@ impl Debugger {
     /// Handle step commands
     fn handle_step(&mut self, mode: StepMode) -> DebugResult<()> {
         if self.execution_state.is_finished() {
-            println!("{}", "Program has already finished".yellow());
+            println!("{"Program has already finished".yellow(}");
             return Ok(());
         }
 
@@ -238,8 +238,11 @@ impl Debugger {
         // Check if we hit a breakpoint
         if let Some(location) = self.execution_state.current_location() {
             if let Some(bp_id) = self.breakpoint_manager.should_break_at(location) {
-                let bp = self.breakpoint_manager.get_breakpoint(bp_id).unwrap();
-                println!("{} {}", "Breakpoint hit:".yellow().bold(), bp);
+                if let Some(bp) = self.breakpoint_manager.get_breakpoint(bp_id) {
+                    println!("{} {"Breakpoint hit:".yellow(}")).bold(), bp);
+                } else {
+                    println!("{"Warning: Breakpoint reference is invalid".yellow(}");
+                }
             }
         }
 
@@ -251,15 +254,18 @@ impl Debugger {
     fn handle_break(&mut self, location_str: String) -> DebugResult<()> {
         let location = self.breakpoint_manager.parse_location(&location_str)?;
         let bp_id = self.breakpoint_manager.add_breakpoint(location);
-        let bp = self.breakpoint_manager.get_breakpoint(bp_id).unwrap();
-        println!("{} {}", "Breakpoint set:".green().bold(), bp);
+        if let Some(bp) = self.breakpoint_manager.get_breakpoint(bp_id) {
+            println!("{} {"Breakpoint set:".green(}")).bold(), bp);
+        } else {
+            return Err(DebuggerError::BreakpointNotFound(bp_id));
+        }
         Ok(())
     }
 
     /// Handle delete breakpoint command
     fn handle_delete(&mut self, id: u32) -> DebugResult<()> {
         let bp = self.breakpoint_manager.remove_breakpoint(id)?;
-        println!("{} {}", "Breakpoint deleted:".green().bold(), bp);
+        println!("{} {"Breakpoint deleted:".green(}")).bold(), bp);
         Ok(())
     }
 
@@ -270,9 +276,9 @@ impl Debugger {
         if breakpoints.is_empty() {
             println!("No breakpoints set");
         } else {
-            println!("{}", "Breakpoints:".cyan().bold());
+            println!("{"Breakpoints:".cyan(}")).bold());
             for bp in breakpoints {
-                println!("  {}", bp);
+                println!("  {bp}");
             }
         }
         Ok(())
@@ -283,14 +289,14 @@ impl Debugger {
         // First check current frame
         if let Some(frame) = self.execution_state.current_frame() {
             if let Some(var) = frame.get_variable(&var_name) {
-                println!("{} = {}", var_name.cyan(), var.value().debug_string());
+                println!("{} = {var_name.cyan(}")), var.value().debug_string());
                 return Ok(());
             }
         }
 
         // Then check global variables
         if let Some(var) = self.execution_state.global_variables().get(&var_name) {
-            println!("{} = {}", var_name.cyan(), var.value().debug_string());
+            println!("{} = {var_name.cyan(}")), var.value().debug_string());
             return Ok(());
         }
 
@@ -306,10 +312,10 @@ impl Debugger {
             return Ok(());
         }
 
-        println!("{}", "Call stack:".cyan().bold());
+        println!("{"Call stack:".cyan(}")).bold());
         for (i, frame) in stack.iter().enumerate().rev() {
             let marker = if i == self.execution_state.current_frame_index { ">" } else { " " };
-            println!("{}#{} {}", marker.yellow(), i, frame);
+            println!("{}#{} {marker.yellow(}")), i, frame);
         }
         Ok(())
     }
@@ -317,7 +323,7 @@ impl Debugger {
     /// Handle frame navigation command
     fn handle_frame(&mut self, index: usize) -> DebugResult<()> {
         self.execution_state.set_current_frame(index)?;
-        println!("Switched to frame #{}", index);
+        println!("Switched to frame #{index}");
         self.show_current_location();
         Ok(())
     }
@@ -330,10 +336,10 @@ impl Debugger {
             if variables.is_empty() {
                 println!("No local variables");
             } else {
-                println!("{}", "Local variables:".cyan().bold());
+                println!("{"Local variables:".cyan(}")).bold());
                 for var in variables {
-                    println!("  {} {} = {}", 
-                        var.scope().to_string().yellow(),
+                    println!("  {} {} = {
+                        var.scope(}")).to_string().yellow(),
                         var.name().cyan(),
                         var.value().debug_string()
                     );
@@ -354,14 +360,14 @@ impl Debugger {
             return Ok(());
         }
 
-        println!("{}", "Source:".cyan().bold());
+        println!("{"Source:".cyan(}")).bold());
         for (line_num, line_content, is_current) in context {
             let marker = if is_current { ">" } else { " " };
-            let line_num_str = format!("{:4}", line_num);
+            let line_num_str = format!("{:4}", line_num));
             if is_current {
-                println!("{}{} {}", marker.yellow().bold(), line_num_str.yellow(), line_content);
+                println!("{}{} {marker.yellow(}")).bold(), line_num_str.yellow(), line_content);
             } else {
-                println!("{}{} {}", marker, line_num_str.dimmed(), line_content);
+                println!("{}{} {marker, line_num_str.dimmed(}")), line_content);
             }
         }
         Ok(())
@@ -369,7 +375,7 @@ impl Debugger {
 
     /// Handle help command
     fn handle_help(&self) -> DebugResult<()> {
-        println!("{}", "Available commands:".cyan().bold());
+        println!("{"Available commands:".cyan(}")).bold());
         println!();
         println!("  {}         - Start/continue execution", "run, r, continue, c".green());
         println!("  {}              - Step into next line", "step, s".green());
@@ -398,8 +404,8 @@ impl Debugger {
     fn show_current_location(&self) {
         if let Some(location) = self.execution_state.current_location() {
             let file_name = self.file_name.as_deref().unwrap_or("<unknown>");
-            println!("\n{} {}:{}:{}", 
-                "Stopped at".yellow().bold(),
+            println!("\n{} {}:{}:{
+                "Stopped at".yellow(}")).bold(),
                 file_name.cyan(),
                 location.line,
                 location.column
@@ -408,7 +414,7 @@ impl Debugger {
             // Show a few lines of context
             self.handle_list(2).unwrap_or(());
         } else if self.execution_state.is_finished() {
-            println!("\n{}", "Program execution finished".green().bold());
+            println!("\n{"Program execution finished".green(}")).bold());
         }
     }
 
@@ -422,10 +428,13 @@ impl Debugger {
             if let Some(location) = self.execution_state.current_location() {
                 // Check if we should break at this location
                 if let Some(bp_id) = self.breakpoint_manager.should_break_at(&location) {
-                    let bp = self.breakpoint_manager.get_breakpoint(bp_id).unwrap();
-                    println!("{} {}", "Breakpoint hit:".yellow().bold(), bp);
-                    self.execution_state.pause()?;
-                    break;
+                    if let Some(bp) = self.breakpoint_manager.get_breakpoint(bp_id) {
+                        println!("{} {"Breakpoint hit:".yellow(}")).bold(), bp);
+                        self.execution_state.pause()?;
+                        break;
+                    } else {
+                        println!("{"Warning: Breakpoint reference is invalid".yellow(}");
+                    }
                 }
             }
 

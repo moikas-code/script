@@ -376,7 +376,7 @@ let g:rustfmt_autosave = 1
 
 After running `cargo run`, you should see:
 ```
-Script Language REPL v0.1.0
+Script Language REPL v0.5.0-alpha
 Type 'exit' to quit, 'help' for commands
 > 
 ```

@@ -31,6 +31,8 @@ pub struct Function {
     pub entry_block: Option<BlockId>,
     /// Next block ID to allocate
     next_block_id: u32,
+    /// Whether this is an async function
+    pub is_async: bool,
 }
 
 impl Function {
@@ -44,6 +46,7 @@ impl Function {
             blocks: HashMap::new(),
             entry_block: None,
             next_block_id: 0,
+            is_async: false,
         }
     }
 

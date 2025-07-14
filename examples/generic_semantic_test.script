@@ -1,0 +1,39 @@
+// Test generic function with trait bounds
+function generic_function<T: Eq + Clone>(x: T, y: T) -> bool {
+    return x == y;
+}
+
+// Test struct with generics
+struct Container<T: Clone> {
+    value: T,
+    count: i32,
+}
+
+// Test enum with generics
+enum Result<T, E: Clone> {
+    Ok(T),
+    Err(E),
+}
+
+// Test where clause
+function complex_function<T, U>(x: T, y: U) -> T 
+where 
+    T: Clone + Eq,
+    U: Clone 
+{
+    return x;
+}
+
+// Test generic instantiation
+function main() -> i32 {
+    let result1 = generic_function(42, 42);
+    let result2 = generic_function("hello", "world");
+    
+    let container = Container { value: 100, count: 1 };
+    let success = Result::Ok(42);
+    let failure = Result::Err("error");
+    
+    let test = complex_function(42, "hello");
+    
+    return 0;
+}

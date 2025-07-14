@@ -14,9 +14,12 @@ use crate::types::Type as ScriptType;
 use super::{CodegenBackend, CodegenResult, ExecutableModule};
 use std::collections::HashMap;
 
+pub mod closure_optimizer;
 pub mod runtime;
 pub mod translator;
+pub mod translator_extensions;
 
+pub use closure_optimizer::{ClosureOptimizer, OptimizationStats};
 pub use runtime::RuntimeSupport;
 pub use translator::FunctionTranslator;
 
@@ -32,6 +35,12 @@ pub struct CraneliftBackend {
     debug_context: Option<DebugContext>,
     /// Debug compilation flags
     debug_flags: DebugFlags,
+    /// Field layout registry for struct types
+    field_layouts: crate::codegen::FieldLayoutRegistry,
+    /// Bounds checker for array operations
+    bounds_checker: crate::codegen::BoundsChecker,
+    /// Closure optimizer for performance enhancements
+    closure_optimizer: ClosureOptimizer,
 }
 
 impl CraneliftBackend {
@@ -66,6 +75,11 @@ impl CraneliftBackend {
             func_ids: HashMap::new(),
             debug_context: None,
             debug_flags: DebugFlags::default(),
+            field_layouts: crate::codegen::FieldLayoutRegistry::new(),
+            bounds_checker: crate::codegen::BoundsChecker::new(
+                crate::codegen::BoundsCheckMode::Always,
+            ),
+            closure_optimizer: ClosureOptimizer::new(),
         }
     }
 
@@ -108,6 +122,9 @@ impl CraneliftBackend {
 
     /// Compile an IR module
     fn compile_module(&mut self, ir_module: &IrModule) -> CodegenResult<()> {
+        // Declare runtime functions
+        self.declare_runtime_functions()?;
+
         // First pass: declare all functions
         for (_, func) in ir_module.functions() {
             self.declare_function(func)?;
@@ -115,7 +132,7 @@ impl CraneliftBackend {
 
         // Second pass: compile function bodies
         for (_, func) in ir_module.functions() {
-            self.compile_function(func)?;
+            self.compile_function(func, ir_module)?;
         }
 
         // Finalize the module
@@ -125,6 +142,89 @@ impl CraneliftBackend {
                 format!("Failed to finalize module: {}", e),
             )
         })?;
+
+        Ok(())
+    }
+
+    /// Declare runtime functions
+    fn declare_runtime_functions(&mut self) -> CodegenResult<()> {
+        // Declare script_print(ptr: i64, len: i64)
+        {
+            let mut sig = self.module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // ptr
+            sig.params.push(AbiParam::new(types::I64)); // len
+
+            let func_id = self
+                .module
+                .declare_function("script_print", Linkage::Import, &sig)
+                .map_err(|e| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Failed to declare runtime function script_print: {}", e),
+                    )
+                })?;
+
+            self.func_ids.insert("script_print".to_string(), func_id);
+        }
+
+        // Declare script_alloc(size: i64) -> i64
+        {
+            let mut sig = self.module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // size
+            sig.returns.push(AbiParam::new(types::I64)); // ptr
+
+            let func_id = self
+                .module
+                .declare_function("script_alloc", Linkage::Import, &sig)
+                .map_err(|e| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Failed to declare runtime function script_alloc: {}", e),
+                    )
+                })?;
+
+            self.func_ids.insert("script_alloc".to_string(), func_id);
+        }
+
+        // Declare script_free(ptr: i64)
+        {
+            let mut sig = self.module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // ptr
+
+            let func_id = self
+                .module
+                .declare_function("script_free", Linkage::Import, &sig)
+                .map_err(|e| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Failed to declare runtime function script_free: {}", e),
+                    )
+                })?;
+
+            self.func_ids.insert("script_free".to_string(), func_id);
+        }
+
+        // Declare script_panic(msg: i64, len: i64) -> !
+        {
+            let mut sig = self.module.make_signature();
+            sig.params.push(AbiParam::new(types::I64)); // msg ptr
+            sig.params.push(AbiParam::new(types::I64)); // len
+
+            let func_id = self
+                .module
+                .declare_function("script_panic", Linkage::Import, &sig)
+                .map_err(|e| {
+                    Error::new(
+                        ErrorKind::RuntimeError,
+                        format!("Failed to declare runtime function script_panic: {}", e),
+                    )
+                })?;
+
+            self.func_ids.insert("script_panic".to_string(), func_id);
+
+            // Set the panic handler in the bounds checker
+            self.bounds_checker.set_panic_handler(func_id);
+        }
 
         Ok(())
     }
@@ -168,7 +268,7 @@ impl CraneliftBackend {
     }
 
     /// Compile a function
-    fn compile_function(&mut self, func: &IrFunction) -> CodegenResult<()> {
+    fn compile_function(&mut self, func: &IrFunction, ir_module: &IrModule) -> CodegenResult<()> {
         let func_id = self.func_ids.get(&func.name).ok_or_else(|| {
             Error::new(
                 ErrorKind::RuntimeError,
@@ -184,10 +284,10 @@ impl CraneliftBackend {
         self.ctx.func.signature = sig;
 
         // Create function translator
-        let mut translator = FunctionTranslator::new(&self.module);
+        let mut translator = FunctionTranslator::new(&mut self.module, &self.func_ids, ir_module);
 
         // Translate the function
-        translator.translate_function(func, &mut self.ctx.func)?;
+        translator.translate_function(func, &mut self.ctx.func, &mut self.closure_optimizer)?;
 
         // Add debug information for the function if enabled
         if let Some(ref mut debug_ctx) = self.debug_context {
@@ -255,14 +355,21 @@ impl CodegenBackend for CraneliftBackend {
             debug_info,
         });
 
-        // Find entry point (main function if it exists)
-        let entry_point = if module.get_function_by_name("main").is_some() {
-            Some("main".to_string())
-        } else {
-            None
-        };
+        // Find entry point (prefer __script_main__ for top-level code, then user's main)
+        let (entry_point, is_async) =
+            if let Some(script_main) = module.get_function_by_name("__script_main__") {
+                (Some("__script_main__".to_string()), script_main.is_async)
+            } else if let Some(main_func) = module.get_function_by_name("main") {
+                (Some("main".to_string()), main_func.is_async)
+            } else {
+                (None, false)
+            };
 
-        Ok(ExecutableModule::new(entry_point, backend_data))
+        if is_async {
+            Ok(ExecutableModule::new_async(entry_point, backend_data))
+        } else {
+            Ok(ExecutableModule::new(entry_point, backend_data))
+        }
     }
 }
 
@@ -287,10 +394,13 @@ fn script_type_to_cranelift(ty: &ScriptType) -> types::Type {
         ScriptType::Future(_) => types::I64, // Pointer to future
         ScriptType::Option(_) => types::I64, // Pointer to option
         ScriptType::Never => types::I64, // Never type (should not occur at runtime)
+        ScriptType::Struct { .. } => types::I64, // Pointer to struct
         ScriptType::Named(_) => types::I64, // Pointer to named type
         ScriptType::TypeVar(_) => types::I64, // Should be resolved by now
         ScriptType::Generic { .. } => types::I64, // Should be resolved by now
         ScriptType::TypeParam(_) => types::I64, // Should be resolved by now
+        ScriptType::Tuple(_) => types::I64, // Pointer to tuple (heap-allocated)
+        ScriptType::Reference { .. } => types::I64, // Pointer to referenced value
     }
 }
 

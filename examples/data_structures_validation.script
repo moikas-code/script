@@ -1,0 +1,398 @@
+/**
+ * Data Structures Validation Example
+ * 
+ * This example tests:
+ * - Arrays and vectors
+ * - Hash maps and sets
+ * - Tuples
+ * - Structs
+ * - Enums
+ * - Nested data structures
+ * - Data structure operations
+ */
+
+// Test basic array operations
+fn test_arrays() {
+    print("=== Array Tests ===")
+    
+    // Create arrays in different ways
+    let numbers: Array<i32> = [1, 2, 3, 4, 5]
+    let words = ["hello", "world", "script"]
+    let empty_array: Array<f32> = []
+    
+    print("Numbers length: " + numbers.len())
+    print("Words length: " + words.len())
+    print("Empty array length: " + empty_array.len())
+    
+    // Test array access
+    if numbers.len() > 0 {
+        print("First number: " + numbers[0])
+        print("Last number: " + numbers[numbers.len() - 1])
+    }
+    
+    // Test array modification
+    let mut mutable_array = [10, 20, 30]
+    mutable_array[1] = 25
+    print("Modified array: " + mutable_array[1])
+    
+    // Test array methods
+    print("Contains 3: " + numbers.contains(3))
+    print("Index of 4: " + numbers.index_of(4))
+}
+
+// Test vector operations (dynamic arrays)
+fn test_vectors() {
+    print("\n=== Vector Tests ===")
+    
+    let mut scores = Vec<i32>::new()
+    
+    // Test push and pop
+    scores.push(85)
+    scores.push(92)
+    scores.push(78)
+    scores.push(96)
+    
+    print("Scores length: " + scores.len())
+    print("Scores: " + scores)
+    
+    let last_score = scores.pop()
+    match last_score {
+        Some(score) => print("Popped score: " + score),
+        None => print("No score to pop")
+    }
+    
+    print("After pop, length: " + scores.len())
+    
+    // Test insert and remove
+    scores.insert(1, 89)
+    print("After insert at index 1: " + scores)
+    
+    let removed = scores.remove(2)
+    print("Removed score: " + removed)
+    print("Final scores: " + scores)
+}
+
+// Test HashMap operations
+fn test_hashmaps() {
+    print("\n=== HashMap Tests ===")
+    
+    let mut student_grades = HashMap<string, i32>::new()
+    
+    // Test insertion
+    student_grades.insert("Alice", 95)
+    student_grades.insert("Bob", 87)
+    student_grades.insert("Charlie", 92)
+    student_grades.insert("Diana", 88)
+    
+    print("HashMap size: " + student_grades.len())
+    
+    // Test retrieval
+    match student_grades.get("Alice") {
+        Some(grade) => print("Alice's grade: " + grade),
+        None => print("Alice not found")
+    }
+    
+    match student_grades.get("Eve") {
+        Some(grade) => print("Eve's grade: " + grade),
+        None => print("Eve not found")
+    }
+    
+    // Test contains_key
+    print("Contains 'Bob': " + student_grades.contains_key("Bob"))
+    print("Contains 'Frank': " + student_grades.contains_key("Frank"))
+    
+    // Test update
+    student_grades.insert("Bob", 89) // Update Bob's grade
+    print("Bob's updated grade: " + student_grades.get("Bob").unwrap())
+    
+    // Test removal
+    let removed_grade = student_grades.remove("Charlie")
+    match removed_grade {
+        Some(grade) => print("Removed Charlie with grade: " + grade),
+        None => print("Charlie not found for removal")
+    }
+    
+    print("Final size: " + student_grades.len())
+    
+    // Test iteration over keys and values
+    print("All students and grades:")
+    for (name, grade) in student_grades {
+        print("  " + name + ": " + grade)
+    }
+}
+
+// Test HashSet operations
+fn test_hashsets() {
+    print("\n=== HashSet Tests ===")
+    
+    let mut unique_colors = HashSet<string>::new()
+    
+    // Test insertion with duplicates
+    unique_colors.insert("red")
+    unique_colors.insert("blue")
+    unique_colors.insert("green")
+    unique_colors.insert("red")    // Duplicate
+    unique_colors.insert("yellow")
+    unique_colors.insert("blue")   // Duplicate
+    
+    print("Unique colors count: " + unique_colors.len()) // Should be 4
+    
+    // Test contains
+    print("Contains 'red': " + unique_colors.contains("red"))
+    print("Contains 'purple': " + unique_colors.contains("purple"))
+    
+    // Test removal
+    let removed = unique_colors.remove("green")
+    print("Removed 'green': " + removed)
+    print("Size after removal: " + unique_colors.len())
+    
+    // Test set operations
+    let mut other_colors = HashSet<string>::new()
+    other_colors.insert("red")
+    other_colors.insert("orange")
+    other_colors.insert("purple")
+    
+    let intersection = unique_colors.intersection(other_colors)
+    print("Intersection size: " + intersection.len())
+    
+    let union = unique_colors.union(other_colors)
+    print("Union size: " + union.len())
+}
+
+// Test tuple operations
+fn test_tuples() {
+    print("\n=== Tuple Tests ===")
+    
+    // Create different types of tuples
+    let point: (f32, f32) = (3.14, 2.71)
+    let person: (string, i32, bool) = ("Alice", 30, true)
+    let nested: ((i32, i32), string) = ((10, 20), "coordinates")
+    
+    // Test tuple access
+    print("Point: (" + point.0 + ", " + point.1 + ")")
+    print("Person: " + person.0 + ", age " + person.1 + ", active: " + person.2)
+    print("Nested coord: (" + nested.0.0 + ", " + nested.0.1 + ") " + nested.1)
+    
+    // Test tuple destructuring
+    let (x, y) = point
+    print("Destructured point: x=" + x + ", y=" + y)
+    
+    let (name, age, active) = person
+    print("Destructured person: " + name + " is " + age + " years old")
+    
+    // Test tuple as function return
+    let stats = calculate_stats([1, 2, 3, 4, 5])
+    print("Stats - sum: " + stats.0 + ", avg: " + stats.1 + ", max: " + stats.2)
+}
+
+// Helper function that returns a tuple
+fn calculate_stats(numbers: Array<i32>) -> (i32, f32, i32) {
+    let sum = numbers.iter().sum()
+    let avg = sum as f32 / numbers.len() as f32
+    let max = numbers.iter().max().unwrap_or(0)
+    (sum, avg, max)
+}
+
+// Test struct definitions and operations
+struct Student {
+    name: string,
+    age: i32,
+    grades: Array<f32>,
+    active: bool
+}
+
+struct Point3D {
+    x: f32,
+    y: f32,
+    z: f32
+}
+
+impl Point3D {
+    fn new(x: f32, y: f32, z: f32) -> Point3D {
+        Point3D { x, y, z }
+    }
+    
+    fn distance_from_origin(&self) -> f32 {
+        sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
+    }
+    
+    fn translate(&mut self, dx: f32, dy: f32, dz: f32) {
+        self.x += dx
+        self.y += dy
+        self.z += dz
+    }
+}
+
+fn test_structs() {
+    print("\n=== Struct Tests ===")
+    
+    // Create struct instances
+    let student1 = Student {
+        name: "Alice",
+        age: 20,
+        grades: [85.5, 92.0, 78.5, 96.0],
+        active: true
+    }
+    
+    let mut student2 = Student {
+        name: "Bob",
+        age: 19,
+        grades: [88.0, 85.5, 91.0],
+        active: false
+    }
+    
+    print("Student 1: " + student1.name + ", age " + student1.age)
+    print("Student 1 grades: " + student1.grades.len() + " grades")
+    print("Student 1 active: " + student1.active)
+    
+    // Test struct field access and modification
+    student2.age = 20
+    student2.active = true
+    student2.grades.push(89.5)
+    
+    print("Updated student 2: " + student2.name + ", age " + student2.age)
+    print("Student 2 now has " + student2.grades.len() + " grades")
+    
+    // Test struct with methods
+    let mut point = Point3D::new(1.0, 2.0, 3.0)
+    print("Point: (" + point.x + ", " + point.y + ", " + point.z + ")")
+    print("Distance from origin: " + point.distance_from_origin())
+    
+    point.translate(1.0, 1.0, 1.0)
+    print("After translation: (" + point.x + ", " + point.y + ", " + point.z + ")")
+}
+
+// Test enum definitions and operations
+enum TaskStatus {
+    Pending,
+    InProgress { started_at: string },
+    Completed { finished_at: string, result: string },
+    Failed { error: string, retry_count: i32 }
+}
+
+enum Color {
+    Red,
+    Green,
+    Blue,
+    RGB(i32, i32, i32),
+    HSL { hue: f32, saturation: f32, lightness: f32 }
+}
+
+fn test_enums() {
+    print("\n=== Enum Tests ===")
+    
+    // Create enum instances
+    let task1 = TaskStatus::Pending
+    let task2 = TaskStatus::InProgress { started_at: "2024-01-15T10:30:00" }
+    let task3 = TaskStatus::Completed { 
+        finished_at: "2024-01-15T11:45:00", 
+        result: "Success" 
+    }
+    let task4 = TaskStatus::Failed { 
+        error: "Network timeout", 
+        retry_count: 3 
+    }
+    
+    // Test enum pattern matching
+    let tasks = [task1, task2, task3, task4]
+    for (i, task) in tasks.iter().enumerate() {
+        let status_msg = match task {
+            TaskStatus::Pending => "waiting to start",
+            TaskStatus::InProgress { started_at } => "started at " + started_at,
+            TaskStatus::Completed { finished_at, result } => {
+                "completed at " + finished_at + " with result: " + result
+            },
+            TaskStatus::Failed { error, retry_count } => {
+                "failed with '" + error + "' after " + retry_count + " retries"
+            }
+        }
+        print("Task " + (i + 1) + ": " + status_msg)
+    }
+    
+    // Test color enum
+    let colors = [
+        Color::Red,
+        Color::RGB(255, 128, 0),
+        Color::HSL { hue: 240.0, saturation: 1.0, lightness: 0.5 }
+    ]
+    
+    for color in colors {
+        let color_desc = match color {
+            Color::Red => "pure red",
+            Color::Green => "pure green", 
+            Color::Blue => "pure blue",
+            Color::RGB(r, g, b) => "RGB(" + r + ", " + g + ", " + b + ")",
+            Color::HSL { hue, saturation, lightness } => {
+                "HSL(" + hue + ", " + saturation + ", " + lightness + ")"
+            }
+        }
+        print("Color: " + color_desc)
+    }
+}
+
+// Test nested data structures
+fn test_nested_structures() {
+    print("\n=== Nested Structure Tests ===")
+    
+    // Nested HashMap with Vec values
+    let mut departments = HashMap<string, Vec<string>>::new()
+    
+    departments.insert("Engineering", vec!["Alice", "Bob", "Charlie"])
+    departments.insert("Sales", vec!["Diana", "Eve"])
+    departments.insert("Marketing", vec!["Frank", "Grace", "Henry", "Ivy"])
+    
+    print("Departments:")
+    for (dept, employees) in departments {
+        print("  " + dept + " (" + employees.len() + " employees):")
+        for employee in employees {
+            print("    - " + employee)
+        }
+    }
+    
+    // Array of structs
+    let mut inventory = [
+        Product { name: "Laptop", price: 999.99, in_stock: 5 },
+        Product { name: "Mouse", price: 29.99, in_stock: 20 },
+        Product { name: "Keyboard", price: 79.99, in_stock: 12 }
+    ]
+    
+    print("\nInventory:")
+    for product in inventory {
+        print("  " + product.name + ": $" + product.price + " (stock: " + product.in_stock + ")")
+    }
+    
+    // Update stock
+    inventory[0].in_stock -= 1
+    print("After sale, laptop stock: " + inventory[0].in_stock)
+}
+
+struct Product {
+    name: string,
+    price: f32,
+    in_stock: i32
+}
+
+// Main function to run all data structure tests
+fn main() {
+    print("=== Script Language Data Structures Validation ===")
+    
+    // Test basic collections
+    test_arrays()
+    test_vectors()
+    test_hashmaps()
+    test_hashsets()
+    test_tuples()
+    
+    // Test user-defined types
+    test_structs()
+    test_enums()
+    
+    // Test complex structures
+    test_nested_structures()
+    
+    print("\n=== Data structures validation complete ===")
+    print("Note: This covers the core data structures needed")
+    print("for building robust Script applications.")
+}
+
+main()

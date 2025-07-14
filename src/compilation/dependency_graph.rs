@@ -148,8 +148,12 @@ impl DependencyGraph {
                     }
                 } else if rec_stack.contains(dep) {
                     // Found a cycle
-                    let cycle_start = path.iter().position(|m| m == dep).unwrap();
-                    return Some(path[cycle_start..].to_vec());
+                    if let Some(cycle_start) = path.iter().position(|m| m == dep) {
+                        return Some(path[cycle_start..].to_vec());
+                    } else {
+                        // This should never happen, but handle gracefully
+                        return Some(vec![dep.clone()]);
+                    }
                 }
             }
         }
@@ -160,37 +164,191 @@ impl DependencyGraph {
     }
 }
 
-/// Analyzes AST to extract module dependencies
-pub struct DependencyAnalyzer;
+/// Analyzes AST to extract module dependencies with proper path resolution
+pub struct DependencyAnalyzer {
+    /// Base path for resolving relative imports
+    base_path: Option<std::path::PathBuf>,
+}
 
 impl DependencyAnalyzer {
-    /// Extract dependencies from a parsed program
-    pub fn analyze(ast: &Program) -> HashSet<String> {
+    /// Create a new dependency analyzer
+    pub fn new() -> Self {
+        Self { base_path: None }
+    }
+
+    /// Create analyzer with a base path for relative imports
+    pub fn with_base_path(base_path: std::path::PathBuf) -> Self {
+        Self {
+            base_path: Some(base_path),
+        }
+    }
+
+    /// Extract dependencies from a parsed program with proper path resolution
+    pub fn analyze(
+        &self,
+        ast: &Program,
+        current_module_path: Option<&std::path::Path>,
+    ) -> HashSet<String> {
         let mut dependencies = HashSet::new();
 
         for stmt in &ast.statements {
-            if let StmtKind::Import { module, .. } = &stmt.kind {
-                // Extract module name from import path
-                // For now, assume the path is the module name
-                dependencies.insert(module.clone());
+            if let StmtKind::Import {
+                module, imports, ..
+            } = &stmt.kind
+            {
+                // Resolve module path properly
+                let resolved_module = self.resolve_module_path(module, current_module_path);
+
+                match resolved_module {
+                    Ok(resolved_path) => {
+                        dependencies.insert(resolved_path);
+                    }
+                    Err(err) => {
+                        // Log error but continue processing other imports
+                        eprintln!("Warning: Failed to resolve import '{}': {}", module, err);
+                    }
+                }
+
+                // Handle selective imports if needed
+                if !imports.is_empty() {
+                    // For selective imports like `import { a, b } from module`
+                    // We still depend on the module, already added above
+                    // Could add validation here that the imported items exist
+                }
             }
         }
 
         dependencies
     }
 
-    /// Build a complete dependency graph from multiple modules
-    pub fn build_graph(modules: &HashMap<String, Program>) -> DependencyGraph {
+    /// Resolve a module path to a canonical module name
+    fn resolve_module_path(
+        &self,
+        module_path: &str,
+        current_module_path: Option<&std::path::Path>,
+    ) -> std::result::Result<String, String> {
+        use std::path::Path;
+
+        // Handle different import patterns
+        if module_path.starts_with("./") || module_path.starts_with("../") {
+            // Relative import
+            if let Some(current_path) = current_module_path {
+                let current_dir = current_path.parent().ok_or_else(|| {
+                    format!("Cannot resolve relative import from root: {}", module_path)
+                })?;
+
+                let relative_path = Path::new(module_path);
+                let resolved = current_dir.join(relative_path);
+
+                // Normalize and convert to canonical module name
+                let canonical = resolved
+                    .canonicalize()
+                    .map_err(|e| format!("Cannot resolve path '{}': {}", module_path, e))?;
+
+                // Convert path to module name (remove .script extension, use :: separator)
+                self.path_to_module_name(&canonical)
+            } else {
+                Err(format!(
+                    "Relative import '{}' used without current module context",
+                    module_path
+                ))
+            }
+        } else if module_path.starts_with("/") {
+            // Absolute import from project root
+            let base = self.base_path.as_ref().ok_or_else(|| {
+                format!("Absolute import '{}' used without base path", module_path)
+            })?;
+
+            let absolute_path = base.join(&module_path[1..]); // Remove leading /
+            let canonical = absolute_path
+                .canonicalize()
+                .map_err(|e| format!("Cannot resolve absolute path '{}': {}", module_path, e))?;
+
+            self.path_to_module_name(&canonical)
+        } else {
+            // Module name (library import or simple name)
+            // For now, assume it's a valid module name
+            Ok(module_path.to_string())
+        }
+    }
+
+    /// Convert a file path to a module name
+    fn path_to_module_name(&self, path: &std::path::Path) -> std::result::Result<String, String> {
+        // Remove .script extension if present
+        let path_str = path
+            .to_str()
+            .ok_or_else(|| "Invalid UTF-8 in module path".to_string())?;
+
+        let module_path = if path_str.ends_with(".script") {
+            &path_str[..path_str.len() - 7] // Remove .script
+        } else {
+            path_str
+        };
+
+        // Convert path separators to module separators
+        let module_name = module_path.replace(std::path::MAIN_SEPARATOR, "::");
+
+        // Remove base path if present
+        if let Some(base) = &self.base_path {
+            if let Some(base_str) = base.to_str() {
+                let prefix = format!("{}::", base_str.replace(std::path::MAIN_SEPARATOR, "::"));
+                if let Some(relative) = module_name.strip_prefix(&prefix) {
+                    return Ok(relative.to_string());
+                }
+            }
+        }
+
+        Ok(module_name)
+    }
+
+    /// Legacy method for backward compatibility
+    pub fn analyze_legacy(ast: &Program) -> HashSet<String> {
+        let analyzer = Self::new();
+        analyzer.analyze(ast, None)
+    }
+
+    /// Build a complete dependency graph from multiple modules with proper path resolution
+    pub fn build_graph_with_paths(
+        modules: &HashMap<String, (Program, std::path::PathBuf)>,
+        base_path: Option<std::path::PathBuf>,
+    ) -> DependencyGraph {
         let mut graph = DependencyGraph::new();
+        let analyzer = Self::with_base_path(
+            base_path.unwrap_or_else(|| std::env::current_dir().unwrap_or_default()),
+        );
 
         // Add all modules
         for module_name in modules.keys() {
             graph.add_module(module_name.clone());
         }
 
-        // Add dependencies
+        // Add dependencies with proper path resolution
+        for (module_name, (ast, module_path)) in modules {
+            let deps = analyzer.analyze(ast, Some(module_path));
+            for dep in deps {
+                // Only add if the dependency is an internal module
+                if modules.contains_key(&dep) {
+                    graph.add_dependency(module_name.clone(), dep);
+                }
+            }
+        }
+
+        graph
+    }
+
+    /// Build a complete dependency graph from multiple modules (legacy method)
+    pub fn build_graph(modules: &HashMap<String, Program>) -> DependencyGraph {
+        let mut graph = DependencyGraph::new();
+        let analyzer = Self::new();
+
+        // Add all modules
+        for module_name in modules.keys() {
+            graph.add_module(module_name.clone());
+        }
+
+        // Add dependencies using legacy analysis
         for (module_name, ast) in modules {
-            let deps = Self::analyze(ast);
+            let deps = analyzer.analyze(ast, None);
             for dep in deps {
                 // Only add if the dependency is an internal module
                 if modules.contains_key(&dep) {

@@ -1,0 +1,40 @@
+// Test impl block parsing
+struct Point {
+    x: f64,
+    y: f64
+}
+
+impl Point {
+    fn new(x: f64, y: f64) -> Point {
+        Point { x: x, y: y }
+    }
+    
+    fn distance(self, other: Point) -> f64 {
+        let dx = self.x - other.x
+        let dy = self.y - other.y
+        (dx * dx + dy * dy)
+    }
+}
+
+// Generic impl block
+struct Vec<T> {
+    data: [T]
+}
+
+impl<T> Vec<T> {
+    fn new() -> Vec<T> {
+        Vec { data: [] }
+    }
+    
+    fn push(self, item: T) -> Vec<T> {
+        self
+    }
+}
+
+// Impl with where clause
+impl<T> Vec<T>
+where T: Clone {
+    fn clone_all(self) -> Vec<T> {
+        self
+    }
+}

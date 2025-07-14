@@ -1,0 +1,9 @@
+// Test generic function execution
+fn identity<T>(x: T) -> T {
+    return x;
+}
+
+fn main() -> i32 {
+    let result = identity(42);
+    return result;
+}

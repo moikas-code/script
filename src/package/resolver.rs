@@ -345,12 +345,12 @@ impl PackageSource for RegistrySource {
         ))
     }
 
-    fn package_exists(&self, name: &str, version: &Version) -> PackageResult<bool> {
+    fn package_exists(&self, _name: &str, _version: &Version) -> PackageResult<bool> {
         // In a real implementation, this would check the registry
         Ok(true) // Placeholder
     }
 
-    fn get_versions(&self, name: &str) -> PackageResult<Vec<Version>> {
+    fn get_versions(&self, _name: &str) -> PackageResult<Vec<Version>> {
         // In a real implementation, this would fetch from registry
         Ok(vec![
             Version::new(1, 0, 0),

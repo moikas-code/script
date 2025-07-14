@@ -28,7 +28,7 @@ impl DocGenerator {
         self.current_module = module_name.to_string();
 
         // Create module entry
-        let module = self
+        let _module = self
             .database
             .modules
             .entry(module_name.to_string())
@@ -53,7 +53,7 @@ impl DocGenerator {
     /// Generate documentation from source code
     pub fn generate_from_source(&mut self, source: &str, module_name: &str) -> Result<()> {
         // First, collect all tokens including doc comments
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source)?;
         let (tokens, errors) = lexer.scan_tokens();
 
         if !errors.is_empty() {
@@ -79,7 +79,7 @@ impl DocGenerator {
     ) -> Result<()> {
         self.current_module = module_name.to_string();
 
-        let module = self
+        let _module = self
             .database
             .modules
             .entry(module_name.to_string())
@@ -155,6 +155,7 @@ impl DocGenerator {
                 ret_type,
                 body: _,
                 is_async,
+                where_clause: _, // TODO: Include where clause in docs
             } => {
                 let mut signature = String::new();
 

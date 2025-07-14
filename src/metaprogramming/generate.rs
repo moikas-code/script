@@ -61,7 +61,7 @@ pub trait Generator: Send + Sync {
 struct SqlGenerator;
 
 impl Generator for SqlGenerator {
-    fn generate(&self, stmt: &Stmt, args: &[String]) -> Result<Vec<Stmt>> {
+    fn generate(&self, _stmt: &Stmt, args: &[String]) -> Result<Vec<Stmt>> {
         // Example: @generate(sql, "users") generates CRUD operations
         if args.is_empty() {
             return Err(Error::new(
@@ -70,7 +70,7 @@ impl Generator for SqlGenerator {
             ));
         }
 
-        let table_name = &args[0];
+        let _table_name = &args[0];
 
         // In a real implementation, this would:
         // 1. Connect to database or read schema file
@@ -86,7 +86,7 @@ impl Generator for SqlGenerator {
 struct ApiGenerator;
 
 impl Generator for ApiGenerator {
-    fn generate(&self, stmt: &Stmt, args: &[String]) -> Result<Vec<Stmt>> {
+    fn generate(&self, _stmt: &Stmt, args: &[String]) -> Result<Vec<Stmt>> {
         // Example: @generate(api, "openapi.yaml") generates client code from OpenAPI spec
         if args.is_empty() {
             return Err(Error::new(
@@ -95,7 +95,7 @@ impl Generator for ApiGenerator {
             ));
         }
 
-        let spec_file = &args[0];
+        let _spec_file = &args[0];
 
         // In a real implementation, this would:
         // 1. Read the OpenAPI/Swagger specification

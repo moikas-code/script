@@ -307,7 +307,7 @@ impl Color {
 pub fn rgb_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 3 {
         return Err(RuntimeError::InvalidOperation(
-            format!("rgb expects 3 arguments, got {}", args.len())
+            format!("rgb expects 3 arguments, got {}", args.len()
         ));
     }
     
@@ -321,7 +321,7 @@ pub fn rgb_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn rgba_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 4 {
         return Err(RuntimeError::InvalidOperation(
-            format!("rgba expects 4 arguments, got {}", args.len())
+            format!("rgba expects 4 arguments, got {}", args.len()
         ));
     }
     
@@ -336,7 +336,7 @@ pub fn rgba_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn gray_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 1 {
         return Err(RuntimeError::InvalidOperation(
-            format!("gray expects 1 argument, got {}", args.len())
+            format!("gray expects 1 argument, got {}", args.len()
         ));
     }
     
@@ -347,7 +347,7 @@ pub fn gray_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn hex_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 1 {
         return Err(RuntimeError::InvalidOperation(
-            format!("hex expects 1 argument, got {}", args.len())
+            format!("hex expects 1 argument, got {}", args.len()
         ));
     }
     
@@ -358,7 +358,7 @@ pub fn hex_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn hsv_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 3 {
         return Err(RuntimeError::InvalidOperation(
-            format!("hsv expects 3 arguments, got {}", args.len())
+            format!("hsv expects 3 arguments, got {}", args.len()
         ));
     }
     
@@ -372,7 +372,7 @@ pub fn hsv_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn hsl_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 3 {
         return Err(RuntimeError::InvalidOperation(
-            format!("hsl expects 3 arguments, got {}", args.len())
+            format!("hsl expects 3 arguments, got {}", args.len()
         ));
     }
     
@@ -386,7 +386,7 @@ pub fn hsl_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_to_hex_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 1 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_to_hex expects 1 argument, got {}", args.len())
+            format!("color_to_hex expects 1 argument, got {}", args.len()
         ));
     }
     
@@ -397,7 +397,7 @@ pub fn color_to_hex_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_to_hsv_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 1 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_to_hsv expects 1 argument, got {}", args.len())
+            format!("color_to_hsv expects 1 argument, got {}", args.len()
         ));
     }
     
@@ -414,7 +414,7 @@ pub fn color_to_hsv_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_to_hsl_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 1 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_to_hsl expects 1 argument, got {}", args.len())
+            format!("color_to_hsl expects 1 argument, got {}", args.len()
         ));
     }
     
@@ -431,7 +431,7 @@ pub fn color_to_hsl_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_lerp_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 3 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_lerp expects 3 arguments, got {}", args.len())
+            format!("color_lerp expects 3 arguments, got {}", args.len()
         ));
     }
     
@@ -445,7 +445,7 @@ pub fn color_lerp_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_mix_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 2 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_mix expects 2 arguments, got {}", args.len())
+            format!("color_mix expects 2 arguments, got {}", args.len()
         ));
     }
     
@@ -458,7 +458,7 @@ pub fn color_mix_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_brighten_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 2 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_brighten expects 2 arguments, got {}", args.len())
+            format!("color_brighten expects 2 arguments, got {}", args.len()
         ));
     }
     
@@ -471,7 +471,7 @@ pub fn color_brighten_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_darken_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 2 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_darken expects 2 arguments, got {}", args.len())
+            format!("color_darken expects 2 arguments, got {}", args.len()
         ));
     }
     
@@ -484,7 +484,7 @@ pub fn color_darken_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_saturate_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 2 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_saturate expects 2 arguments, got {}", args.len())
+            format!("color_saturate expects 2 arguments, got {}", args.len()
         ));
     }
     
@@ -497,7 +497,7 @@ pub fn color_saturate_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_desaturate_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 2 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_desaturate expects 2 arguments, got {}", args.len())
+            format!("color_desaturate expects 2 arguments, got {}", args.len()
         ));
     }
     
@@ -510,7 +510,7 @@ pub fn color_desaturate_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue>
 pub fn color_invert_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 1 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_invert expects 1 argument, got {}", args.len())
+            format!("color_invert expects 1 argument, got {}", args.len()
         ));
     }
     
@@ -521,7 +521,7 @@ pub fn color_invert_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn color_complement_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 1 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_complement expects 1 argument, got {}", args.len())
+            format!("color_complement expects 1 argument, got {}", args.len()
         ));
     }
     
@@ -532,12 +532,12 @@ pub fn color_complement_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue>
 pub fn color_luminance_impl(args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     if args.len() != 1 {
         return Err(RuntimeError::InvalidOperation(
-            format!("color_luminance expects 1 argument, got {}", args.len())
+            format!("color_luminance expects 1 argument, got {}", args.len()
         ));
     }
     
     let color = Color::from_script_value(&args[0])?;
-    Ok(ScriptValue::F32(color.luminance()))
+    Ok(ScriptValue::F32(color.luminance())
 }
 
 // Color constants

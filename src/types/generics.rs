@@ -7,7 +7,7 @@ use crate::source::Span;
 /// - Constraints/bounds on type parameters
 /// - Built-in traits (Eq, Ord, Clone, Display, etc.)
 /// - Generic type instantiation and monomorphization
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 /// A type parameter in a generic declaration
@@ -336,6 +336,8 @@ impl GenericEnv {
                 .insert((type_.clone(), BuiltinTrait::Debug), true);
             self.trait_impls
                 .insert((type_.clone(), BuiltinTrait::Default), true);
+            self.trait_impls
+                .insert((type_.clone(), BuiltinTrait::Hash), true);
 
             // Numeric types implement Ord
             if matches!(type_, Type::I32 | Type::F32) {
@@ -361,27 +363,67 @@ impl GenericEnv {
         self.type_substitutions.get(param)
     }
 
-    /// Apply type substitutions to a type
+    /// Apply type substitutions to a type with cycle detection
     pub fn substitute_type(&self, type_: &Type) -> Type {
+        self.substitute_type_with_visited(type_, &mut HashSet::new())
+    }
+
+    /// Internal method for type substitution with cycle detection
+    fn substitute_type_with_visited(&self, type_: &Type, visited: &mut HashSet<String>) -> Type {
         match type_ {
             Type::Named(name) => {
                 if let Some(concrete) = self.get_substitution(name) {
-                    concrete.clone()
+                    self.substitute_type_with_visited(concrete, visited)
                 } else {
                     type_.clone()
                 }
             }
-            Type::Array(elem) => Type::Array(Box::new(self.substitute_type(elem))),
+            Type::TypeParam(name) => {
+                // Check for cycles
+                if visited.contains(name) {
+                    return Type::TypeParam(name.clone()); // Break cycle
+                }
+
+                if let Some(concrete) = self.get_substitution(name) {
+                    visited.insert(name.clone());
+                    let result = self.substitute_type_with_visited(concrete, visited);
+                    visited.remove(name);
+                    result
+                } else {
+                    type_.clone()
+                }
+            }
+            Type::Generic { name, args } => Type::Generic {
+                name: name.clone(),
+                args: args
+                    .iter()
+                    .map(|arg| self.substitute_type_with_visited(arg, visited))
+                    .collect(),
+            },
+            Type::Array(elem) => {
+                Type::Array(Box::new(self.substitute_type_with_visited(elem, visited)))
+            }
             Type::Function { params, ret } => Type::Function {
-                params: params.iter().map(|p| self.substitute_type(p)).collect(),
-                ret: Box::new(self.substitute_type(ret)),
+                params: params
+                    .iter()
+                    .map(|p| self.substitute_type_with_visited(p, visited))
+                    .collect(),
+                ret: Box::new(self.substitute_type_with_visited(ret, visited)),
             },
             Type::Result { ok, err } => Type::Result {
-                ok: Box::new(self.substitute_type(ok)),
-                err: Box::new(self.substitute_type(err)),
+                ok: Box::new(self.substitute_type_with_visited(ok, visited)),
+                err: Box::new(self.substitute_type_with_visited(err, visited)),
             },
-            Type::Future(inner) => Type::Future(Box::new(self.substitute_type(inner))),
-            Type::Option(inner) => Type::Option(Box::new(self.substitute_type(inner))),
+            Type::Future(inner) => {
+                Type::Future(Box::new(self.substitute_type_with_visited(inner, visited)))
+            }
+            Type::Option(inner) => {
+                Type::Option(Box::new(self.substitute_type_with_visited(inner, visited)))
+            }
+            Type::TypeVar(id) => {
+                // Type variables are handled by the inference engine, not generic substitution
+                Type::TypeVar(*id)
+            }
             _ => type_.clone(),
         }
     }

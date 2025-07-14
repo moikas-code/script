@@ -1,0 +1,237 @@
+// Comprehensive demonstration of Result<T, E> error handling in Script
+// This example showcases all implemented features of the error handling system
+
+// Basic Result function
+fn divide(a: i32, b: i32) -> Result<i32, String> {
+    if b == 0 {
+        Err("Division by zero")
+    } else {
+        Ok(a / b)
+    }
+}
+
+// Error propagation with ? operator
+fn safe_calculation(a: i32, b: i32, c: i32) -> Result<i32, String> {
+    let step1 = divide(a, b)?;      // Propagates error if division fails
+    let step2 = divide(step1, c)?;  // Propagates error if second division fails
+    Ok(step2 * 2)                   // Success case
+}
+
+// Option type usage
+fn find_index(arr: [i32], target: i32) -> Option<i32> {
+    for i in 0..arr.len() {
+        if arr[i] == target {
+            return Some(i);
+        }
+    }
+    None
+}
+
+// Option error propagation
+fn find_two_elements(arr: [i32], target1: i32, target2: i32) -> Option<(i32, i32)> {
+    let idx1 = find_index(arr, target1)?;  // Early return on None
+    let idx2 = find_index(arr, target2)?;  // Early return on None
+    Some((idx1, idx2))                     // Success: both found
+}
+
+// Comprehensive pattern matching on Result
+fn handle_division_result(a: i32, b: i32) -> String {
+    match divide(a, b) {
+        Ok(result) => {
+            match result {
+                value if value > 100 => format!("Large result: {}", value),
+                value if value > 0 => format!("Positive result: {}", value),
+                0 => "Result is zero".to_string(),
+                _ => format!("Negative result: {}", value),
+            }
+        }
+        Err(error) => format!("Error occurred: {}", error),
+    }
+}
+
+// Comprehensive pattern matching on Option
+fn handle_search_result(arr: [i32], target: i32) -> String {
+    match find_index(arr, target) {
+        Some(index) => {
+            match index {
+                0 => "Found at the beginning".to_string(),
+                index if index < 5 => format!("Found early at index {}", index),
+                _ => format!("Found later at index {}", index),
+            }
+        }
+        None => "Not found".to_string(),
+    }
+}
+
+// Nested error handling with multiple types
+fn complex_operation(
+    numbers: [String], 
+    target_value: i32
+) -> Result<String, String> {
+    
+    // Parse all strings to integers
+    let mut parsed_numbers = [];
+    for num_str in numbers {
+        let parsed = parse_integer(num_str)?;  // Propagate parse errors
+        parsed_numbers.push(parsed);
+    }
+    
+    // Find the target value
+    let index = find_index(parsed_numbers, target_value)
+        .ok_or("Target value not found in array")?;  // Convert Option to Result
+    
+    // Perform calculation with found value
+    let calculation_result = safe_calculation(
+        parsed_numbers[index], 
+        target_value, 
+        2
+    )?;  // Propagate calculation errors
+    
+    Ok(format!(
+        "Successfully processed: target {} at index {} gives result {}", 
+        target_value, 
+        index, 
+        calculation_result
+    ))
+}
+
+// Helper function for parsing (simplified implementation)
+fn parse_integer(s: String) -> Result<i32, String> {
+    if s.is_empty() {
+        Err("Cannot parse empty string")
+    } else if s == "invalid" {
+        Err("Invalid number format")
+    } else {
+        // Simplified: just return a hardcoded value
+        // In real implementation, this would parse the string
+        Ok(42)
+    }
+}
+
+// Demonstration of Result chaining with different error types
+fn file_processing_simulation(filename: String) -> Result<String, String> {
+    let content = read_file(filename)?;           // File I/O error
+    let parsed = parse_content(content)?;         // Parse error  
+    let processed = transform_data(parsed)?;      // Processing error
+    let validated = validate_result(processed)?;  // Validation error
+    
+    Ok(format!("Successfully processed: {}", validated))
+}
+
+// Simulated file operations
+fn read_file(filename: String) -> Result<String, String> {
+    if filename.is_empty() {
+        Err("Filename cannot be empty")
+    } else if filename == "nonexistent.txt" {
+        Err("File not found")
+    } else {
+        Ok("file content here".to_string())
+    }
+}
+
+fn parse_content(content: String) -> Result<[String], String> {
+    if content.is_empty() {
+        Err("Cannot parse empty content")
+    } else {
+        Ok(["parsed", "data", "here"])
+    }
+}
+
+fn transform_data(data: [String]) -> Result<[String], String> {
+    if data.len() == 0 {
+        Err("Cannot transform empty data")
+    } else {
+        Ok(["transformed", "data"])
+    }
+}
+
+fn validate_result(data: [String]) -> Result<String, String> {
+    if data.len() < 2 {
+        Err("Insufficient data for validation")
+    } else {
+        Ok("validated data".to_string())
+    }
+}
+
+// Main function demonstrating usage
+fn main() -> Result<(), String> {
+    // Test basic division
+    let result1 = divide(10, 2)?;
+    println!("10 / 2 = {}", result1);
+    
+    // Test error propagation
+    let result2 = safe_calculation(20, 4, 2)?;
+    println!("Complex calculation result: {}", result2);
+    
+    // Test Option usage
+    let numbers = [1, 2, 3, 4, 5];
+    match find_two_elements(numbers, 2, 4) {
+        Some((idx1, idx2)) => println!("Found at indices: {} and {}", idx1, idx2),
+        None => println!("One or both elements not found"),
+    }
+    
+    // Test comprehensive error handling
+    let test_data = ["42", "invalid", "123"];
+    match complex_operation(test_data, 42) {
+        Ok(message) => println!("Success: {}", message),
+        Err(error) => println!("Error: {}", error),
+    }
+    
+    // Test file processing simulation
+    match file_processing_simulation("data.txt".to_string()) {
+        Ok(result) => println!("File processing: {}", result),
+        Err(error) => println!("File processing failed: {}", error),
+    }
+    
+    Ok(())
+}
+
+// Examples of pattern matching exhaustiveness
+
+// Exhaustive Result matching (correct)
+fn exhaustive_result_match(r: Result<i32, String>) -> String {
+    match r {
+        Ok(value) => format!("Success: {}", value),
+        Err(error) => format!("Error: {}", error),
+    }
+}
+
+// Exhaustive Option matching (correct) 
+fn exhaustive_option_match(opt: Option<i32>) -> String {
+    match opt {
+        Some(value) => format!("Value: {}", value),
+        None => "No value".to_string(),
+    }
+}
+
+// Non-exhaustive matching (should trigger warnings/errors)
+fn non_exhaustive_result_match(r: Result<i32, String>) -> String {
+    match r {
+        Ok(value) => format!("Success: {}", value),
+        // Missing Err case - compiler should warn about this
+    }
+}
+
+fn non_exhaustive_option_match(opt: Option<i32>) -> String {
+    match opt {
+        Some(value) => format!("Value: {}", value),
+        // Missing None case - compiler should warn about this
+    }
+}
+
+// Or-patterns for multiple variants
+fn handle_multiple_errors(r: Result<i32, String>) -> String {
+    match r {
+        Ok(value) => format!("Success: {}", value),
+        Err("divide by zero") | Err("overflow") => "Math error".to_string(),
+        Err(other) => format!("Other error: {}", other),
+    }
+}
+
+// Wildcard patterns (always exhaustive)
+fn wildcard_result_match(r: Result<i32, String>) -> String {
+    match r {
+        Ok(value) => format!("Success: {}", value),
+        _ => "Some error occurred".to_string(),
+    }
+}

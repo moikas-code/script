@@ -111,7 +111,24 @@ pub fn apply_substitution(subst: &Substitution, ty: &Type) -> Type {
                 args: substituted_args,
             }
         }
-        Type::TypeParam(name) => ty.clone(), // Type parameters are not substituted
+        Type::TypeParam(_name) => ty.clone(), // Type parameters are not substituted
+        Type::Tuple(types) => {
+            let substituted_types = types.iter().map(|t| apply_substitution(subst, t)).collect();
+            Type::Tuple(substituted_types)
+        }
+        Type::Reference { mutable, inner } => Type::Reference {
+            mutable: *mutable,
+            inner: Box::new(apply_substitution(subst, inner)),
+        },
+        Type::Struct { name, fields } => Type::Struct {
+            name: name.clone(),
+            fields: fields
+                .iter()
+                .map(|(field_name, field_type)| {
+                    (field_name.clone(), apply_substitution(subst, field_type))
+                })
+                .collect(),
+        },
     }
 }
 

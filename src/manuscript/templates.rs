@@ -82,7 +82,7 @@ pub fn generate_main_file(package_name: &str) -> String {
 use std::{{env, io}}
 
 fn main() {{
-    println("Welcome to {}!")
+    println("Welcome to {}")
     
     // Get command line arguments
     let args = env::args()

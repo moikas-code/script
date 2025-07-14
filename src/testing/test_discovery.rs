@@ -1,5 +1,7 @@
 use crate::error::{Error, Result};
-use crate::parser::{Attribute, Program, Stmt, StmtKind};
+#[cfg(test)]
+use crate::parser::Attribute;
+use crate::parser::{Program, Stmt, StmtKind};
 use crate::testing::{TestCase, TestSuite};
 
 /// Discovers and collects tests from a program
@@ -62,7 +64,7 @@ pub struct TestCollector {
     pub tests: Vec<TestCase>,
     pub setup: Option<Stmt>,
     pub teardown: Option<Stmt>,
-    current_module: String,
+    _current_module: String,
 }
 
 impl TestCollector {
@@ -71,7 +73,7 @@ impl TestCollector {
             tests: Vec::new(),
             setup: None,
             teardown: None,
-            current_module: String::new(),
+            _current_module: String::new(),
         }
     }
 
@@ -182,7 +184,10 @@ impl TestModule {
 
                 // Parse and discover tests
                 let source = fs::read_to_string(&path)?;
-                let lexer = crate::Lexer::new(&source);
+                let lexer = match crate::Lexer::new(&source) {
+                    Ok(lexer) => lexer,
+                    Err(_) => continue, // Skip files with lexer initialization errors
+                };
                 let (tokens, errors) = lexer.scan_tokens();
 
                 if !errors.is_empty() {
@@ -221,6 +226,7 @@ mod tests {
                 name: name.to_string(),
                 params: vec![],
                 ret_type: None,
+                where_clause: None,
                 body: Block {
                     statements: vec![],
                     final_expr: None,

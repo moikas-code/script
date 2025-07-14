@@ -42,11 +42,17 @@ pub enum SymbolKind {
     Actor,
     /// Constant (for future use)
     Constant,
+    /// Struct type definition
+    Struct(StructInfo),
+    /// Enum type definition
+    Enum(EnumInfo),
 }
 
 /// Function signature information
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
+    /// Generic parameters (e.g., <T, U: Clone>)
+    pub generic_params: Option<crate::parser::GenericParams>,
     /// Parameter names and types
     pub params: Vec<(String, Type)>,
     /// Return type
@@ -57,6 +63,48 @@ pub struct FunctionSignature {
     pub is_async: bool,
     /// Generic parameters with their bounds
     pub generic_params: Vec<(String, Vec<String>)>,
+}
+
+/// Struct type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructInfo {
+    /// Generic parameters (e.g., <T, U: Clone>)
+    pub generic_params: Option<crate::parser::GenericParams>,
+    /// Field names and types
+    pub fields: Vec<(String, Type)>,
+    /// Where clause for additional constraints
+    pub where_clause: Option<crate::parser::WhereClause>,
+}
+
+/// Enum type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumInfo {
+    /// Generic parameters (e.g., <T, U: Clone>)
+    pub generic_params: Option<crate::parser::GenericParams>,
+    /// Variant information
+    pub variants: Vec<EnumVariantInfo>,
+    /// Where clause for additional constraints
+    pub where_clause: Option<crate::parser::WhereClause>,
+}
+
+/// Information about an enum variant
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumVariantInfo {
+    /// Name of the variant
+    pub name: String,
+    /// Type of the variant's data
+    pub variant_type: EnumVariantType,
+}
+
+/// Type of an enum variant
+#[derive(Debug, Clone, PartialEq)]
+pub enum EnumVariantType {
+    /// Unit variant (no data)
+    Unit,
+    /// Tuple variant with types
+    Tuple(Vec<Type>),
+    /// Struct variant with named fields
+    Struct(Vec<(String, Type)>),
 }
 
 impl Symbol {
@@ -126,6 +174,48 @@ impl Symbol {
         }
     }
 
+    /// Create a new struct symbol
+    pub fn struct_type(
+        id: SymbolId,
+        name: String,
+        info: StructInfo,
+        def_span: Span,
+        scope_id: super::ScopeId,
+    ) -> Self {
+        let ty = Type::Named(name.clone()); // Will be Generic if has type params
+        Symbol {
+            id,
+            name,
+            kind: SymbolKind::Struct(info),
+            ty,
+            def_span,
+            is_mutable: false,
+            is_used: false,
+            scope_id,
+        }
+    }
+
+    /// Create a new enum symbol
+    pub fn enum_type(
+        id: SymbolId,
+        name: String,
+        info: EnumInfo,
+        def_span: Span,
+        scope_id: super::ScopeId,
+    ) -> Self {
+        let ty = Type::Named(name.clone()); // Will be Generic if has type params
+        Symbol {
+            id,
+            name,
+            kind: SymbolKind::Enum(info),
+            ty,
+            def_span,
+            is_mutable: false,
+            is_used: false,
+            scope_id,
+        }
+    }
+
     /// Mark this symbol as used
     pub fn mark_used(&mut self) {
         self.is_used = true;
@@ -140,6 +230,32 @@ impl Symbol {
     pub fn function_signature(&self) -> Option<&FunctionSignature> {
         match &self.kind {
             SymbolKind::Function(sig) => Some(sig),
+            _ => None,
+        }
+    }
+
+    /// Check if this symbol is a struct
+    pub fn is_struct(&self) -> bool {
+        matches!(self.kind, SymbolKind::Struct(_))
+    }
+
+    /// Get the struct info if this is a struct symbol
+    pub fn struct_info(&self) -> Option<&StructInfo> {
+        match &self.kind {
+            SymbolKind::Struct(info) => Some(info),
+            _ => None,
+        }
+    }
+
+    /// Check if this symbol is an enum
+    pub fn is_enum(&self) -> bool {
+        matches!(self.kind, SymbolKind::Enum(_))
+    }
+
+    /// Get the enum info if this is an enum symbol
+    pub fn enum_info(&self) -> Option<&EnumInfo> {
+        match &self.kind {
+            SymbolKind::Enum(info) => Some(info),
             _ => None,
         }
     }
@@ -160,6 +276,8 @@ impl fmt::Display for SymbolKind {
             SymbolKind::BuiltIn => write!(f, "builtin"),
             SymbolKind::Actor => write!(f, "actor"),
             SymbolKind::Constant => write!(f, "const"),
+            SymbolKind::Struct(_) => write!(f, "struct"),
+            SymbolKind::Enum(_) => write!(f, "enum"),
         }
     }
 }
@@ -217,6 +335,7 @@ mod tests {
     #[test]
     fn test_function_symbol() {
         let sig = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32), ("y".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -246,6 +365,7 @@ mod tests {
     fn test_function_overload_compatibility() {
         // Different parameter count - compatible
         let sig1 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -254,6 +374,7 @@ mod tests {
         };
 
         let sig2 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::I32), ("y".to_string(), Type::I32)],
             return_type: Type::I32,
             is_const: false,
@@ -266,6 +387,7 @@ mod tests {
 
         // Different parameter types - compatible
         let sig3 = FunctionSignature {
+            generic_params: None,
             params: vec![("x".to_string(), Type::F32)],
             return_type: Type::I32,
             is_const: false,
@@ -277,6 +399,7 @@ mod tests {
 
         // Same signature - not compatible
         let sig4 = FunctionSignature {
+            generic_params: None,
             params: vec![("y".to_string(), Type::I32)],
             return_type: Type::F32, // Different return type doesn't matter
             is_const: true,         // Different const doesn't matter

@@ -1,0 +1,31 @@
+// Test basic features that should work
+fn test_variables() {
+    let x = 42
+    print("Variable test: x = " + x)
+}
+
+fn test_function_call() {
+    print("Function call test works")
+}
+
+fn add_simple(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn main() {
+    print("=== Basic Features Test ===")
+    
+    // Test function calls
+    test_function_call()
+    
+    // Test variables
+    test_variables()
+    
+    // Test simple arithmetic in function
+    let result = add_simple(2, 3)
+    print("Addition test: 2 + 3 = " + result)
+    
+    print("=== Tests Complete ===")
+}
+
+main()

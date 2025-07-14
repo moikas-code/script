@@ -43,7 +43,7 @@ impl PackageCache {
             CacheIndex::new()
         };
 
-        let mut cache = Self {
+        let cache = Self {
             cache_dir,
             config,
             index,
@@ -456,7 +456,10 @@ impl CacheManager {
             let path = entry.path();
 
             if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("gz") {
-                let filename = path.file_name().unwrap().to_string_lossy();
+                let filename = match path.file_name() {
+                    Some(name) => name.to_string_lossy(),
+                    None => continue, // Skip files without names
+                };
 
                 // Check if this file is referenced in the index
                 let is_referenced = self
@@ -544,8 +547,8 @@ fn package_key(name: &str, version: &Version) -> String {
 fn current_timestamp() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
+        .map(|d| d.as_secs())
+        .unwrap_or(0) // Fallback to 0 if system time is before Unix epoch
 }
 
 fn compute_file_hash(path: &Path) -> PackageResult<String> {

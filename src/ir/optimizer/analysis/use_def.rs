@@ -311,7 +311,7 @@ impl UseDefChains {
             iterations += 1;
 
             if self.debug && iterations % 10 == 0 {
-                eprintln!("  Reaching definitions iteration {}", iterations);
+                eprintln!("  Reaching definitions iteration {iterations}");
             }
 
             for (block_id, block) in func.blocks() {

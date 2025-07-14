@@ -18,17 +18,16 @@ impl HttpClient {
             .timeout(timeout)
             .user_agent(format!("manuscript/{}", env!("CARGO_PKG_VERSION")))
             .build()
-            .map_err(|e| PackageError::Registry(format!("Failed to create HTTP client: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to build HTTP client: {}", e)))?;
 
         Ok(Self { client })
     }
 
     pub fn get(&self, url: &str) -> PackageResult<Vec<u8>> {
-        let response = self
-            .client
-            .get(url)
-            .send()
-            .map_err(|e| PackageError::Registry(format!("GET request failed: {}", e)))?;
+        let response =
+            self.client.get(url).send().map_err(|e| {
+                PackageError::Registry(format!("Failed to send GET request: {}", e))
+            })?;
 
         self.handle_response(response)
     }
@@ -44,9 +43,9 @@ impl HttpClient {
             request = request.header(key, value);
         }
 
-        let response = request
-            .send()
-            .map_err(|e| PackageError::Registry(format!("GET request failed: {}", e)))?;
+        let response = request.send().map_err(|e| {
+            PackageError::Registry(format!("Failed to send GET request with headers: {}", e))
+        })?;
 
         self.handle_response(response)
     }
@@ -58,7 +57,7 @@ impl HttpClient {
             .header("Content-Type", "application/json")
             .body(body)
             .send()
-            .map_err(|e| PackageError::Registry(format!("POST request failed: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to send POST request: {}", e)))?;
 
         self.handle_response(response)
     }
@@ -76,17 +75,18 @@ impl HttpClient {
             .header("Authorization", format!("Bearer {}", auth_token))
             .body(body)
             .send()
-            .map_err(|e| PackageError::Registry(format!("POST request failed: {}", e)))?;
+            .map_err(|e| {
+                PackageError::Registry(format!("Failed to send authenticated POST request: {}", e))
+            })?;
 
         self.handle_response(response)
     }
 
     pub fn head(&self, url: &str) -> PackageResult<bool> {
-        let response = self
-            .client
-            .head(url)
-            .send()
-            .map_err(|e| PackageError::Registry(format!("HEAD request failed: {}", e)))?;
+        let response =
+            self.client.head(url).send().map_err(|e| {
+                PackageError::Registry(format!("Failed to send HEAD request: {}", e))
+            })?;
 
         Ok(response.status().is_success())
     }
@@ -99,11 +99,9 @@ impl HttpClient {
     where
         F: FnMut(u64, u64),
     {
-        let mut response = self
-            .client
-            .get(url)
-            .send()
-            .map_err(|e| PackageError::Registry(format!("Download request failed: {}", e)))?;
+        let mut response = self.client.get(url).send().map_err(|e| {
+            PackageError::Registry(format!("Failed to send download request: {}", e))
+        })?;
 
         if !response.status().is_success() {
             return Err(PackageError::Registry(format!(

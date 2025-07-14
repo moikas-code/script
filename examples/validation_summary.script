@@ -1,0 +1,133 @@
+/**
+ * Script Language Validation Summary
+ * 
+ * This file provides a comprehensive overview of the Script language
+ * validation examples created to test core functionality.
+ * 
+ * Created Examples:
+ * 1. basic_validation.script - Core language features
+ * 2. type_validation.script - Type system testing  
+ * 3. pattern_matching_validation.script - Pattern matching features
+ * 4. module_validation.script - Module system testing
+ * 5. error_handling_validation.script - Result/Option error handling
+ * 6. data_structures_validation.script - Collections and user types
+ * 
+ * This summary example tests a subset of features to ensure
+ * the most critical functionality works correctly.
+ */
+
+// Test basic arithmetic and variables
+fn test_arithmetic() -> i32 {
+    let a = 10
+    let b = 5
+    let result = a + b
+    print("Basic arithmetic: " + a + " + " + b + " = " + result)
+    result
+}
+
+// Test function calls and return values
+fn add(x: i32, y: i32) -> i32 {
+    x + y
+}
+
+fn test_functions() {
+    let sum = add(7, 3)
+    print("Function call: add(7, 3) = " + sum)
+}
+
+// Test simple control flow
+fn test_control_flow() {
+    let number = 42
+    
+    let classification = if number > 0 {
+        "positive"
+    } else if number < 0 {
+        "negative"  
+    } else {
+        "zero"
+    }
+    
+    print("Number " + number + " is " + classification)
+}
+
+// Test basic pattern matching
+fn test_patterns() {
+    let flag = true
+    
+    let message = match flag {
+        true => "enabled",
+        false => "disabled"
+    }
+    
+    print("Flag is " + message)
+}
+
+// Test simple error handling
+fn safe_divide(a: f32, b: f32) -> Result<f32, string> {
+    if b == 0.0 {
+        Err("Cannot divide by zero")
+    } else {
+        Ok(a / b)
+    }
+}
+
+fn test_error_handling() {
+    match safe_divide(10.0, 2.0) {
+        Ok(result) => print("Division result: " + result),
+        Err(msg) => print("Division error: " + msg)
+    }
+    
+    match safe_divide(10.0, 0.0) {
+        Ok(result) => print("Division result: " + result),
+        Err(msg) => print("Division error: " + msg)
+    }
+}
+
+// Test arrays
+fn test_arrays() {
+    let numbers = [1, 2, 3, 4, 5]
+    print("Array length: " + numbers.len())
+    
+    if numbers.len() > 0 {
+        print("First element: " + numbers[0])
+    }
+}
+
+// Test recursion
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+fn test_recursion() {
+    let fact = factorial(5)
+    print("5! = " + fact)
+}
+
+// Main validation function
+fn main() {
+    print("=== Script Language Validation Summary ===")
+    print("Testing core functionality...")
+    
+    // Run basic tests
+    let arithmetic_result = test_arithmetic()
+    test_functions()
+    test_control_flow()
+    test_patterns()
+    test_error_handling()
+    test_arrays()
+    test_recursion()
+    
+    print("\n=== Validation Summary Complete ===")
+    print("If you can see this message, basic Script parsing works!")
+    print("Arithmetic test returned: " + arithmetic_result)
+    
+    // Return status code
+    0
+}
+
+// Run the validation
+main()

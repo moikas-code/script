@@ -1,0 +1,261 @@
+/**
+ * Pattern Matching Validation Example
+ * 
+ * This example tests:
+ * - Basic pattern matching
+ * - Exhaustive pattern matching
+ * - Guard patterns
+ * - Or patterns
+ * - Nested patterns
+ * - Pattern matching with enums
+ * - Pattern matching with tuples
+ */
+
+// Test basic boolean pattern matching
+fn test_basic_patterns() {
+    let is_active = true
+    
+    let status = match is_active {
+        true => "Active",
+        false => "Inactive"
+    }
+    
+    print("Status: " + status)
+}
+
+// Test numeric pattern matching with guards
+fn test_numeric_patterns(value: i32) -> string {
+    match value {
+        0 => "zero",
+        1 => "one",
+        2 => "two",
+        n if n > 0 && n <= 10 => "small positive",
+        n if n > 10 && n <= 100 => "medium positive",
+        n if n > 100 => "large positive",
+        n if n < 0 => "negative",
+        _ => "unknown"
+    }
+}
+
+// Test or-patterns (multiple values in one arm)
+fn test_or_patterns(day: i32) -> string {
+    match day {
+        1 | 2 | 3 | 4 | 5 => "weekday",
+        6 | 7 => "weekend",
+        _ => "invalid day"
+    }
+}
+
+// Test pattern matching with enums
+enum Status {
+    Pending,
+    InProgress(f32),
+    Completed(string),
+    Failed(string, i32)
+}
+
+fn test_enum_patterns(status: Status) -> string {
+    match status {
+        Status::Pending => "Task is pending",
+        Status::InProgress(progress) => "Task is " + progress + "% complete",
+        Status::Completed(message) => "Task completed: " + message,
+        Status::Failed(reason, code) => "Task failed (" + code + "): " + reason
+    }
+}
+
+// Test tuple pattern matching
+fn test_tuple_patterns(point: (i32, i32)) -> string {
+    match point {
+        (0, 0) => "origin",
+        (0, y) => "on y-axis at " + y,
+        (x, 0) => "on x-axis at " + x,
+        (x, y) if x == y => "on diagonal at " + x,
+        (x, y) if x > 0 && y > 0 => "first quadrant",
+        (x, y) if x < 0 && y > 0 => "second quadrant",
+        (x, y) if x < 0 && y < 0 => "third quadrant",
+        (x, y) if x > 0 && y < 0 => "fourth quadrant",
+        _ => "unknown position"
+    }
+}
+
+// Test array/list pattern matching (if supported)
+fn test_array_patterns(numbers: Array<i32>) -> string {
+    match numbers {
+        [] => "empty array",
+        [x] => "single element: " + x,
+        [x, y] => "two elements: " + x + ", " + y,
+        [first, ..., last] => "starts with " + first + ", ends with " + last,
+        _ => "multiple elements"
+    }
+}
+
+// Test Option pattern matching
+fn test_option_patterns(maybe_value: Option<i32>) -> string {
+    match maybe_value {
+        Some(value) if value > 0 => "positive value: " + value,
+        Some(value) if value < 0 => "negative value: " + value,
+        Some(0) => "zero value",
+        None => "no value"
+    }
+}
+
+// Test Result pattern matching
+fn test_result_patterns(result: Result<i32, string>) -> string {
+    match result {
+        Ok(value) if value > 100 => "large success: " + value,
+        Ok(value) => "success: " + value,
+        Err(msg) if msg.contains("critical") => "critical error: " + msg,
+        Err(msg) => "error: " + msg
+    }
+}
+
+// Test nested pattern matching
+enum Task {
+    Simple(string),
+    Complex {
+        name: string,
+        subtasks: Array<Task>
+    }
+}
+
+fn test_nested_patterns(task: Task) -> string {
+    match task {
+        Task::Simple(name) => "Simple task: " + name,
+        Task::Complex { name, subtasks } => {
+            let count = subtasks.len()
+            "Complex task '" + name + "' with " + count + " subtasks"
+        }
+    }
+}
+
+// Test exhaustiveness checking
+enum Direction {
+    North,
+    South,
+    East,
+    West
+}
+
+fn test_exhaustive_patterns(dir: Direction) -> string {
+    // This should be exhaustive - covering all enum variants
+    match dir {
+        Direction::North => "heading north",
+        Direction::South => "heading south", 
+        Direction::East => "heading east",
+        Direction::West => "heading west"
+        // No wildcard needed - all cases covered
+    }
+}
+
+// Test string pattern matching (if supported)
+fn test_string_patterns(command: string) -> string {
+    match command {
+        "help" | "h" => "Showing help",
+        "quit" | "exit" | "q" => "Goodbye!",
+        cmd if cmd.starts_with("save ") => "Saving: " + cmd,
+        cmd if cmd.starts_with("load ") => "Loading: " + cmd,
+        _ => "Unknown command: " + command
+    }
+}
+
+// Test pattern matching in function parameters
+fn process_coordinate((x, y): (f32, f32)) -> f32 {
+    // Pattern matching directly in parameter
+    sqrt(x * x + y * y)
+}
+
+// Test pattern matching with variable binding
+fn test_variable_binding(value: Option<(i32, i32)>) -> string {
+    match value {
+        Some((x, y)) if x + y > 10 => {
+            let sum = x + y
+            "Large sum: " + sum
+        },
+        Some((x, y)) => {
+            let product = x * y  
+            "Small sum, product: " + product
+        },
+        None => "No coordinate pair"
+    }
+}
+
+// Main function to run all pattern matching tests
+fn main() {
+    print("=== Script Language Pattern Matching Validation ===")
+    
+    print("\n--- Basic Patterns ---")
+    test_basic_patterns()
+    
+    print("\n--- Numeric Patterns with Guards ---")
+    print("Value 5: " + test_numeric_patterns(5))
+    print("Value 50: " + test_numeric_patterns(50))
+    print("Value 500: " + test_numeric_patterns(500))
+    print("Value -10: " + test_numeric_patterns(-10))
+    
+    print("\n--- Or Patterns ---")
+    print("Day 3: " + test_or_patterns(3))
+    print("Day 6: " + test_or_patterns(6))
+    print("Day 9: " + test_or_patterns(9))
+    
+    print("\n--- Enum Patterns ---")
+    print(test_enum_patterns(Status::Pending))
+    print(test_enum_patterns(Status::InProgress(75.5)))
+    print(test_enum_patterns(Status::Completed("Successfully finished")))
+    print(test_enum_patterns(Status::Failed("Timeout", 408)))
+    
+    print("\n--- Tuple Patterns ---")
+    print("(0, 0): " + test_tuple_patterns((0, 0)))
+    print("(3, 3): " + test_tuple_patterns((3, 3)))
+    print("(5, -2): " + test_tuple_patterns((5, -2)))
+    print("(-1, 4): " + test_tuple_patterns((-1, 4)))
+    
+    print("\n--- Array Patterns ---")
+    print("Empty: " + test_array_patterns([]))
+    print("Single: " + test_array_patterns([42]))
+    print("Pair: " + test_array_patterns([1, 2]))
+    print("Multiple: " + test_array_patterns([1, 2, 3, 4, 5]))
+    
+    print("\n--- Option Patterns ---")
+    print("Some(42): " + test_option_patterns(Some(42)))
+    print("Some(-5): " + test_option_patterns(Some(-5)))
+    print("Some(0): " + test_option_patterns(Some(0)))
+    print("None: " + test_option_patterns(None))
+    
+    print("\n--- Result Patterns ---")
+    print("Ok(150): " + test_result_patterns(Ok(150)))
+    print("Ok(50): " + test_result_patterns(Ok(50)))
+    print("Err(normal): " + test_result_patterns(Err("timeout error")))
+    print("Err(critical): " + test_result_patterns(Err("critical system failure")))
+    
+    print("\n--- Nested Patterns ---")
+    let simple = Task::Simple("Write docs")
+    let complex = Task::Complex { 
+        name: "Build project", 
+        subtasks: [Task::Simple("Compile"), Task::Simple("Test")]
+    }
+    print(test_nested_patterns(simple))
+    print(test_nested_patterns(complex))
+    
+    print("\n--- Exhaustive Patterns ---")
+    print("North: " + test_exhaustive_patterns(Direction::North))
+    print("East: " + test_exhaustive_patterns(Direction::East))
+    
+    print("\n--- String Patterns ---")
+    print("help: " + test_string_patterns("help"))
+    print("quit: " + test_string_patterns("quit"))
+    print("save file.txt: " + test_string_patterns("save file.txt"))
+    print("unknown: " + test_string_patterns("unknown"))
+    
+    print("\n--- Parameter Patterns ---")
+    let distance = process_coordinate((3.0, 4.0))
+    print("Distance: " + distance)
+    
+    print("\n--- Variable Binding ---")
+    print("Large pair: " + test_variable_binding(Some((7, 8))))
+    print("Small pair: " + test_variable_binding(Some((2, 3))))
+    print("None: " + test_variable_binding(None))
+    
+    print("\n=== Pattern matching validation complete ===")
+}
+
+main()

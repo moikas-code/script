@@ -1,0 +1,64 @@
+/// Demonstration of panic recovery mechanisms in Script
+/// This example shows different ways to handle panics gracefully
+
+fn main() -> i32 {
+    print("=== Panic Recovery Demo ===")
+    
+    // Example 1: Simple try-catch
+    let result1 = try {
+        risky_function(10)
+    } catch {
+        print("Caught a panic in risky_function!")
+        42
+    }
+    print("Result 1: " + result1.to_string())
+    
+    // Example 2: Catch with error binding
+    let result2 = try {
+        another_risky_function(-5)
+    } catch (error: String) {
+        print("Caught error: " + error)
+        0
+    }
+    print("Result 2: " + result2.to_string())
+    
+    // Example 3: Try-catch with finally
+    let result3 = try {
+        divide_by_zero()
+    } catch (e: String) if e.contains("division") {
+        print("Division by zero caught!")
+        1
+    } catch {
+        print("Other error caught!")
+        2
+    } finally {
+        print("Cleanup code always runs")
+    }
+    print("Result 3: " + result3.to_string())
+    
+    print("=== All examples completed successfully! ===")
+    0
+}
+
+fn risky_function(x: i32) -> i32 {
+    if x > 5 {
+        panic("Value too high!")
+    }
+    x * 2
+}
+
+fn another_risky_function(x: i32) -> i32 {
+    if x < 0 {
+        panic("Negative values not allowed!")
+    }
+    x + 10
+}
+
+fn divide_by_zero() -> i32 {
+    let a = 10
+    let b = 0
+    if b == 0 {
+        panic("division by zero")
+    }
+    a / b
+}

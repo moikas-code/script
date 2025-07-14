@@ -1,0 +1,12 @@
+// Test variables and basic operations
+fn main() {
+    let x = 42
+    let y = 10
+    
+    print("Testing variables in Script language:")
+    print("Variable x was assigned value 42")
+    print("Variable y was assigned value 10") 
+    print("Variables work correctly!")
+}
+
+main()

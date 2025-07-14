@@ -1,0 +1,8 @@
+// Test that function parameters are not flagged as uninitialized
+fn identity<T>(x: T) -> T {
+    return x  // Should not report "use of uninitialized variable 'x'"
+}
+
+fn main() {
+    let result = identity(42)
+}

@@ -210,13 +210,16 @@ fn get_stdlib_completions() -> Vec<CompletionItem> {
 /// Get variable completions from the current scope
 fn get_variable_completions(
     content: &str,
-    position: Position,
+    _position: Position,
     prefix: &str,
 ) -> Vec<CompletionItem> {
     let mut items = Vec::new();
 
     // Parse the content
-    let lexer = Lexer::new(content);
+    let lexer = match Lexer::new(content) {
+        Ok(lexer) => lexer,
+        Err(_) => return items, // Return empty items if lexer initialization fails
+    };
     let (tokens, errors) = lexer.scan_tokens();
     if !errors.is_empty() {
         return items; // Return empty items if there are lexer errors
@@ -486,6 +489,22 @@ fn format_type(ty: &Type) -> String {
             }
         }
         Type::TypeParam(name) => name.clone(),
+        Type::Tuple(types) => {
+            let type_str = types
+                .iter()
+                .map(|t| format_type(t))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("({})", type_str)
+        }
+        Type::Reference { mutable, inner } => {
+            if *mutable {
+                format!("&mut {}", format_type(inner))
+            } else {
+                format!("&{}", format_type(inner))
+            }
+        }
+        Type::Struct { name, .. } => name.clone(),
     }
 }
 

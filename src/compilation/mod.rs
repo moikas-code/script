@@ -4,11 +4,15 @@
 /// as a cohesive project, handling module dependencies and cross-module references.
 mod context;
 mod dependency_graph;
-mod module_loader;
+pub mod module_loader;
+mod optimized_context;
+pub mod resource_limits;
 
 pub use context::{CompilationContext, CompilationUnit};
 pub use dependency_graph::{DependencyAnalyzer, DependencyGraph};
-pub use module_loader::{ModuleLoader, ModulePath};
+pub use module_loader::{CompilationModulePath, ModuleLoader};
+pub use optimized_context::{CacheStats, OptimizationConfig, OptimizedCompilationContext};
+pub use resource_limits::{ResourceLimits, ResourceLimitsBuilder, ResourceMonitor, ResourceStats};
 
 use crate::error::Result;
 use crate::ir::Module as IrModule;

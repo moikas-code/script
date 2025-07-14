@@ -552,7 +552,7 @@ pub struct Token<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn scan_string_literal(&mut self) -> Result<Cow<'a, str>, LexError> {
+    pub fn scan_string_literal(&mut self) -> Result<Cow<'a, str>, LexerError> {
         let start = self.current;
         let mut has_escapes = false;
         
@@ -662,7 +662,7 @@ impl CompilationCache {
 use rayon::prelude::*;
 
 // Parallel lexing for multiple files
-pub fn lex_files_parallel(files: &[&str]) -> Vec<(Vec<Token>, Vec<LexError>)> {
+pub fn lex_files_parallel(files: &[&str]) -> Vec<(Vec<Token>, Vec<LexerError>)> {
     files
         .par_iter()
         .map(|source| {

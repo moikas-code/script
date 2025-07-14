@@ -1,25 +1,51 @@
-// Generic types demonstration
-
-// Basic generic type usage
-let numbers: Vec<i32> = Vec<i32>()
-let strings: Vec<String> = Vec<String>()
-
-// Nested generic types
-let optional_numbers: Vec<Option<i32>> = Vec<Option<i32>>()
-let result_map: HashMap<String, Result<i32, String>> = HashMap<String, Result<i32, String>>()
-
-// Type parameters in type annotations
-let generic_var: T = value
-let key_value: HashMap<K, V> = HashMap<K, V>()
-
-// Functions with generic type parameters in signatures
-fn process_vector(items: Vec<i32>) -> Vec<String> {
-    Vec<String>()
+// Basic generic function
+fn identity<T>(x: T) -> T {
+    x
 }
 
-fn create_result() -> Result<T, E> {
-    Ok(value)
+// Generic function with trait bounds
+fn clone_it<T: Clone>(x: T) -> T {
+    x
 }
 
-// Complex nested generic types
-let complex: Result<Vec<Option<HashMap<String, T>>>, Error<E>> = Ok(Vec<Option<HashMap<String, T>>>())
+// Multiple generic parameters
+fn swap<T, U>(a: T, b: U) -> (U, T) {
+    (b, a)
+}
+
+// Multiple trait bounds
+fn process<T: Clone + Debug>(item: T) -> T {
+    item
+}
+
+// Complex generic function
+fn map<T, U>(items: Vec<T>, f: fn(T) -> U) -> Vec<U> {
+    let result = []
+    for item in items {
+        result.push(f(item))
+    }
+    result
+}
+
+// Empty generic parameters (edge case)
+fn weird<>() {
+    print("This is weird but valid")
+}
+
+// Trailing comma (edge case)
+fn another<T,>(x: T) -> T {
+    x
+}
+
+// Using generic functions
+fn main() {
+    // Test identity function
+    let x = identity(42)
+    let s = identity("hello")
+    
+    // Test with different types
+    let nums = Vec<i32>()
+    let strings = Vec<String>()
+    
+    print("Generic functions work!")
+}

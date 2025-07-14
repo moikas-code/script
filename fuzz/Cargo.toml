@@ -1,0 +1,39 @@
+[package]
+name = "script-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.script]
+path = ".."
+features = ["fuzzing"]
+
+[[bin]]
+name = "fuzz_lexer"
+path = "fuzz_targets/fuzz_lexer.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_string_literals"
+path = "fuzz_targets/fuzz_string_literals.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_comments"
+path = "fuzz_targets/fuzz_comments.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_unicode"
+path = "fuzz_targets/fuzz_unicode.rs"
+test = false
+doc = false

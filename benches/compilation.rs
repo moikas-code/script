@@ -16,7 +16,7 @@ mod helpers {
     pub fn create_ast_lowerer() -> AstLowerer {
         let symbol_table = SymbolTable::new();
         let type_info: HashMap<usize, Type> = HashMap::new();
-        AstLowerer::new(symbol_table, type_info)
+        AstLowerer::new(symbol_table, type_info, Vec::new())
     }
 
     /// Simplified compilation pipeline that handles API properly

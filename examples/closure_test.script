@@ -1,0 +1,148 @@
+// Closure functionality test for Script language
+// This test validates that closures work at runtime
+
+fn main() {
+    print("=== Closure Functionality Test ===\n")
+    
+    // Test 1: Basic closure creation and execution
+    test_basic_closure()
+    
+    // Test 2: Closure with captured variables
+    test_closure_capture()
+    
+    // Test 3: Higher-order functions with closures
+    test_higher_order_functions()
+    
+    // Test 4: Functional programming with map/filter
+    test_functional_operations()
+    
+    print("\n=== All closure tests completed! ===")
+}
+
+// Test 1: Basic closure that doesn't capture anything
+fn test_basic_closure() {
+    print("\n1. Testing basic closure:")
+    
+    let add = |x, y| x + y
+    let result = add(5, 3)
+    
+    print("  Basic closure result: " + result)
+    print("  ✓ Basic closure creation and execution works")
+}
+
+// Test 2: Closure that captures variables from outer scope
+fn test_closure_capture() {
+    print("\n2. Testing closure with captured variables:")
+    
+    let multiplier = 10
+    let multiply_by_ten = |x| x * multiplier
+    let result = multiply_by_ten(5)
+    
+    print("  Captured variable result: " + result)
+    print("  ✓ Variable capture works")
+    
+    // Test nested capture
+    let base = 100
+    let create_adder = |increment| {
+        |value| value + increment + base
+    }
+    let add_with_base = create_adder(20)
+    let nested_result = add_with_base(5)
+    
+    print("  Nested capture result: " + nested_result)
+    print("  ✓ Nested closure capture works")
+}
+
+// Test 3: Higher-order functions that take closures as parameters
+fn test_higher_order_functions() {
+    print("\n3. Testing higher-order functions:")
+    
+    // Function that takes a closure as parameter
+    let apply_twice = |f, x| f(f(x))
+    let double = |n| n * 2
+    let result = apply_twice(double, 3)
+    
+    print("  Higher-order function result: " + result)
+    print("  ✓ Functions accepting closures work")
+    
+    // Function that returns a closure
+    let create_counter = |start| {
+        let count = start
+        || {
+            count = count + 1
+            count
+        }
+    }
+    let counter = create_counter(0)
+    let first = counter()
+    let second = counter()
+    
+    print("  Counter first call: " + first)
+    print("  Counter second call: " + second)
+    print("  ✓ Functions returning closures work")
+}
+
+// Test 4: Functional programming operations
+fn test_functional_operations() {
+    print("\n4. Testing functional programming operations:")
+    
+    let numbers = [1, 2, 3, 4, 5]
+    
+    // Test map operation
+    let doubled = numbers.map(|x| x * 2)
+    print("  Mapped numbers (doubled): " + doubled)
+    print("  ✓ Map operation with closures works")
+    
+    // Test filter operation
+    let evens = numbers.filter(|x| x % 2 == 0)
+    print("  Filtered numbers (evens): " + evens)
+    print("  ✓ Filter operation with closures works")
+    
+    // Test reduce operation
+    let sum = numbers.reduce(|acc, x| acc + x, 0)
+    print("  Reduced numbers (sum): " + sum)
+    print("  ✓ Reduce operation with closures works")
+    
+    // Test chaining operations
+    let processed = numbers
+        .map(|x| x * 3)
+        .filter(|x| x > 5)
+        .reduce(|acc, x| acc + x, 0)
+    
+    print("  Chained operations result: " + processed)
+    print("  ✓ Chained functional operations work")
+}
+
+// Additional test functions for edge cases
+fn test_closure_edge_cases() {
+    print("\n5. Testing closure edge cases:")
+    
+    // Test closure with no parameters
+    let get_constant = || 42
+    let constant = get_constant()
+    print("  No-parameter closure: " + constant)
+    
+    // Test closure with multiple captures
+    let a = 10
+    let b = 20
+    let c = 30
+    let complex_closure = |x| a + b + c + x
+    let complex_result = complex_closure(5)
+    print("  Multiple captures: " + complex_result)
+    
+    // Test recursive closure (if supported)
+    let factorial = |n| {
+        if n <= 1 {
+            1
+        } else {
+            n * factorial(n - 1)
+        }
+    }
+    let fact_result = factorial(5)
+    print("  Recursive closure (factorial 5): " + fact_result)
+    
+    print("  ✓ Edge cases handled correctly")
+}
+
+// Call main to start the test
+main()

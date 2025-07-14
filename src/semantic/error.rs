@@ -48,6 +48,11 @@ pub enum SemanticErrorKind {
     InvalidMemberAccess(Type),
     /// Unknown member
     UnknownMember { ty: Type, member: String },
+    /// Method not found for type
+    MethodNotFound {
+        type_name: String,
+        method_name: String,
+    },
     /// Const function violation
     ConstFunctionViolation(String),
     /// Non-const function called from const function
@@ -80,6 +85,39 @@ pub enum SemanticErrorKind {
     NonExhaustivePatterns,
     /// Redundant pattern (unreachable)
     RedundantPattern,
+    /// Undefined type parameter
+    UndefinedTypeParameter(String),
+    /// Duplicate field in struct/enum constructor
+    DuplicateField(String),
+    /// Missing required field
+    MissingField(String),
+    /// Unknown field
+    UnknownField(String),
+    /// Not a struct type
+    NotAStruct(String),
+    /// Not an enum type
+    NotAnEnum(String),
+    /// Unknown enum variant
+    UnknownVariant {
+        enum_name: String,
+        variant_name: String,
+    },
+    /// Unqualified enum variant
+    UnqualifiedEnumVariant(String),
+    /// Variant form mismatch (unit/tuple/struct)
+    VariantFormMismatch {
+        variant: String,
+        expected: String,
+        found: String,
+    },
+    /// Undefined type
+    UndefinedType(String),
+    /// Error propagation (?) used in non-Result/Option function
+    ErrorPropagationInNonResult,
+    /// Invalid error propagation on non-Result/Option type
+    InvalidErrorPropagation { actual_type: Type },
+    /// Duplicate type definition
+    DuplicateType(String),
 }
 
 /// Semantic error with location information
@@ -109,6 +147,254 @@ impl SemanticError {
     /// Add a help message to this error (convenience method)
     pub fn with_help(self, help: String) -> Self {
         self.with_note(format!("help: {}", help))
+    }
+
+    /// Generate helpful suggestions for common error patterns
+    pub fn with_suggestions(mut self) -> Self {
+        match &self.kind.clone() {
+            SemanticErrorKind::UndefinedVariable(name) => {
+                self = self.with_note(format!("❌ Variable '{}' is not defined", name));
+                self = self.with_note("💡 Suggestions:".to_string());
+                self = self.with_note("   • Check for typos in the variable name".to_string());
+                self =
+                    self.with_note("   • Ensure the variable is declared before use".to_string());
+                self =
+                    self.with_note("   • Verify the variable is in the correct scope".to_string());
+                self = self.with_note(
+                    "   • Check if the variable is imported if from another module".to_string(),
+                );
+            }
+            SemanticErrorKind::UndefinedFunction(name) => {
+                self = self.with_note(format!("❌ Function '{}' is not defined", name));
+                self = self.with_note("💡 Suggestions:".to_string());
+                self = self.with_note("   • Check for typos in the function name".to_string());
+                self = self.with_note(
+                    "   • Ensure the function is imported if from another module".to_string(),
+                );
+                self =
+                    self.with_note("   • Verify the function is declared before use".to_string());
+                self = self
+                    .with_note("   • Check if the function is in the correct scope".to_string());
+            }
+            SemanticErrorKind::TypeMismatch { expected, found } => {
+                // Enhanced type mismatch formatting with detailed comparison
+                self = self.with_note("╭─ Type Mismatch Details".to_string());
+                self = self.with_note(format!("│ Expected: {}", expected));
+                self = self.with_note(format!("│    Found: {}", found));
+                self = self.with_note("╰─".to_string());
+
+                // Contextual suggestions based on type patterns
+                let expected_str = expected.to_string();
+                let found_str = found.to_string();
+
+                if expected_str.contains("int") && found_str.contains("float") {
+                    self = self.with_help(
+                        "💡 cast to int using `as int` or use `int()` function".to_string(),
+                    );
+                } else if expected_str.contains("float") && found_str.contains("int") {
+                    self = self.with_help(
+                        "💡 cast to float using `as float` or use `float()` function".to_string(),
+                    );
+                } else if expected_str.contains("String")
+                    && (found_str.contains("int") || found_str.contains("float"))
+                {
+                    self = self.with_help(
+                        "💡 convert to string using `toString()` or string interpolation"
+                            .to_string(),
+                    );
+                } else if expected_str.contains("bool") && !found_str.contains("bool") {
+                    self = self.with_help(
+                        "💡 use comparison operator (==, !=, <, >) or boolean conversion"
+                            .to_string(),
+                    );
+                } else if expected_str.contains("Option") && !found_str.contains("Option") {
+                    self = self.with_help(
+                        "💡 wrap value with `Some()` or use `None` for optional types".to_string(),
+                    );
+                } else if expected_str.contains("Result") && !found_str.contains("Result") {
+                    self = self.with_help(
+                        "💡 wrap value with `Ok()` or `Err()` for result types".to_string(),
+                    );
+                } else if expected_str.contains("Array") || expected_str.contains("Vec") {
+                    self = self.with_help(
+                        "💡 create array using `[...]` or vector using `vec![...]`".to_string(),
+                    );
+                }
+            }
+            SemanticErrorKind::AssignmentToImmutable(name) => {
+                self = self.with_help(format!("variable '{}' is immutable by default", name));
+                self = self.with_help("make the variable mutable with `let mut`".to_string());
+            }
+            SemanticErrorKind::BreakOutsideLoop => {
+                self = self.with_help(
+                    "break statements can only be used inside `while` or `for` loops".to_string(),
+                );
+            }
+            SemanticErrorKind::ContinueOutsideLoop => {
+                self = self.with_help(
+                    "continue statements can only be used inside `while` or `for` loops"
+                        .to_string(),
+                );
+            }
+            SemanticErrorKind::ReturnOutsideFunction => {
+                self = self.with_help(
+                    "return statements can only be used inside function definitions".to_string(),
+                );
+            }
+            SemanticErrorKind::MissingReturn { expected } => {
+                self = self.with_help(format!(
+                    "add a return statement that returns a value of type {}",
+                    expected
+                ));
+                self = self.with_help(
+                    "or change the function return type to `void` if no return value is needed"
+                        .to_string(),
+                );
+            }
+            SemanticErrorKind::NotCallable(ty) => {
+                self = self.with_help(format!("type {} cannot be called like a function", ty));
+                if ty.to_string() == "String" {
+                    self = self.with_help(
+                        "did you mean to access a method? try `value.method()`".to_string(),
+                    );
+                }
+            }
+            SemanticErrorKind::InvalidIndexType(ty) => {
+                self = self.with_help("array and string indices must be integers".to_string());
+                if ty.to_string() == "String" {
+                    self = self.with_help("try parsing the string to an integer first".to_string());
+                }
+            }
+            SemanticErrorKind::UnknownMember { ty, member } => {
+                self = self.with_help(format!(
+                    "type {} has no field or method named '{}'",
+                    ty, member
+                ));
+                self = self.with_help("check the spelling of the member name".to_string());
+            }
+            SemanticErrorKind::ArgumentCountMismatch { expected, found } => {
+                self = self.with_note(format!("❌ Wrong number of arguments"));
+                self = self.with_note(format!("   Expected: {} arguments", expected));
+                self = self.with_note(format!("   Found:    {} arguments", found));
+                if *found < *expected {
+                    self =
+                        self.with_help("💡 Add missing arguments to the function call".to_string());
+                } else {
+                    self = self.with_help(
+                        "💡 Remove extra arguments or check function signature".to_string(),
+                    );
+                }
+            }
+            SemanticErrorKind::AssignmentToImmutable(name) => {
+                self = self.with_note(format!("❌ Cannot assign to immutable variable '{}'", name));
+                self = self.with_help("💡 Make the variable mutable with `let mut`".to_string());
+                self = self
+                    .with_help("💡 Or create a new variable with `let` (shadowing)".to_string());
+            }
+            SemanticErrorKind::BreakOutsideLoop => {
+                self = self.with_note("❌ 'break' can only be used inside loops".to_string());
+                self = self.with_help(
+                    "💡 Use 'break' inside 'while', 'for', or 'loop' statements".to_string(),
+                );
+                self = self
+                    .with_help("💡 Consider using 'return' to exit from a function".to_string());
+            }
+            SemanticErrorKind::ContinueOutsideLoop => {
+                self = self.with_note("❌ 'continue' can only be used inside loops".to_string());
+                self = self.with_help(
+                    "💡 Use 'continue' inside 'while', 'for', or 'loop' statements".to_string(),
+                );
+            }
+            SemanticErrorKind::ReturnOutsideFunction => {
+                self = self.with_note("❌ 'return' can only be used inside functions".to_string());
+                self = self.with_help(
+                    "💡 Move the return statement inside a function definition".to_string(),
+                );
+            }
+            SemanticErrorKind::MissingReturn { expected } => {
+                self = self.with_note(format!("❌ Missing return statement for type {}", expected));
+                self = self
+                    .with_help("💡 Add a return statement at the end of the function".to_string());
+                self =
+                    self.with_help("💡 Or change the function return type to 'void'".to_string());
+            }
+            SemanticErrorKind::NotCallable(ty) => {
+                self = self.with_note(format!("❌ Type {} cannot be called like a function", ty));
+                if ty.to_string() == "String" {
+                    self = self.with_help("💡 Use method syntax: value.method()".to_string());
+                } else {
+                    self =
+                        self.with_help("💡 Only functions and closures can be called".to_string());
+                }
+            }
+            SemanticErrorKind::InvalidIndexType(ty) => {
+                self = self.with_note(format!("❌ Invalid index type: {}", ty));
+                self = self.with_help("💡 Array and string indices must be integers".to_string());
+                if ty.to_string() == "String" {
+                    self = self
+                        .with_help("💡 Parse the string to integer first: str.parse()".to_string());
+                }
+            }
+            SemanticErrorKind::UnknownMember { ty, member } => {
+                self = self.with_note(format!("❌ Type {} has no member '{}'", ty, member));
+                self = self.with_help("💡 Check the spelling of the member name".to_string());
+                self = self.with_help("💡 Verify the member exists for this type".to_string());
+            }
+            SemanticErrorKind::MethodNotFound {
+                type_name,
+                method_name,
+            } => {
+                self = self.with_note(format!(
+                    "❌ No method '{}' found for type '{}'",
+                    method_name, type_name
+                ));
+                self = self.with_help("💡 Check method spelling and availability".to_string());
+                self = self.with_help("💡 Verify the type supports this method".to_string());
+            }
+            SemanticErrorKind::NonExhaustivePatterns => {
+                self = self.with_note("❌ Pattern matching is not exhaustive".to_string());
+                self = self.with_help("💡 Add patterns to cover all possible cases".to_string());
+                self =
+                    self.with_help("💡 Use wildcard pattern (_) for catch-all cases".to_string());
+            }
+            SemanticErrorKind::RedundantPattern => {
+                self = self.with_note("❌ This pattern is unreachable".to_string());
+                self = self.with_help("💡 Remove the redundant pattern".to_string());
+                self = self
+                    .with_help("💡 Check pattern order (more specific patterns first)".to_string());
+            }
+            SemanticErrorKind::UndefinedType(name) => {
+                self = self.with_note(format!("❌ Undefined type '{}'", name));
+                self = self.with_help("💡 Check for typos in the type name".to_string());
+                self = self
+                    .with_help("💡 Ensure the type is imported if from another module".to_string());
+                self = self.with_help("💡 Verify the type is defined before use".to_string());
+            }
+            SemanticErrorKind::DuplicateField(field) => {
+                self = self.with_note(format!("❌ Duplicate field '{}'", field));
+                self = self.with_help("💡 Remove the duplicate field definition".to_string());
+                self = self.with_help("💡 Each field can only be defined once".to_string());
+            }
+            SemanticErrorKind::MissingField(field) => {
+                self = self.with_note(format!("❌ Missing required field '{}'", field));
+                self = self
+                    .with_help("💡 Add the missing field to the struct initialization".to_string());
+            }
+            SemanticErrorKind::UnknownField(field) => {
+                self = self.with_note(format!("❌ Unknown field '{}'", field));
+                self = self.with_help("💡 Check field name spelling".to_string());
+                self = self
+                    .with_help("💡 Verify the field exists in the struct definition".to_string());
+            }
+            _ => {
+                // Generic helpful message for other error types
+                self = self.with_help(
+                    "💡 Check the Script language documentation for syntax and usage examples"
+                        .to_string(),
+                );
+            }
+        }
+        self
     }
 
     /// Convert to a general Error
@@ -150,10 +436,10 @@ impl fmt::Display for SemanticErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SemanticErrorKind::UndefinedVariable(name) => {
-                write!(f, "undefined variable '{}'", name)
+                write!(f, "cannot find variable '{}' in this scope", name)
             }
             SemanticErrorKind::UndefinedFunction(name) => {
-                write!(f, "undefined function '{}'", name)
+                write!(f, "cannot find function '{}' in this scope", name)
             }
             SemanticErrorKind::DuplicateVariable(name) => {
                 write!(f, "variable '{}' is already defined in this scope", name)
@@ -166,7 +452,7 @@ impl fmt::Display for SemanticErrorKind {
                 )
             }
             SemanticErrorKind::TypeMismatch { expected, found } => {
-                write!(f, "type mismatch: expected {}, found {}", expected, found)
+                write!(f, "mismatched types")
             }
             SemanticErrorKind::ArgumentCountMismatch { expected, found } => {
                 write!(
@@ -231,6 +517,16 @@ impl fmt::Display for SemanticErrorKind {
             }
             SemanticErrorKind::UnknownMember { ty, member } => {
                 write!(f, "type {} has no member '{}'", ty, member)
+            }
+            SemanticErrorKind::MethodNotFound {
+                type_name,
+                method_name,
+            } => {
+                write!(
+                    f,
+                    "no method '{}' found for type '{}'",
+                    method_name, type_name
+                )
             }
             SemanticErrorKind::ConstFunctionViolation(msg) => {
                 write!(f, "const function violation: {}", msg)
@@ -299,6 +595,67 @@ impl fmt::Display for SemanticErrorKind {
             SemanticErrorKind::RedundantPattern => {
                 write!(f, "redundant pattern: this pattern is unreachable")
             }
+            SemanticErrorKind::UndefinedTypeParameter(name) => {
+                write!(f, "undefined type parameter '{}'", name)
+            }
+            SemanticErrorKind::DuplicateField(name) => {
+                write!(f, "duplicate field '{}'", name)
+            }
+            SemanticErrorKind::MissingField(name) => {
+                write!(f, "missing required field '{}'", name)
+            }
+            SemanticErrorKind::UnknownField(name) => {
+                write!(f, "unknown field '{}'", name)
+            }
+            SemanticErrorKind::NotAStruct(name) => {
+                write!(f, "'{}' is not a struct type", name)
+            }
+            SemanticErrorKind::NotAnEnum(name) => {
+                write!(f, "'{}' is not an enum type", name)
+            }
+            SemanticErrorKind::UnknownVariant {
+                enum_name,
+                variant_name,
+            } => {
+                write!(
+                    f,
+                    "no variant '{}' found for enum '{}'",
+                    variant_name, enum_name
+                )
+            }
+            SemanticErrorKind::UnqualifiedEnumVariant(variant) => {
+                write!(f, "unqualified enum variant '{}'", variant)
+            }
+            SemanticErrorKind::VariantFormMismatch {
+                variant,
+                expected,
+                found,
+            } => {
+                write!(
+                    f,
+                    "variant '{}' expects {}, but {} were provided",
+                    variant, expected, found
+                )
+            }
+            SemanticErrorKind::UndefinedType(name) => {
+                write!(f, "undefined type '{}'", name)
+            }
+            SemanticErrorKind::ErrorPropagationInNonResult => {
+                write!(
+                    f,
+                    "the ? operator can only be used in functions that return Result or Option"
+                )
+            }
+            SemanticErrorKind::InvalidErrorPropagation { actual_type } => {
+                write!(
+                    f,
+                    "the ? operator can only be applied to Result or Option types, not {}",
+                    actual_type
+                )
+            }
+            SemanticErrorKind::DuplicateType(name) => {
+                write!(f, "type '{}' is already defined", name)
+            }
         }
     }
 }
@@ -360,6 +717,16 @@ impl SemanticError {
             SemanticErrorKind::UnknownMember {
                 ty,
                 member: member.to_string(),
+            },
+            span,
+        )
+    }
+
+    pub fn method_not_found(type_name: &str, method_name: &str, span: Span) -> Self {
+        SemanticError::new(
+            SemanticErrorKind::MethodNotFound {
+                type_name: type_name.to_string(),
+                method_name: method_name.to_string(),
             },
             span,
         )
@@ -476,6 +843,11 @@ impl SemanticError {
         span: Span,
     ) -> Self {
         SemanticError::new(SemanticErrorKind::MemorySafetyViolation(violation), span)
+    }
+
+    // Type-related error constructors
+    pub fn undefined_type(name: &str, span: Span) -> Self {
+        SemanticError::new(SemanticErrorKind::UndefinedType(name.to_string()), span)
     }
 }
 
