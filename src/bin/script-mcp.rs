@@ -234,7 +234,7 @@ fn create_mcp_config(config: &ServerConfig, strict_mode: bool) -> MCPConfig {
 
 /// Print startup information
 fn print_startup_info(config: &ServerConfig, mcp_config: &MCPConfig) {
-    eprintln!("🚀 Script MCP Server v{env!("CARGO_PKG_VERSION"}"));
+    eprintln!("🚀 Script MCP Server v{}", env!("CARGO_PKG_VERSION"));
     eprintln!("📡 Transport: {:?}", config.transport);
 
     if let TransportMode::Tcp = config.transport {

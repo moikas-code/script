@@ -314,7 +314,7 @@ async fn main() {
     };
 
     if let Err(e) = result {
-        eprintln!("{} {"error:".red(}").bold(), e);
+        eprintln!("{} {}", "error:".red().bold(), e);
         process::exit(1);
     }
 }

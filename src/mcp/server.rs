@@ -492,7 +492,7 @@ impl MCPServer {
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Lexical Analysis\n\n{Self::format_analysis_result(&result}"))
+                "text": format!("# Lexical Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })
@@ -512,7 +512,7 @@ impl MCPServer {
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Parse Analysis\n\n{Self::format_analysis_result(&result}"))
+                "text": format!("# Parse Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })
@@ -532,7 +532,7 @@ impl MCPServer {
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Semantic Analysis\n\n{Self::format_analysis_result(&result}"))
+                "text": format!("# Semantic Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })
@@ -552,7 +552,7 @@ impl MCPServer {
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Code Quality Analysis\n\n{Self::format_analysis_result(&result}"))
+                "text": format!("# Code Quality Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })
@@ -572,7 +572,7 @@ impl MCPServer {
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Dependency Analysis\n\n{Self::format_analysis_result(&result}"))
+                "text": format!("# Dependency Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })

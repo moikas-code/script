@@ -129,23 +129,23 @@ fn run_file(path: &str, args: &[String]) {
 
             match mode {
                 Mode::Tokens => {
-                    println!("{} Tokenizing {"Script:".cyan(}").bold(), path.display());
+                    println!("{} Tokenizing {}", "Script:".cyan().bold(), path.display());
                     tokenize_and_display(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Parse => {
-                    println!("{} Parsing {"Script:".cyan(}").bold(), path.display());
+                    println!("{} Parsing {}", "Script:".cyan().bold(), path.display());
                     parse_and_display(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Run => {
-                    println!("{} Running {"Script:".cyan(}").bold(), path.display());
+                    println!("{} Running {}", "Script:".cyan().bold(), path.display());
                     run_program(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Test => {
-                    println!("{} Testing {"Script:".cyan(}").bold(), path.display());
+                    println!("{} Testing {}", "Script:".cyan().bold(), path.display());
                     run_tests(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Debug => {
-                    println!("{} Debugging {"Script:".cyan(}").bold(), path.display());
+                    println!("{} Debugging {}", "Script:".cyan().bold(), path.display());
                     run_debug_session(&source, Some(path.to_string_lossy().as_ref()));
                 }
                 Mode::Doc => {
@@ -193,7 +193,7 @@ fn run_basic_repl() {
         "Script".cyan().bold(),
         env!("CARGO_PKG_VERSION").green()
     );
-    println!("{"Basic REPL mode".yellow(}"));
+    println!("{}", "Basic REPL mode".yellow());
     println!("Type 'exit' to quit\n");
 
     let mut mode = Mode::Parse;
@@ -306,8 +306,9 @@ fn tokenize_and_display(source: &str, file_name: Option<&str>) {
 }
 
 fn print_tokens(tokens: &[Token]) {
-    println!("\n{"Tokens:".green(}").bold());
-    println!("{"-".repeat(60}"));
+    println!();
+    println!("{}", "Tokens:".green().bold());
+    println!("{}", "-".repeat(60));
 
     for token in tokens {
         if matches!(token.kind, TokenKind::Newline) {
@@ -327,7 +328,7 @@ fn print_tokens(tokens: &[Token]) {
         }
     }
 
-    println!("{}\n", "-".repeat(60));
+    println!("{}", "-".repeat(60));
 }
 
 fn parse_and_display(source: &str, file_name: Option<&str>) {
@@ -368,10 +369,11 @@ fn parse_and_display(source: &str, file_name: Option<&str>) {
     let mut parser = Parser::new(tokens);
     match parser.parse() {
         Ok(program) => {
-            println!("\n{"AST:".green(}").bold());
-            println!("{"-".repeat(60}"));
+            println!();
+            println!("{}", "AST:".green().bold());
+            println!("{}", "-".repeat(60));
             println!("{program}");
-            println!("{}\n", "-".repeat(60));
+            println!("{}", "-".repeat(60));
         }
         Err(mut error) => {
             if let Some(name) = file_name {
@@ -739,10 +741,10 @@ fn run_debug_session(source: &str, file_name: Option<&str>) {
 
     match debugger.start_session() {
         Ok(()) => {
-            println!("{"Debug session ended.".green(}"));
+            println!("{}", "Debug session ended.".green());
         }
         Err(error) => {
-            eprintln!("{}: {"Debug Error".red(}").bold(), error);
+            eprintln!("{}: {}", "Debug Error".red().bold(), error);
             process::exit(1);
         }
     }
@@ -775,8 +777,8 @@ fn run_doc_command(args: &[String]) {
     }
 
     println!("{} Generating documentation", "Script:".cyan().bold());
-    println!("  Source: {source_dir.display(}"));
-    println!("  Output: {output_dir.display(}"));
+    println!("  Source: {}", source_dir.display()"));
+    println!("  Output: {}", output_dir.display()"));
 
     // Create documentation generator
     let mut doc_generator = DocGenerator::new();
@@ -1062,7 +1064,7 @@ fn list_breakpoints() {
     }
 
     println!("{} Breakpoints", "Script".cyan().bold());
-    println!("{"-".repeat(60}"));
+    println!("{}", "-".repeat(60));
 
     for bp in breakpoints {
         let status = if bp.enabled { "enabled" } else { "disabled" };
@@ -1088,7 +1090,7 @@ fn list_breakpoints() {
         }
     }
 
-    println!("{"-".repeat(60}"));
+    println!("{}", "-".repeat(60));
 }
 
 /// Remove a breakpoint by ID
