@@ -31,7 +31,7 @@ colored = "2.1"
 unicode-width = "0.2"
 cranelift = "0.110"
 cranelift-module = "0.110"
-cranelift-jit = "0.110"
+cranelift-jit = "0.121"
 cranelift-native = "0.110"
 # Debug symbol support
 gimli = { version = "0.31", features = ["write"] }
