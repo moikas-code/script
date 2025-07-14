@@ -75,7 +75,7 @@ ctrlc = "3.4"
 log = "0.4"
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.6"
 proptest = "1.0"
 tempfile = "3.0"
 quickcheck = "1.0"
