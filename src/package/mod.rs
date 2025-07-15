@@ -22,7 +22,7 @@ pub use dependency::{
 };
 pub use manifest::{BinaryConfig, BuildConfig, LibraryConfig, PackageConfig, PackageManifest};
 pub use registry::{PackageInfo, PackageRegistry, PublishResult, RegistryClient};
-pub use resolver::{PackageResolver, PackageSource, ResolverConfig};
+pub use resolver::{DownloadConfig, DownloadManager, PackageResolver, PackageSource, ProgressCallback, ResolvedPackage, ResolverConfig};
 pub use version::{Version, VersionConstraint, VersionSpec};
 
 use crate::error::Error;

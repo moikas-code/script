@@ -24,7 +24,7 @@ impl PackageResolver {
         };
 
         // Register default sources
-        resolver.register_source("registry", Box::new(RegistrySource::new()));
+        resolver.register_source("registry", Box::new(RegistrySource::new_with_config(&resolver.config)));
         resolver.register_source("git", Box::new(GitSource::new()));
         resolver.register_source("path", Box::new(PathSource::new()));
 
@@ -325,6 +325,13 @@ impl RegistrySource {
         }
     }
 
+    pub fn new_with_config(config: &ResolverConfig) -> Self {
+        Self {
+            base_url: config.registry_url.clone(),
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn with_url(url: impl Into<String>) -> Self {
         Self {
             base_url: url.into(),
@@ -503,6 +510,7 @@ impl DownloadManager {
 
 /// Configuration for download operations
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DownloadConfig {
     pub timeout_seconds: u64,
     pub max_retries: u32,

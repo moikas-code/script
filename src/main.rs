@@ -825,7 +825,7 @@ fn process_directory(
             let new_prefix = if module_prefix.is_empty() {
                 dir_name.to_string()
             } else {
-                format!("{}::{module_prefix, dir_name}")
+                format!("{}::{}", module_prefix, dir_name)
             };
 
             process_directory(doc_generator, &path, &new_prefix)?;
@@ -836,7 +836,7 @@ fn process_directory(
             let module_name = if module_prefix.is_empty() {
                 file_name.to_string()
             } else {
-                format!("{}::{module_prefix, file_name}")
+                format!("{}::{}", module_prefix, file_name)
             };
 
             println!("  Processing: {module_name}");
@@ -1082,11 +1082,11 @@ fn list_breakpoints() {
         }
 
         if let Some(condition) = &bp.condition {
-            println!("       Condition: {condition.expression.cyan(}"));
+            println!("       Condition: {}", condition.expression.cyan());
         }
 
         if let Some(message) = &bp.message {
-            println!("       Message: {message.cyan(}"));
+            println!("       Message: {}", message.cyan());
         }
     }
 
@@ -1127,7 +1127,7 @@ fn remove_breakpoint_command(args: &[String]) {
 
     match debugger.breakpoint_manager().remove_breakpoint(id) {
         Ok(()) => {
-            println!("{} Removed breakpoint {"Success:".green(}").bold(), id);
+            println!("{} Removed breakpoint {}", "Success:".green().bold(), id);
         }
         Err(e) => {
             eprintln!("{}: {}", "Error".red().bold(), e);
@@ -1189,7 +1189,7 @@ fn enable_breakpoint_command(args: &[String]) {
 
     match debugger.breakpoint_manager().enable_breakpoint(id) {
         Ok(()) => {
-            println!("{} Enabled breakpoint {"Success:".green(}").bold(), id);
+            println!("{} Enabled breakpoint {}", "Success:".green().bold(), id);
         }
         Err(e) => {
             eprintln!("{}: {}", "Error".red().bold(), e);
@@ -1231,7 +1231,7 @@ fn disable_breakpoint_command(args: &[String]) {
 
     match debugger.breakpoint_manager().disable_breakpoint(id) {
         Ok(()) => {
-            println!("{} Disabled breakpoint {"Success:".green(}").bold(), id);
+            println!("{} Disabled breakpoint {}", "Success:".green().bold(), id);
         }
         Err(e) => {
             eprintln!("{}: {}", "Error".red().bold(), e);
