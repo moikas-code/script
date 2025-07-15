@@ -183,7 +183,7 @@ fn test_parse_binary_expressions() {
     let expr = parse_expr("1 + 2").unwrap();
     match &expr.kind {
         ExprKind::Binary { left, op, right } => {
-            assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0));
+            assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0))));
             assert_eq!(*op, BinaryOp::Add);
             assert!(matches!(
                 right.kind,
@@ -197,12 +197,12 @@ fn test_parse_binary_expressions() {
     let expr = parse_expr("1 + 2 * 3").unwrap();
     match &expr.kind {
         ExprKind::Binary { left, op, right } => {
-            assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0));
+            assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0))));
             assert_eq!(*op, BinaryOp::Add);
 
             match &right.kind {
                 ExprKind::Binary { left, op, right } => {
-                    assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(2.0));
+                    assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(2.0))));
                     assert_eq!(*op, BinaryOp::Mul);
                     assert!(matches!(
                         right.kind,
@@ -252,7 +252,7 @@ fn test_parse_grouped_expressions() {
 
             match &left.kind {
                 ExprKind::Binary { left, op, right } => {
-                    assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0));
+                    assert!(matches!(left.kind, ExprKind::Literal(Literal::Number(1.0))));
                     assert_eq!(*op, BinaryOp::Add);
                     assert!(matches!(
                         right.kind,

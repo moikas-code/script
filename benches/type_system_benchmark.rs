@@ -208,7 +208,7 @@ fn bench_monomorphization(c: &mut Criterion) {
             size,
             |b, &_size| {
                 b.iter(|| {
-                    let mut ctx = OptimizedMonomorphizationContext::new();
+                    let mut ctx = MonomorphizationContext::new();
                     let result =
                         ctx.initialize_from_semantic_analysis(&instantiations, &HashMap::new());
                     black_box(result);
