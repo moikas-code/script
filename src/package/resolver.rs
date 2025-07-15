@@ -319,6 +319,7 @@ pub struct RegistrySource {
 }
 
 impl RegistrySource {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             base_url: "https://packages.script.org".to_string(),
@@ -469,6 +470,7 @@ pub type ProgressCallback = Box<dyn Fn(u64, u64) + Send + Sync>;
 
 /// Download manager for handling package downloads
 pub struct DownloadManager {
+    #[allow(dead_code)]
     config: DownloadConfig,
 }
 

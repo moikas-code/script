@@ -1827,11 +1827,11 @@ fn test_parse_common_generic_patterns() {
 fn test_parse_generic_display_implementation() {
     // Verify Display implementation for generic types
     let program = parse("let x: Vec<i32>").unwrap();
-    let stmt_str = format!("{program.statements[0]}");
+    let stmt_str = format!("{}", program.statements[0]);
     assert!(stmt_str.contains("Vec<i32>"));
 
     let program = parse("let map: HashMap<String, Vec<Option<T>>>").unwrap();
-    let stmt_str = format!("{program.statements[0]}");
+    let stmt_str = format!("{}", program.statements[0]);
     assert!(stmt_str.contains("HashMap<String, Vec<Option<T>>>"));
 }
 
@@ -2040,7 +2040,7 @@ fn test_parse_generic_function_complex_usage() {
 fn test_parse_generic_display() {
     // Test Display implementation
     let program = parse("fn test<T: Clone + Debug>(x: T) -> T { x }").unwrap();
-    let stmt_str = format!("{program.statements[0]}");
+    let stmt_str = format!("{}", program.statements[0]);
 
     assert!(stmt_str.contains("fn test<T: Clone + Debug>"));
     assert!(stmt_str.contains("(x: T)"));
