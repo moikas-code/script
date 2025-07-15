@@ -3,8 +3,9 @@
 //! This benchmark suite evaluates the performance of the Bacon-Rajan
 //! cycle detection algorithm under various conditions and workloads.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use script::runtime::{gc, type_registry, ScriptRc, Value};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
+use script::runtime::{gc, type_registry, ScriptRc, Value, Traceable};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -93,10 +94,10 @@ fn create_simple_cycle() -> (ScriptRc<TestNode>, ScriptRc<TestNode>) {
 
     // Create cycle: A -> B -> A
     unsafe {
-        let mut a_ref = node_a.get_mut();
+        let mut a_ref = node_a.get_mut().expect("Failed to get mutable reference");
         a_ref.add_child(node_b.clone());
 
-        let mut b_ref = node_b.get_mut();
+        let mut b_ref = node_b.get_mut().expect("Failed to get mutable reference");
         b_ref.set_parent(node_a.clone());
     }
 
@@ -115,7 +116,7 @@ fn create_complex_cycle(size: usize) -> Vec<ScriptRc<TestNode>> {
     // Create interconnections
     for i in 0..size {
         unsafe {
-            let mut node_ref = nodes[i].get_mut();
+            let mut node_ref = nodes[i].get_mut().expect("Failed to get mutable reference");
 
             // Add some children (creating forward references)
             for j in 1..=3 {
@@ -167,7 +168,7 @@ fn create_chain_cycle(depth: usize) -> Vec<ScriptRc<TestNode>> {
     // Link chain
     for i in 0..depth {
         unsafe {
-            let mut node_ref = nodes[i].get_mut();
+            let mut node_ref = nodes[i].get_mut().expect("Failed to get mutable reference");
             if i < depth - 1 {
                 node_ref.add_child(nodes[i + 1].clone());
             } else {
