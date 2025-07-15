@@ -9,10 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-
-[dependencies.script]
-path = ".."
-features = ["fuzzing"]
+script = { path = "..", features = ["fuzzing"] }
 
 [[bin]]
 name = "fuzz_lexer"
@@ -21,19 +18,19 @@ test = false
 doc = false
 
 [[bin]]
-name = "fuzz_string_literals"
-path = "fuzz_targets/fuzz_string_literals.rs"
+name = "fuzz_parser" 
+path = "fuzz_targets/fuzz_parser.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_comments"
-path = "fuzz_targets/fuzz_comments.rs"
+name = "fuzz_semantic"
+path = "fuzz_targets/fuzz_semantic.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "fuzz_unicode"
-path = "fuzz_targets/fuzz_unicode.rs"
+name = "fuzz_runtime"
+path = "fuzz_targets/fuzz_runtime.rs"
 test = false
 doc = false

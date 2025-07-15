@@ -73,6 +73,9 @@ uuid = { version = "1.10", features = ["v4", "serde"] }
 ctrlc = "3.4"
 # Logging
 log = "0.4"
+# Fuzzing dependencies (optional)
+libfuzzer-sys = { version = "0.4", optional = true }
+arbitrary = { version = "1.0", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.6"
@@ -83,7 +86,7 @@ quickcheck_macros = "1.0"
 
 [features]
 # Enable fuzzing support
-fuzzing = []
+fuzzing = ["libfuzzer-sys", "arbitrary"]
 # Enable MCP (Model Context Protocol) support
 mcp = []
 
