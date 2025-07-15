@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 - Perform a web search if you need more information
 
-- Create a Task in the KB when making a plan to keep track between sessions
+- Create a Task in the ./kb when making a plan to keep track between sessions
 
 - Never use placeholder logic when writing logic; provide a full solution
 

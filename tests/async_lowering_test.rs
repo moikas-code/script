@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod async_lowering_tests {
-    use script::lexer::Scanner;
+    use script::lexer::Lexer;
     use script::lowering::AstLowerer;
     use script::parser::Parser;
     use script::semantic::analyzer::SemanticAnalyzer;
@@ -15,8 +15,8 @@ mod async_lowering_tests {
         "#;
 
         // Lex
-        let mut scanner = Scanner::new(input);
-        let tokens = scanner.scan_tokens().unwrap();
+        let mut scanner = Lexer::new(input).unwrap();
+        let tokens = scanner.scan_tokens().0;
 
         // Parse
         let mut parser = Parser::new(tokens);
@@ -24,10 +24,15 @@ mod async_lowering_tests {
 
         // Semantic analysis
         let mut analyzer = SemanticAnalyzer::new();
-        let (symbol_table, type_info, generic_instantiations) = analyzer.analyze(&ast).unwrap();
+        analyzer.analyze_program(&ast).unwrap();
+        let symbol_table = analyzer.symbol_table().clone();
+        let type_info = std::collections::HashMap::new(); // For test purposes
+        let generic_instantiations = Vec::new(); // For test purposes
 
         // Lower to IR
-        let mut lowerer = AstLowerer::new(symbol_table, type_info, generic_instantiations);
+        let closure_captures = std::collections::HashMap::new(); // For test purposes
+
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, generic_instantiations, closure_captures);
         let ir_module = lowerer.lower_program(&ast).unwrap();
 
         // Check that async function was created
@@ -57,8 +62,8 @@ mod async_lowering_tests {
         "#;
 
         // Lex
-        let mut scanner = Scanner::new(input);
-        let tokens = scanner.scan_tokens().unwrap();
+        let mut scanner = Lexer::new(input).unwrap();
+        let tokens = scanner.scan_tokens().0;
 
         // Parse
         let mut parser = Parser::new(tokens);
@@ -66,10 +71,15 @@ mod async_lowering_tests {
 
         // Semantic analysis
         let mut analyzer = SemanticAnalyzer::new();
-        let (symbol_table, type_info, generic_instantiations) = analyzer.analyze(&ast).unwrap();
+        analyzer.analyze_program(&ast).unwrap();
+        let symbol_table = analyzer.symbol_table().clone();
+        let type_info = std::collections::HashMap::new(); // For test purposes
+        let generic_instantiations = Vec::new(); // For test purposes
 
         // Lower to IR
-        let mut lowerer = AstLowerer::new(symbol_table, type_info, generic_instantiations);
+        let closure_captures = std::collections::HashMap::new(); // For test purposes
+
+        let mut lowerer = AstLowerer::new(symbol_table, type_info, generic_instantiations, closure_captures);
         let ir_module = lowerer.lower_program(&ast).unwrap();
 
         // Check that both async functions were created
