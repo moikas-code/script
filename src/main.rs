@@ -902,14 +902,14 @@ fn run_debug_command(args: &[String]) {
 
     // Shutdown debugger
     if let Err(e) = shutdown_debugger() {
-        eprintln!("{}: Failed to shutdown debugger: {"Warning".yellow(}"), e);
+        eprintln!("{}: Failed to shutdown debugger: {}", "Warning".yellow(), e);
     }
 }
 
 /// Print debug command help
 fn print_debug_help() {
     println!("{} Debug Commands", "Script".cyan().bold());
-    println!("{"-".repeat(50}"));
+    println!("{}", "-".repeat(50));
     println!(
         "  {} [line]                    Add line breakpoint",
         "break".green()
@@ -970,7 +970,7 @@ fn handle_breakpoint_command(args: &[String]) {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -993,7 +993,7 @@ fn handle_breakpoint_command(args: &[String]) {
                     );
                 }
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}").bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                 }
             }
         } else {
@@ -1008,7 +1008,7 @@ fn handle_breakpoint_command(args: &[String]) {
                     );
                 }
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}").bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                 }
             }
         }
@@ -1027,7 +1027,7 @@ fn handle_breakpoint_command(args: &[String]) {
                     );
                 }
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}").bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                 }
             }
         } else {
@@ -1051,7 +1051,7 @@ fn list_breakpoints() {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -1120,7 +1120,7 @@ fn remove_breakpoint_command(args: &[String]) {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -1130,7 +1130,7 @@ fn remove_breakpoint_command(args: &[String]) {
             println!("{} Removed breakpoint {"Success:".green(}").bold(), id);
         }
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
         }
     }
 }
@@ -1140,7 +1140,7 @@ fn clear_all_breakpoints() {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -1150,7 +1150,7 @@ fn clear_all_breakpoints() {
             println!("{} Cleared all breakpoints", "Success:".green().bold());
         }
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
         }
     }
 }
@@ -1182,7 +1182,7 @@ fn enable_breakpoint_command(args: &[String]) {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -1192,7 +1192,7 @@ fn enable_breakpoint_command(args: &[String]) {
             println!("{} Enabled breakpoint {"Success:".green(}").bold(), id);
         }
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
         }
     }
 }
@@ -1224,7 +1224,7 @@ fn disable_breakpoint_command(args: &[String]) {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -1234,7 +1234,7 @@ fn disable_breakpoint_command(args: &[String]) {
             println!("{} Disabled breakpoint {"Success:".green(}").bold(), id);
         }
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
         }
     }
 }
@@ -1244,7 +1244,7 @@ fn show_breakpoint_stats() {
     let debugger = match get_debugger() {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("{}: {"Error".red(}").bold(), e);
+            eprintln!("{}: {}", "Error".red().bold(), e);
             return;
         }
     };
@@ -1320,21 +1320,21 @@ fn run_update_command(args: &[String]) {
             "--check" => match update::check_update() {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}").bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                     process::exit(1);
                 }
             },
             "--list" => match update::list_versions() {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}").bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                     process::exit(1);
                 }
             },
             "--force" => match update::update(true) {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}").bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                     process::exit(1);
                 }
             },
@@ -1343,7 +1343,7 @@ fn run_update_command(args: &[String]) {
                     match update::update_to_version(&args[3]) {
                         Ok(_) => {}
                         Err(e) => {
-                            eprintln!("{}: {"Error".red(}").bold(), e);
+                            eprintln!("{}: {}", "Error".red().bold(), e);
                             process::exit(1);
                         }
                     }
@@ -1359,7 +1359,7 @@ fn run_update_command(args: &[String]) {
             "--rollback" => match update::rollback() {
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("{}: {"Error".red(}").bold(), e);
+                    eprintln!("{}: {}", "Error".red().bold(), e);
                     process::exit(1);
                 }
             },
@@ -1381,7 +1381,7 @@ fn run_update_command(args: &[String]) {
         match update::update(false) {
             Ok(_) => {}
             Err(e) => {
-                eprintln!("{}: {"Error".red(}").bold(), e);
+                eprintln!("{}: {}", "Error".red().bold(), e);
                 process::exit(1);
             }
         }

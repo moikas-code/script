@@ -606,7 +606,7 @@ mod tests {
 
         let progress: ProgressCallback = Box::new(move |current, total| {
             progress_called_clone.store(true, std::sync::atomic::Ordering::SeqCst);
-            println!("Progress: {}/{current, total}");
+            println!("Progress: {current}/{total}");
         });
 
         manager
