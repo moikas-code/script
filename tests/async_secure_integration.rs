@@ -6,7 +6,6 @@
 
 use script::runtime::async_ffi_secure::*;
 use script::runtime::async_runtime_secure::*;
-use script::runtime::async_security_tests::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -195,7 +194,7 @@ impl AsyncIntegrationTestSuite {
                 let results_clone = results.clone();
                 let future = ResultCollectorFuture::new(
                     i,
-                    Duration::from_millis(50 * (i + 1)),
+                    Duration::from_millis(50 * (i as u64 + 1)),
                     results_clone,
                 );
                 Executor::spawn(executor.clone(), Box::new(future))?;
@@ -598,7 +597,7 @@ impl AsyncIntegrationTestSuite {
     /// Run a single integration test
     fn run_integration_test<F>(&mut self, test_name: &str, test_fn: F)
     where
-        F: FnOnce() -> Result<String, Box<dyn std::error::Error>> + std::panic::UnwindSafe,
+        F: FnOnce() -> Result<String, Box<dyn std::error::Error + Send + Sync>> + std::panic::UnwindSafe,
     {
         print!("🧪 Running {}: ", test_name);
         let start_time = Instant::now();
@@ -644,14 +643,14 @@ impl AsyncIntegrationTestSuite {
         let total_tests = self.test_results.len();
         let passed_tests = self.test_results.iter().filter(|r| r.passed).count();
         let failed_tests = total_tests - passed_tests;
-        let total_time: Duration = self.test_results.iter().map(|r| r.execution_time).sum();
+        let _total_time: Duration = self.test_results.iter().map(|r| r.execution_time).sum();
 
         IntegrationTestSummary {
             total_tests,
             passed_tests,
             failed_tests,
-            total_execution_time: total_time,
-            average_test_time: total_time / total_tests as u32,
+            total_execution_time: _total_time,
+            average_test_time: _total_time / total_tests as u32,
             all_passed: failed_tests == 0,
             results: self.test_results.clone(),
         }
@@ -1029,16 +1028,50 @@ mod tests {
 
     #[test]
     fn test_immediate_future() {
+        use std::task::{RawWaker, RawWakerVTable};
+        
+        // Create a simple no-op waker for testing
+        unsafe fn noop_clone(_: *const ()) -> RawWaker {
+            RawWaker::new(std::ptr::null(), &NOOP_WAKER_VTABLE)
+        }
+        unsafe fn noop(_: *const ()) {}
+        
+        static NOOP_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
+            noop_clone,
+            noop,
+            noop,
+            noop,
+        );
+        
+        let raw_waker = RawWaker::new(std::ptr::null(), &NOOP_WAKER_VTABLE);
+        let waker = unsafe { Waker::from_raw(raw_waker) };
+        
         let mut future = ImmediateFuture::new(42);
-        let waker = futures::task::noop_waker();
         let result = future.poll(&waker);
         assert!(matches!(result, std::task::Poll::Ready(42)));
     }
 
     #[test]
     fn test_delayed_future() {
+        use std::task::{RawWaker, RawWakerVTable};
+        
+        // Create a simple no-op waker for testing
+        unsafe fn noop_clone(_: *const ()) -> RawWaker {
+            RawWaker::new(std::ptr::null(), &NOOP_WAKER_VTABLE)
+        }
+        unsafe fn noop(_: *const ()) {}
+        
+        static NOOP_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
+            noop_clone,
+            noop,
+            noop,
+            noop,
+        );
+        
+        let raw_waker = RawWaker::new(std::ptr::null(), &NOOP_WAKER_VTABLE);
+        let waker = unsafe { Waker::from_raw(raw_waker) };
+        
         let mut future = DelayedFuture::new(123, 2);
-        let waker = futures::task::noop_waker();
 
         // First two polls should be pending
         assert!(matches!(future.poll(&waker), std::task::Poll::Pending));
@@ -1050,8 +1083,25 @@ mod tests {
 
     #[test]
     fn test_never_complete_future() {
+        use std::task::{RawWaker, RawWakerVTable};
+        
+        // Create a simple no-op waker for testing
+        unsafe fn noop_clone(_: *const ()) -> RawWaker {
+            RawWaker::new(std::ptr::null(), &NOOP_WAKER_VTABLE)
+        }
+        unsafe fn noop(_: *const ()) {}
+        
+        static NOOP_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
+            noop_clone,
+            noop,
+            noop,
+            noop,
+        );
+        
+        let raw_waker = RawWaker::new(std::ptr::null(), &NOOP_WAKER_VTABLE);
+        let waker = unsafe { Waker::from_raw(raw_waker) };
+        
         let mut future = NeverCompleteFuture::new();
-        let waker = futures::task::noop_waker();
 
         // Should always be pending
         assert!(matches!(future.poll(&waker), std::task::Poll::Pending));

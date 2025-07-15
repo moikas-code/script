@@ -3,7 +3,8 @@
 //! These benchmarks measure parsing, type checking, and full compilation
 //! performance for programs with varying amounts of generic code.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use script::{Lexer, Parser, SemanticAnalyzer};
 
 /// Generate a program with N generic struct definitions
@@ -11,7 +12,7 @@ fn generate_generic_structs(count: usize) -> String {
     let mut code = String::new();
 
     for i in 0..count {
-        code.push_str(format!(
+        code.push_str(&format!(
             "struct Generic{}<T> {{\n    value: T,\n    id: i32\n}}\n\n",
             i
         ));
@@ -20,7 +21,7 @@ fn generate_generic_structs(count: usize) -> String {
     // Add usage in main
     code.push_str("fn main() {\n");
     for i in 0..count.min(10) {
-        code.push_str(format!(
+        code.push_str(&format!(
             "    let g{} = Generic{} {{ value: {}, id: {} }};\n",
             i, i, i, i
         ));
@@ -60,12 +61,12 @@ fn generate_generic_functions(count: usize) -> String {
     let mut code = String::new();
 
     for i in 0..count {
-        code.push_str(format!("fn generic{}<T>(x: T) -> T {{ x }}\n", i));
+        code.push_str(&format!("fn generic{}<T>(x: T) -> T {{ x }}\n", i));
     }
 
     code.push_str("\nfn main() {\n");
     for i in 0..count.min(10) {
-        code.push_str(format!("    let r{} = generic{i}({i * 10});\n", i));
+        code.push_str(&format!("    let r{} = generic{}({});\n", i, i, i * 10));
     }
     code.push_str("}\n");
 
@@ -80,7 +81,7 @@ fn bench_generic_parsing(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("structs", size), &code, |b, code| {
             b.iter(|| {
-                let lexer = Lexer::new(black_box(code));
+                let lexer = Lexer::new(black_box(code)).expect("Failed to create lexer");
                 let (tokens, _) = lexer.scan_tokens();
                 let mut parser = Parser::new(tokens);
                 let _ = parser.parse();
@@ -93,7 +94,7 @@ fn bench_generic_parsing(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("nested", depth), &code, |b, code| {
             b.iter(|| {
-                let lexer = Lexer::new(black_box(code));
+                let lexer = Lexer::new(black_box(code)).expect("Failed to create lexer");
                 let (tokens, _) = lexer.scan_tokens();
                 let mut parser = Parser::new(tokens);
                 let _ = parser.parse();
@@ -110,7 +111,7 @@ fn bench_type_checking_generics(c: &mut Criterion) {
     // Pre-parse programs for type checking benchmarks
     let small_program = {
         let code = generate_generic_structs(10);
-        let lexer = Lexer::new(&code);
+        let lexer = Lexer::new(&code).expect("Failed to create lexer");
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         parser.parse().unwrap()
@@ -118,7 +119,7 @@ fn bench_type_checking_generics(c: &mut Criterion) {
 
     let medium_program = {
         let code = generate_generic_structs(50);
-        let lexer = Lexer::new(&code);
+        let lexer = Lexer::new(&code).expect("Failed to create lexer");
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         parser.parse().unwrap()
@@ -126,7 +127,7 @@ fn bench_type_checking_generics(c: &mut Criterion) {
 
     let large_program = {
         let code = generate_generic_structs(100);
-        let lexer = Lexer::new(&code);
+        let lexer = Lexer::new(&code).expect("Failed to create lexer");
         let (tokens, _) = lexer.scan_tokens();
         let mut parser = Parser::new(tokens);
         parser.parse().unwrap()
@@ -166,7 +167,7 @@ fn bench_end_to_end_compilation(c: &mut Criterion) {
 
     group.bench_function("struct_heavy", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&struct_heavy));
+            let lexer = Lexer::new(black_box(&struct_heavy)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             let program = parser.parse().unwrap();
@@ -177,7 +178,7 @@ fn bench_end_to_end_compilation(c: &mut Criterion) {
 
     group.bench_function("function_heavy", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&function_heavy));
+            let lexer = Lexer::new(black_box(&function_heavy)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             let program = parser.parse().unwrap();
@@ -188,7 +189,7 @@ fn bench_end_to_end_compilation(c: &mut Criterion) {
 
     group.bench_function("nested_heavy", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&nested_heavy));
+            let lexer = Lexer::new(black_box(&nested_heavy)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             let program = parser.parse().unwrap();
@@ -210,7 +211,7 @@ fn bench_incremental_generic_compilation(c: &mut Criterion) {
 
     group.bench_function("recompile_with_addition", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&modified_code));
+            let lexer = Lexer::new(black_box(&modified_code)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             let program = parser.parse().unwrap();
@@ -224,7 +225,7 @@ fn bench_incremental_generic_compilation(c: &mut Criterion) {
 
     group.bench_function("recompile_with_change", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&changed_code));
+            let lexer = Lexer::new(black_box(&changed_code)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             let _ = parser.parse(); // Might fail due to change
@@ -246,10 +247,10 @@ fn bench_generic_instantiation_count(c: &mut Criterion) {
         // Create N different instantiations
         for i in 0..*count {
             match i % 4 {
-                0 => code.push_str(format!("    let b{} = Box {{ value: {i} }};\n", i)),
-                1 => code.push_str(format!("    let b{} = Box {{ value: \"str{}\" }};\n", i, i)),
-                2 => code.push_str(format!("    let b{} = Box {{ value: true }};\n", i)),
-                _ => code.push_str(format!("    let b{} = Box {{ value: {i}.0 }};\n", i)),
+                0 => code.push_str(&format!("    let b{} = Box {{ value: {} }};\n", i, i)),
+                1 => code.push_str(&format!("    let b{} = Box {{ value: \"str{}\" }};\n", i, i)),
+                2 => code.push_str(&format!("    let b{} = Box {{ value: true }};\n", i)),
+                _ => code.push_str(&format!("    let b{} = Box {{ value: {}.0 }};\n", i, i)),
             }
         }
 
@@ -257,7 +258,7 @@ fn bench_generic_instantiation_count(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(count), &code, |b, code| {
             b.iter(|| {
-                let lexer = Lexer::new(black_box(code));
+                let lexer = Lexer::new(black_box(code)).expect("Failed to create lexer");
                 let (tokens, _) = lexer.scan_tokens();
                 let mut parser = Parser::new(tokens);
                 let program = parser.parse().unwrap();
