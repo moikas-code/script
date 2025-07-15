@@ -64,7 +64,7 @@ fn main() {
         eprintln!("   or: {} doc [source dir] [output dir]", args[0]);
         eprintln!("   or: {} debug [commands...]", args[0]);
         eprintln!(
-            "   or: {} update [--check|--force|--version <version>]",
+            "   or: {} update [--check|--force|--version <version>|--docs|--check-consistency]",
             args[0]
         );
         eprintln!("   or: {} --version", args[0]);
@@ -1363,6 +1363,20 @@ fn run_update_command(args: &[String]) {
                     process::exit(1);
                 }
             },
+            "--docs" => match update::update_docs() {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}: {}", "Error".red().bold(), e);
+                    process::exit(1);
+                }
+            },
+            "--check-consistency" => match update::check_docs_consistency() {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}: {}", "Error".red().bold(), e);
+                    process::exit(1);
+                }
+            },
             _ => {
                 eprintln!(
                     "{}: Unknown update option '{}'",
@@ -1370,7 +1384,7 @@ fn run_update_command(args: &[String]) {
                     args[2]
                 );
                 eprintln!(
-                    "Usage: {} update [--check|--force|--list|--version <version>|--rollback]",
+                    "Usage: {} update [--check|--force|--list|--version <version>|--rollback|--docs|--check-consistency]",
                     args[0]
                 );
                 process::exit(1);

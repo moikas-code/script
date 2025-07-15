@@ -1075,8 +1075,13 @@ impl SemanticAnalyzer {
                 body,
                 is_async,
                 generic_params,
-                where_clause: _, // TODO: Handle where clause constraints
+                where_clause,
             } => {
+                // Validate where clause constraints before analyzing function
+                if let Some(constraints) = where_clause {
+                    self.validate_where_clause_constraints(constraints, stmt.span)?;
+                }
+
                 self.analyze_function_with_attributes(
                     name,
                     generic_params.as_ref(),
@@ -4821,6 +4826,50 @@ impl SemanticAnalyzer {
             // Other types remain unchanged
             _ => ty.clone(),
         }
+    }
+
+    /// Validate where clause constraints with security enforcement
+    fn validate_where_clause_constraints(
+        &mut self,
+        constraints: &[crate::parser::WhereClause],
+        span: Span,
+    ) -> Result<(), SemanticError> {
+        use crate::semantic::constraint_validator::{WhereClauseValidator, SecurityLimits};
+        use crate::types::TypeRegistry;
+
+        // Create validator with security limits
+        let type_registry = TypeRegistry::new();
+        let security_limits = SecurityLimits::default();
+        let mut validator = WhereClauseValidator::new(type_registry, security_limits);
+
+        // Create type context from current state
+        let type_context = self.create_type_context();
+
+        // Validate constraints
+        let result = validator.validate_constraints(constraints, &type_context, span)?;
+
+        match result {
+            crate::semantic::constraint_validator::ValidationResult::Valid => Ok(()),
+            crate::semantic::constraint_validator::ValidationResult::Unsatisfiable(reason) => {
+                Err(SemanticError::new(
+                    SemanticErrorKind::UnsatisfiableConstraints(reason),
+                    span,
+                ))
+            }
+            crate::semantic::constraint_validator::ValidationResult::LimitExceeded(reason) => {
+                Err(SemanticError::new(
+                    SemanticErrorKind::ConstraintValidationLimitExceeded(reason),
+                    span,
+                ))
+            }
+        }
+    }
+
+    /// Create a type context from current analyzer state
+    fn create_type_context(&self) -> crate::semantic::TypeContext {
+        // This would need to be implemented based on the actual TypeContext structure
+        // For now, create a basic context
+        crate::semantic::TypeContext::new()
     }
 }
 

@@ -166,7 +166,7 @@ impl Session {
     }
 
     /// Define a variable in the session
-    pub fn define_variable(&mut self, name: String, value: Value, var_type: Type) {
+    pub fn define_variable(&mut self, name: String, value: Value, _var_type: Type) {
         self.variables.insert(name.clone(), value);
 
         // Also add to symbol table for type checking
@@ -335,10 +335,10 @@ mod tests {
     fn test_session_variables() {
         let mut session = Session::new();
 
-        session.define_variable("x".to_string(), Value::Number(42.0), Type::Number);
+        session.define_variable("x".to_string(), Value::I32(42), Type::I32);
 
         assert!(session.is_defined("x"));
-        assert_eq!(session.get_variable("x"), Some(&Value::Integer(42)));
+        assert_eq!(session.get_variable("x"), Some(&Value::I32(42)));
         assert_eq!(session.variables().len(), 1);
     }
 
@@ -346,7 +346,7 @@ mod tests {
     fn test_session_clear() {
         let mut session = Session::new();
 
-        session.define_variable("x".to_string(), Value::Number(42.0), Type::Number);
+        session.define_variable("x".to_string(), Value::I32(42), Type::I32);
         session.define_type("MyType".to_string(), Type::String);
 
         assert_eq!(session.item_count(), 2);
@@ -360,7 +360,7 @@ mod tests {
     fn test_session_remove() {
         let mut session = Session::new();
 
-        session.define_variable("x".to_string(), Value::Number(42.0), Type::Number);
+        session.define_variable("x".to_string(), Value::I32(42), Type::I32);
         assert!(session.is_defined("x"));
 
         assert!(session.remove("x"));
@@ -384,7 +384,7 @@ mod tests {
     fn test_session_summary() {
         let mut session = Session::new();
 
-        session.define_variable("x".to_string(), Value::Number(42.0), Type::Number);
+        session.define_variable("x".to_string(), Value::I32(42), Type::I32);
         session.define_type("MyType".to_string(), Type::String);
 
         let summary = session.summary();

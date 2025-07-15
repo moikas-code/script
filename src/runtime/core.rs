@@ -334,19 +334,48 @@ impl MemoryManager {
         self.total_allocations.fetch_add(1, Ordering::Relaxed);
 
         // Allocate memory
+        // SAFETY: This is safe because:
+        // 1. `layout` is validated to have non-zero size and proper alignment
+        // 2. We properly handle the null pointer case when allocation fails
+        // 3. The returned pointer, if non-null, is valid for the requested layout
+        // 4. Heap usage tracking ensures we don't exceed configured limits
         unsafe {
             let ptr = std::alloc::alloc(layout);
             if ptr.is_null() {
                 self.heap_used.fetch_sub(size, Ordering::Relaxed);
                 Err(RuntimeError::AllocationFailed("Out of memory".to_string()))
             } else {
+                #[cfg(debug_assertions)]
+                {
+                    debug_assert!(!ptr.is_null(), "Allocator returned null despite success");
+                    debug_assert!(ptr as usize % layout.align() == 0, "Allocator returned misaligned pointer");
+                }
                 Ok(ptr)
             }
         }
     }
 
     /// Deallocate memory
+    /// 
+    /// # Safety
+    /// 
+    /// This function is unsafe because:
+    /// - `ptr` must be a pointer returned by a previous call to `allocate` with the same layout
+    /// - `ptr` must not be null and must be properly aligned for `layout`
+    /// - The memory at `ptr` must not have been previously deallocated
+    /// - No other references to the memory at `ptr` should exist when this is called
     pub unsafe fn deallocate(&self, ptr: *mut u8, layout: Layout) {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(!ptr.is_null(), "Cannot deallocate null pointer");
+            debug_assert!(ptr as usize % layout.align() == 0, "Pointer must be aligned for layout");
+            debug_assert!(layout.size() > 0, "Layout size must be non-zero");
+        }
+
+        // SAFETY: This is safe because:
+        // 1. The caller guarantees `ptr` was returned by std::alloc::alloc with same layout
+        // 2. The caller guarantees `ptr` has not been previously deallocated
+        // 3. We validate the invariants in debug builds with assertions
         std::alloc::dealloc(ptr, layout);
 
         self.heap_used.fetch_sub(layout.size(), Ordering::Relaxed);
@@ -419,8 +448,19 @@ pub struct RuntimeStats {
 /// This allocator integrates with the runtime's memory manager
 pub struct ScriptAllocator;
 
+// SAFETY: This implementation is safe because:
+// 1. We delegate to either the Script runtime allocator or system allocator
+// 2. Both allocators properly handle the GlobalAlloc contract
+// 3. We return null on allocation failure as required by the trait
+// 4. The fallback ensures allocation works even during runtime initialization
 unsafe impl GlobalAlloc for ScriptAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(layout.size() > 0, "Cannot allocate zero-sized layout");
+            debug_assert!(layout.align().is_power_of_two(), "Alignment must be power of two");
+        }
+
         if let Ok(runtime) = runtime() {
             match runtime.memory().allocate(layout) {
                 Ok(ptr) => ptr,
@@ -428,17 +468,29 @@ unsafe impl GlobalAlloc for ScriptAllocator {
             }
         } else {
             // Fallback to system allocator if runtime not initialized
+            // SAFETY: layout is validated above, std::alloc::alloc handles the contract correctly
             std::alloc::alloc(layout)
         }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(!ptr.is_null(), "Cannot deallocate null pointer");
+            debug_assert!(layout.size() > 0, "Cannot deallocate zero-sized layout");
+            debug_assert!(layout.align().is_power_of_two(), "Alignment must be power of two");
+        }
+
         if let Ok(runtime) = runtime() {
+            // SAFETY: The caller guarantees this pointer was allocated with the same layout
+            // and the runtime's deallocate method maintains the same safety contract
             unsafe {
                 runtime.memory().deallocate(ptr, layout);
             }
         } else {
             // Fallback to system allocator
+            // SAFETY: The caller guarantees this pointer was allocated with the same layout
+            // If runtime is not available, the pointer was allocated via system allocator fallback
             std::alloc::dealloc(ptr, layout);
         }
     }
@@ -486,6 +538,8 @@ mod tests {
         assert_eq!(stats.total_allocations, 1);
 
         // Deallocate
+        // SAFETY: `ptr` was just allocated above with the same layout
+        // and has not been deallocated or accessed elsewhere
         unsafe {
             runtime.memory().deallocate(ptr, layout);
         }

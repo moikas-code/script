@@ -87,15 +87,32 @@ pub struct PanicBoundary {
 }
 
 /// Initialize the panic handler
-pub fn initialize() {
-    let mut handler = PANIC_HANDLER.write().unwrap();
+/// 
+/// # Errors
+/// 
+/// Returns an error if the panic handler could not be initialized due to lock contention
+/// or other system-level issues.
+pub fn initialize() -> Result<(), crate::runtime::RuntimeError> {
+    let mut handler = PANIC_HANDLER.write()
+        .map_err(|_| crate::runtime::RuntimeError::InvalidOperation(
+            "Failed to acquire write lock on panic handler for initialization".to_string()
+        ))?;
     *handler = Some(Arc::new(PanicHandler::new()));
+    Ok(())
 }
 
 /// Shutdown the panic handler
-pub fn shutdown() {
-    let mut handler = PANIC_HANDLER.write().unwrap();
+/// 
+/// # Errors
+/// 
+/// Returns an error if the panic handler could not be shut down due to lock contention.
+pub fn shutdown() -> Result<(), crate::runtime::RuntimeError> {
+    let mut handler = PANIC_HANDLER.write()
+        .map_err(|_| crate::runtime::RuntimeError::InvalidOperation(
+            "Failed to acquire write lock on panic handler for shutdown".to_string()
+        ))?;
     *handler = None;
+    Ok(())
 }
 
 /// Record a panic

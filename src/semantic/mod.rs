@@ -1,5 +1,6 @@
 pub mod analyzer;
 mod capture_analysis;
+pub mod constraint_validator;
 mod error;
 pub mod memory_safety;
 mod module_loader_integration;
