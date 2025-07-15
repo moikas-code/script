@@ -239,7 +239,7 @@ fn benchmark_code_analysis(c: &mut Criterion) {
     group.bench_function("token_analysis", |b| {
         b.iter(|| {
             // Analyze at token level
-            let lexer = script::Lexer::new(black_box(analysis_source));
+            let lexer = script::Lexer::new(black_box(analysis_source)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             tokens.len() // Simple analysis: count tokens
         })
