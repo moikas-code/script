@@ -156,7 +156,7 @@ fn lower_identifier(lowerer: &mut AstLowerer, name: &str, expr: &Expr) -> Loweri
             })
     } else {
         Err(type_error(
-            format!("Undefined variable: {}", name),
+            format!("Undefined variable: {name}"),
             expr,
             "identifier",
         ))
@@ -865,7 +865,7 @@ fn lower_assign(lowerer: &mut AstLowerer, target: &Expr, value: &Expr) -> Loweri
                 Ok(value_id)
             } else {
                 Err(type_error(
-                    format!("Cannot assign to undefined variable: {}", name),
+                    format!("Cannot assign to undefined variable: {name}"),
                     target,
                     "assignment"
                 ))
@@ -1567,7 +1567,7 @@ fn lower_enum_constructor(
             ("Option", "None") => "Option::none",
             _ => {
                 return Err(runtime_error(
-                    format!("Unknown Result/Option variant: {}", variant),
+                    format!("Unknown Result/Option variant: {variant}"),
                     expr,
                     "enum constructor",
                 ))

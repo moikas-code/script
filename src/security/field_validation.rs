@@ -339,12 +339,12 @@ impl FieldValidator {
             } => Err(SecurityError::InvalidFieldAccess {
                 type_name,
                 field_name,
-                message: format!("Invalid field access in {}", error_context),
+                message: format!("Invalid field access in {error_context}"),
             }),
             _ => Err(SecurityError::InvalidFieldAccess {
                 type_name: type_name.to_string(),
                 field_name: field_name.to_string(),
-                message: format!("Cannot validate field access in {}", error_context),
+                message: format!("Cannot validate field access in {error_context}"),
             }),
         }
     }

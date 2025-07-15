@@ -51,7 +51,7 @@ impl ScriptTcpStream {
                             addr
                         } else {
                             return Err(IoError {
-                                message: format!("Failed to resolve address: {}", addr),
+                                message: format!("Failed to resolve address: {addr}"),
                                 kind: IoErrorKind::InvalidInput,
                                 code: None,
                             });

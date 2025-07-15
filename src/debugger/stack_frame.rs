@@ -235,7 +235,7 @@ impl VariableValue {
                 if n.fract() == 0.0 {
                     format!("{:.0}", n)
                 } else {
-                    format!("{}", n)
+                    format!("{n}")
                 }
             }
             VariableValue::String(s) => format!("\"{}\"", s),
@@ -246,9 +246,9 @@ impl VariableValue {
                     "[]".to_string()
                 } else if arr.len() <= 5 {
                     let items: Vec<String> = arr.iter().map(|v| v.debug_string()).collect();
-                    format!("[{}]", items.join(", ")
+                    format!("[{}]", items.join(", "))
                 } else {
-                    format!("[{} items]", arr.len()
+                    format!("[{} items]", arr.len())
                 }
             }
             VariableValue::Object(obj) => {
@@ -258,7 +258,7 @@ impl VariableValue {
                     format!("{{ {} properties }}", obj.len())
                 }
             }
-            VariableValue::Function(sig) => format!("fn {}", sig),
+            VariableValue::Function(sig) => format!("fn {sig}"),
             VariableValue::Unknown(desc) => format!("<{}>", desc),
         }
     }

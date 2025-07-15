@@ -269,31 +269,31 @@ impl From<std::io::Error> for Error {
 
 impl<T> From<std::sync::PoisonError<T>> for Error {
     fn from(err: std::sync::PoisonError<T>) -> Self {
-        Error::lock_poisoned(format!("Lock poisoned: {}", err))
+        Error::lock_poisoned(format!("Lock poisoned: {err}"))
     }
 }
 
 impl From<std::num::ParseIntError> for Error {
     fn from(err: std::num::ParseIntError) -> Self {
-        Error::invalid_conversion(format!("Failed to parse integer: {}", err))
+        Error::invalid_conversion(format!("Failed to parse integer: {err}"))
     }
 }
 
 impl From<std::num::ParseFloatError> for Error {
     fn from(err: std::num::ParseFloatError) -> Self {
-        Error::invalid_conversion(format!("Failed to parse float: {}", err))
+        Error::invalid_conversion(format!("Failed to parse float: {err}"))
     }
 }
 
 impl From<std::string::FromUtf8Error> for Error {
     fn from(err: std::string::FromUtf8Error) -> Self {
-        Error::invalid_conversion(format!("Invalid UTF-8: {}", err))
+        Error::invalid_conversion(format!("Invalid UTF-8: {err}"))
     }
 }
 
 impl From<std::str::Utf8Error> for Error {
     fn from(err: std::str::Utf8Error) -> Self {
-        Error::invalid_conversion(format!("Invalid UTF-8: {}", err))
+        Error::invalid_conversion(format!("Invalid UTF-8: {err}"))
     }
 }
 

@@ -373,7 +373,7 @@ mod tests {
         // Create a temporary file
         let temp_file = NamedTempFile::new().unwrap();
         let file_path = temp_file.into_temp_path().to_path_buf();
-        let source = format!("// Module {}", name);
+        let source = format!("// Module {name}");
         std::fs::write(&file_path, &source).unwrap();
 
         let metadata = ModuleMetadata::default();

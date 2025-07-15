@@ -131,7 +131,7 @@ impl DistributedNode {
     /// Start listening for incoming connections
     pub fn start_listening(&self) -> Result<(), RuntimeError> {
         let listener = TcpListener::bind(&self.address)
-            .map_err(|e| RuntimeError::InvalidOperation(format!("Failed to bind: {}", e)))?;
+            .map_err(|e| RuntimeError::InvalidOperation(format!("Failed to bind: {e}")))?;
 
         let connections = Arc::clone(&self.connections);
         let pending_tasks = Arc::clone(&self.pending_tasks);
@@ -147,7 +147,7 @@ impl DistributedNode {
                             handle_connection(&mut stream, connections, pending_tasks);
                         });
                     }
-                    Err(e) => eprintln!("Connection failed: {}", e),
+                    Err(e) => eprintln!("Connection failed: {e}"),
                 }
             }
         });
@@ -158,7 +158,7 @@ impl DistributedNode {
     /// Connect to another node
     pub fn connect_to(&self, node_address: &str) -> Result<(), RuntimeError> {
         let stream = TcpStream::connect(node_address)
-            .map_err(|e| RuntimeError::InvalidOperation(format!("Failed to connect: {}", e)))?;
+            .map_err(|e| RuntimeError::InvalidOperation(format!("Failed to connect: {e}")))?;
 
         let mut connections = self.connections.lock().unwrap();
         connections.insert(node_address.to_string(), stream);
@@ -194,12 +194,12 @@ impl DistributedNode {
         let mut connections = self.connections.lock().unwrap();
         if let Some(stream) = connections.get_mut(node_address) {
             let serialized = serde_json::to_vec(&message).map_err(|e| {
-                RuntimeError::InvalidOperation(format!("Serialization error: {}", e))
+                RuntimeError::InvalidOperation(format!("Serialization error: {e}"))
             })?;
 
             stream
                 .write_all(&serialized)
-                .map_err(|e| RuntimeError::InvalidOperation(format!("Write error: {}", e)))?;
+                .map_err(|e| RuntimeError::InvalidOperation(format!("Write error: {e}")))?;
 
             // Track pending task
             let mut pending = self.pending_tasks.lock().unwrap();
@@ -254,10 +254,10 @@ fn handle_connection(
                         _ => {}
                     }
                 }
-                Err(e) => eprintln!("Failed to deserialize message: {}", e),
+                Err(e) => eprintln!("Failed to deserialize message: {e}"),
             }
         }
-        Err(e) => eprintln!("Failed to read from stream: {}", e),
+        Err(e) => eprintln!("Failed to read from stream: {e}"),
     }
 }
 

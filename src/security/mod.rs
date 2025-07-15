@@ -945,7 +945,7 @@ mod tests {
             message: "Test bounds violation".to_string(),
         };
 
-        let display = format!("{}", error);
+        let display = format!("{error}");
         assert!(display.contains("bounds violation"));
         assert!(display.contains("15"));
         assert!(display.contains("10"));

@@ -6,7 +6,7 @@ fn benchmark_parse_expression(c: &mut Criterion) {
 
     c.bench_function("parser_expression", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(source));
+            let lexer = Lexer::new(black_box(source)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             parser.parse_expression()
@@ -42,7 +42,7 @@ fn benchmark_parse_program(c: &mut Criterion) {
 
     c.bench_function("parser_program", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(source));
+            let lexer = Lexer::new(black_box(source)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             parser.parse()
@@ -63,7 +63,7 @@ fn benchmark_parse_deeply_nested(c: &mut Criterion) {
 
     c.bench_function("parser_deeply_nested", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&source));
+            let lexer = Lexer::new(black_box(&source)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             parser.parse_expression()
@@ -74,12 +74,12 @@ fn benchmark_parse_deeply_nested(c: &mut Criterion) {
 fn benchmark_parse_many_statements(c: &mut Criterion) {
     let mut source = String::new();
     for i in 0..100 {
-        source.push_str(format!("let var{} = {i} + {i + 1} * {i + 2}\n", i));
+        source.push_str(&format!("let var{} = {} + {} * {}\n", i, i, i + 1, i + 2));
     }
 
     c.bench_function("parser_many_statements", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&source));
+            let lexer = Lexer::new(black_box(&source)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             parser.parse()

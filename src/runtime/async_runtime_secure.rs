@@ -724,7 +724,7 @@ impl ScriptFuture for Timer {
                 if let Err(e) = get_timer_thread()
                     .and_then(|timer| timer.register(self.deadline, waker.clone()))
                 {
-                    eprintln!("Failed to register timer: {}", e);
+                    eprintln!("Failed to register timer: {e}");
                     // Fall back to immediate ready on error
                     return Poll::Ready(());
                 }
@@ -880,7 +880,7 @@ impl BlockingExecutor {
                 match self.inner.poll(waker) {
                     Poll::Ready(value) => {
                         if let Err(e) = self.result_storage.set_result(value) {
-                            eprintln!("Failed to set result: {}", e);
+                            eprintln!("Failed to set result: {e}");
                         }
                         Poll::Ready(())
                     }
@@ -934,7 +934,7 @@ impl BlockingExecutor {
             .name("script-blocking-executor".to_string())
             .spawn(move || {
                 if let Err(e) = Self::run_until_complete(exec_clone) {
-                    eprintln!("Blocking executor error: {}", e);
+                    eprintln!("Blocking executor error: {e}");
                 }
             })
             .map_err(|_| AsyncRuntimeError::ThreadJoinFailed)?;

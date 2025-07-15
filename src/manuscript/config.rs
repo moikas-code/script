@@ -75,7 +75,7 @@ impl ManuscriptConfig {
 
         let content = std::fs::read_to_string(&config_path)?;
         toml::from_str(&content)
-            .map_err(|e| PackageError::ManifestParse(format!("Invalid config file: {}", e)))
+            .map_err(|e| PackageError::ManifestParse(format!("Invalid config file: {e}")))
     }
 
     /// Save configuration to file
@@ -87,7 +87,7 @@ impl ManuscriptConfig {
         }
 
         let content = toml::to_string_pretty(self).map_err(|e| {
-            PackageError::ManifestParse(format!("Failed to serialize config: {}", e))
+            PackageError::ManifestParse(format!("Failed to serialize config: {e}"))
         })?;
 
         std::fs::write(config_path, content)?;

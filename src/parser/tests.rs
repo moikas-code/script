@@ -1018,14 +1018,14 @@ fn test_module_ast_types() {
     };
 
     // Verify Display implementations work
-    let import_str = format!("{}", import_stmt);
+    let import_str = format!("{import_stmt}");
     assert!(import_str.contains("import"));
     assert!(import_str.contains("React"));
     assert!(import_str.contains("useState"));
     assert!(import_str.contains("* as utils"));
     assert!(import_str.contains("from \"react\""));
 
-    let export_str = format!("{}", export_stmt);
+    let export_str = format!("{export_stmt}");
     assert!(export_str.contains("export"));
     assert!(export_str.contains("foo"));
 }
@@ -1645,7 +1645,7 @@ fn test_parse_type_parameter_patterns() {
     ];
 
     for (type_name, should_be_param) in patterns {
-        let program = parse(&format!("let x: {}", type_name)).unwrap();
+        let program = parse(&format!("let x: {type_name}")).unwrap();
         match &program.statements[0].kind {
             StmtKind::Let { type_ann, .. } => {
                 let type_ann = type_ann.as_ref().unwrap();

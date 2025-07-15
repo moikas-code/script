@@ -58,3 +58,12 @@ Thumbs.db
 # VS Code Extension (moved to separate repo)
 /vscode-script-extension/
 simple_perf_test
+
+# MCP configuration (contains API keys)
+.mcp.json
+*.mcp.json
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local

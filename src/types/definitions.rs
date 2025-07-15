@@ -182,8 +182,8 @@ fn mangle_type(ty: &Type) -> String {
         Type::Result { ok, err } => format!("result_{}_{}", mangle_type(ok), mangle_type(err)),
         Type::Future(inner) => format!("future_{}", mangle_type(inner)),
         Type::Named(name) => name.replace("::", "_"),
-        Type::TypeVar(id) => format!("var{}", id),
-        Type::TypeParam(name) => format!("param_{}", name),
+        Type::TypeVar(id) => format!("var{id}"),
+        Type::TypeParam(name) => format!("param_{name}"),
         Type::Generic { name, args } => {
             let mut result = name.clone();
             if !args.is_empty() {

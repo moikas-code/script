@@ -231,7 +231,7 @@ impl From<ModuleError> for Error {
 
 impl From<std::io::Error> for ModuleError {
     fn from(error: std::io::Error) -> Self {
-        ModuleError::new(ModuleErrorKind::FileSystem, format!("I/O error: {}", error))
+        ModuleError::new(ModuleErrorKind::FileSystem, format!("I/O error: {error}"))
     }
 }
 

@@ -1,0 +1,56 @@
+# Maintainer: Warren Gates <moikapy@devmoi.com>
+pkgname=script-lang
+pkgver=0.5.0alpha
+pkgrel=1
+pkgdesc='A simple yet powerful programming language for web applications and games'
+url='https://github.com/moikapy/script'
+license=('MIT')
+arch=('x86_64')
+makedepends=('cargo' 'git')
+depends=()
+provides=('script')
+conflicts=('script')
+source=("$pkgname-$pkgver::git+https://github.com/moikapy/script.git#tag=v$pkgver")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo build --frozen --release --all-features
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo test --frozen --all-features
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    
+    # Install main binaries
+    install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/script"
+    install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/script-lang"
+    install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/script-lsp"
+    install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/manuscript"
+    install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/script-debug"
+    install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/script-test"
+    
+    # Install MCP binary if built
+    if [[ -f "target/release/script-mcp" ]]; then
+        install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/script-mcp"
+    fi
+    
+    # Install license
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    
+    # Install documentation
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

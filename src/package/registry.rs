@@ -93,7 +93,7 @@ impl RegistryClient {
             "GET" => {
                 if let Some(ref token) = self.auth_token {
                     let mut headers = HashMap::new();
-                    headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+                    headers.insert("Authorization".to_string(), format!("Bearer {token}"));
                     self.client.get_with_headers(url, headers)
                 } else {
                     self.client.get(url)
@@ -127,23 +127,23 @@ impl PackageRegistry for RegistryClient {
         ));
 
         if let Some(limit) = limit {
-            url.push_str(&format!("&limit={}", limit));
+            url.push_str(&format!("&limit={limit}"));
         }
 
         let response_data = self.make_request("GET", &url, None)?;
         let response: SearchResponse = serde_json::from_slice(&response_data).map_err(|e| {
-            PackageError::Registry(format!("Failed to parse search response: {}", e))
+            PackageError::Registry(format!("Failed to parse search response: {e}"))
         })?;
 
         Ok(response.packages)
     }
 
     fn get_package_info(&self, name: &str) -> PackageResult<PackageInfo> {
-        let url = self.build_url(&format!("/api/v1/packages/{}", name));
+        let url = self.build_url(&format!("/api/v1/packages/{name}"));
         let response_data = self.make_request("GET", &url, None)?;
 
         let package_info: PackageInfo = serde_json::from_slice(&response_data)
-            .map_err(|e| PackageError::Registry(format!("Failed to parse package info: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to parse package info: {e}")))?;
 
         Ok(package_info)
     }
@@ -153,7 +153,7 @@ impl PackageRegistry for RegistryClient {
         let response_data = self.make_request("GET", &url, None)?;
 
         let metadata: PackageMetadata = serde_json::from_slice(&response_data)
-            .map_err(|e| PackageError::Registry(format!("Failed to parse metadata: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to parse metadata: {e}")))?;
 
         Ok(metadata)
     }
@@ -163,7 +163,7 @@ impl PackageRegistry for RegistryClient {
         let response_data = self.make_request("GET", &url, None)?;
 
         let response: VersionsResponse = serde_json::from_slice(&response_data)
-            .map_err(|e| PackageError::Registry(format!("Failed to parse versions: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to parse versions: {e}")))?;
 
         let versions: Result<Vec<_>, _> = response
             .versions
@@ -171,7 +171,7 @@ impl PackageRegistry for RegistryClient {
             .map(|v| Version::parse(v))
             .collect();
 
-        versions.map_err(|e| PackageError::Registry(format!("Invalid version format: {}", e)))
+        versions.map_err(|e| PackageError::Registry(format!("Invalid version format: {e}")))
     }
 
     fn download_package(&self, name: &str, version: &str) -> PackageResult<Vec<u8>> {
@@ -193,7 +193,7 @@ impl PackageRegistry for RegistryClient {
         };
 
         let request_body = serde_json::to_vec(&publish_request).map_err(|e| {
-            PackageError::Registry(format!("Failed to serialize publish request: {}", e))
+            PackageError::Registry(format!("Failed to serialize publish request: {e}"))
         })?;
 
         // Temporarily set auth token for this request
@@ -207,7 +207,7 @@ impl PackageRegistry for RegistryClient {
         let response_data = client.make_request("POST", &url, Some(&request_body))?;
 
         let result: PublishResult = serde_json::from_slice(&response_data).map_err(|e| {
-            PackageError::Registry(format!("Failed to parse publish result: {}", e))
+            PackageError::Registry(format!("Failed to parse publish result: {e}"))
         })?;
 
         Ok(result)
@@ -228,7 +228,7 @@ impl PackageRegistry for RegistryClient {
         let response_data = self.make_request("GET", &url, None)?;
 
         let stats: DownloadStats = serde_json::from_slice(&response_data)
-            .map_err(|e| PackageError::Registry(format!("Failed to parse stats: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to parse stats: {e}")))?;
 
         Ok(stats)
     }

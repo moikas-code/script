@@ -168,7 +168,7 @@ pub fn time_now_millis_impl(_args: &[ScriptValue]) -> RuntimeResult<ScriptValue>
 pub fn time_unix_impl(_args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| RuntimeError::InvalidOperation(format!("Time error: {}", e)))?;
+        .map_err(|e| RuntimeError::InvalidOperation(format!("Time error: {e}")))?;
     Ok(ScriptValue::F32(duration.as_secs_f32()))
 }
 
@@ -176,7 +176,7 @@ pub fn time_unix_impl(_args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
 pub fn time_unix_millis_impl(_args: &[ScriptValue]) -> RuntimeResult<ScriptValue> {
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| RuntimeError::InvalidOperation(format!("Time error: {}", e)))?;
+        .map_err(|e| RuntimeError::InvalidOperation(format!("Time error: {e}")))?;
     Ok(ScriptValue::F32(duration.as_millis() as f32))
 }
 

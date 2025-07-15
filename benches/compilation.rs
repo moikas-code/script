@@ -1,22 +1,22 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::hint::black_box;
 use script::{
     AstLowerer, CodeGenerator, InferenceEngine, Lexer, Parser, Runtime, RuntimeConfig,
-    SemanticAnalyzer, SymbolTable,
+    SemanticAnalyzer,
 };
-use std::collections::HashMap;
-use std::fs;
 
 /// Helper functions to create proper API calls with required parameters
 mod helpers {
     use super::*;
-    use script::{SymbolTable, Type};
+    use script::SymbolTable;
+    use script::types::Type;
     use std::collections::HashMap;
 
     /// Create a new AstLowerer with required parameters
     pub fn create_ast_lowerer() -> AstLowerer {
         let symbol_table = SymbolTable::new();
         let type_info: HashMap<usize, Type> = HashMap::new();
-        AstLowerer::new(symbol_table, type_info, Vec::new())
+        AstLowerer::new(symbol_table, type_info, Vec::new(), HashMap::new())
     }
 
     /// Simplified compilation pipeline that handles API properly
@@ -24,7 +24,7 @@ mod helpers {
         source: &str,
     ) -> Result<script::ExecutableModule, Box<dyn std::error::Error>> {
         // Lexing
-        let lexer = Lexer::new(source);
+        let lexer = Lexer::new(source)?;
         let (tokens, lex_errors) = lexer.scan_tokens();
         if !lex_errors.is_empty() {
             return Err("Lexer errors".into());
@@ -94,7 +94,7 @@ fn benchmark_compilation_stages(c: &mut Criterion) {
     let source = include_str!("fixtures/large_program.script");
 
     // Pre-compute tokens for parser benchmark
-    let lexer = Lexer::new(source);
+    let lexer = Lexer::new(source).expect("Failed to create lexer");
     let (tokens, _) = lexer.scan_tokens();
 
     // Pre-compute AST for semantic analysis
@@ -118,7 +118,7 @@ fn benchmark_compilation_stages(c: &mut Criterion) {
     // Lexing stage
     group.bench_function("lexing", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(source));
+            let lexer = Lexer::new(black_box(source)).expect("Failed to create lexer");
             lexer.scan_tokens()
         })
     });
@@ -179,7 +179,7 @@ fn benchmark_incremental_compilation(c: &mut Criterion) {
 
     group.bench_function("full_recompilation", |b| {
         b.iter(|| {
-            let lexer = Lexer::new(black_box(&modified_source));
+            let lexer = Lexer::new(black_box(&modified_source)).expect("Failed to create lexer");
             let (tokens, _) = lexer.scan_tokens();
             let mut parser = Parser::new(tokens);
             let program = parser.parse().unwrap();
@@ -201,7 +201,6 @@ fn benchmark_incremental_compilation(c: &mut Criterion) {
 /// Benchmark parallel compilation of multiple modules
 fn benchmark_parallel_compilation(c: &mut Criterion) {
     use crossbeam::thread;
-    use std::sync::Arc;
 
     let sources = vec![
         include_str!("fixtures/fibonacci_recursive.script"),
@@ -216,7 +215,7 @@ fn benchmark_parallel_compilation(c: &mut Criterion) {
     group.bench_function("sequential", |b| {
         b.iter(|| {
             for source in &sources {
-                let lexer = Lexer::new(black_box(source));
+                let lexer = Lexer::new(black_box(source)).expect("Failed to create lexer");
                 let (tokens, _) = lexer.scan_tokens();
                 let mut parser = Parser::new(tokens);
                 let _ = parser.parse();
@@ -232,7 +231,7 @@ fn benchmark_parallel_compilation(c: &mut Criterion) {
                     .iter()
                     .map(|source| {
                         s.spawn(move |_| {
-                            let lexer = Lexer::new(black_box(source));
+                            let lexer = Lexer::new(black_box(source)).expect("Failed to create lexer");
                             let (tokens, _) = lexer.scan_tokens();
                             let mut parser = Parser::new(tokens);
                             parser.parse()

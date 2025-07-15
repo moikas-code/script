@@ -5,6 +5,7 @@
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module};
+use target_lexicon::Triple;
 
 use crate::codegen::debug::{DebugContext, DebugFlags};
 use crate::error::{Error, ErrorKind};
@@ -49,7 +50,7 @@ impl CraneliftBackend {
         use cranelift::codegen::isa;
 
         // Get the native target
-        let target_isa = isa::lookup(target_lexicon::HOST)
+        let target_isa = isa::lookup(Triple::host())
             .expect("Failed to lookup native target")
             .finish(cranelift::codegen::settings::Flags::new(
                 cranelift::codegen::settings::builder(),
@@ -139,7 +140,7 @@ impl CraneliftBackend {
         self.module.finalize_definitions().map_err(|e| {
             Error::new(
                 ErrorKind::RuntimeError,
-                format!("Failed to finalize module: {}", e),
+                format!("Failed to finalize module: {e}"),
             )
         })?;
 
@@ -160,7 +161,7 @@ impl CraneliftBackend {
                 .map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Failed to declare runtime function script_print: {}", e),
+                        format!("Failed to declare runtime function script_print: {e}"),
                     )
                 })?;
 
@@ -179,7 +180,7 @@ impl CraneliftBackend {
                 .map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Failed to declare runtime function script_alloc: {}", e),
+                        format!("Failed to declare runtime function script_alloc: {e}"),
                     )
                 })?;
 
@@ -197,7 +198,7 @@ impl CraneliftBackend {
                 .map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Failed to declare runtime function script_free: {}", e),
+                        format!("Failed to declare runtime function script_free: {e}"),
                     )
                 })?;
 
@@ -216,7 +217,7 @@ impl CraneliftBackend {
                 .map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Failed to declare runtime function script_panic: {}", e),
+                        format!("Failed to declare runtime function script_panic: {e}"),
                     )
                 })?;
 
@@ -239,7 +240,7 @@ impl CraneliftBackend {
             .map_err(|e| {
                 Error::new(
                     ErrorKind::RuntimeError,
-                    format!("Failed to declare function: {}", e),
+                    format!("Failed to declare function: {e}"),
                 )
             })?;
 
@@ -306,7 +307,7 @@ impl CraneliftBackend {
             .map_err(|e| {
                 Error::new(
                     ErrorKind::RuntimeError,
-                    format!("Failed to compile function: {}", e),
+                    format!("Failed to compile function: {e}"),
                 )
             })?;
 
@@ -338,7 +339,7 @@ impl CodegenBackend for CraneliftBackend {
         // For simplicity, create a new empty module
         let empty_module = {
             use cranelift::codegen::isa;
-            let target_isa = isa::lookup(target_lexicon::HOST)
+            let target_isa = isa::lookup(Triple::host())
                 .expect("Failed to lookup native target")
                 .finish(cranelift::codegen::settings::Flags::new(
                     cranelift::codegen::settings::builder(),

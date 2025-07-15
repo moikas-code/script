@@ -129,7 +129,7 @@ impl BoundsChecker {
             ));
         }
 
-        let error_msg = format!("Array index out of bounds in {}", error_context);
+        let error_msg = format!("Array index out of bounds in {error_context}");
 
         // Try to extract array length from type information
         let length = self.extract_array_length(array_type);
@@ -243,7 +243,7 @@ impl BoundsChecker {
                     return Err(SecurityError::BoundsViolation {
                         array_size,
                         index,
-                        message: format!("Bounds violation in {}", error_context),
+                        message: format!("Bounds violation in {error_context}"),
                     });
                 }
             }
@@ -289,7 +289,7 @@ impl BoundsChecker {
             Err(SecurityError::BoundsViolation {
                 array_size,
                 index,
-                message: format!("Bounds violation in {}", error_context),
+                message: format!("Bounds violation in {error_context}"),
             })
         }
     }

@@ -89,7 +89,7 @@ impl MethodDispatcher {
 
         // Look up the method
         let methods = self.methods.get(type_name).ok_or_else(|| {
-            RuntimeError::InvalidOperation(format!("No methods registered for type {}", type_name))
+            RuntimeError::InvalidOperation(format!("No methods registered for type {type_name}"))
         })?;
 
         let method = methods.get(method_name).ok_or_else(|| {

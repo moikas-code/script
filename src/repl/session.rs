@@ -65,7 +65,7 @@ impl Session {
                             println!("Loaded session with {} items", self.item_count());
                         }
                         Err(e) => {
-                            eprintln!("Warning: Failed to parse session file: {}", e);
+                            eprintln!("Warning: Failed to parse session file: {e}");
                             // Don't fail completely, just use empty session
                         }
                     }
@@ -143,7 +143,7 @@ impl Session {
     /// Deserialize session state from JSON
     fn deserialize_session(&mut self, content: &str) -> Result<(), String> {
         let json: serde_json::Value =
-            serde_json::from_str(content).map_err(|e| format!("JSON parse error: {}", e))?;
+            serde_json::from_str(content).map_err(|e| format!("JSON parse error: {e}"))?;
 
         if let Some(obj) = json.as_object() {
             // Check version compatibility
@@ -166,7 +166,7 @@ impl Session {
     }
 
     /// Define a variable in the session
-    pub fn define_variable(&mut self, name: String, value: Value, var_type: Type) {
+    pub fn define_variable(&mut self, name: String, value: Value, _var_type: Type) {
         self.variables.insert(name.clone(), value);
 
         // Also add to symbol table for type checking
@@ -300,19 +300,19 @@ impl Session {
 
         for name in self.variables.keys() {
             if !all_names.insert(name) {
-                return Err(format!("Duplicate definition: {}", name));
+                return Err(format!("Duplicate definition: {name}"));
             }
         }
 
         for name in self.functions.keys() {
             if !all_names.insert(name) {
-                return Err(format!("Duplicate definition: {}", name));
+                return Err(format!("Duplicate definition: {name}"));
             }
         }
 
         for name in self.types.keys() {
             if !all_names.insert(name) {
-                return Err(format!("Duplicate definition: {}", name));
+                return Err(format!("Duplicate definition: {name}"));
             }
         }
 
@@ -335,10 +335,10 @@ mod tests {
     fn test_session_variables() {
         let mut session = Session::new();
 
-        session.define_variable("x".to_string(), Value::Number(42.0), Type::Number);
+        session.define_variable("x".to_string(), Value::I32(42), Type::I32);
 
         assert!(session.is_defined("x"));
-        assert_eq!(session.get_variable("x"), Some(&Value::Integer(42)));
+        assert_eq!(session.get_variable("x"), Some(&Value::I32(42)));
         assert_eq!(session.variables().len(), 1);
     }
 
@@ -346,7 +346,7 @@ mod tests {
     fn test_session_clear() {
         let mut session = Session::new();
 
-        session.define_variable("x".to_string(), Value::Number(42.0), Type::Number);
+        session.define_variable("x".to_string(), Value::I32(42), Type::I32);
         session.define_type("MyType".to_string(), Type::String);
 
         assert_eq!(session.item_count(), 2);
@@ -360,7 +360,7 @@ mod tests {
     fn test_session_remove() {
         let mut session = Session::new();
 
-        session.define_variable("x".to_string(), Value::Number(42.0), Type::Number);
+        session.define_variable("x".to_string(), Value::I32(42), Type::I32);
         assert!(session.is_defined("x"));
 
         assert!(session.remove("x"));
@@ -384,7 +384,7 @@ mod tests {
     fn test_session_summary() {
         let mut session = Session::new();
 
-        session.define_variable("x".to_string(), Value::Number(42.0), Type::Number);
+        session.define_variable("x".to_string(), Value::I32(42), Type::I32);
         session.define_type("MyType".to_string(), Type::String);
 
         let summary = session.summary();

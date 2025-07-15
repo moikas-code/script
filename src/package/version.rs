@@ -238,11 +238,11 @@ impl Prerelease {
     fn to_semver_prerelease(&self) -> semver::Prerelease {
         let s = match self {
             Self::Alpha(0) => "alpha".to_string(),
-            Self::Alpha(n) => format!("alpha.{}", n),
+            Self::Alpha(n) => format!("alpha.{n}"),
             Self::Beta(0) => "beta".to_string(),
-            Self::Beta(n) => format!("beta.{}", n),
+            Self::Beta(n) => format!("beta.{n}"),
             Self::Rc(0) => "rc".to_string(),
-            Self::Rc(n) => format!("rc.{}", n),
+            Self::Rc(n) => format!("rc.{n}"),
             Self::Custom(s) => s.clone(),
         };
         semver::Prerelease::new(&s).unwrap()

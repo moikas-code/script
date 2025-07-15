@@ -208,7 +208,7 @@ impl ClosureDebugger {
                 .iter()
                 .enumerate()
                 .map(|(i, (_name, value))| {
-                    (format!("capture_{}", i), self.value_to_debug_value(value))
+                    (format!("capture_{i}"), self.value_to_debug_value(value))
                 })
                 .collect(),
             super::capture_storage::CaptureStorage::HashMap(map) => map
@@ -367,7 +367,7 @@ pub fn get_closure_debugger() -> Option<&'static mut ClosureDebugger> {
 pub fn debug_print_closure_state(function_id: &str) {
     if let Some(debugger) = get_closure_debugger() {
         if let Some(info) = debugger.get_closure_info(function_id) {
-            println!("{}", info);
+            println!("{info}");
         } else {
             println!("Closure '{}' not found in debugger", function_id);
         }
@@ -383,7 +383,7 @@ pub fn debug_print_full_report() {
 
         println!("\n=== Individual Closure Details ===");
         for info in debugger.list_closures() {
-            println!("{}", info);
+            println!("{info}");
         }
     } else {
         println!("Closure debugger not initialized");

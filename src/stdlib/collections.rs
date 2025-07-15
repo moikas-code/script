@@ -979,9 +979,9 @@ impl ScriptHashSet {
     /// Convert a ScriptValue to a string key for hashing
     fn value_to_key(&self, value: &ScriptValue) -> crate::error::Result<String> {
         match value {
-            ScriptValue::I32(i) => Ok(format!("i32:{}", i)),
-            ScriptValue::F32(f) => Ok(format!("f32:{}", f)),
-            ScriptValue::Bool(b) => Ok(format!("bool:{}", b)),
+            ScriptValue::I32(i) => Ok(format!("i32:{i}")),
+            ScriptValue::F32(f) => Ok(format!("f32:{f}")),
+            ScriptValue::Bool(b) => Ok(format!("bool:{b}")),
             ScriptValue::String(s) => Ok(format!("string:{}", s.as_str())),
             ScriptValue::Unit => Ok("unit".to_string()),
             _ => Err(crate::error::Error::type_error(format!(

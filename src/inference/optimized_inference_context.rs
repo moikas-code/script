@@ -87,7 +87,7 @@ impl OptimizedInferenceContext {
                     if let Err(err) = self.union_find.unify_types(&t1_resolved, &t2_resolved) {
                         return Err(Error::new(
                             ErrorKind::TypeError,
-                            format!("Type unification failed: {}", err),
+                            format!("Type unification failed: {err}"),
                         )
                         .with_location(constraint.span.start));
                     }

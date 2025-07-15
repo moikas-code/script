@@ -85,7 +85,7 @@ impl TokioBridge {
         let runtime = builder.build().map_err(|e| {
             Error::new(
                 ErrorKind::RuntimeError,
-                format!("Failed to create Tokio runtime: {}", e),
+                format!("Failed to create Tokio runtime: {e}"),
             )
         })?;
 

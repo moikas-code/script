@@ -359,7 +359,7 @@ impl InferenceEngine {
                 } else {
                     return Err(Error::new(
                         ErrorKind::TypeError,
-                        format!("Undefined variable: {}", name),
+                        format!("Undefined variable: {name}"),
                     )
                     .with_location(expr.span.start));
                 }
@@ -839,7 +839,7 @@ impl InferenceEngine {
                         // For non-enum types, this pattern is not compatible
                         Err(Error::new(
                             ErrorKind::TypeError,
-                            format!("Enum pattern cannot match non-enum type {}", expected_type),
+                            format!("Enum pattern cannot match non-enum type {expected_type}"),
                         ))
                     }
                 }

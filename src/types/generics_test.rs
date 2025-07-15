@@ -83,7 +83,7 @@ mod tests {
             .with_bound(TraitBound::builtin(BuiltinTrait::Clone, test_span()));
         
         let params = GenericParams::new(vec![param1, param2], test_span());
-        let display = format!("{}", params));
+        let display = format!("{params}"));
         assert_eq!(display, "<T: Eq, U: Ord + Clone>");
     }
 

@@ -737,7 +737,7 @@ impl FunctionComposition {
 
         for (i, arg) in partial_args.iter().enumerate() {
             captured_vars.push((
-                format!("partial_arg_{}", i),
+                format!("partial_arg_{i}"),
                 script_value_to_runtime_value(arg)?,
             ));
         }
@@ -1671,7 +1671,7 @@ pub(crate) fn closure_serialize_binary_impl(
         ScriptValue::Closure(closure) => {
             use crate::runtime::closure::serialize_closure_binary;
             let serialized = serialize_closure_binary(closure).map_err(|e| {
-                RuntimeError::InvalidOperation(format!("Serialization failed: {}", e))
+                RuntimeError::InvalidOperation(format!("Serialization failed: {e}"))
             })?;
 
             // Return serialized data as a byte array (represented as Vec<I32>)
@@ -1710,12 +1710,12 @@ pub(crate) fn closure_serialize_json_impl(
         ScriptValue::Closure(closure) => {
             use crate::runtime::closure::serialize_closure_json;
             let serialized = serialize_closure_json(closure).map_err(|e| {
-                RuntimeError::InvalidOperation(format!("JSON serialization failed: {}", e))
+                RuntimeError::InvalidOperation(format!("JSON serialization failed: {e}"))
             })?;
 
             // Convert bytes to string
             let json_string = String::from_utf8(serialized.data)
-                .map_err(|e| RuntimeError::InvalidOperation(format!("Invalid UTF-8: {}", e)))?;
+                .map_err(|e| RuntimeError::InvalidOperation(format!("Invalid UTF-8: {e}")))?;
 
             Ok(ScriptValue::String(ScriptRc::new(
                 crate::stdlib::string::ScriptString::new(json_string),
@@ -1746,7 +1746,7 @@ pub(crate) fn closure_serialize_compact_impl(
         ScriptValue::Closure(closure) => {
             use crate::runtime::closure::serialize_closure_compact;
             let serialized = serialize_closure_compact(closure).map_err(|e| {
-                RuntimeError::InvalidOperation(format!("Compact serialization failed: {}", e))
+                RuntimeError::InvalidOperation(format!("Compact serialization failed: {e}"))
             })?;
 
             // Return serialized data as a byte array (represented as Vec<I32>)
@@ -1957,7 +1957,7 @@ pub fn closure_serialize_json(closure: &Value) -> Result<String> {
             use crate::runtime::closure::serialize_closure_json;
             let serialized = serialize_closure_json(c)?;
             String::from_utf8(serialized.data)
-                .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {}", e)))
+                .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {e}")))
         }
         _ => Err(Error::new(ErrorKind::TypeError, "Expected a closure")),
     }

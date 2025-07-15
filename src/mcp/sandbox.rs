@@ -238,7 +238,7 @@ impl SandboxedAnalyzer {
         // Check file extension if provided
         if let Some(path) = file_path {
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                let ext_with_dot = format!(".{}", ext);
+                let ext_with_dot = format!(".{ext}");
                 if !self.config.allowed_extensions.contains(&ext_with_dot) {
                     return Err(SandboxError::InvalidExtension {
                         extension: ext_with_dot,
@@ -355,7 +355,7 @@ impl SandboxedAnalyzer {
 
             let (tokens, errors) = lexer.scan_tokens();
             let has_errors = !errors.is_empty();
-            let error_messages: Vec<String> = errors.iter().map(|e| format!("{}", e)).collect();
+            let error_messages: Vec<String> = errors.iter().map(|e| format!("{e}")).collect();
 
             let token_strings: Vec<String> = tokens.iter().map(|t| format!("{:?}", t)).collect();
 
@@ -401,7 +401,7 @@ impl SandboxedAnalyzer {
 
             // Add lexer errors
             for error in &lexer_errors {
-                error_messages.push(format!("{}", error));
+                error_messages.push(format!("{error}"));
             }
 
             let (ast_summary, node_count) = match program_result {
@@ -423,7 +423,7 @@ impl SandboxedAnalyzer {
                 }
                 Err(parse_error) => {
                     has_errors = true;
-                    error_messages.push(format!("{}", parse_error));
+                    error_messages.push(format!("{parse_error}"));
                     ("Failed to parse".to_string(), 0)
                 }
             };
@@ -465,12 +465,12 @@ impl SandboxedAnalyzer {
 
             // Add lexer errors
             for error in &lexer_errors {
-                error_messages.push(format!("{}", error));
+                error_messages.push(format!("{error}"));
             }
 
             if let Err(ref error) = analysis_result {
                 has_errors = true;
-                error_messages.push(format!("{}", error));
+                error_messages.push(format!("{error}"));
             }
 
             let (type_info, symbol_count) = match analysis_result {

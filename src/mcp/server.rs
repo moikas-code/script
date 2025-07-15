@@ -147,8 +147,8 @@ impl MCPServer {
         // Create security session
         let session_context = self
             .security_manager
-            .create_session(Some(format!("{}@{}", client_name, client_version)))
-            .map_err(|e| ScriptError::runtime(format!("Failed to create session: {}", e)))?;
+            .create_session(Some(format!("{}@{client_name, client_version}")))
+            .map_err(|e| ScriptError::runtime(format!("Failed to create session: {e}")))?;
 
         // Store session
         {
@@ -212,7 +212,7 @@ impl MCPServer {
         let tools = self.tools.read().unwrap();
         let tool = tools
             .get(tool_name)
-            .ok_or_else(|| ScriptError::runtime(format!("Unknown tool: {}", tool_name)))?;
+            .ok_or_else(|| ScriptError::runtime(format!("Unknown tool: {tool_name}")))?;
 
         drop(tools); // Release lock before potentially long analysis
 
@@ -319,7 +319,7 @@ impl MCPServer {
             result: None,
             error: Some(json!({
                 "code": -32601,
-                "message": format!("Method not found: {}", method_name)
+                "message": format!("Method not found: {method_name}")
             })),
         })
     }
@@ -375,7 +375,7 @@ impl MCPServer {
             "script_semantic" => self.execute_script_semantic(code, arguments),
             "script_quality" => self.execute_script_quality(code, arguments),
             "script_dependencies" => self.execute_script_dependencies(code, arguments),
-            _ => Err(ScriptError::runtime(format!("Unknown tool: {}", tool_name))),
+            _ => Err(ScriptError::runtime(format!("Unknown tool: {tool_name}"))),
         }
     }
 
@@ -389,27 +389,27 @@ impl MCPServer {
         let lexical = self
             .analyzer
             .analyze_lexical(code)
-            .map_err(|e| ScriptError::runtime(format!("Lexical analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Lexical analysis failed: {e}")))?;
 
         let parse = self
             .analyzer
             .analyze_parse(code)
-            .map_err(|e| ScriptError::runtime(format!("Parse analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Parse analysis failed: {e}")))?;
 
         let semantic = self
             .analyzer
             .analyze_semantic(code)
-            .map_err(|e| ScriptError::runtime(format!("Semantic analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Semantic analysis failed: {e}")))?;
 
         let quality = self
             .analyzer
             .analyze_quality(code)
-            .map_err(|e| ScriptError::runtime(format!("Quality analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Quality analysis failed: {e}")))?;
 
         let dependencies = self
             .analyzer
             .analyze_dependencies(code)
-            .map_err(|e| ScriptError::runtime(format!("Dependency analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Dependency analysis failed: {e}")))?;
 
         Ok(ToolResult {
             content: vec![json!({
@@ -434,13 +434,13 @@ impl MCPServer {
     ) -> ScriptResult<ToolResult> {
         // Parse the code
         let lexer =
-            Lexer::new(code).map_err(|e| ScriptError::runtime(format!("Lexer error: {}", e)))?;
+            Lexer::new(code).map_err(|e| ScriptError::runtime(format!("Lexer error: {e}")))?;
         let (tokens, lex_errors) = lexer.scan_tokens();
 
         if !lex_errors.is_empty() {
             let error_msg = lex_errors
                 .iter()
-                .map(|e| format!("{}", e))
+                .map(|e| format!("{e}"))
                 .collect::<Vec<_>>()
                 .join("\n");
             return Ok(ToolResult {
@@ -487,12 +487,12 @@ impl MCPServer {
         let result = self
             .analyzer
             .analyze_lexical(code)
-            .map_err(|e| ScriptError::runtime(format!("Lexical analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Lexical analysis failed: {e}")))?;
 
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Lexical Analysis\n\n{}", Self::format_analysis_result(&result))
+                "text": format!("# Lexical Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })
@@ -507,12 +507,12 @@ impl MCPServer {
         let result = self
             .analyzer
             .analyze_parse(code)
-            .map_err(|e| ScriptError::runtime(format!("Parse analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Parse analysis failed: {e}")))?;
 
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Parse Analysis\n\n{}", Self::format_analysis_result(&result))
+                "text": format!("# Parse Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })
@@ -527,12 +527,12 @@ impl MCPServer {
         let result = self
             .analyzer
             .analyze_semantic(code)
-            .map_err(|e| ScriptError::runtime(format!("Semantic analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Semantic analysis failed: {e}")))?;
 
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Semantic Analysis\n\n{}", Self::format_analysis_result(&result))
+                "text": format!("# Semantic Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })
@@ -547,12 +547,12 @@ impl MCPServer {
         let result = self
             .analyzer
             .analyze_quality(code)
-            .map_err(|e| ScriptError::runtime(format!("Quality analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Quality analysis failed: {e}")))?;
 
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Code Quality Analysis\n\n{}", Self::format_analysis_result(&result))
+                "text": format!("# Code Quality Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })
@@ -567,12 +567,12 @@ impl MCPServer {
         let result = self
             .analyzer
             .analyze_dependencies(code)
-            .map_err(|e| ScriptError::runtime(format!("Dependency analysis failed: {}", e)))?;
+            .map_err(|e| ScriptError::runtime(format!("Dependency analysis failed: {e}")))?;
 
         Ok(ToolResult {
             content: vec![json!({
                 "type": "text",
-                "text": format!("# Dependency Analysis\n\n{}", Self::format_analysis_result(&result))
+                "text": format!("# Dependency Analysis\n\n{}", Self::format_analysis_result(&result)))
             })],
             is_error: false,
         })
@@ -649,7 +649,7 @@ impl MCPServer {
             } => {
                 format!("**Complexity Score:** {:.1}/100\n**Maintainability Score:** {:.1}/100\n**Security Score:** {:.1}/100\n**Suggestions:**\n{}\n",
                     complexity_score, maintainability_score, security_score,
-                    suggestions.iter().map(|s| format!("  - {}", s)).collect::<Vec<_>>().join("\n"))
+                    suggestions.iter().map(|s| format!("  - {s}")).collect::<Vec<_>>().join("\n"))
             }
             AnalysisResult::Dependencies {
                 imports,
@@ -696,7 +696,7 @@ impl MCPServer {
                 .security_manager
                 .create_session(Some("temporary".to_string()))
                 .map_err(|e| {
-                    ScriptError::runtime(format!("Failed to create temporary session: {}", e))
+                    ScriptError::runtime(format!("Failed to create temporary session: {e}"))
                 })?;
             return Ok(temp_session);
         }
@@ -708,7 +708,7 @@ impl MCPServer {
         // Validate session with security manager
         self.security_manager
             .validate_session(session.session_id)
-            .map_err(|e| ScriptError::runtime(format!("Session validation failed: {}", e)))
+            .map_err(|e| ScriptError::runtime(format!("Session validation failed: {e}")))
     }
 
     /// Create server capabilities

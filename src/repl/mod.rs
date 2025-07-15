@@ -384,7 +384,7 @@ impl EnhancedRepl {
                 }
             }
             Err(error) => {
-                println!("{}", error);
+                println!("{error}");
             }
         }
     }
@@ -392,7 +392,7 @@ impl EnhancedRepl {
     /// Compile and run input, updating session state
     fn compile_and_run(&mut self, source: &str) -> Result<Option<Value>, String> {
         // Tokenize
-        let lexer = Lexer::new(source).map_err(|e| format!("Lexer error: {}", e))?;
+        let lexer = Lexer::new(source).map_err(|e| format!("Lexer error: {e}"))?;
         let (tokens, lex_errors) = lexer.scan_tokens();
 
         if !lex_errors.is_empty() {
@@ -405,7 +405,7 @@ impl EnhancedRepl {
 
         // Parse
         let mut parser = Parser::new(tokens);
-        let program = parser.parse().map_err(|e| format!("Parse error: {}", e))?;
+        let program = parser.parse().map_err(|e| format!("Parse error: {e}"))?;
 
         // Enhanced semantic analysis with session state
         let analyzer = self.analyze_with_session(&program)?;
@@ -433,7 +433,7 @@ impl EnhancedRepl {
         // Analyze the program
         analyzer
             .analyze_program(program)
-            .map_err(|e| format!("Semantic error: {}", e))?;
+            .map_err(|e| format!("Semantic error: {e}"))?;
 
         Ok(analyzer)
     }
@@ -560,7 +560,7 @@ impl EnhancedRepl {
                 if let Some(value) = self.session.get_variable(name) {
                     Ok(Some(value.clone()))
                 } else {
-                    Err(format!("Undefined variable: {}", name))
+                    Err(format!("Undefined variable: {name}"))
                 }
             }
             crate::parser::ExprKind::Binary { left, op, right } => {
@@ -622,7 +622,7 @@ impl EnhancedRepl {
         // This is a simplified implementation
         // In practice, we'd need to properly handle parameter types and defaults
         Ok(crate::semantic::FunctionSignature {
-            generic_params: None,
+            generic_params: Vec::new(),
             params: params
                 .iter()
                 .map(|param| {
@@ -756,7 +756,7 @@ impl EnhancedRepl {
                 }
             }
             Err(error) => {
-                println!("Lexer error: {}", error);
+                println!("Lexer error: {error}");
             }
         }
     }
@@ -783,12 +783,12 @@ impl EnhancedRepl {
                         println!("{:#?}", program);
                     }
                     Err(error) => {
-                        println!("Parse error: {}", error);
+                        println!("Parse error: {error}");
                     }
                 }
             }
             Err(error) => {
-                println!("Lexer error: {}", error);
+                println!("Lexer error: {error}");
             }
         }
     }

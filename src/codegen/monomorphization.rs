@@ -505,8 +505,8 @@ impl MonomorphizationContext {
                     format!("{}_{}", name, self.mangle_type_args(args))
                 }
             }
-            Type::TypeParam(name) => format!("param_{}", name),
-            Type::TypeVar(id) => format!("var_{}", id),
+            Type::TypeParam(name) => format!("param_{name}"),
+            Type::TypeVar(id) => format!("var_{id}"),
             Type::Named(name) => name.clone(),
             Type::Unknown => "unknown".to_string(),
             Type::Never => "never".to_string(),
@@ -517,7 +517,7 @@ impl MonomorphizationContext {
                     .map(|t| self.mangle_type(t))
                     .collect::<Vec<_>>()
                     .join("_");
-                format!("tuple_{}", type_mangles)
+                format!("tuple_{type_mangles}")
             }
             Type::Reference { mutable, inner } => {
                 format!(

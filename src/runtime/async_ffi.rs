@@ -48,7 +48,7 @@ fn validate_future_pointer<T>(ptr: *mut T, type_name: &str) -> Result<NonNull<T>
         return Err(SecurityError::AsyncPointerViolation {
             pointer_address: ptr as usize,
             validation_failed: "null pointer".to_string(),
-            message: format!("Null pointer passed for {}", type_name),
+            message: format!("Null pointer passed for {type_name}"),
         });
     }
 
@@ -122,7 +122,7 @@ pub extern "C" fn script_spawn(future_ptr: *mut BoxedFuture<()>) -> u64 {
         Ok(task_id) => task_id,
         Err(error) => {
             // Log security violation and return error code
-            eprintln!("SECURITY VIOLATION in script_spawn: {}", error);
+            eprintln!("SECURITY VIOLATION in script_spawn: {error}");
             0 // Return 0 to indicate failure
         }
     }
@@ -184,7 +184,7 @@ fn script_spawn_impl(future_ptr: *mut BoxedFuture<()>) -> Result<u64, SecurityEr
                 return Err(SecurityError::AsyncFFIViolation {
                     function_name: "script_spawn".to_string(),
                     violation_type: "executor spawn failed".to_string(),
-                    message: format!("Failed to spawn task: {}", e),
+                    message: format!("Failed to spawn task: {e}"),
                 });
             }
         }
@@ -204,7 +204,7 @@ pub extern "C" fn script_block_on(future_ptr: *mut BoxedFuture<Value>) -> *mut V
         Ok(value_ptr) => value_ptr,
         Err(error) => {
             // Log security violation and return null
-            eprintln!("SECURITY VIOLATION in script_block_on: {}", error);
+            eprintln!("SECURITY VIOLATION in script_block_on: {error}");
             std::ptr::null_mut()
         }
     }
@@ -249,7 +249,7 @@ fn script_block_on_impl(future_ptr: *mut BoxedFuture<Value>) -> Result<*mut Valu
             return Err(SecurityError::AsyncFFIViolation {
                 function_name: "script_block_on".to_string(),
                 violation_type: "blocking execution failed".to_string(),
-                message: format!("Failed to block on future: {}", e),
+                message: format!("Failed to block on future: {e}"),
             });
         }
     };
@@ -287,7 +287,7 @@ pub extern "C" fn script_block_on_timeout(
         Ok(value_ptr) => value_ptr,
         Err(error) => {
             // Log security violation and return null
-            eprintln!("SECURITY VIOLATION in script_block_on_timeout: {}", error);
+            eprintln!("SECURITY VIOLATION in script_block_on_timeout: {error}");
             std::ptr::null_mut()
         }
     }
@@ -360,7 +360,7 @@ fn script_block_on_timeout_impl(
             return Err(SecurityError::AsyncFFIViolation {
                 function_name: "script_block_on_timeout".to_string(),
                 violation_type: "blocking execution failed".to_string(),
-                message: format!("Failed to block on future with timeout: {}", e),
+                message: format!("Failed to block on future with timeout: {e}"),
             });
         }
     }
@@ -377,7 +377,7 @@ pub extern "C" fn script_sleep(millis: u64) -> *mut BoxedFuture<()> {
         Ok(future_ptr) => future_ptr,
         Err(error) => {
             // Log security violation and return null
-            eprintln!("SECURITY VIOLATION in script_sleep: {}", error);
+            eprintln!("SECURITY VIOLATION in script_sleep: {error}");
             std::ptr::null_mut()
         }
     }
@@ -419,7 +419,7 @@ fn script_sleep_impl(millis: u64) -> Result<*mut BoxedFuture<()>, SecurityError>
             return Err(SecurityError::AsyncFFIViolation {
                 function_name: "script_sleep".to_string(),
                 violation_type: "timer creation failed".to_string(),
-                message: format!("Failed to create timer: {}", e),
+                message: format!("Failed to create timer: {e}"),
             });
         }
     };
@@ -436,7 +436,7 @@ fn script_sleep_impl(millis: u64) -> Result<*mut BoxedFuture<()>, SecurityError>
 pub extern "C" fn script_run_executor() {
     let result = script_run_executor_impl();
     if let Err(error) = result {
-        eprintln!("SECURITY VIOLATION in script_run_executor: {}", error);
+        eprintln!("SECURITY VIOLATION in script_run_executor: {error}");
     }
 }
 
@@ -463,7 +463,7 @@ fn script_run_executor_impl() -> Result<(), SecurityError> {
             return Err(SecurityError::AsyncFFIViolation {
                 function_name: "script_run_executor".to_string(),
                 violation_type: "executor run failed".to_string(),
-                message: format!("Failed to run executor: {}", e),
+                message: format!("Failed to run executor: {e}"),
             });
         }
     }
@@ -475,7 +475,7 @@ fn script_run_executor_impl() -> Result<(), SecurityError> {
 pub extern "C" fn script_shutdown_executor() {
     let result = script_shutdown_executor_impl();
     if let Err(error) = result {
-        eprintln!("SECURITY VIOLATION in script_shutdown_executor: {}", error);
+        eprintln!("SECURITY VIOLATION in script_shutdown_executor: {error}");
     }
 }
 
@@ -502,7 +502,7 @@ fn script_shutdown_executor_impl() -> Result<(), SecurityError> {
             return Err(SecurityError::AsyncFFIViolation {
                 function_name: "script_shutdown_executor".to_string(),
                 violation_type: "executor shutdown failed".to_string(),
-                message: format!("Failed to shutdown executor: {}", e),
+                message: format!("Failed to shutdown executor: {e}"),
             });
         }
     }
@@ -537,7 +537,7 @@ pub extern "C" fn script_join_all(
         Ok(future_ptr) => future_ptr,
         Err(error) => {
             // Log security violation and return null
-            eprintln!("SECURITY VIOLATION in script_join_all: {}", error);
+            eprintln!("SECURITY VIOLATION in script_join_all: {error}");
             std::ptr::null_mut()
         }
     }
@@ -617,7 +617,7 @@ fn script_join_all_impl(
             return Err(SecurityError::AsyncFFIViolation {
                 function_name: "script_join_all".to_string(),
                 violation_type: "join_all creation failed".to_string(),
-                message: format!("Failed to create JoinAll: {}", e),
+                message: format!("Failed to create JoinAll: {e}"),
             });
         }
     };

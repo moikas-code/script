@@ -270,7 +270,7 @@ impl DependencyGraph {
                 if self.has_cycle(module) {
                     return Err(ModuleError::new(
                         crate::module::ModuleErrorKind::CircularDependency,
-                        format!("Circular dependency detected starting from {}", module),
+                        format!("Circular dependency detected starting from {module}"),
                     ));
                 }
                 self.topological_sort_util(module, &mut visited, &mut stack);
@@ -375,7 +375,7 @@ mod tests {
         // Create a temporary file
         let temp_file = NamedTempFile::new().unwrap();
         let file_path = temp_file.into_temp_path().to_path_buf();
-        let source = format!("// Module {}", name);
+        let source = format!("// Module {name}");
         std::fs::write(&file_path, &source).unwrap();
 
         let metadata = ModuleMetadata::default();

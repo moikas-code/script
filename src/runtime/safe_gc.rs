@@ -453,7 +453,7 @@ impl SecurityEventHandler for DefaultSecurityHandler {
                 );
             }
             SecurityEvent::MemoryCorruption { details } => {
-                eprintln!("Security Alert: Memory corruption detected - {}", details);
+                eprintln!("Security Alert: Memory corruption detected - {details}");
             }
         }
     }

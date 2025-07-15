@@ -24,7 +24,7 @@ impl PackageResolver {
         };
 
         // Register default sources
-        resolver.register_source("registry", Box::new(RegistrySource::new()));
+        resolver.register_source("registry", Box::new(RegistrySource::new_with_config(&resolver.config)));
         resolver.register_source("git", Box::new(GitSource::new()));
         resolver.register_source("path", Box::new(PathSource::new()));
 
@@ -319,12 +319,20 @@ pub struct RegistrySource {
 }
 
 impl RegistrySource {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             base_url: "https://packages.script.org".to_string(),
         }
     }
 
+    pub fn new_with_config(config: &ResolverConfig) -> Self {
+        Self {
+            base_url: config.registry_url.clone(),
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn with_url(url: impl Into<String>) -> Self {
         Self {
             base_url: url.into(),
@@ -381,11 +389,11 @@ impl PackageSource for GitSource {
             let mut source_url = url.clone();
 
             if let Some(branch) = branch {
-                source_url.push_str(&format!("#branch={}", branch));
+                source_url.push_str(&format!("#branch={branch}"));
             } else if let Some(tag) = tag {
-                source_url.push_str(&format!("#tag={}", tag));
+                source_url.push_str(&format!("#tag={tag}"));
             } else if let Some(rev) = rev {
-                source_url.push_str(&format!("#rev={}", rev));
+                source_url.push_str(&format!("#rev={rev}"));
             }
 
             Ok(ResolvedPackage::new(
@@ -462,6 +470,7 @@ pub type ProgressCallback = Box<dyn Fn(u64, u64) + Send + Sync>;
 
 /// Download manager for handling package downloads
 pub struct DownloadManager {
+    #[allow(dead_code)]
     config: DownloadConfig,
 }
 
@@ -503,6 +512,7 @@ impl DownloadManager {
 
 /// Configuration for download operations
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DownloadConfig {
     pub timeout_seconds: u64,
     pub max_retries: u32,
@@ -606,7 +616,7 @@ mod tests {
 
         let progress: ProgressCallback = Box::new(move |current, total| {
             progress_called_clone.store(true, std::sync::atomic::Ordering::SeqCst);
-            println!("Progress: {}/{}", current, total);
+            println!("Progress: {current}/{total}");
         });
 
         manager

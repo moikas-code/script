@@ -159,7 +159,7 @@ impl SecureAsyncTranslator {
         // Validate alignment
         if alignment > 8 || !alignment.is_power_of_two() {
             return Err(AsyncTranslationError::AlignmentError(
-                format!("Invalid alignment: {}", alignment)
+                format!("Invalid alignment: {alignment}")
             ));
         }
 
@@ -211,7 +211,7 @@ impl SecureAsyncTranslator {
         // Check bounds
         if offset + access_size > region.size {
             return Err(AsyncTranslationError::StateCorruption(
-                format!("Memory access out of bounds: offset {} + size {} > region size {}", offset, access_size, region.size)
+                format!("Memory access out of bounds: offset {} + size {} > region size {offset, access_size, region.size}")
             ));
         }
 
@@ -444,14 +444,14 @@ impl SecureAsyncTranslator {
         // Validate offset bounds
         if offset > MAX_ASYNC_STATE_SIZE - 8 {
             return Err(AsyncTranslationError::StateCorruption(
-                format!("Store offset too large: {}", offset)
+                format!("Store offset too large: {offset}")
             ));
         }
 
         // Validate alignment
         if offset % 4 != 0 {
             return Err(AsyncTranslationError::AlignmentError(
-                format!("Unaligned store offset: {}", offset)
+                format!("Unaligned store offset: {offset}")
             ));
         }
 
@@ -480,14 +480,14 @@ impl SecureAsyncTranslator {
         let type_size = self.calculate_type_size(ty)?;
         if offset > MAX_ASYNC_STATE_SIZE - type_size {
             return Err(AsyncTranslationError::StateCorruption(
-                format!("Load offset too large: {}", offset)
+                format!("Load offset too large: {offset}")
             ));
         }
 
         // Validate alignment
         if offset % 4 != 0 {
             return Err(AsyncTranslationError::AlignmentError(
-                format!("Unaligned load offset: {}", offset)
+                format!("Unaligned load offset: {offset}")
             ));
         }
 
@@ -598,7 +598,7 @@ impl SecureAsyncTranslator {
         // Validate field index
         if field_index > 100 {
             return Err(AsyncTranslationError::StateCorruption(
-                format!("Invalid field index: {}", field_index)
+                format!("Invalid field index: {field_index}")
             ));
         }
 

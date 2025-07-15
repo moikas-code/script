@@ -108,13 +108,13 @@ pub fn unary_op_result_type(operand: &Type, op: &UnaryOp) -> Result<Type, String
         UnaryOp::Not => match operand {
             Type::Bool => Ok(Type::Bool),
             Type::Unknown => Ok(Type::Bool),
-            _ => Err(format!("Cannot apply logical NOT to type {}", operand)),
+            _ => Err(format!("Cannot apply logical NOT to type {operand}")),
         },
         UnaryOp::Minus => match operand {
             Type::I32 => Ok(Type::I32),
             Type::F32 => Ok(Type::F32),
             Type::Unknown => Ok(Type::Unknown),
-            _ => Err(format!("Cannot negate type {}", operand)),
+            _ => Err(format!("Cannot negate type {operand}")),
         },
     }
 }

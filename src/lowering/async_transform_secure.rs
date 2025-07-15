@@ -696,7 +696,7 @@ fn analyze_suspend_points(
                 let state_id = context.next_state_id()?;
 
                 // Create resume block with validation
-                let resume_block = poll_func.create_block(format!("resume_{}", state_id));
+                let resume_block = poll_func.create_block(format!("resume_{state_id}"));
 
                 // Validate future value
                 if future.0 == u32::MAX {
@@ -762,7 +762,7 @@ fn transform_blocks_secure(
                         let mapped_future = context.get_mapped_value(*future);
 
                         // Store the future in state with validation
-                        let future_var_name = format!("__future_{}", state_id);
+                        let future_var_name = format!("__future_{state_id}");
                         let future_offset = context.allocate_variable(future_var_name, 8)?;
 
                         builder.build_store_async_state(state_ptr, future_offset, mapped_future);
@@ -778,7 +778,7 @@ fn transform_blocks_secure(
                         builder.build_return(Some(pending));
 
                         // Create resume block with validation
-                        let resume_block = poll_func.create_block(format!("resume_{}", state_id));
+                        let resume_block = poll_func.create_block(format!("resume_{state_id}"));
                         builder.set_current_block(resume_block);
 
                         // Load and poll the future again with error handling
@@ -807,9 +807,9 @@ fn transform_blocks_secure(
                             ))?;
 
                         let continue_block =
-                            poll_func.create_block(format!("continue_{}", state_id));
+                            poll_func.create_block(format!("continue_{state_id}"));
                         let still_pending =
-                            poll_func.create_block(format!("still_pending_{}", state_id));
+                            poll_func.create_block(format!("still_pending_{state_id}"));
 
                         builder.build_cond_branch(is_ready_cond, continue_block, still_pending);
 

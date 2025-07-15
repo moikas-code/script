@@ -690,7 +690,7 @@ impl<'a> FunctionTranslator<'a> {
 
                 // Panic block - trap with bounds check error
                 builder.switch_to_block(panic_block);
-                builder.ins().trap(TrapCode::HeapOutOfBounds);
+                builder.ins().trap(TrapCode::HEAP_OUT_OF_BOUNDS);
 
                 // Continue in ok block
                 builder.switch_to_block(ok_block);
@@ -728,7 +728,7 @@ impl<'a> FunctionTranslator<'a> {
 
                 // Panic block - trap with null pointer error
                 builder.switch_to_block(panic_block);
-                builder.ins().trap(TrapCode::NullReference);
+                builder.ins().trap(TrapCode::INTEGER_OVERFLOW);
 
                 // Continue in ok block
                 builder.switch_to_block(ok_block);
@@ -1255,7 +1255,7 @@ impl<'a> FunctionTranslator<'a> {
             .map_err(|e| {
                 Error::new(
                     ErrorKind::RuntimeError,
-                    format!("Failed to declare string data: {}", e),
+                    format!("Failed to declare string data: {e}"),
                 )
             })?;
 
@@ -1274,7 +1274,7 @@ impl<'a> FunctionTranslator<'a> {
         self.module.define_data(data_id, &data_desc).map_err(|e| {
             Error::new(
                 ErrorKind::RuntimeError,
-                format!("Failed to define string data: {}", e),
+                format!("Failed to define string data: {e}"),
             )
         })?;
 
@@ -1688,7 +1688,7 @@ impl<'a> FunctionTranslator<'a> {
 
                 // Invalid discriminant - trap
                 builder.switch_to_block(invalid_block);
-                builder.ins().trap(TrapCode::IntegerOverflow); // Indicate corrupted enum
+                builder.ins().trap(TrapCode::INTEGER_OVERFLOW); // Indicate corrupted enum
 
                 // Valid discriminant - branch on Ok/Err
                 builder.switch_to_block(valid_block);
@@ -1755,7 +1755,7 @@ impl<'a> FunctionTranslator<'a> {
 
                 // Invalid discriminant - trap
                 builder.switch_to_block(invalid_block);
-                builder.ins().trap(TrapCode::IntegerOverflow);
+                builder.ins().trap(TrapCode::INTEGER_OVERFLOW);
 
                 // Valid discriminant - branch on Some/None
                 builder.switch_to_block(valid_block);

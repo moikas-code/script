@@ -76,7 +76,7 @@ async fn install_from_manifest(manifest_path: &PathBuf, force: bool) -> PackageR
     pb.set_length(build_order.len() as u64);
 
     for package_name in build_order {
-        pb.set_message(format!("Installing {}", package_name));
+        pb.set_message(format!("Installing {package_name}"));
 
         // Install package
         // In a real implementation, this would download and extract the package
@@ -86,7 +86,7 @@ async fn install_from_manifest(manifest_path: &PathBuf, force: bool) -> PackageR
             // Simulate package installation
             pb.inc(1);
         } else {
-            pb.set_message(format!("Using cached {}", package_name));
+            pb.set_message(format!("Using cached {package_name}"));
             pb.inc(1);
         }
     }

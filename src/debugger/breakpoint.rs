@@ -251,7 +251,7 @@ impl Breakpoint {
             }
             BreakpointType::Exception { exception_type } => {
                 if let Some(ex_type) = exception_type {
-                    format!("Exception breakpoint for {}", ex_type)
+                    format!("Exception breakpoint for {ex_type}")
                 } else {
                     "Exception breakpoint for all exceptions".to_string()
                 }

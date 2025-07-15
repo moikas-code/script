@@ -3,8 +3,10 @@
 //! This benchmark suite evaluates the performance of the Bacon-Rajan
 //! cycle detection algorithm under various conditions and workloads.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 use script::runtime::{gc, type_registry, ScriptRc, Value};
+use script::runtime::Traceable;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -88,15 +90,15 @@ impl script::runtime::type_registry::RegisterableType for TestNode {
 
 /// Create a simple cycle: A -> B -> A
 fn create_simple_cycle() -> (ScriptRc<TestNode>, ScriptRc<TestNode>) {
-    let node_a = ScriptRc::new(TestNode::new(1, 100));
-    let node_b = ScriptRc::new(TestNode::new(2, 200));
+    let mut node_a = ScriptRc::new(TestNode::new(1, 100));
+    let mut node_b = ScriptRc::new(TestNode::new(2, 200));
 
     // Create cycle: A -> B -> A
-    unsafe {
-        let mut a_ref = node_a.get_mut();
+    {
+        let a_ref = node_a.get_mut().expect("Failed to get mutable reference");
         a_ref.add_child(node_b.clone());
 
-        let mut b_ref = node_b.get_mut();
+        let b_ref = node_b.get_mut().expect("Failed to get mutable reference");
         b_ref.set_parent(node_a.clone());
     }
 
@@ -114,22 +116,27 @@ fn create_complex_cycle(size: usize) -> Vec<ScriptRc<TestNode>> {
 
     // Create interconnections
     for i in 0..size {
-        unsafe {
-            let mut node_ref = nodes[i].get_mut();
+        // Collect references before getting mutable access
+        let children_to_add: Vec<_> = (1..=3)
+            .map(|j| nodes[(i + j) % size].clone())
+            .collect();
+        
+        let parent_to_set = if i > 0 {
+            nodes[i - 1].clone()
+        } else {
+            nodes[size - 1].clone()
+        };
 
-            // Add some children (creating forward references)
-            for j in 1..=3 {
-                let child_idx = (i + j) % size;
-                node_ref.add_child(nodes[child_idx].clone());
+        {
+            let node_ref = nodes[i].get_mut().expect("Failed to get mutable reference");
+
+            // Add children
+            for child in children_to_add {
+                node_ref.add_child(child);
             }
 
-            // Add parent (creating back reference)
-            if i > 0 {
-                node_ref.set_parent(nodes[i - 1].clone());
-            } else {
-                // Create cycle by connecting last to first
-                node_ref.set_parent(nodes[size - 1].clone());
-            }
+            // Set parent
+            node_ref.set_parent(parent_to_set);
 
             // Add some data values
             for k in 0..5 {
@@ -166,14 +173,16 @@ fn create_chain_cycle(depth: usize) -> Vec<ScriptRc<TestNode>> {
 
     // Link chain
     for i in 0..depth {
-        unsafe {
-            let mut node_ref = nodes[i].get_mut();
-            if i < depth - 1 {
-                node_ref.add_child(nodes[i + 1].clone());
-            } else {
-                // Close the cycle
-                node_ref.add_child(nodes[0].clone());
-            }
+        let child_to_add = if i < depth - 1 {
+            nodes[i + 1].clone()
+        } else {
+            // Close the cycle
+            nodes[0].clone()
+        };
+        
+        {
+            let node_ref = nodes[i].get_mut().expect("Failed to get mutable reference");
+            node_ref.add_child(child_to_add);
         }
     }
 

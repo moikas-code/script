@@ -238,7 +238,7 @@ mod tests {
 
         // Add more commands than max size
         for i in 0..5 {
-            history.add(format!("command {}", i));
+            history.add(format!("command {i}"));
         }
 
         assert_eq!(history.len(), 3);

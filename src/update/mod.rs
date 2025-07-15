@@ -4,11 +4,14 @@ use self_update::cargo_crate_version;
 use std::io::{self, Write};
 
 mod updater;
+mod docs;
+
 pub use updater::UpdateError;
+pub use docs::{DocumentSynchronizer, ValidationRules, ValidationIssue};
 
 /// Check if an update is available
 pub fn check_update() -> Result<Option<String>, UpdateError> {
-    println!("{} {}", "Checking for updates...".bright_blue(), "⏳");
+    println!("{} {}", "⏳", "Checking for updates...".bright_blue());
 
     let current_version = cargo_crate_version!();
     let updater = updater::ScriptUpdater::new()?;
@@ -68,7 +71,7 @@ pub fn update(force: bool) -> Result<(), UpdateError> {
     }
 
     // Perform update
-    println!("\n{} {}", "Downloading update...".bright_blue(), "📦");
+    println!("\n{} {}", "📦", "Downloading update...".bright_blue());
 
     let updater = updater::ScriptUpdater::new()?;
     let status = updater.update()?;
@@ -194,4 +197,98 @@ pub fn rollback() -> Result<(), UpdateError> {
             Ok(())
         }
     }
+}
+
+/// Update documentation to sync with current project state
+pub fn update_docs() -> Result<(), UpdateError> {
+    println!("{} {}", "📚", "Updating documentation...".bright_blue());
+
+    let current_dir = std::env::current_dir()
+        .map_err(|e| UpdateError::IoError(format!("Failed to get current directory: {}", e)))?;
+    
+    let mut synchronizer = DocumentSynchronizer::new(&current_dir)?;
+    let updated_files = synchronizer.synchronize()?;
+
+    if updated_files.is_empty() {
+        println!("{} {}", "✓".green(), "Documentation is already up to date!".bright_white());
+    } else {
+        println!(
+            "\n{} {} {}:",
+            "✓".green().bold(),
+            "Updated".bright_white(),
+            format!("{} files", updated_files.len()).cyan()
+        );
+        for file in &updated_files {
+            println!("  {} {}", "•".bright_blue(), file.bright_white());
+        }
+    }
+
+    Ok(())
+}
+
+/// Check documentation consistency
+pub fn check_docs_consistency() -> Result<(), UpdateError> {
+    println!("{} {}", "🔍", "Checking documentation consistency...".bright_blue());
+
+    let current_dir = std::env::current_dir()
+        .map_err(|e| UpdateError::IoError(format!("Failed to get current directory: {}", e)))?;
+    
+    let synchronizer = DocumentSynchronizer::new(&current_dir)?;
+    let rules = ValidationRules::default();
+    let issues = synchronizer.validate(&rules)?;
+
+    if issues.is_empty() {
+        println!("{} {}", "✓".green(), "Documentation is consistent!".bright_white());
+    } else {
+        println!(
+            "\n{} {} {}:",
+            "⚠".yellow().bold(),
+            "Found".bright_white(),
+            format!("{} issues", issues.len()).yellow()
+        );
+        
+        for issue in &issues {
+            match issue {
+                ValidationIssue::VersionMismatch { file, expected, found } => {
+                    println!(
+                        "  {} Version mismatch in {}: expected {}, found {}",
+                        "•".red(),
+                        file.bright_white(),
+                        expected.green(),
+                        found.red()
+                    );
+                }
+                ValidationIssue::MissingVersionReference { file } => {
+                    println!(
+                        "  {} Missing version reference in {}",
+                        "•".red(),
+                        file.bright_white()
+                    );
+                }
+                ValidationIssue::MissingCommand { command } => {
+                    println!(
+                        "  {} Missing command documentation: {}",
+                        "•".red(),
+                        command.bright_white()
+                    );
+                }
+                ValidationIssue::SyncMismatch { file1, file2 } => {
+                    println!(
+                        "  {} Sync mismatch between {} and {}",
+                        "•".red(),
+                        file1.bright_white(),
+                        file2.bright_white()
+                    );
+                }
+            }
+        }
+        
+        println!(
+            "\n{} {}",
+            "💡".bright_yellow(),
+            "Run 'script update --docs' to fix these issues.".italic()
+        );
+    }
+
+    Ok(())
 }

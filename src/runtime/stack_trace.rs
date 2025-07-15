@@ -198,7 +198,7 @@ impl StackTrace {
                     rest.trim().to_string()
                 }
             } else {
-                format!("frame_{}", i)
+                format!("frame_{i}")
             };
 
             frames.push(StackFrame::new(function_name));

@@ -256,7 +256,7 @@ impl MemorySafetyContext {
         def_span: Span,
     ) -> Result<(), String> {
         // Create lifetime for this variable
-        let lifetime_name = format!("'{}", name);
+        let lifetime_name = format!("'{name}");
         let lifetime = self.create_lifetime(lifetime_name, def_span, false);
 
         let var_info = MemorySafetyInfo {
@@ -368,7 +368,7 @@ impl MemorySafetyContext {
 
             // Create borrow lifetime
             let borrow_lifetime =
-                self.create_lifetime(format!("'borrow_{}", name), borrow_span, false);
+                self.create_lifetime(format!("'borrow_{name}"), borrow_span, false);
 
             let borrow_state = OwnershipState::Borrowed {
                 lifetime: borrow_lifetime,
@@ -417,7 +417,7 @@ impl MemorySafetyContext {
 
             // Create borrow lifetime
             let borrow_lifetime =
-                self.create_lifetime(format!("'mut_borrow_{}", name), borrow_span, false);
+                self.create_lifetime(format!("'mut_borrow_{name}"), borrow_span, false);
 
             let borrow_state = OwnershipState::MutBorrowed {
                 lifetime: borrow_lifetime,

@@ -29,20 +29,20 @@ required-features = ["mcp"]
 [dependencies]
 colored = "3.0"
 unicode-width = "0.2"
-cranelift = "0.110"
+cranelift = "0.121"
 cranelift-module = "0.121"
 cranelift-jit = "0.121"
 cranelift-native = "0.121"
 # Debug symbol support
-gimli = { version = "0.31", features = ["write"] }
-target-lexicon = "0.12"
+gimli = { version = "0.32", features = ["write"] }
+target-lexicon = "0.13"
 rand = "0.8"
 toml = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 semver = "1.0"
 walkdir = "2.0"
 sha2 = "0.10"
-thiserror = "1.0"
+thiserror = "2.0"
 dirs = "6.0"
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
@@ -73,6 +73,9 @@ uuid = { version = "1.10", features = ["v4", "serde"] }
 ctrlc = "3.4"
 # Logging
 log = "0.4"
+# Fuzzing dependencies (optional)
+libfuzzer-sys = { version = "0.4", optional = true }
+arbitrary = { version = "1.0", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.6"
@@ -83,9 +86,13 @@ quickcheck_macros = "1.0"
 
 [features]
 # Enable fuzzing support
-fuzzing = []
+fuzzing = ["libfuzzer-sys", "arbitrary"]
 # Enable MCP (Model Context Protocol) support
 mcp = []
+
+# Benchmark configurations
+# CI-safe benchmarks (implemented features): lexer, parser
+# Development-only benchmarks (unimplemented features): compilation, features, scenarios, memory, tooling
 
 [[bench]]
 name = "lexer"
@@ -95,6 +102,7 @@ harness = false
 name = "parser"
 harness = false
 
+# WARNING: The following benchmarks test unimplemented features and may hang in CI
 [[bench]]
 name = "compilation"
 harness = false

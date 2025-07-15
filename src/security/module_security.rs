@@ -343,7 +343,7 @@ impl ModuleSecurityEnforcer {
         let context = self.contexts.get(module).ok_or_else(|| {
             Error::new(
                 ErrorKind::SecurityViolation,
-                format!("No security context for module {}", module),
+                format!("No security context for module {module}"),
             )
         })?;
 
@@ -353,7 +353,7 @@ impl ModuleSecurityEnforcer {
             .map_err(|_violation| {
                 Error::new(
                     ErrorKind::SecurityViolation,
-                    format!("Resource limit exceeded for module {}", module),
+                    format!("Resource limit exceeded for module {module}"),
                 )
             })?;
 
@@ -365,7 +365,7 @@ impl ModuleSecurityEnforcer {
                     context.check_capability(&capability).map_err(|_e| {
                         Error::new(
                             ErrorKind::ModuleError,
-                            format!("File read permission denied for module {}", module),
+                            format!("File read permission denied for module {module}"),
                         )
                     })?;
                 }
@@ -376,7 +376,7 @@ impl ModuleSecurityEnforcer {
                     context.check_capability(&capability).map_err(|_e| {
                         Error::new(
                             ErrorKind::ModuleError,
-                            format!("File write permission denied for module {}", module),
+                            format!("File write permission denied for module {module}"),
                         )
                     })?;
                 }
@@ -387,7 +387,7 @@ impl ModuleSecurityEnforcer {
                     context.check_capability(&capability).map_err(|_e| {
                         Error::new(
                             ErrorKind::ModuleError,
-                            format!("Network connection denied for module {}", module),
+                            format!("Network connection denied for module {module}"),
                         )
                     })?;
                 }
@@ -403,7 +403,7 @@ impl ModuleSecurityEnforcer {
         let caller_context = self.contexts.get(caller).ok_or_else(|| {
             Error::new(
                 ErrorKind::ModuleError,
-                format!("No security context for calling module {}", caller),
+                format!("No security context for calling module {caller}"),
             )
         })?;
 

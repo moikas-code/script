@@ -87,15 +87,32 @@ pub struct PanicBoundary {
 }
 
 /// Initialize the panic handler
-pub fn initialize() {
-    let mut handler = PANIC_HANDLER.write().unwrap();
+/// 
+/// # Errors
+/// 
+/// Returns an error if the panic handler could not be initialized due to lock contention
+/// or other system-level issues.
+pub fn initialize() -> Result<(), crate::runtime::RuntimeError> {
+    let mut handler = PANIC_HANDLER.write()
+        .map_err(|_| crate::runtime::RuntimeError::InvalidOperation(
+            "Failed to acquire write lock on panic handler for initialization".to_string()
+        ))?;
     *handler = Some(Arc::new(PanicHandler::new()));
+    Ok(())
 }
 
 /// Shutdown the panic handler
-pub fn shutdown() {
-    let mut handler = PANIC_HANDLER.write().unwrap();
+/// 
+/// # Errors
+/// 
+/// Returns an error if the panic handler could not be shut down due to lock contention.
+pub fn shutdown() -> Result<(), crate::runtime::RuntimeError> {
+    let mut handler = PANIC_HANDLER.write()
+        .map_err(|_| crate::runtime::RuntimeError::InvalidOperation(
+            "Failed to acquire write lock on panic handler for shutdown".to_string()
+        ))?;
     *handler = None;
+    Ok(())
 }
 
 /// Record a panic
@@ -548,11 +565,11 @@ impl StackTrace {
             output.push_str(&format!("  {} at {}", i, frame.function));
 
             if let Some(file) = &frame.file {
-                output.push_str(&format!("\n      {}", file));
+                output.push_str(&format!("\n      {file}"));
                 if let Some(line) = frame.line {
-                    output.push_str(&format!(":{}", line));
+                    output.push_str(&format!(":{line}"));
                     if let Some(col) = frame.column {
-                        output.push_str(&format!(":{}", col));
+                        output.push_str(&format!(":{col}"));
                     }
                 }
             }
@@ -764,7 +781,7 @@ where
                 "Unknown panic".to_string()
             };
 
-            Err(format!("Panic in boundary: {}", panic_msg))
+            Err(format!("Panic in boundary: {panic_msg}"))
         }
     }
 }
@@ -809,7 +826,7 @@ mod tests {
         // Record more panics than the limit
         for i in 0..15 {
             let info = PanicInfo {
-                message: format!("Panic {}", i),
+                message: format!("Panic {i}"),
                 location: None,
                 backtrace: "".to_string(),
                 timestamp: Instant::now(),

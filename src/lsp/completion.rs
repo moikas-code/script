@@ -449,7 +449,7 @@ fn format_function_signature(name: &str, ty: &Type) -> String {
                 .join(", ");
             format!("fn {}({}) -> {}", name, param_str, format_type(ret))
         }
-        _ => format!("fn {}", name),
+        _ => format!("fn {name}"),
     }
 }
 
@@ -475,7 +475,7 @@ fn format_type(ty: &Type) -> String {
         Type::Unknown => "?".to_string(),
         Type::Never => "never".to_string(),
         Type::Future(inner) => format!("Future<{}>", format_type(inner)),
-        Type::TypeVar(id) => format!("T{}", id),
+        Type::TypeVar(id) => format!("T{id}"),
         Type::Generic { name, args } => {
             if args.is_empty() {
                 name.clone()

@@ -249,7 +249,7 @@ impl From<AsyncResourceViolation> for SecurityError {
                 SecurityError::AsyncTaskLimitExceeded {
                     current_tasks: 0,
                     task_limit: 0,
-                    message: format!("System overloaded: {}", reason),
+                    message: format!("System overloaded: {reason}"),
                 }
             }
         }

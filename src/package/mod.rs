@@ -22,7 +22,7 @@ pub use dependency::{
 };
 pub use manifest::{BinaryConfig, BuildConfig, LibraryConfig, PackageConfig, PackageManifest};
 pub use registry::{PackageInfo, PackageRegistry, PublishResult, RegistryClient};
-pub use resolver::{PackageResolver, PackageSource, ResolverConfig};
+pub use resolver::{DownloadConfig, DownloadManager, PackageResolver, PackageSource, ProgressCallback, ResolvedPackage, ResolverConfig};
 pub use version::{Version, VersionConstraint, VersionSpec};
 
 use crate::error::Error;
@@ -377,7 +377,7 @@ impl PackageManager {
 
         let output = clone_cmd
             .output()
-            .map_err(|e| PackageError::Registry(format!("Failed to execute git: {}", e)))?;
+            .map_err(|e| PackageError::Registry(format!("Failed to execute git: {e}")))?;
 
         if !output.status.success() {
             return Err(PackageError::Registry(format!(
@@ -394,7 +394,7 @@ impl PackageManager {
                 .current_dir(clone_path)
                 .output()
                 .map_err(|e| {
-                    PackageError::Registry(format!("Failed to execute git checkout: {}", e))
+                    PackageError::Registry(format!("Failed to execute git checkout: {e}"))
                 })?;
 
             if !checkout_output.status.success() {

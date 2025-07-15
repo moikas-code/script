@@ -64,7 +64,7 @@ fn main() {
         eprintln!("   or: {} doc [source dir] [output dir]", args[0]);
         eprintln!("   or: {} debug [commands...]", args[0]);
         eprintln!(
-            "   or: {} update [--check|--force|--version <version>]",
+            "   or: {} update [--check|--force|--version <version>|--docs|--check-consistency]",
             args[0]
         );
         eprintln!("   or: {} --version", args[0]);
@@ -174,12 +174,12 @@ fn run_repl() {
     match EnhancedRepl::new() {
         Ok(mut repl) => {
             if let Err(e) = repl.run() {
-                eprintln!("REPL error: {}", e);
+                eprintln!("REPL error: {e}");
                 process::exit(1);
             }
         }
         Err(e) => {
-            eprintln!("Failed to initialize REPL: {}", e);
+            eprintln!("Failed to initialize REPL: {e}");
             eprintln!("Falling back to basic REPL...");
             run_basic_repl();
         }
@@ -306,7 +306,8 @@ fn tokenize_and_display(source: &str, file_name: Option<&str>) {
 }
 
 fn print_tokens(tokens: &[Token]) {
-    println!("\n{}", "Tokens:".green().bold());
+    println!();
+    println!("{}", "Tokens:".green().bold());
     println!("{}", "-".repeat(60));
 
     for token in tokens {
@@ -327,7 +328,7 @@ fn print_tokens(tokens: &[Token]) {
         }
     }
 
-    println!("{}\n", "-".repeat(60));
+    println!("{}", "-".repeat(60));
 }
 
 fn parse_and_display(source: &str, file_name: Option<&str>) {
@@ -368,10 +369,11 @@ fn parse_and_display(source: &str, file_name: Option<&str>) {
     let mut parser = Parser::new(tokens);
     match parser.parse() {
         Ok(program) => {
-            println!("\n{}", "AST:".green().bold());
+            println!();
+            println!("{}", "AST:".green().bold());
             println!("{}", "-".repeat(60));
             println!("{program}");
-            println!("{}\n", "-".repeat(60));
+            println!("{}", "-".repeat(60));
         }
         Err(mut error) => {
             if let Some(name) = file_name {
@@ -1361,6 +1363,20 @@ fn run_update_command(args: &[String]) {
                     process::exit(1);
                 }
             },
+            "--docs" => match update::update_docs() {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}: {}", "Error".red().bold(), e);
+                    process::exit(1);
+                }
+            },
+            "--check-consistency" => match update::check_docs_consistency() {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}: {}", "Error".red().bold(), e);
+                    process::exit(1);
+                }
+            },
             _ => {
                 eprintln!(
                     "{}: Unknown update option '{}'",
@@ -1368,7 +1384,7 @@ fn run_update_command(args: &[String]) {
                     args[2]
                 );
                 eprintln!(
-                    "Usage: {} update [--check|--force|--list|--version <version>|--rollback]",
+                    "Usage: {} update [--check|--force|--list|--version <version>|--rollback|--docs|--check-consistency]",
                     args[0]
                 );
                 process::exit(1);

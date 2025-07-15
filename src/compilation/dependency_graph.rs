@@ -234,7 +234,7 @@ impl DependencyAnalyzer {
             // Relative import
             if let Some(current_path) = current_module_path {
                 let current_dir = current_path.parent().ok_or_else(|| {
-                    format!("Cannot resolve relative import from root: {}", module_path)
+                    format!("Cannot resolve relative import from root: {module_path}")
                 })?;
 
                 let relative_path = Path::new(module_path);

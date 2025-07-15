@@ -82,7 +82,7 @@ impl ScriptUpdater {
         let target_version = if version.starts_with('v') {
             version.to_string()
         } else {
-            format!("v{}", version)
+            format!("v{version}")
         };
 
         // Backup current binary before updating
@@ -103,11 +103,11 @@ impl ScriptUpdater {
 
         if let Some(backup) = backup_path {
             let current_exe = std::env::current_exe()
-                .map_err(|e| UpdateError::Rollback(format!("Failed to get current exe: {}", e)))?;
+                .map_err(|e| UpdateError::Rollback(format!("Failed to get current exe: {e}")))?;
 
             // Copy backup over current executable
             fs::copy(&backup, &current_exe)
-                .map_err(|e| UpdateError::Rollback(format!("Failed to restore backup: {}", e)))?;
+                .map_err(|e| UpdateError::Rollback(format!("Failed to restore backup: {e}")))?;
 
             // Extract version from backup filename
             let version = backup

@@ -3,12 +3,11 @@
 //! This module provides common utilities for testing generic structs, enums,
 //! and functions throughout the test suite.
 
-use script::error::Error;
+use script::error::{Error, ErrorKind};
 use script::lexer::Lexer;
 use script::parser::{Parser, Program};
-use script::semantic::{GenericInstantiation, SemanticAnalyzer};
+use script::semantic::SemanticAnalyzer;
 use script::types::Type;
-use std::collections::HashMap;
 
 /// Result of analyzing a generic program
 #[derive(Debug)]
@@ -48,7 +47,10 @@ pub fn compile_generic_program(source: &str) -> Result<AnalyzedProgram, Error> {
     let errors = if result.is_err() {
         vec![result.unwrap_err()]
     } else {
-        analyzer.errors().to_vec()
+        analyzer.errors()
+            .iter()
+            .map(|e| Error::new(ErrorKind::SemanticError, e.kind.to_string()))
+            .collect()
     };
 
     Ok(AnalyzedProgram {

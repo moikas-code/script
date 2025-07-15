@@ -200,7 +200,7 @@ impl Assertion {
 
         if diff > tolerance {
             Err(
-                AssertionError::new(format!("Values differ by more than {}", tolerance))
+                AssertionError::new(format!("Values differ by more than {tolerance}"))
                     .with_values(expected, actual)
                     .into(),
             )

@@ -81,7 +81,7 @@ impl ClosureOptimizer {
             self.closure_values.insert(value_id, function_id.clone());
 
             // Check if we have a Cranelift function for this closure
-            let closure_func_name = format!("closure_{}", function_id);
+            let closure_func_name = format!("closure_{function_id}");
             if let Some(func_id) = translator.func_ids.get(&closure_func_name) {
                 self.known_closures.insert(function_id.clone(), *func_id);
             }
@@ -299,7 +299,7 @@ impl ClosureOptimizer {
                 return Some(*func_id);
             }
             // Try to find it in the module
-            let closure_func_name = format!("closure_{}", function_id);
+            let closure_func_name = format!("closure_{function_id}");
             if let Some(func_id) = translator.func_ids.get(&closure_func_name) {
                 return Some(*func_id);
             }
@@ -647,7 +647,7 @@ mod tests {
         ));
 
         // Not optimizable: too many captures
-        let many_captures: Vec<_> = (0..5).map(|i| (format!("var{}", i), ValueId(i))).collect();
+        let many_captures: Vec<_> = (0..5).map(|i| (format!("var{i}"), ValueId(i))).collect();
         assert!(!optimizer.is_optimizable_closure(&[], &many_captures));
     }
 }

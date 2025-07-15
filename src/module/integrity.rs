@@ -160,7 +160,7 @@ impl ModuleIntegrityVerifier {
 
         // Read module content
         let content = fs::read(file_path).map_err(|e| {
-            ModuleError::file_error(format!("Failed to read module for verification: {}", e))
+            ModuleError::file_error(format!("Failed to read module for verification: {e}"))
         })?;
 
         // Compute checksum
@@ -202,7 +202,7 @@ impl ModuleIntegrityVerifier {
 
         // Get file metadata
         let metadata = fs::metadata(path)
-            .map_err(|e| ModuleError::file_error(format!("Failed to get file metadata: {}", e)))?;
+            .map_err(|e| ModuleError::file_error(format!("Failed to get file metadata: {e}")))?;
 
         Ok(ModuleChecksum {
             sha256,

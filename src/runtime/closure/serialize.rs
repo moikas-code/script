@@ -318,7 +318,7 @@ impl ClosureSerializer {
         let json_string = serde_json::to_string(&json_data).map_err(|e| {
             Error::new(
                 ErrorKind::RuntimeError,
-                format!("JSON serialization failed: {}", e),
+                format!("JSON serialization failed: {e}"),
             )
         })?;
 
@@ -354,7 +354,7 @@ impl ClosureSerializer {
         let json_string = serde_json::to_string(&json_data).map_err(|e| {
             Error::new(
                 ErrorKind::RuntimeError,
-                format!("JSON serialization failed: {}", e),
+                format!("JSON serialization failed: {e}"),
             )
         })?;
 
@@ -537,10 +537,10 @@ impl ClosureSerializer {
     /// Deserialize closure from JSON format
     fn deserialize_closure_json(&self, data: &[u8]) -> Result<Closure> {
         let json_str = std::str::from_utf8(data)
-            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {}", e)))?;
+            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {e}")))?;
 
         let json_data: serde_json::Value = serde_json::from_str(json_str)
-            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("JSON parse error: {}", e)))?;
+            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("JSON parse error: {e}")))?;
 
         let function_id = json_data["function_id"]
             .as_str()
@@ -573,10 +573,10 @@ impl ClosureSerializer {
     /// Deserialize optimized closure from JSON format
     fn deserialize_optimized_closure_json(&self, data: &[u8]) -> Result<OptimizedClosure> {
         let json_str = std::str::from_utf8(data)
-            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {}", e)))?;
+            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {e}")))?;
 
         let json_data: serde_json::Value = serde_json::from_str(json_str)
-            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("JSON parse error: {}", e)))?;
+            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("JSON parse error: {e}")))?;
 
         let function_id = json_data["function_id"]
             .as_str()
@@ -635,7 +635,7 @@ impl ClosureSerializer {
             return Err(Error::new(ErrorKind::RuntimeError, "Invalid compact data"));
         }
         let function_id = String::from_utf8(data[cursor..cursor + id_len].to_vec())
-            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {}", e)))?;
+            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {e}")))?;
         cursor += id_len;
 
         // Read parameters
@@ -667,7 +667,7 @@ impl ClosureSerializer {
                 String::from_utf8(data[cursor..cursor + param_len].to_vec()).map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Invalid parameter UTF-8: {}", e),
+                        format!("Invalid parameter UTF-8: {e}"),
                     )
                 })?;
             parameters.push(param);
@@ -701,7 +701,7 @@ impl ClosureSerializer {
                     String::from_utf8(data[cursor..cursor + name_len].to_vec()).map_err(|e| {
                         Error::new(
                             ErrorKind::RuntimeError,
-                            format!("Invalid capture name UTF-8: {}", e),
+                            format!("Invalid capture name UTF-8: {e}"),
                         )
                     })?;
                 cursor += name_len;
@@ -739,7 +739,7 @@ impl ClosureSerializer {
             return Err(Error::new(ErrorKind::RuntimeError, "Invalid compact data"));
         }
         let function_id = String::from_utf8(data[cursor..cursor + id_len].to_vec())
-            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {}", e)))?;
+            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {e}")))?;
         cursor += id_len;
 
         // Read parameters
@@ -771,7 +771,7 @@ impl ClosureSerializer {
                 String::from_utf8(data[cursor..cursor + param_len].to_vec()).map_err(|e| {
                     Error::new(
                         ErrorKind::RuntimeError,
-                        format!("Invalid parameter UTF-8: {}", e),
+                        format!("Invalid parameter UTF-8: {e}"),
                     )
                 })?;
             parameters.push(param);
@@ -805,7 +805,7 @@ impl ClosureSerializer {
                     String::from_utf8(data[cursor..cursor + name_len].to_vec()).map_err(|e| {
                         Error::new(
                             ErrorKind::RuntimeError,
-                            format!("Invalid capture name UTF-8: {}", e),
+                            format!("Invalid capture name UTF-8: {e}"),
                         )
                     })?;
                 cursor += name_len;
@@ -855,7 +855,7 @@ impl ClosureSerializer {
         let bytes = &data[*cursor..*cursor + len];
         *cursor += len;
         String::from_utf8(bytes.to_vec())
-            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {}", e)))
+            .map_err(|e| Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {e}")))
     }
 
     fn read_u32(&self, data: &[u8], cursor: &mut usize) -> Result<u32> {
@@ -1081,7 +1081,7 @@ impl ClosureSerializer {
                     ));
                 }
                 let s = String::from_utf8(data[*cursor..*cursor + len].to_vec()).map_err(|e| {
-                    Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {}", e))
+                    Error::new(ErrorKind::RuntimeError, format!("Invalid UTF-8: {e}"))
                 })?;
                 *cursor += len;
                 Ok(Value::String(s))
@@ -1305,7 +1305,7 @@ mod tests {
 
         let mut large_captured = HashMap::new();
         for i in 0..100 {
-            large_captured.insert(format!("var_{}", i), Value::I32(i));
+            large_captured.insert(format!("var_{i}"), Value::I32(i));
         }
 
         let closure = Closure::new(

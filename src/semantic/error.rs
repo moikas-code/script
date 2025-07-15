@@ -146,7 +146,7 @@ impl SemanticError {
 
     /// Add a help message to this error (convenience method)
     pub fn with_help(self, help: String) -> Self {
-        self.with_note(format!("help: {}", help))
+        self.with_note(format!("help: {help}"))
     }
 
     /// Generate helpful suggestions for common error patterns
@@ -179,8 +179,8 @@ impl SemanticError {
             SemanticErrorKind::TypeMismatch { expected, found } => {
                 // Enhanced type mismatch formatting with detailed comparison
                 self = self.with_note("╭─ Type Mismatch Details".to_string());
-                self = self.with_note(format!("│ Expected: {}", expected));
-                self = self.with_note(format!("│    Found: {}", found));
+                self = self.with_note(format!("│ Expected: {expected}"));
+                self = self.with_note(format!("│    Found: {found}"));
                 self = self.with_note("╰─".to_string());
 
                 // Contextual suggestions based on type patterns
@@ -312,7 +312,7 @@ impl SemanticError {
                 );
             }
             SemanticErrorKind::MissingReturn { expected } => {
-                self = self.with_note(format!("❌ Missing return statement for type {}", expected));
+                self = self.with_note(format!("❌ Missing return statement for type {expected}"));
                 self = self
                     .with_help("💡 Add a return statement at the end of the function".to_string());
                 self =
@@ -328,7 +328,7 @@ impl SemanticError {
                 }
             }
             SemanticErrorKind::InvalidIndexType(ty) => {
-                self = self.with_note(format!("❌ Invalid index type: {}", ty));
+                self = self.with_note(format!("❌ Invalid index type: {ty}"));
                 self = self.with_help("💡 Array and string indices must be integers".to_string());
                 if ty.to_string() == "String" {
                     self = self

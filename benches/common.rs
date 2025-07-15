@@ -36,7 +36,12 @@ impl BenchmarkAdapter {
         let type_info = HashMap::new();
 
         // Lower to IR
-        let mut lowerer = AstLowerer::new(symbol_table, type_info, Vec::new());
+        let mut lowerer = AstLowerer::new(
+            symbol_table,
+            type_info,
+            Vec::new(),
+            HashMap::new(),
+        );
         let ir_module = lowerer
             .lower_program(&program)
             .map_err(|e| format!("IR lowering error: {:?}", e))?;

@@ -228,13 +228,13 @@ impl Dependency {
                 tag,
                 rev,
             } => {
-                let mut id = format!("git+{}", url);
+                let mut id = format!("git+{url}");
                 if let Some(branch) = branch {
-                    id.push_str(&format!("#branch={}", branch));
+                    id.push_str(&format!("#branch={branch}"));
                 } else if let Some(tag) = tag {
-                    id.push_str(&format!("#tag={}", tag));
+                    id.push_str(&format!("#tag={tag}"));
                 } else if let Some(rev) = rev {
-                    id.push_str(&format!("#rev={}", rev));
+                    id.push_str(&format!("#rev={rev}"));
                 }
                 id
             }
