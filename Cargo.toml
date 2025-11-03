@@ -64,7 +64,7 @@ reqwest = { version = "0.12", features = ["json", "blocking"] }
 # Self-update functionality
 self_update = { version = "0.42", features = ["archive-tar", "archive-zip", "compression-flate2"] }
 # Unicode security dependencies
-unicode-normalization = "0.1.22"
+unicode-normalization = "0.1.25"
 # Performance dependencies
 ahash = "0.8"
 # UUID generation
